@@ -1,6 +1,6 @@
 # How the race engineer thinks
 
-One radio call, traced from the game's UDP packets to the words on the iPad, and the design
+One radio call, traced from the game's UDP packets to the words on the screen, and the design
 choices along the way. File paths are clickable on GitHub.
 
 > **"DEFEND vs SAINZ – threat medium – watch into corner 2"**
@@ -65,7 +65,7 @@ Every prediction is scored against a naive baseline on real races by `npm run ac
 
 [`buildSnapshot()`](../src/server/snapshot.js) flattens all of it into one JSON object, the entire
 contract with the browser, and [`httpServer.js`](../src/server/httpServer.js) pushes it over a
-WebSocket at a fixed 10 Hz whatever the game's rate, which caps CPU on the PC and battery on the iPad.
+WebSocket at a fixed 10 Hz whatever the game's rate, which caps CPU on the PC and battery on the device showing it.
 The snapshot also carries `focus`, from [`focus.js`](../src/state/focus.js): which screen matters
 right now (Battle, because of the DEFEND call), with hold times so it doesn't flap.
 

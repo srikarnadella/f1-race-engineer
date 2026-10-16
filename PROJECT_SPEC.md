@@ -3,7 +3,7 @@
 ## 1. Vision
 
 A live race-engineer dashboard for F1 26, driven by the game's UDP telemetry, viewable on a second
-device (iPad) over the LAN. Two audiences, both load-bearing on the design:
+device (tablet, phone, laptop or second monitor) over the LAN. Two audiences, both load-bearing on the design:
 
 1. **The driver (primary user)** — needs reactive, glanceable, *relative-to-the-field* insights while
    actually driving: pit timing, tyre/fuel risk, pace trend vs. the cars around them.
@@ -39,7 +39,7 @@ flowchart LR
     FIELD --> SNAP["Snapshot builder"]
     INSIGHT --> SNAP
     SNAP -->|~10Hz JSON| WS["WebSocket broadcast"]
-    WS --> DASH["Dashboard (iPad / recruiter's browser)"]
+    WS --> DASH["Dashboard (any browser / the demo site)"]
     LISTEN -.->|raw capture| RECORD["Recorder (.f1log)"]
     RECORD -.-> REPLAY["Replayer feeds LISTEN's output path"]
 ```
@@ -47,7 +47,7 @@ flowchart LR
 **Why a bridge process, not a native iOS app:** iOS restricts raw UDP broadcast/multicast listening
 (multicast needs a special Apple entitlement). A small server on the same PC as the game receives the
 UDP stream directly (`127.0.0.1`, no multicast involved) and re-serves derived state over WebSocket —
-an iPad then just needs Safari. This sidesteps the restriction entirely and is also what makes a public,
+any device then just needs a browser. This sidesteps the restriction entirely and is also what makes a public,
 install-free demo possible later.
 
 **Why FieldModel tracks every car, not just the player's:** "pace relative to everyone around me" and
@@ -105,7 +105,7 @@ f1-race-engineer/
 │   │   ├── focus.js                  [DONE] which screen matters now, for auto-switch (with hold times)
 │   │   └── insightEngine.js          [DONE] radio-call rules + strategy summary (PUSH/HOLD/BOX)
 │   ├── analysis/                     [DONE] battleCall, attackForecast, batteryProjection, strategyOptions (SC/VSC),
-│   │                                        lapCompare, rivals
+│   │                                        pitTiming (which lap to box on), lapCompare, rivals
 │   ├── ml/                           [DONE] logistic.js (from scratch), overtakeFeatures.js, tyreModel.js, models/*.json
 │   ├── capture/
 │   │   ├── logFile.js                [DONE] .f1log(.gz) read/write
@@ -123,8 +123,9 @@ f1-race-engineer/
 ├── public/                           [DONE] Epic B dashboard - plain HTML/CSS/JS, no build
 │   ├── index.html                           shell: screen tabs, custom-screen editor, settings, radio band/toasts
 │   ├── manifest.json, icon-*.png            Add to Home Screen
-│   ├── widgets.js                           13 widgets (drive, battle, radio, call, rejoin, options, ...); formatting only
-│   ├── app.js                               6 screens + layouts, custom screen, auto-switch, settings, voice, WebSocket client
+│   ├── ask.js                               "Ask the engineer": question -> one-sentence answer from the snapshot
+│   ├── widgets.js                           14 widgets (drive, battle, radio, call, rejoin, options, ...); formatting only
+│   ├── app.js                               6 screens + layouts, custom screen, auto-switch, settings, voice + Ask, WebSocket client
 │   └── style.css                            dark cockpit theme; every card a size container, cq-scaled type
 ├── scripts/
 │   ├── generate-demo-session.js      [DONE] writes demo/synthetic-session.f1log (gitignored, ~17MB)
@@ -133,7 +134,7 @@ f1-race-engineer/
 │   ├── accuracy.js                   [DONE] npm run accuracy: predictions vs what happened -> docs/accuracy.md
 │   └── build-demo-site.js            [DONE] npm run site: records the engine's snapshots for the demo website
 ├── docs/                             how-it-works, ux, accuracy, ml-overtake-model
-├── site/                             demo website: index.html (landing page) + race-data/ (a real race for the Debrief)
+├── site/                             demo website: index.html (landing page) + race-data/ (a real race: the live screens and the Debrief)
 ├── .github/workflows/pages.yml       tests, builds the recording (npm run site), publishes to GitHub Pages
 ├── test/                             [DONE] node:test - parser round-trips, state + insight rules
 ├── demo/                             [PARTIAL] synthetic session generated on demand; real capture still TODO (Epic C)
@@ -168,6 +169,9 @@ f1-race-engineer/
     rejoin: { position, positionsLost, inTraffic, ahead: { carIndex, name, gapMs, tyreCompound, tyresAgeLaps },
               behind: { ... } } | null,                      // null in the pits, or while gaps are unknown
     options: { situation, lapsLeft, freeStop, options: [ ... ] } | null,   // only under SC / VSC / red flag
+    pitTiming: { bestId, bestInLaps, cheapestInLaps, marginS, headline, label,
+                 options: [ { id: box-<k>|stay, inLaps, compound, compoundName, rejoinPosition, inTraffic,
+                              finishPosition, lossS, best } ] } | null,   // green flag, dry, tyre data trusted
     weather: { trackState, nextChange, timeline[], crossover, accuracy, ... } | null,
     battle: { attack, defend /* ML: { p, level } */, attackForecast, defendForecast, call,
               battery: { you, ahead, behind /* { nowPct, atLinePct, trendPctPerLap, basis } */ } },
@@ -227,7 +231,7 @@ a backend framework — plain HTML/CSS/JS is sufficient and keeps the "share wit
   recruiter clicks a link and sees it moving — no clone, no install. Hosting choice is an open decision,
   flagged in §11.
 - **For other sim racers**: `npx` or packaged start script that auto-detects the LAN IP and prints/QR's
-  the dashboard URL, so pairing an iPad doesn't require typing an IP address.
+  the dashboard URL, so pairing a device doesn't require typing an IP address.
 - **License**: MIT, so "download and use it yourself" is frictionless.
 
 ## 10. Build order / dependency graph

@@ -1,17 +1,17 @@
 # F1 26 Race Engineer
 
 A live race-engineer dashboard for **F1 26**, driven by the game's UDP telemetry and viewed on a
-second screen — an iPad propped next to the wheel, a phone, any browser on your network.
+second screen: a tablet by the wheel, a phone, a laptop or a second monitor. Any browser on your network.
 
 It doesn't just mirror numbers. It watches **the whole field** and calls what matters right now:
 *box this lap*, *P8 is 0.5s behind — defend*, *Hamilton just pitted — undercut threat*, *fuel margin
 down to 0.3 laps*.
 
-**[▶ Try the interactive demo in your browser](https://srikarnadella.github.io/f1-race-engineer/)** - the real dashboard replaying a race, no install.
+**[▶ Try the interactive demo in your browser](https://srikarnadella.github.io/f1-race-engineer/)** - the real dashboard replaying a real F1 26 race at Monaco, no install.
 
 ![The Drive screen: the call, the fight either side with projected battery, the radio, four projections](docs/screenshots/drive.png)
 
-| Battle | Strategy | Weather | Debrief (a real Monaco race) |
+| Battle | Strategy (pit timing) | Weather | Debrief |
 |---|---|---|---|
 | ![Battle](docs/screenshots/battle.png) | ![Strategy](docs/screenshots/strategy.png) | ![Weather](docs/screenshots/weather.png) | ![Debrief](docs/screenshots/debrief.png) |
 
@@ -46,15 +46,15 @@ turn on **Settings → Auto-switch screens** to watch it follow the race on its 
 1. **PC:** `npm install`, then `npm start`. It prints the dashboard address for your LAN:
    ```
    [server] dashboard: http://localhost:8080
-   [server] on your iPad / LAN: http://192.168.1.23:8080
+   [server] on other devices (same Wi-Fi): http://192.168.1.23:8080
    [udp] listening for F1 telemetry on 0.0.0.0:20777
    ```
-   and a QR code of that address: scan it with the iPad's camera. (It's also in the dashboard under
+   and a QR code of that address: scan it with a phone or tablet camera. (It's also in the dashboard under
    **Settings**.)
 2. **F1 26:** *Settings → Telemetry Settings* → UDP Telemetry **On**, UDP Port **20777**,
    UDP Send Rate **20Hz** or higher, UDP Format **2025** (or later).
    If the game runs on a console or another PC, set *UDP IP Address* to this PC's LAN IP.
-3. **iPad:** open the LAN address in Safari. *Share → Add to Home Screen* gives a full-screen app.
+3. **Any device on the same Wi-Fi:** open that address in a browser. *Add to Home Screen* gives a full-screen app.
 
 | Option | Default | |
 |---|---|---|
@@ -117,9 +117,9 @@ reading the calls out so you don't have to look at all. Switch with the buttons 
 |---|---|---|
 | Live | **Drive** | The one to leave up. The PUSH / HOLD / BOX call and why; the battle call (ATTACK / DEFEND / CLOSE IN); the car ahead and behind: gap, where it's heading, **pass / threat chance (ML)**, **projected battery at the line**, 2026 **Overtake mode**; the engineer's latest radio call; four projections: laps to the tyre cliff, where you'd rejoin if you boxed now, weather in laps, and the top car-setting tip |
 | Live | **Battle** | The fight either side, big enough to read from the seat: the battle call, gaps and closing rates, pass / threat chance, and **each car's battery now and projected at the line against yours** |
-| Live | **Strategy** | "Should I box?": rejoin position and who you'd come out next to, the call, the cars around you (the stay-out / box options side by side under a safety car), the **tyre model**, weather |
+| Live | **Strategy** | "Should I box?": rejoin position and who you'd come out next to, the call, **pit timing** (which lap to box on; the stay-out / box options side by side under a safety car), the **tyre model**, weather |
 | Live | **Weather** | The forecast in laps, big; tyre life, the call and where a stop would put you beside it |
-| Live | **Custom** | Your own layout from the same widgets: Battle, Radio, Call, Rejoin, Tyre strategy, Adjust (bias / diff / ERS changes by corner), Weather, Around you, Pace, Lap delta |
+| Live | **Custom** | Your own layout from the same widgets: Battle, Radio, Call, Rejoin, Pit timing, Tyre strategy, Adjust (bias / diff / ERS changes by corner), Weather, Around you, Pace, Lap delta |
 | After | **Debrief** | **Summary:** the official result and points, best and theoretical-best lap, your sectors against the fastest in the field, pace, consistency, lap chart, **position chart for the whole field**, every lap, stints. **Lap compare:** any two laps as speed / throttle / brake traces and a running delta, with corner-by-corner reasons ("braked 20 m later, 18 km/h down on exit"). **Rivals:** where you lose time to the fastest car, by mini-sector. **Models:** what the ML has learned, its calibration, and whether it beats the simple baseline |
 
 **Auto-switch (Settings):** the screen follows the race. Battle when you're in a fight, Strategy at a
@@ -127,8 +127,23 @@ pit call or under a safety car, Weather when rain is a few laps away, Debrief af
 to your own screen. It holds each screen long enough not to flap, the rail says why it switched, and
 picking a screen yourself pauses it for 30 s. Off by default.
 
+**Ask the engineer:** tap **Ask** (or press **Q**, or map a wheel button to it) and say "gap behind?",
+"when do I box?", "tyres?", "rain?", "fuel?", "battery?" or "what's the call?". The answer is spoken and
+shown, built from the live data on the device itself (`public/ask.js`): nothing leaves your network.
+Browsers only open the microphone on a secure page, which means the PC's own browser (`localhost`) or
+the https demo site; on other devices the same questions are one-tap buttons.
+
 Things it works out for you:
 
+- **Pit timing: which lap to box on.** Every lap from now to the flag is raced out against the field:
+  your tyres wearing at the rate learned from the whole field, a fresh set starting as much quicker as
+  the game itself estimates, rivals on their own pace and wear (and a stop if they still owe one), and
+  every place lost at the rejoin charged as track position you'd have to win back. It shows this lap,
+  the next two and the best one, each with rejoin and finish position and the time it costs against the
+  best. A new best has to hold for 5 s before it replaces the old one, and when the best lap is this one
+  by a clear margin it becomes a **BOX** call. On a real Monaco race, from three laps out, it picked
+  lap 14; the stop was actually made on lap 13. That's a sanity check, not a score: scoring it needs
+  races where the same stop was made on different laps.
 - **If you box now:** your rejoin position, who you'd come out behind or ahead of, and whether that's
   in traffic. It uses the pit loss *measured from rivals' stops this session* (in-lap + out-lap vs their
   clean pace), with a per-track estimate until someone stops.
@@ -179,7 +194,7 @@ Two models, both trained on real F1 26 data and both written from scratch (no ML
   than both, which is why it isn't done.
 - **Tyre degradation, learned live from the whole field.** Each car's clean laps against its own average,
   fuel-corrected with the measured burn rate, robust to traffic laps, so the estimate firms up in a few laps
-  instead of waiting for your own stint. It feeds the cliff projection and "a new set repays a stop in ~4 laps".
+  instead of waiting for your own stint. It feeds the cliff projection and pit timing.
 
 - **Attack forecast (experimental): when and where the car behind will come at you**, and your best
   chance on the car ahead. *When* comes from the closing rate ("now" inside a second, otherwise "in ~2
@@ -234,14 +249,14 @@ flowchart LR
 ```
 
 - **A bridge process, not a native app.** iOS restricts raw UDP/multicast listening. A small Node
-  process next to the game takes the UDP stream and serves derived state over WebSocket, so the
-  iPad only needs Safari, and a hosted demo is possible.
+  process next to the game takes the UDP stream and serves derived state over WebSocket, so any
+  device only needs a browser, and a hosted demo is possible.
 - **The whole field, not just your car.** Lap Data and Telemetry packets already carry all 22 cars,
   so gaps, closing rates and undercut detection cost nothing extra to parse.
 - **One `parsePacket()` for live and replay.** The demo can't drift from the real tool because it
   is the real tool, fed from a file.
 - **Fixed 10Hz output.** The game sends up to 60Hz; the dashboard gets 10Hz snapshots whatever the
-  input rate, to cap CPU on the PC and battery on the iPad.
+  input rate, to cap CPU on the PC and battery on the device.
 - **Resilient to format drift.** Per-car struct sizes are checked against packet length, so if EA
   adds a field, that packet type logs a warning instead of crashing the bridge.
 - **The browser makes no decisions.** `public/app.js` only formats. Gaps, the strategy call and every
@@ -272,6 +287,7 @@ npm run demo:regenerate  # rebuild the synthetic demo session after changing src
 npm run train:overtake   # retrain + re-evaluate the overtake model from captures/
 npm run accuracy         # score the predictions on captures/, writes docs/accuracy.md
 npm run site             # build the demo website data; npm run site -- --serve to preview it
+npm run site -- --race captures/<folder>   # put a real race on the demo site (laps 11-16 live)
 node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay a real race, 8x
 ```
 
@@ -288,7 +304,8 @@ changes reaching the feed. Still open:
 - Forecast offsets: "minutes from now" vs "from the session start" needs a race where the weather changes.
 - More races for the models: the overtake model ties the gap-only baseline, the attack forecast ties the
   busiest-corner rule, and only 3 green-flag stops have scored the rejoin model.
-- A real recorded race as the public demo (the synthetic one has no 2026 data).
+- Scoring pit timing: it needs races where the same stop was made on different laps.
+- Voice questions on a tablet need https on the bridge (browsers only open the mic on a secure page).
 - An in-game overlay (needs a desktop wrapper; parked in favour of voice).
 
 ## License

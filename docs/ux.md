@@ -23,7 +23,7 @@ Every choice below follows from that.
 |---|---|---|
 | **Drive** | Leaving up all race | One composite card: the call, the battle either side, the latest radio call, four projections. Under a safety car its middle turns into the strategy options. |
 | **Battle** | A fight either side | The battle card takes two thirds of the screen: gaps big enough to read from the seat, the battle call as a banner, the pass / threat chance, and **projected battery at the line** for both cars against yours. |
-| **Strategy** | "Should I box?" | "If you box now" and the call on top; the cars around you (or the SC/VSC options) in the big slot; tyre model and weather at the side. |
+| **Strategy** | "Should I box?" | "If you box now" and the call on top; **pit timing** (which lap to box on, or the SC/VSC options) in the big slot; tyre model and weather at the side. |
 | **Weather** | Rain on the way | The forecast gets the big slot (bars = rain chance, in laps), with the tyre projection and the box call beside it. |
 | **Custom** | Your own layout | Any widget in any slot, 13 layouts, saved on the device. |
 | **Debrief** | After the flag | Official result, lap chart, position chart, sectors vs the fastest, lap compare, rivals, models. |
@@ -47,6 +47,21 @@ for it. When on:
 - **You always win.** Picking a screen yourself pauses auto-switch for 30 s; the rail shows the
   countdown, and tapping it resumes.
 - **It says why.** The rail chip reads "AUTO · Battle · DEFEND vs SAINZ", so a switch never feels random.
+
+## Ask the engineer
+
+A question answered out loud beats any layout when your eyes are on the track. **Ask** (or **Q**) opens
+a small panel at the bottom, not a modal: the screen stays live behind it. Speak, or tap one of nine
+questions; the answer is one sentence, spoken even with the radio voice off (you asked for it), and
+the panel closes itself after 15 s. Answers are built from the snapshot already on the device, so
+they're instant and offline.
+
+## Pit timing
+
+The answer first ("Box in 3 laps", big, green), then the rows that justify it: this lap, the next two,
+and the best. Each row is the decision's consequences in the driver's terms (rejoin position, traffic,
+finish position, seconds lost), not the model's inputs. A new best has to hold 5 s before it replaces
+the old one, and near-ties keep the last pick, so the headline doesn't flicker as gaps move.
 
 ## Options considered and rejected
 

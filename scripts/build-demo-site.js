@@ -5,17 +5,20 @@
 // it back with no bridge running. GitHub Pages hosts it (.github/workflows/pages.yml).
 //
 //   npm run site                                 build site/demo-data/ (CI does this on deploy)
-//   npm run site -- --race captures/<folder>     also (re)build site/race-data/ from a real race
+//   npm run site -- --race captures/<folder>     (re)build site/race-data/ from a real race
+//   npm run site -- --race <dir> --laps 11-16    ...the live screens play laps 11 to 16 (the default)
 //   npm run site -- --serve                      preview at http://localhost:8099
 //
-// Live screens come from the synthetic demo session (every call fires in five
-// laps), rebuilt on every deploy - it's deterministic, so it isn't committed.
-// A real race for the Debrief needs a capture CI doesn't have, so --race
-// writes it to site/race-data/, which is committed. Only derived data
-// (driver names from the game, lap times, traces) goes there, never the raw capture.
+// The live screens play a stretch of a real race, and the Debrief shows all
+// of it. That needs a capture CI doesn't have, so --race writes what the
+// dashboard received to site/race-data/, which is committed - derived data
+// only (game driver names, lap times, traces), never the raw capture. Re-run
+// it after changing what the engine sends. Without race-data (a fresh
+// clone), the synthetic demo session stands in.
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const zlib = require('zlib');
 const { readLog } = require('../src/capture/logFile');
 const { parsePacket } = require('../src/udp/parsePacket');
 const { createFieldModel } = require('../src/state/fieldModel');
@@ -32,6 +35,7 @@ const DEMO_LOG = path.join(ROOT, 'demo', 'synthetic-session.f1log');
 const TICK_MS = 100;
 const SAMPLE_MS = 500; // 2 snapshots a second - plenty for a demo, a fifth of the live rate
 const FIELD_EACH_SIDE = 3; // the dashboard only shows the cars around you from `field`
+const RACE = 15; // sessionType
 
 // Floats to 3 decimals: the dashboard never shows more, and it halves the file.
 const round = (_k, v) => (typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
@@ -40,6 +44,7 @@ const write = (name, data, dir = OUT) => {
   fs.writeFileSync(path.join(dir, name), JSON.stringify(data, round));
   return fs.statSync(path.join(dir, name)).size;
 };
+const kb = (n) => `${Math.round(n / 1024)} KB`;
 
 // The engine stamps everything with Date.now(); run it on the recording's clock.
 const realNow = Date.now;
@@ -86,58 +91,91 @@ async function replay(file, { onTick, everyMs = TICK_MS }) {
   return { fm, ie, ra, debrief };
 }
 
+// Records what the dashboard would have received, twice a second, while
+// keep(snapshot) says so - with `field` cut to the cars it actually shows.
+function sampler(keep) {
+  const frames = [];
+  let lastSample = -Infinity;
+  let tyre = null;
+  const onTick = ({ tMs, fm, ie, ra, focus }) => {
+    const snap = buildSnapshot(fm, ie, ra, focus);
+    if (tMs - lastSample < SAMPLE_MS || !snap.player || !keep(snap)) return;
+    lastSample = tMs;
+    tyre = snap.analysis.tyreModel;
+    const { updatedAtMs, field, ...rest } = snap;
+    const me = field.findIndex((c) => c.isPlayer);
+    const near = field.slice(Math.max(0, me - FIELD_EACH_SIDE), me + FIELD_EACH_SIDE + 1);
+    frames.push({ t: tMs, s: { ...rest, source: 'demo', capturing: false, field: near } });
+  };
+  return { frames, onTick, tyre: () => tyre };
+}
+
+// Each session's lap compare and rivals, as the bridge's API would answer them.
+const debriefSessions = (debrief, dir) => debrief.view().sessions.filter((x) => x.laps.length).map((x) => {
+  write(`api/compare-${x.id}.json`, debrief.compare(x.id, null, null), dir);
+  write(`api/rivals-${x.id}.json`, debrief.rivals(x.id), dir);
+  return { ...x, live: false };
+});
+
+// A real race: the live screens for the player's race laps [from, to], the
+// Debrief for all of it. Written to site/race-data/ (committed).
+async function buildRace(raceDir, [from, to]) {
+  const file = ['packets.f1log.gz', 'packets.f1log'].map((f) => path.join(raceDir, f)).find((f) => fs.existsSync(f));
+  if (!file) throw new Error(`no packets.f1log(.gz) in ${raceDir}`);
+  console.log(`[site] replaying ${path.relative(ROOT, file)} (takes a minute)...`);
+  const live = sampler((snap) => snap.session && snap.session.sessionType === RACE && snap.player.currentLapNum >= from && snap.player.currentLapNum <= to);
+  const race = await replay(file, { onTick: live.onTick });
+  if (!live.frames.length) throw new Error(`no race laps ${from}-${to} in ${raceDir}`);
+  // From zero, with the game's pauses (menus, a flashback being picked)
+  // squeezed out - nobody watches a frozen demo for a minute.
+  let t = 0;
+  const frames = live.frames.map((fr, i, all) => {
+    if (i) t += Math.min(fr.t - all[i - 1].t, 2 * SAMPLE_MS);
+    return { t, s: fr.s };
+  });
+  fs.rmSync(RACE_OUT, { recursive: true, force: true });
+  fs.mkdirSync(RACE_OUT, { recursive: true });
+  fs.writeFileSync(path.join(RACE_OUT, 'snapshots.json.gz'), zlib.gzipSync(JSON.stringify(frames, round), { level: 9 }));
+  write('sessions.json', debriefSessions(race.debrief, RACE_OUT), RACE_OUT);
+  write('models-tyre.json', live.tyre(), RACE_OUT);
+  console.log(`[site] race: ${frames.length} snapshots (laps ${from}-${to}), ${kb(fs.statSync(path.join(RACE_OUT, 'snapshots.json.gz')).size)} gzipped`);
+}
+
+// No real race committed: the synthetic session, from once the rivals'
+// pace is known - a visitor should land mid-race, not on "needs a clean lap".
+async function buildSynthetic() {
+  if (!fs.existsSync(DEMO_LOG)) require('child_process').execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'generate-demo-session.js')], { stdio: 'inherit' });
+  const live = sampler(neighboursHavePace);
+  const demo = await replay(DEMO_LOG, { onTick: live.onTick });
+  return { frames: live.frames, sessions: debriefSessions(demo.debrief, OUT), tyre: live.tyre() };
+}
+
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--serve')) return serve();
   const raceIdx = args.indexOf('--race');
-  const raceDir = raceIdx >= 0 ? path.resolve(args[raceIdx + 1]) : null;
+  const lapsIdx = args.indexOf('--laps');
+  const laps = (lapsIdx >= 0 ? args[lapsIdx + 1] : '11-16').split('-').map(Number);
+  if (raceIdx >= 0) await buildRace(path.resolve(args[raceIdx + 1]), laps);
 
-  if (!fs.existsSync(DEMO_LOG)) require('child_process').execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'generate-demo-session.js')], { stdio: 'inherit' });
   fs.rmSync(OUT, { recursive: true, force: true });
-
-  // 1. The live screens: the synthetic session, sampled as the dashboard sees it.
-  const frames = [];
-  let lastSample = -Infinity;
-  let lastAnalysis = null;
-  const demo = await replay(DEMO_LOG, {
-    onTick: ({ tMs, fm, ie, ra, focus }) => {
-      const snap = buildSnapshot(fm, ie, ra, focus);
-      if (snap.analysis) lastAnalysis = snap.analysis;
-      // Start once the rivals' pace is known: a visitor should land mid-race, not on "needs a clean lap".
-      if (tMs - lastSample < SAMPLE_MS || !snap.player || !neighboursHavePace(snap)) return;
-      lastSample = tMs;
-      const { updatedAtMs, field, ...rest } = snap;
-      const me = field.findIndex((c) => c.isPlayer);
-      const near = field.slice(Math.max(0, me - FIELD_EACH_SIDE), me + FIELD_EACH_SIDE + 1);
-      frames.push({ t: tMs, s: { source: 'demo', capturing: false, field: near, ...rest } });
-    },
-  });
-  console.log(`[site] ${frames.length} snapshots, ${(frames[frames.length - 1].t / 1000).toFixed(0)}s`);
-  const kb = (n) => `${Math.round(n / 1024)} KB`;
-  console.log(`[site] snapshots.json ${kb(write('snapshots.json', frames))}`);
-
-  // 2. The Debrief: the demo session, plus any real races (site/race-data/).
-  const debriefSessions = (debrief, dir) => debrief.view().sessions.filter((x) => x.laps.length).map((x) => {
-    write(`api/compare-${x.id}.json`, debrief.compare(x.id, null, null), dir);
-    write(`api/rivals-${x.id}.json`, debrief.rivals(x.id), dir);
-    return { ...x, live: false };
-  });
-  if (raceDir) {
-    const file = ['packets.f1log.gz', 'packets.f1log'].map((f) => path.join(raceDir, f)).find((f) => fs.existsSync(f));
-    if (!file) throw new Error(`no packets.f1log(.gz) in ${raceDir}`);
-    console.log(`[site] replaying ${path.relative(ROOT, file)} for the Debrief (takes a minute)...`);
-    const race = await replay(file, {});
-    fs.rmSync(RACE_OUT, { recursive: true, force: true });
-    write('sessions.json', debriefSessions(race.debrief, RACE_OUT), RACE_OUT);
-  }
-  const sessions = debriefSessions(demo.debrief, OUT);
-  if (fs.existsSync(path.join(RACE_OUT, 'sessions.json'))) {
-    sessions.push(...JSON.parse(fs.readFileSync(path.join(RACE_OUT, 'sessions.json'), 'utf8')));
+  fs.mkdirSync(OUT, { recursive: true });
+  let frames;
+  let sessions;
+  let tyre;
+  if (fs.existsSync(path.join(RACE_OUT, 'snapshots.json.gz'))) {
+    frames = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RACE_OUT, 'snapshots.json.gz'))));
+    sessions = JSON.parse(fs.readFileSync(path.join(RACE_OUT, 'sessions.json'), 'utf8'));
+    tyre = JSON.parse(fs.readFileSync(path.join(RACE_OUT, 'models-tyre.json'), 'utf8'));
     fs.cpSync(path.join(RACE_OUT, 'api'), path.join(OUT, 'api'), { recursive: true });
+  } else {
+    ({ frames, sessions, tyre } = await buildSynthetic());
   }
-  // Real races first: they're the more interesting debrief.
-  sessions.sort((a, b) => (a.track === 'Red Bull Ring') - (b.track === 'Red Bull Ring') || b.laps.length - a.laps.length);
-  console.log(`[site] debrief: ${sessions.map((s) => `${s.sessionName} ${s.track} (${s.laps.length} laps)`).join(', ')} - ${kb(write('debrief.json', { sessions }))}`);
+  // 1. The live screens.
+  console.log(`[site] live: ${frames.length} snapshots, ${(frames[frames.length - 1].t / 1000).toFixed(0)}s - snapshots.json ${kb(write('snapshots.json', frames))}`);
+  // 2. The Debrief, longest session first.
+  sessions.sort((a, b) => b.laps.length - a.laps.length);
+  console.log(`[site] debrief: ${sessions.map((x) => `${x.sessionName} ${x.track} (${x.laps.length} laps)`).join(', ')} - ${kb(write('debrief.json', { sessions }))}`);
 
   // 3. The Models tab, as /api/models serves it.
   let overtake = null;
@@ -147,7 +185,7 @@ async function main() {
   } catch (_) {
     overtake = null;
   }
-  write('api/models.json', { overtake, tyre: lastAnalysis ? lastAnalysis.tyreModel : null });
+  write('api/models.json', { overtake, tyre });
   Date.now = realNow;
   console.log(`[site] written to ${path.relative(ROOT, OUT)}`);
 }
