@@ -1,0 +1,32 @@
+{
+  "name": "f1-race-engineer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UDP telemetry bridge for F1 26 - streams a race-engineer dashboard to any browser on your LAN (e.g. an iPad)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/srikarnadella/f1-race-engineer.git"
+  },
+  "homepage": "https://github.com/srikarnadella/f1-race-engineer#readme",
+  "bugs": "https://github.com/srikarnadella/f1-race-engineer/issues",
+  "main": "src/index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.3"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "record": "node src/index.js --record",
+    "capture": "node src/index.js --capture",
+    "analyze": "node scripts/analyze-capture.js",
+    "train:overtake": "node scripts/train-overtake.js",
+    "demo": "node scripts/generate-demo-session.js --if-missing && node src/index.js --demo demo/synthetic-session.f1log",
+    "demo:regenerate": "node scripts/generate-demo-session.js",
+    "test": "node --test test/",
+    "accuracy": "node scripts/accuracy.js"
+  },
+  "dependencies": {
+    "qrcode-terminal": "0.12.0",
+    "ws": "^8.18.0"
+  }
+}
