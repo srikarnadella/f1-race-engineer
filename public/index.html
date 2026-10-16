@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#06080b">
+  <title>F1 26 Race Engineer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2306080b'/%3E%3Cpath d='M6 22h20M9 16h14M12 10h8' stroke='%232fd877' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <!-- Add to Home Screen: full screen, its own icon. -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Critical radio calls interrupt every screen for a few seconds. -->
+  <div id="critical-band" class="critical-band" role="alert" hidden>
+    <span class="critical-band__tag">RADIO</span>
+    <span id="critical-band-msg"></span>
+  </div>
+
+  <!-- Screen switching lives in a full-height rail on the left: big targets
+       you can hit with a hand off the wheel without looking for long. -->
+  <aside class="rail">
+    <div class="rail__status">
+      <!-- Position and lap are on the game HUD; the rail only carries what
+           it doesn't show: the flag state and the weather in laps. -->
+      <div class="rail__brand">RACE<br>ENGINEER</div>
+      <div id="flag" class="flag" hidden></div>
+      <!-- Weather on every screen: only shown when it isn't simply dry. -->
+      <div id="wx" class="wx-chip" hidden></div>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Screens"></nav>
+    <!-- Auto-switch on (Settings): why this screen is up. Tap = resume if paused. -->
+    <button class="auto-chip" id="auto-chip" type="button" hidden><b>AUTO</b><span id="auto-chip-text">Watching</span></button>
+    <div class="rail__foot">
+      <!-- Only while the bridge is capturing (npm run capture). One tap saves
+           the moment; the tag sheet that follows is optional. -->
+      <button class="mark" id="mark" type="button" hidden>MARK</button>
+      <!-- Off -> key calls -> all calls; remembered on this device. -->
+      <button class="tool voice" id="voice" type="button" hidden>Voice off</button>
+      <button class="tool" id="customize" type="button">Customize</button>
+      <button class="tool" id="settings" type="button">Settings</button>
+      <div id="link" class="link" title="Connection to the bridge"><span class="link__dot"></span><span id="link-text">Connecting</span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <!-- Connection / telemetry problems: a banner, never a blocker - the
+         screens, editor and debrief all stay usable without a live game. -->
+    <div id="status-banner" class="status-banner" role="status" hidden>
+      <b id="status-title"></b> <span id="status-body"></span>
+    </div>
+    <div class="editbar" id="editbar" hidden>
+      <label>Layout <select id="layout-select"></select></label>
+      <span class="editbar__hint">Pick a widget for each slot. Saved on this device.</span>
+      <button class="tool" id="reset-custom" type="button">Reset</button>
+      <button class="tool tool--primary" id="done-custom" type="button">Done</button>
+    </div>
+
+    <main id="grid" class="grid"></main>
+  </div>
+
+  <div id="mark-sheet" class="mark-sheet" hidden>
+    <div class="mark-sheet__title">Marked <span id="mark-where"></span> - what was it? <span class="dim">(optional)</span></div>
+    <div class="mark-sheet__tags">
+      <button type="button" data-tag="wrong-call">Wrong call</button>
+      <button type="button" data-tag="missed-call">Missed call</button>
+      <button type="button" data-tag="good-call">Good call</button>
+      <button type="button" data-tag="lockup">Locked up</button>
+      <button type="button" data-tag="wheelspin">Wheelspin</button>
+      <button type="button" data-tag="understeer">Understeer</button>
+    </div>
+  </div>
+
+  <div id="settings-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <div class="sheet__panel">
+      <div class="sheet__head"><h2 id="settings-title">Settings</h2><button class="tool" id="settings-close" type="button">Close</button></div>
+      <label class="setting">
+        <input type="checkbox" id="set-auto">
+        <span class="setting__text"><b>Auto-switch screens</b>
+          <span class="dim">Puts up what matters right now: Battle in a fight, Strategy at a pit call or under a safety car, Weather when rain is a few laps away, Debrief after the flag - then back to your screen. Picking a screen yourself pauses it for 30 s.</span></span>
+      </label>
+      <div class="setting setting--pair" id="pair" hidden>
+        <img id="pair-qr" alt="QR code of the dashboard address" width="148" height="148">
+        <span class="setting__text"><b>Open on your iPad or phone</b>
+          <span class="dim">Scan with the camera, or type</span> <span class="pair-url" id="pair-url"></span>
+          <span class="dim">Same Wi-Fi as this PC. In Safari, Share → Add to Home Screen for a full-screen app.</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Non-critical radio calls when no Radio widget is on screen. -->
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="widgets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
