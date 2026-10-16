@@ -2,7 +2,7 @@ const { HEADER_LENGTH } = require('./header');
 
 // Final Classification (packet 8): sent once, as the results screen appears -
 // the official result. F1 25 layout, 46 bytes per car (24 slots in F1 26,
-// verified on a real Suzuka race). Stint arrays are 8 long, only the first
+// verified on a real Monaco race). Stint arrays are 8 long, only the first
 // numTyreStints are real.
 const STRUCT_SIZE = 46;
 

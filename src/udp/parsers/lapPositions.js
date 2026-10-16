@@ -2,7 +2,7 @@ const { HEADER_LENGTH } = require('./header');
 
 // Lap Positions (packet 15): every car's position at the start of each lap,
 // up to 50 laps per packet - the data behind a position chart. Rows are
-// laps, columns are car slots (24 in F1 26, verified on a real Suzuka race).
+// laps, columns are car slots (24 in F1 26, verified on a real Monaco race).
 const MAX_LAPS = 50;
 
 function parseLapPositions(buf, numCars) {
