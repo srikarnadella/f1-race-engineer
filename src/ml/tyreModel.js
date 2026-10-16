@@ -1,0 +1,77 @@
+// Tyre degradation per compound, learned live from the whole field - 22
+// cars' laps, not just yours - so the estimate firms up within a few laps.
+//
+// lapTime = carBase + deg x tyreAge - fuelEffect x lapNumber + noise
+//
+// Each car is compared only with itself (its laps minus its own average),
+// so faster and slower cars share one degradation slope. Fuel can't be
+// separated from tyre age from lap times alone when nobody has stopped
+// (both rise one per lap), so the fuel effect is fixed from physics: the
+// measured burn per lap x ~0.03s per kg - a widely used rule of thumb.
+// Laps far off a car's own trend (traffic, a mistake) are trimmed with a
+// robust MAD filter before the final fit.
+
+const FUEL_MS_PER_KG = 30;
+const MIN_LAPS_PER_CAR = 3;
+const MIN_CARS = 3;
+const NAMES = { 16: 'soft', 17: 'medium', 18: 'hard', 7: 'inter', 8: 'wet' };
+
+function fitSlope(points) {
+  // points: [{ car, x, y }] - within-car demeaned least squares through 0.
+  const byCar = new Map();
+  for (const p of points) {
+    if (!byCar.has(p.car)) byCar.set(p.car, []);
+    byCar.get(p.car).push(p);
+  }
+  const rows = [];
+  for (const ps of byCar.values()) {
+    if (ps.length < MIN_LAPS_PER_CAR) continue;
+    const mx = ps.reduce((a, p) => a + p.x, 0) / ps.length;
+    const my = ps.reduce((a, p) => a + p.y, 0) / ps.length;
+    for (const p of ps) rows.push({ x: p.x - mx, y: p.y - my, car: p.car });
+  }
+  const cars = new Set(rows.map((r) => r.car)).size;
+  const sxx = rows.reduce((a, r) => a + r.x * r.x, 0);
+  if (cars < MIN_CARS || sxx === 0) return null;
+  return { slope: rows.reduce((a, r) => a + r.x * r.y, 0) / sxx, rows, cars };
+}
+
+// cars: FieldModel cars (lapHistory entries carry compound + tyreAge).
+// burnKgPerLap: measured fuel use per lap (the player's), or a typical 1.6.
+function fitDegradation(cars, burnKgPerLap = 1.6) {
+  const fuelMsPerLap = burnKgPerLap * FUEL_MS_PER_KG;
+  const byCompound = new Map();
+  for (const car of cars) {
+    for (const l of car.lapHistory || []) {
+      if (l.pit || l.neutralised || l.lapNum <= 1 || !(l.lapMs > 0) || l.compound == null || l.tyreAge == null) continue;
+      if (!byCompound.has(l.compound)) byCompound.set(l.compound, []);
+      // Add back the time the car gained from being lighter, so only tyre wear is left.
+      byCompound.get(l.compound).push({ car: car.carIndex, x: l.tyreAge, y: l.lapMs + fuelMsPerLap * l.lapNum });
+    }
+  }
+  const out = {};
+  for (const [compound, points] of byCompound) {
+    const first = fitSlope(points);
+    if (!first) continue;
+    // Robust pass: drop laps more than 3 MADs off the first fit.
+    const resid = first.rows.map((r) => r.y - first.slope * r.x);
+    const med = [...resid].sort((a, b) => a - b)[resid.length >> 1];
+    const mad = [...resid.map((v) => Math.abs(v - med))].sort((a, b) => a - b)[resid.length >> 1] || 1;
+    const keep = new Set(first.rows.map((r, i) => (Math.abs(resid[i] - med) <= 3 * 1.4826 * mad ? i : -1)).filter((i) => i >= 0));
+    const kept = points.filter((_, i) => keep.has(i));
+    const fit = fitSlope(kept) || first;
+    out[compound] = { name: NAMES[compound] || `compound ${compound}`, degMsPerLap: Math.round(fit.slope), laps: fit.rows.length, cars: fit.cars };
+  }
+  return { fuelMsPerLap: Math.round(fuelMsPerLap), compounds: out };
+}
+
+// "Would fresh tyres pay for a stop?" - each lap on new tyres gains back
+// roughly deg x (current tyre age); the stop costs the pit loss.
+function stopPayback({ degMsPerLap, tyreAge, pitLossMs, lapsLeft }) {
+  if (!(degMsPerLap > 0) || !(tyreAge > 0) || !(pitLossMs > 0)) return null;
+  const gainPerLap = degMsPerLap * tyreAge;
+  const laps = pitLossMs / gainPerLap;
+  return { gainPerLapMs: Math.round(gainPerLap), paybackLaps: Math.round(laps * 10) / 10, worthIt: lapsLeft != null ? laps < lapsLeft : null };
+}
+
+module.exports = { fitDegradation, stopPayback, FUEL_MS_PER_KG };

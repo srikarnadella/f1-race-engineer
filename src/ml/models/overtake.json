@@ -1,0 +1,108 @@
+{
+  "name": "overtake-probability",
+  "question": "Will the car directly behind pass the car ahead within 10s?",
+  "horizonS": 10,
+  "features": [
+    "logGap",
+    "within05",
+    "closingSPerS",
+    "paceDeltaS",
+    "tyreAgeDelta",
+    "softerTyre",
+    "ersDelta",
+    "overtakeMode",
+    "lapOne"
+  ],
+  "mean": [
+    -0.413048,
+    0.351552,
+    -0.020341,
+    -0.132489,
+    0.002111,
+    0.012684,
+    0.007008,
+    0.511918,
+    0.108171
+  ],
+  "std": [
+    0.62599,
+    0.477455,
+    2.521659,
+    0.377161,
+    0.591667,
+    0.523388,
+    0.116293,
+    0.499858,
+    0.310597
+  ],
+  "weights": [
+    -1.130289,
+    0.520578,
+    0.027806,
+    0.220213,
+    0.075994,
+    -0.20122,
+    0.132437,
+    0.152757,
+    0.153475
+  ],
+  "bias": -4.773618,
+  "trainedOn": {
+    "races": 4,
+    "samples": 56845,
+    "passes": 1845
+  },
+  "evaluation": {
+    "method": "leave-one-race-out",
+    "model": {
+      "auc": 0.8506126188716433,
+      "logLoss": 0.1163,
+      "brier": 0.0286,
+      "brierSkill": 0.091,
+      "calibration": [
+        {
+          "bucket": "0-5%",
+          "n": 45115,
+          "predicted": 0.014,
+          "observed": 0.011
+        },
+        {
+          "bucket": "5-10%",
+          "n": 7425,
+          "predicted": 0.07,
+          "observed": 0.078
+        },
+        {
+          "bucket": "10-20%",
+          "n": 3044,
+          "predicted": 0.133,
+          "observed": 0.106
+        },
+        {
+          "bucket": "20-40%",
+          "n": 810,
+          "predicted": 0.276,
+          "observed": 0.332
+        },
+        {
+          "bucket": "40-60%",
+          "n": 335,
+          "predicted": 0.481,
+          "observed": 0.469
+        },
+        {
+          "bucket": "60-100%",
+          "n": 116,
+          "predicted": 0.799,
+          "observed": 0.276
+        }
+      ]
+    },
+    "gapOnlyBaseline": {
+      "auc": 0.853699591032274,
+      "logLoss": 0.1111,
+      "brier": 0.0274,
+      "brierSkill": 0.127
+    }
+  }
+}

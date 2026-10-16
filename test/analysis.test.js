@@ -1,0 +1,233 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const { compareLaps, consistency } = require('../src/analysis/lapCompare');
+const { rivalAnalysis } = require('../src/analysis/rivals');
+const { fitDegradation, stopPayback } = require('../src/ml/tyreModel');
+const { train, predict, evaluate, auc } = require('../src/ml/logistic');
+const { pairFeatures, FEATURES } = require('../src/ml/overtakeFeatures');
+
+// A 2 km lap with one corner at 1000 m: braking from `brakeAt`, slowest at
+// `apexKmh`. Rows are [d, tMs, speed, throttle, brake, steer, gear].
+function lap(lapNum, { brakeAt = 900, apexKmh = 90, slowAfter = null } = {}) {
+  const points = [];
+  let t = 0;
+  for (let d = 0; d <= 2000; d += 2) {
+    let speed = 280;
+    let brake = 0;
+    let throttle = 1;
+    if (d >= brakeAt && d < 1000) {
+      speed = 280 - ((d - brakeAt) / (1000 - brakeAt)) * (280 - apexKmh);
+      brake = 0.9;
+      throttle = 0;
+    } else if (d >= 1000 && d < 1200) {
+      speed = apexKmh + ((d - 1000) / 200) * (280 - apexKmh);
+    }
+    if (slowAfter && d >= slowAfter[0] && d < slowAfter[1]) speed *= 0.7;
+    if (d > 0) t += (2 / (speed / 3.6)) * 1000;
+    points.push([d, Math.round(t), Math.round(speed), throttle, brake, 0, 5]);
+  }
+  return { lapNum, lapMs: Math.round(t), startedAtLine: true, points };
+}
+
+test('lap compare: explains a corner - earlier braking and a slower apex', () => {
+  const best = lap(2);
+  const worse = lap(3, { brakeAt: 860, apexKmh: 80 });
+  const c = compareLaps(best, worse);
+  assert.ok(c.totalS > 0, 'the worse lap is slower overall');
+  assert.strictEqual(c.corners.length, 1);
+  const k = c.corners[0];
+  assert.strictEqual(k.brakePointM, -40); // braked 40 m earlier
+  assert.strictEqual(k.apexKmh, -10);
+  assert.ok(k.timeS > 0);
+  assert.match(c.headline[0], /^Corner 1 \(0\.9 km\): lost \d\.\d\ds - braked 40 m earlier, 10 km\/h slower at the apex/);
+  assert.strictEqual(c.miniSectors.length, 25);
+});
+
+test('lap compare: a loss away from any braking zone is still named', () => {
+  const c = compareLaps(lap(2), lap(3, { slowAfter: [1500, 1700] }));
+  assert.match(c.headline[0], /km: lost \d\.\d\ds away from a braking zone/);
+});
+
+test('consistency: braking-point spread per corner across laps', () => {
+  const laps = [lap(2, { brakeAt: 900 }), lap(3, { brakeAt: 880 }), lap(4, { brakeAt: 920 })];
+  const [corner] = consistency(laps);
+  assert.strictEqual(corner.laps, 3);
+  assert.ok(corner.brakePointSdM > 10 && corner.brakePointSdM < 25, `sd ${corner.brakePointSdM}`);
+});
+
+test('rivals: where the player loses time, ignoring glitched laps', () => {
+  const splits = (base, slowAt = -1) => Array.from({ length: 25 }, (_, k) => base + (k === slowAt ? 300 : 0));
+  const cars = [
+    { name: 'YOU', isPlayer: true, miniSectors: [{ lapNum: 2, splits: splits(3700, 10) }, { lapNum: 3, splits: splits(3710, 10) }] },
+    { name: 'NORRIS', isPlayer: false, miniSectors: [{ lapNum: 2, splits: splits(3700) }] },
+    // A flashback-glitched lap: an impossible 0.3s slice.
+    { name: 'GLITCH', isPlayer: false, miniSectors: [{ lapNum: 2, splits: [300, ...splits(3700).slice(1)] }] },
+  ];
+  const r = rivalAnalysis(cars, 5000);
+  assert.strictEqual(r.rival.name, 'NORRIS');
+  assert.ok(Math.abs(r.gapToRivalS - 0.3) < 1e-9);
+  assert.strictEqual(r.biggestLosses[0].from, 11);
+  assert.match(r.biggestLosses[0].text, /^2\.0-2\.2 km: 0\.30s slower than NORRIS/);
+  assert.ok(r.fieldIdealLapMs > 25 * 3000, 'glitched split excluded from the field ideal');
+});
+
+test('tyre model: recovers the wear rate from the field, net of fuel', () => {
+  // 4 cars, true wear 120 ms per lap of age, getting 40 ms/lap lighter.
+  const cars = [0, 1, 2, 3].map((i) => ({
+    carIndex: i,
+    lapHistory: [2, 3, 4, 5, 6].map((n) => ({ lapNum: n, lapMs: 90000 + i * 300 + 120 * n - 40 * n + (n === 4 && i === 2 ? 3000 : 0), compound: 16, tyreAge: n, pit: false, neutralised: false })),
+  }));
+  const m = fitDegradation(cars, 40 / 30); // burn chosen so the fuel effect is 40 ms/lap
+  assert.ok(Math.abs(m.compounds[16].degMsPerLap - 120) <= 2, `deg ${m.compounds[16].degMsPerLap}`);
+  const pay = stopPayback({ degMsPerLap: 120, tyreAge: 15, pitLossMs: 18000, lapsLeft: 20 });
+  assert.deepStrictEqual(pay, { gainPerLapMs: 1800, paybackLaps: 10, worthIt: true });
+});
+
+test('logistic regression: learns a clear signal, and the metrics are sane', () => {
+  const X = [];
+  const y = [];
+  for (let i = 0; i < 400; i++) {
+    const gap = (i % 40) / 10; // 0..3.9 s
+    X.push([gap]);
+    y.push(gap < 0.6 && i % 3 !== 0 ? 1 : 0);
+  }
+  const m = train(X, y, { epochs: 400 });
+  assert.ok(predict(m, [0.2]) > predict(m, [3]), 'closer = more likely');
+  const ev = evaluate(X.map((x) => predict(m, x)), y);
+  assert.ok(ev.auc > 0.9, `auc ${ev.auc}`);
+  assert.strictEqual(auc([0.1, 0.9], [0, 1]), 1);
+  assert.strictEqual(auc([0.9, 0.1], [0, 1]), 0);
+});
+
+const { forecastAttack } = require('../src/analysis/attackForecast');
+
+test('attack forecast: when (closing rate) and where (passing spots, your own losses first)', () => {
+  const corners = [{ corner: 1, startM: 700 }, { corner: 2, startM: 2800 }, { corner: 3, startM: 5300 }];
+  const car = (splits) => ({ miniSectors: [{ lapNum: 3, splits }] });
+  const even = Array(25).fill(3700);
+  const base = { attacker: car(even), defender: car(even), corners, trackLength: 5800 };
+
+  // Approaching from 2.0s at 0.5s/lap: in range in ~2 laps. The field passes
+  // mostly into corner 2.
+  const f = forecastAttack({ ...base, gapS: 2.0, closingSPerLap: 0.5, passesAtM: [2900, 2950, 3000, 800] });
+  assert.deepStrictEqual(f.when, { laps: 2, text: 'in ~2 laps' });
+  assert.strictEqual(f.where.corner, 2);
+
+  // But this driver keeps losing places into corner 3: that outweighs the field.
+  const mine = forecastAttack({ ...base, gapS: 0.6, closingSPerLap: 0, passesAtM: [2900, 2950, 3000, 800], personalPassesAtM: [5400, 5450] });
+  assert.strictEqual(mine.when.text, 'now');
+  assert.strictEqual(mine.where.corner, 3);
+  assert.match(mine.where.why.join(' '), /you've been passed there 2 times/);
+
+  // Not closing and out of range: no forecast at all.
+  assert.strictEqual(forecastAttack({ ...base, gapS: 3, closingSPerLap: -0.2, passesAtM: [2900] }), null);
+
+  // Between two equally busy corners, the one the chaser gains into wins.
+  const quickerInto3 = even.map((v, k) => (k >= 19 && k <= 22 ? v - 100 : v));
+  const tie = forecastAttack({ ...base, attacker: car(quickerInto3), gapS: 0.8, closingSPerLap: 0, passesAtM: [2900, 5400] });
+  assert.strictEqual(tie.where.corner, 3);
+});
+
+const { strategyOptions } = require('../src/analysis/strategyOptions');
+const { battleCall } = require('../src/analysis/battleCall');
+const { createLapDeltaTracker } = require('../src/state/lapDelta');
+
+const set = (visual, { wear = 0, life, fitted = false, delta = 0, available = true } = {}) => ({ visualTyreCompound: visual, wear, available, lifeSpan: life, usableLife: life, lapDeltaTimeMs: delta, fitted });
+
+test('strategy options: a free tyre change under a red flag takes the faster set that lasts', () => {
+  const player = { status: { visualTyreCompound: 17, tyresAgeLaps: 2 }, lapData: { carPosition: 7 } };
+  const o = strategyOptions({
+    situation: 'Red flag', lapsLeft: 12, player, rejoin: null, stopLossMs: 19000, normalLossMs: 19000,
+    tyreSets: [set(17, { life: 19, fitted: true }), set(16, { life: 13, delta: -736 }), set(18, { life: 25, delta: 736 }), set(7, { life: 38, delta: 3000 })],
+  });
+  assert.deepStrictEqual(o.options.map((x) => x.id), ['stay', 'box-16', 'box-18']); // no inters in the dry
+  assert.strictEqual(o.recommendedId, 'box-16');
+  assert.strictEqual(o.options.find((x) => x.id === 'box-16').position, 7); // free: keeps the place
+  assert.match(o.headline, /^Red flag: best is box: soft - keep P7, lasts to the flag, 0\.7s\/lap faster/);
+});
+
+test('strategy options: under a safety car, losing 15 places to stop is worse than staying out', () => {
+  const player = { status: { visualTyreCompound: 17, tyresAgeLaps: 2 }, lapData: { carPosition: 3 } };
+  const o = strategyOptions({
+    situation: 'Safety car', lapsLeft: 12, player, rejoin: { position: 18 }, stopLossMs: 10000, normalLossMs: 19000,
+    tyreSets: [set(17, { life: 18, fitted: true }), set(16, { life: 13, delta: -800 })],
+  });
+  assert.strictEqual(o.recommendedId, 'stay');
+  assert.strictEqual(o.options.find((x) => x.id === 'box-16').positionsLost, 15);
+});
+
+test('battle call: attack, defend, the sandwich, close in, clear', () => {
+  const row = (name, trend = 0, extra = {}) => ({ name, gapTrendMsPerLap: trend, pitStatus: 0, ...extra });
+  const med = (p) => ({ p, level: p >= 0.25 ? 'high' : p >= 0.1 ? 'medium' : 'low' });
+  assert.strictEqual(battleCall({ ahead: row('NORRIS'), gapAheadS: 0.6, battle: { attack: med(0.15) }, batteryPct: 70 }).mode, 'ATTACK');
+  assert.strictEqual(battleCall({ ahead: row('NORRIS'), gapAheadS: 0.6, battle: { attack: med(0.15) }, batteryPct: 10 }).mode, 'HOLD', 'no battery, no attack');
+  assert.strictEqual(battleCall({ behind: row('SAINZ', -300), gapBehindS: 0.7, battle: {} }).mode, 'DEFEND');
+  // Sandwiched, bigger threat behind: defend first.
+  const both = battleCall({ ahead: row('NORRIS'), behind: row('SAINZ', 0, { overtakeAvailable: true }), gapAheadS: 0.5, gapBehindS: 0.4, battle: { attack: med(0.1), defend: med(0.3) }, batteryPct: 80 });
+  assert.deepStrictEqual([both.mode, both.target], ['DEFEND', 'SAINZ']);
+  assert.strictEqual(battleCall({ ahead: row('NORRIS', -400), gapAheadS: 1.8, battle: { attackForecast: { when: { laps: 2, text: 'in ~2 laps' } } } }).mode, 'CLOSE IN');
+  assert.strictEqual(battleCall({ ahead: row('NORRIS'), gapAheadS: 4, behind: row('SAINZ'), gapBehindS: 5, battle: {} }).mode, 'CLEAR');
+  assert.strictEqual(battleCall({ ahead: row('NORRIS'), gapAheadS: 0.5, battle: {}, neutralised: true }), null);
+  // On the gearbox with no trend yet and a low model chance: still a fight, never HOLD.
+  const tight = battleCall({ behind: row('SAINZ', null), gapBehindS: 0.4, battle: { defend: med(0.05) } });
+  assert.deepStrictEqual([tight.mode, tight.reason], ['DEFEND', '0.4s behind']);
+  assert.match(battleCall({ ahead: row('NORRIS'), gapAheadS: 1.5, behind: row('SAINZ'), gapBehindS: 1.4, battle: {} }).reason, /1\.5s to NORRIS, 1\.4s to SAINZ/);
+});
+
+test('lap delta: to best and to last lap, and live mini-sectors rated', () => {
+  const t = createLapDeltaTracker();
+  const L = 2500;
+  const drive = (lapNum, lapMs, slowFactor = 1) => {
+    for (let d = 0; d <= L; d += 10) t.update({ currentLapNum: lapNum, lapDistance: d, currentLapTimeInMS: (d / L) * lapMs * slowFactor, pitStatus: 0, currentLapInvalid: 0, lastLapTimeInMS: 0 }, L);
+  };
+  drive(1, 60000);
+  t.update({ currentLapNum: 2, lapDistance: 0, currentLapTimeInMS: 0, pitStatus: 0, lastLapTimeInMS: 60000 }, L);
+  drive(2, 62000);
+  t.update({ currentLapNum: 3, lapDistance: 0, currentLapTimeInMS: 0, pitStatus: 0, lastLapTimeInMS: 62000 }, L);
+  // Lap 3, halfway, 0.5s up on the best lap's pace.
+  const now = t.current({ currentLapNum: 3, lapDistance: 1250, currentLapTimeInMS: 29500, pitStatus: 0 });
+  assert.strictEqual(now.bestLapTimeInMS, 60000);
+  assert.strictEqual(now.previousLapTimeInMS, 62000);
+  assert.strictEqual(now.deltaToBestMs, -500);
+  assert.strictEqual(now.deltaToLastMs, -1500);
+  assert.strictEqual(now.miniSectors.length, 25);
+  assert.strictEqual(now.miniSectors[12].state, 'current');
+});
+
+test('overtake features: the same inputs live and in training', () => {
+  const car = (pos, gapMs, extra = {}) => ({
+    lapData: { carPosition: pos, deltaToCarInFrontInMS: gapMs, pitStatus: 0, currentLapNum: 5 },
+    status: { tyresAgeLaps: extra.age || 10, visualTyreCompound: extra.compound || 17, ersStoreEnergy: extra.ers || 2e6 },
+    lapHistory: [],
+    gapAheadHistory: [{ t: 0, gapMs: gapMs + 500 }, { t: 5, gapMs }],
+    telemetry2: { overtakeAvailable: !!extra.ot },
+  });
+  const f = pairFeatures(car(5, 400, { age: 3, compound: 16, ers: 3e6, ot: true }), car(4, 0));
+  assert.deepStrictEqual(FEATURES.filter((k) => !(k in f)), []);
+  assert.strictEqual(f.within05, 1);
+  assert.strictEqual(f.softerTyre, 1);
+  assert.strictEqual(f.tyreAgeDelta, 7);
+  assert.strictEqual(f.overtakeMode, 1);
+  assert.ok(Math.abs(f.closingSPerS - 0.1) < 1e-9); // 0.5 s closed over 5 s
+  assert.strictEqual(pairFeatures(car(5, 0), car(4, 0)), null, 'no interval yet = no battle');
+});
+
+const { projectBattery } = require('../src/analysis/batteryProjection');
+
+test('battery projection: the rest of this lap follows the same stretch of the last one', () => {
+  const L = 5000;
+  // Last lap (2): started at 3.0 MJ, dipped to 1.0 MJ by half-distance
+  // (the long straight), recharged to 2.6 MJ at the line.
+  const bins = Array.from({ length: 20 }, (_, k) => (k < 10 ? 3.0e6 - k * 0.2e6 : 1.0e6 + (k - 10) * 0.16e6));
+  const prev = { lapNum: 2, binsJ: bins, lineJ: 2.6e6, unusual: false };
+  const car = (lapDistance, nowJ, ersPrevLap = prev) => ({ status: { ersStoreEnergy: nowJ }, lapData: { currentLapNum: 3, lapDistance, pitStatus: 0 }, ersPrevLap });
+  // Half-way on 0.8 MJ (20%): last lap gained 1.6 MJ from here -> 2.4 MJ (60%).
+  assert.deepStrictEqual(projectBattery(car(L / 2, 0.8e6), L), { nowPct: 20, atLinePct: 60, trendPctPerLap: -10, basis: 'last lap' });
+  // Clamped to a full store.
+  assert.strictEqual(projectBattery(car(L / 2, 3.5e6), L).atLinePct, 100);
+  // Last lap was a pit / safety-car lap, or isn't the previous lap: current value only.
+  assert.strictEqual(projectBattery(car(L / 2, 0.8e6, { ...prev, unusual: true }), L).atLinePct, 20);
+  assert.strictEqual(projectBattery(car(L / 2, 0.8e6, { ...prev, lapNum: 1 }), L).basis, 'current');
+  // In the pits: nothing to project.
+  assert.strictEqual(projectBattery({ ...car(0, 2e6), lapData: { pitStatus: 1 } }, L), null);
+});
