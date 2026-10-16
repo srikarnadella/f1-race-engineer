@@ -129,7 +129,17 @@ picking a screen yourself pauses it for 30 s. Off by default.
 
 **Ask the engineer:** tap **Ask** (or press **Q**, or map a wheel button to it) and say "gap behind?",
 "when do I box?", "tyres?", "rain?", "fuel?", "battery?" or "what's the call?". The answer is spoken and
-shown, built from the live data on the device itself (`public/ask.js`): nothing leaves your network.
+shown, built from the live data on the device itself (`public/ask.js`). Turning speech into text is
+the browser's job, and most browsers do it on their maker's servers (Chrome sends the clip to Google),
+so it only listens after you tap; the tap-a-question buttons send nothing anywhere.
+
+**Hands-free (Settings), for when no button can be reached:** it listens all the time and answers only
+what starts with "Engineer": *"Engineer, gap behind?"*. A bare "Engineer" gets "Go ahead" and waits for
+the question. It ignores what it hears while the engineer is talking, and restarts itself when the
+browser ends a listening session. Off by default, because while it's on the browser streams the
+microphone to its speech service. Run it in a browser on the gaming PC (`http://localhost:8080`, with
+a headset so it doesn't hear the game): that page counts as secure, while a tablet on plain `http://`
+over Wi-Fi can't open the microphone at all.
 Browsers only open the microphone on a secure page, which means the PC's own browser (`localhost`) or
 the https demo site; on other devices the same questions are one-tap buttons.
 

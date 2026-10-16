@@ -121,7 +121,17 @@
     return { id: q.id, reply: q.answer(s) };
   }
 
-  const api = { ask, QUESTIONS, HELP };
+  // Hands-free: only what follows the wake word counts. "Engineer, gap
+  // behind?" -> 'gap behind?'; "Engineer" alone -> '' (ask what they need);
+  // no wake word -> null (talk to someone else, the game, the radio...).
+  const WAKE = /\b(?:hey |ok |okay )?engineers?\b[\s,.:;!?-]*/i;
+  function afterWake(text) {
+    const t = String(text || '');
+    const m = t.match(WAKE);
+    return m ? t.slice(m.index + m[0].length).trim() : null;
+  }
+
+  const api = { ask, afterWake, QUESTIONS, HELP };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RaceAsk = api;
 })(typeof window !== 'undefined' ? window : this);

@@ -54,7 +54,9 @@ A question answered out loud beats any layout when your eyes are on the track. *
 a small panel at the bottom, not a modal: the screen stays live behind it. Speak, or tap one of nine
 questions; the answer is one sentence, spoken even with the radio voice off (you asked for it), and
 the panel closes itself after 15 s. Answers are built from the snapshot already on the device, so
-they're instant and offline.
+they're instant. It listens only after a tap, never all the time: browsers send speech to their
+maker's servers to transcribe it, and an open mic next to game audio and the engineer's own voice
+would mishear constantly.
 
 ## Pit timing
 

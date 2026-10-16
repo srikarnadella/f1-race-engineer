@@ -9,7 +9,7 @@
   const STALE_AFTER_MS = 3000;
   const TOAST_MS = 6000;
   const CRITICAL_BAND_MS = 6000;
-  const STORE = { screen: 'raceEngineer.screen', custom: 'raceEngineer.custom', voice: 'raceEngineer.voice', auto: 'raceEngineer.auto' };
+  const STORE = { screen: 'raceEngineer.screen', custom: 'raceEngineer.custom', voice: 'raceEngineer.voice', auto: 'raceEngineer.auto', handsFree: 'raceEngineer.handsFree' };
 
   function load(key, fallback) {
     try {
@@ -464,6 +464,7 @@
   let lastSpokenCall = null;
   const voiceQueue = [];
   let speaking = false;
+  let lastSpokeAt = 0;
 
   // Written for the screen; said for the ear.
   function forSpeech(text) {
@@ -523,6 +524,7 @@
     speakingSince = Date.now();
     speakingBudgetMs = 3000 + next.text.split(/\s+/).length * 450; // ~2.5 words/s, plus slack
     u.onend = u.onerror = () => {
+      lastSpokeAt = Date.now();
       if (u !== currentUtterance) return; // a late event from a line the watchdog already gave up on
       speaking = false;
       pumpVoice();
@@ -611,7 +613,8 @@
   // ---------- Ask the engineer ----------
   // Tap Ask (or press Q), speak - "gap behind?", "when do I box?" - and the
   // answer is said and shown. The question is matched in ask.js against the
-  // latest snapshot, on this device: no server, no cloud, nothing recorded.
+  // latest snapshot, on this device. The speech-to-text is the browser's,
+  // usually its maker's servers (Chrome: Google), so it listens only on a tap.
   // Browsers only open the microphone on a secure page - the PC's own
   // browser (localhost) or https - so elsewhere the questions are buttons.
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -636,6 +639,7 @@
   }
   function listen() {
     if (recognition) return recognition.stop();
+    stopHandsFree(); // one microphone at a time; it restarts when this question is done
     if (voiceSupported) {
       window.speechSynthesis.cancel(); // don't transcribe the engineer's own voice
       voiceQueue.length = 0;
@@ -671,6 +675,7 @@
       setText($('ask-mic-text'), 'Speak');
       if (!heard) setText($('ask-heard'), 'Heard nothing - tap Speak and ask.');
       keepAskOpen();
+      startHandsFree();
     };
     try {
       rec.start();
@@ -702,6 +707,96 @@
   document.addEventListener('keydown', (e) => {
     if ((e.key === 'q' || e.key === 'Q') && !e.repeat && !/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName) && $('settings-sheet').hidden) openAsk(true);
   });
+
+  // ---------- Hands-free: "Engineer, ..." ----------
+  // For when no button can be reached: listens all the time, acts only on
+  // what follows "Engineer". Off by default - while it's on, the browser
+  // streams the microphone to its speech service (Chrome: Google).
+  // What it hears while the engineer is talking (or just after) is
+  // ignored, so it never answers its own voice. Chrome ends a listening
+  // session after a minute or so of silence, so it restarts itself.
+  const FOLLOW_UP_MS = 7000;
+  const ECHO_MS = 1200;
+  let handsFree = canListen && load(STORE.handsFree, false) === true;
+  let wakeRec = null;
+  let wakeStartedAt = 0;
+  let restartMs = 300;
+  let awaitingUntil = 0;
+  function onPhrase(text) {
+    if (speaking || (voiceSupported && window.speechSynthesis.speaking) || Date.now() - lastSpokeAt < ECHO_MS) return;
+    let q = window.RaceAsk.afterWake(text);
+    if (q == null && Date.now() < awaitingUntil) q = text.trim(); // the question after a bare "Engineer"
+    if (q == null) return;
+    openAsk(false);
+    if (!q) {
+      awaitingUntil = Date.now() + FOLLOW_UP_MS;
+      setText($('ask-heard'), 'Go ahead…');
+      setText($('ask-reply'), '');
+      say('Go ahead.', true, true);
+      return;
+    }
+    awaitingUntil = 0;
+    setText($('ask-heard'), `"${q}"`);
+    answer(q);
+  }
+  function startHandsFree() {
+    if (!handsFree || wakeRec || recognition) return;
+    const rec = new Recognition();
+    wakeRec = rec;
+    rec.lang = navigator.language || 'en-GB';
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.maxAlternatives = 3;
+    rec.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (!e.results[i].isFinal) continue;
+        // Of the guesses, prefer one that has the wake word in it.
+        const guesses = [...e.results[i]].map((x) => x.transcript);
+        onPhrase(guesses.find((t) => window.RaceAsk.afterWake(t) != null) || guesses[0]);
+      }
+    };
+    rec.onerror = (e) => {
+      if (e.error !== 'not-allowed' && e.error !== 'service-not-allowed') return;
+      handsFree = false; // blocked: stop retrying, but keep the saved choice for when it's allowed
+      renderHandsFree('Microphone blocked - allow it for this page, then turn this on again.');
+    };
+    rec.onend = () => {
+      if (wakeRec !== rec) return;
+      wakeRec = null;
+      // A normal timeout restarts at once; a session that dies straight away backs off.
+      restartMs = Date.now() - wakeStartedAt > 5000 ? 300 : Math.min(10000, restartMs * 2);
+      if (handsFree) setTimeout(startHandsFree, restartMs);
+    };
+    wakeStartedAt = Date.now();
+    try {
+      rec.start();
+    } catch (_) {
+      wakeRec = null;
+    }
+    renderHandsFree();
+  }
+  function stopHandsFree() {
+    const rec = wakeRec;
+    wakeRec = null;
+    if (rec) rec.abort();
+  }
+  function renderHandsFree(note) {
+    $('ask').classList.toggle('is-listening', handsFree);
+    setText($('ask'), handsFree ? 'Ask · on' : 'Ask');
+    $('ask').title = handsFree ? 'Hands-free: say "Engineer, ..."' : '';
+    $('set-handsfree').checked = handsFree;
+    $('set-handsfree').disabled = !canListen;
+    setText($('handsfree-note'), note || (canListen ? '' : 'Not available on this page: open the dashboard in a browser on the PC itself (http://localhost:8080), or on an https page.'));
+  }
+  $('set-handsfree').addEventListener('change', (e) => {
+    handsFree = e.target.checked && canListen;
+    save(STORE.handsFree, handsFree);
+    if (handsFree) startHandsFree();
+    else stopHandsFree();
+    renderHandsFree();
+  });
+  renderHandsFree();
+  startHandsFree();
 
   // ---------- Capture markers ----------
   // While the bridge is capturing, MARK (or the M key) stamps "this moment"

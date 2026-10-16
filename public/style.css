@@ -754,3 +754,6 @@ body {
 .ask-sheet__qs button { appearance: none; border: 0; min-height: 52px; border-radius: 12px; background: var(--panel); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; touch-action: manipulation; }
 .ask-sheet__qs button:active { background: var(--info); color: #001323; }
 @media (max-width: 599px) { .ask-sheet { left: 12px; } }
+.tool--ask.is-listening { background: rgba(62, 240, 138, 0.14); color: var(--good); }
+.tool--ask.is-listening::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--good); animation: pulse 1.6s ease-in-out infinite; }
+.setting input:disabled + .setting__text { opacity: 0.6; }

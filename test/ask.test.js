@@ -41,3 +41,12 @@ test('ask: answers come from the snapshot, one sentence each', () => {
   assert.strictEqual(reply('laps'), 'P4, 15 laps to go.');
   assert.match(ask('box', { nearby: [] }).reply, /No telemetry/);
 });
+
+test('ask: hands-free only acts on what follows the wake word', () => {
+  const { afterWake } = require('../public/ask');
+  assert.strictEqual(afterWake('Engineer, gap behind?'), 'gap behind?');
+  assert.strictEqual(afterWake('hey engineer when do I box'), 'when do I box');
+  assert.strictEqual(afterWake('Engineer'), ''); // "go ahead", then the next phrase is the question
+  assert.strictEqual(afterWake('what is the gap'), null); // not for us
+  assert.strictEqual(afterWake('the engineering on this car'), null);
+});
