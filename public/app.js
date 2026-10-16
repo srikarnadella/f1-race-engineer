@@ -81,7 +81,7 @@
   ];
   // Screens from earlier versions, so a saved choice still lands somewhere sensible.
   const RENAMED = { engineer: 'drive', race: 'drive', adjust: 'drive', car: 'drive', timing: 'drive', pit: 'strategy' };
-  const FILLER = ['battle', 'radio', 'call', 'rejoin', 'laptime', 'options', 'tyrecall', 'adjust', 'weather', 'nearby', 'pace'];
+  const FILLER = ['battle', 'radio', 'call', 'rejoin', 'laptime', 'options', 'pittiming', 'tyrecall', 'adjust', 'weather', 'nearby', 'pace'];
   const CUSTOM_DEFAULT = { layout: 'banner-feature', widgets: ['radio', 'battle', 'call', 'rejoin', 'tyrecall', 'adjust'] };
 
   function sanitizeCustom(c) {
@@ -368,7 +368,11 @@
   });
   $('settings-close').addEventListener('click', closeSettings);
   $('settings-sheet').addEventListener('click', (e) => { if (e.target === $('settings-sheet')) closeSettings(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSettings(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    closeSettings();
+    closeAsk();
+  });
   $('set-auto').addEventListener('change', (e) => {
     autoOn = e.target.checked;
     save(STORE.auto, autoOn);
@@ -378,7 +382,7 @@
     renderAutoChip();
     renderTabs();
   });
-  // Pairing: this bridge's LAN address, and a QR code of it, for the iPad.
+  // Pairing: this bridge's LAN address, and a QR code of it, for another device.
   fetch('/api/pair').then((r) => r.json()).then((p) => {
     if (!p || !p.url) return;
     setText($('pair-url'), p.url);
@@ -415,7 +419,7 @@
     el.className = `toast toast--${insight.severity}`;
     el.textContent = insight.message;
     $('toasts').appendChild(el);
-    // Fixed lifetime: the iPad's and the PC's clocks needn't agree.
+    // Fixed lifetime: this device's and the PC's clocks needn't agree.
     setTimeout(() => {
       el.classList.add('is-leaving');
       setTimeout(() => el.remove(), 320);
@@ -479,8 +483,9 @@
   // An urgent call cuts off routine chatter, but never another urgent call:
   // "tyres at the cliff" then "box, box" are both said, back to back.
   let speakingUrgent = false;
-  function say(text, urgent) {
-    if (!voiceSupported || voiceMode === 'off') return;
+  // force: an answer the driver asked for is spoken even with the radio voice off.
+  function say(text, urgent, force = false) {
+    if (!voiceSupported || (voiceMode === 'off' && !force)) return;
     const item = { text: forSpeech(text), at: Date.now(), urgent: !!urgent };
     if (urgent) {
       const queuedUrgent = voiceQueue.filter((q) => q.urgent);
@@ -603,6 +608,101 @@
   });
   renderVoiceButton();
 
+  // ---------- Ask the engineer ----------
+  // Tap Ask (or press Q), speak - "gap behind?", "when do I box?" - and the
+  // answer is said and shown. The question is matched in ask.js against the
+  // latest snapshot, on this device: no server, no cloud, nothing recorded.
+  // Browsers only open the microphone on a secure page - the PC's own
+  // browser (localhost) or https - so elsewhere the questions are buttons.
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const canListen = !!Recognition && window.isSecureContext;
+  const ASK_SHEET_MS = 15000;
+  let recognition = null;
+  let askTimer = null;
+  function closeAsk() {
+    clearTimeout(askTimer);
+    if (recognition) recognition.abort();
+    $('ask-sheet').hidden = true;
+  }
+  function keepAskOpen() {
+    clearTimeout(askTimer);
+    askTimer = setTimeout(() => { if (!recognition) closeAsk(); }, ASK_SHEET_MS);
+  }
+  function answer(question) {
+    const { reply } = window.RaceAsk.ask(question, lastSnapshot);
+    setText($('ask-reply'), reply);
+    say(reply, true, true);
+    keepAskOpen();
+  }
+  function listen() {
+    if (recognition) return recognition.stop();
+    if (voiceSupported) {
+      window.speechSynthesis.cancel(); // don't transcribe the engineer's own voice
+      voiceQueue.length = 0;
+      speaking = false;
+    }
+    const rec = new Recognition();
+    recognition = rec;
+    rec.lang = navigator.language || 'en-GB';
+    rec.interimResults = false;
+    rec.maxAlternatives = 3;
+    let heard = false;
+    $('ask-mic').classList.add('is-on');
+    setText($('ask-mic-text'), 'Listening');
+    setText($('ask-heard'), 'Listening…');
+    setText($('ask-reply'), '');
+    rec.onresult = (e) => {
+      heard = true;
+      // Of the recogniser's guesses, the first that is a question we know.
+      const guesses = [...e.results[0]].map((x) => x.transcript);
+      const q = guesses.find((t) => window.RaceAsk.ask(t, null).id) || guesses[0];
+      setText($('ask-heard'), `"${q}"`);
+      answer(q);
+    };
+    rec.onerror = (e) => {
+      heard = true;
+      setText($('ask-heard'), e.error === 'not-allowed' || e.error === 'service-not-allowed'
+        ? 'Microphone blocked - allow it for this page, or tap a question.'
+        : e.error === 'no-speech' ? 'Heard nothing - tap Speak and ask.' : `Couldn't listen (${e.error}) - tap a question.`);
+    };
+    rec.onend = () => {
+      recognition = null;
+      $('ask-mic').classList.remove('is-on');
+      setText($('ask-mic-text'), 'Speak');
+      if (!heard) setText($('ask-heard'), 'Heard nothing - tap Speak and ask.');
+      keepAskOpen();
+    };
+    try {
+      rec.start();
+    } catch (_) {
+      recognition = null; // already listening in another tab, or blocked
+    }
+  }
+  function openAsk(andListen) {
+    $('ask-sheet').hidden = false;
+    $('ask-mic').hidden = !canListen;
+    if (!canListen) setText($('ask-heard'), Recognition ? 'Voice questions need the PC\'s own browser or an https page - tap a question.' : 'Tap a question.');
+    keepAskOpen();
+    if (andListen && canListen) listen();
+  }
+  $('ask-qs').replaceChildren(...window.RaceAsk.QUESTIONS.map((q) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = q.label;
+    b.addEventListener('click', () => {
+      setText($('ask-heard'), q.label);
+      answer(q.id);
+    });
+    return b;
+  }));
+  $('ask').addEventListener('click', () => ($('ask-sheet').hidden ? openAsk(true) : closeAsk()));
+  $('ask-mic').addEventListener('click', listen);
+  $('ask-close').addEventListener('click', closeAsk);
+  // Q: push-to-talk from a keyboard, or a wheel button mapped to it.
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'q' || e.key === 'Q') && !e.repeat && !/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName) && $('settings-sheet').hidden) openAsk(true);
+  });
+
   // ---------- Capture markers ----------
   // While the bridge is capturing, MARK (or the M key) stamps "this moment"
   // into the capture so it can be lined up with the data afterwards. The
@@ -705,7 +805,7 @@
     }
   }
 
-  // A connection can stay "open" while delivering nothing (an iPad waking
+  // A connection can stay "open" while delivering nothing (a tablet waking
   // from sleep, a backgrounded tab). The bridge sends 10 snapshots a second,
   // so 6 s of silence means the link is dead: drop it and reconnect.
   const DEAD_LINK_MS = 6000;
@@ -720,7 +820,7 @@
     }
   }, 2000);
 
-  // Keep the screen awake while the dashboard is open - an iPad that
+  // Keep the screen awake while the dashboard is open - a tablet that
   // auto-locks mid-race takes the page (and its connection) with it.
   // Needs a tap first on some browsers, so it's also requested on any touch.
   let wakeLock = null;

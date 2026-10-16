@@ -39,6 +39,8 @@
       <!-- Only while the bridge is capturing (npm run capture). One tap saves
            the moment; the tag sheet that follows is optional. -->
       <button class="mark" id="mark" type="button" hidden>MARK</button>
+      <!-- Ask the engineer: speak (or tap) a question, hear the answer. Q on a keyboard. -->
+      <button class="tool tool--ask" id="ask" type="button">Ask</button>
       <!-- Off -> key calls -> all calls; remembered on this device. -->
       <button class="tool voice" id="voice" type="button" hidden>Voice off</button>
       <button class="tool" id="customize" type="button">Customize</button>
@@ -75,6 +77,16 @@
     </div>
   </div>
 
+  <!-- Ask the engineer. Not modal: the screen stays live behind it. -->
+  <div id="ask-sheet" class="ask-sheet" role="dialog" aria-label="Ask the engineer" hidden>
+    <div class="ask-sheet__top">
+      <button class="ask-mic" id="ask-mic" type="button" aria-label="Speak a question"><span class="ask-mic__dot"></span><span id="ask-mic-text">Speak</span></button>
+      <div class="ask-sheet__talk"><span class="dim" id="ask-heard">Ask about gaps, the pit window, tyres, rain, fuel or battery.</span><b id="ask-reply"></b></div>
+      <button class="tool" id="ask-close" type="button">Close</button>
+    </div>
+    <div class="ask-sheet__qs" id="ask-qs"></div>
+  </div>
+
   <div id="settings-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
     <div class="sheet__panel">
       <div class="sheet__head"><h2 id="settings-title">Settings</h2><button class="tool" id="settings-close" type="button">Close</button></div>
@@ -85,9 +97,9 @@
       </label>
       <div class="setting setting--pair" id="pair" hidden>
         <img id="pair-qr" alt="QR code of the dashboard address" width="148" height="148">
-        <span class="setting__text"><b>Open on your iPad or phone</b>
-          <span class="dim">Scan with the camera, or type</span> <span class="pair-url" id="pair-url"></span>
-          <span class="dim">Same Wi-Fi as this PC. In Safari, Share → Add to Home Screen for a full-screen app.</span></span>
+        <span class="setting__text"><b>Open on another device</b>
+          <span class="dim">Tablet, phone or laptop - scan with the camera, or type</span> <span class="pair-url" id="pair-url"></span>
+          <span class="dim">Same Wi-Fi as this PC. Add it to the home screen for a full-screen app.</span></span>
       </div>
     </div>
   </div>
@@ -96,6 +108,7 @@
   <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <script src="widgets.js"></script>
+  <script src="ask.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

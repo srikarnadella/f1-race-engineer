@@ -346,7 +346,7 @@
         const pay = a.tyreModel && a.tyreModel.payback;
         let tyre = ['Measuring', '', 'is-muted'];
         if (isNum(cliff)) tyre = cliff > 20 ? ['20+ laps', 'to the cliff', 'is-good'] : cliff < 0.5 ? ['At the cliff', 'lap time is going', 'is-act'] : [`${cliff.toFixed(1)} laps`, 'to the cliff', cliff <= 1 ? 'is-act' : cliff <= 3 ? 'is-watch' : 'is-good'];
-        if (pay && pay.worthIt) tyre[1] = `new set repays a stop in ~${Math.round(pay.paybackLaps)} laps`;
+        if (pay && pay.worthIt && !a.pitTiming) tyre[1] = `new set repays a stop in ~${Math.round(pay.paybackLaps)} laps`;
         setText(r.tyre, tyre[0]);
         setText(r.tyreSub, tyre[1]);
         setTone(r.tyre, tyre[2]);
@@ -354,7 +354,10 @@
         const rj = a.rejoin;
         const inPit = s.player && s.player.pitStatus;
         setText(r.box, inPit ? 'In pits' : rj ? `P${rj.position}` : '–');
-        setText(r.boxSub, inPit || !rj ? '' : `${rj.positionsLost > 0 ? `−${rj.positionsLost}` : 'no loss'}${rj.inTraffic ? ' · traffic' : ' · clear air'}${a.pitLoss && a.pitLoss.neutralised ? ` · cheap (${a.pitLoss.neutralised})` : ''}`);
+        // The pit-timing pick, when there is one, says more than traffic / clear air.
+        const ptBest = a.pitTiming && a.pitTiming.options.find((o) => o.best);
+        const ptText = ptBest ? ` · best: ${ptBest.inLaps == null ? 'stay out' : ptBest.inLaps === 0 ? 'this lap' : `lap ${s.player.currentLapNum + ptBest.inLaps}`}` : null;
+        setText(r.boxSub, inPit || !rj ? '' : `${rj.positionsLost > 0 ? `−${rj.positionsLost}` : 'no loss'}${ptText || (rj.inTraffic ? ' · traffic' : ' · clear air')}${a.pitLoss && a.pitLoss.neutralised ? ` · cheap (${a.pitLoss.neutralised})` : ''}`);
         setTone(r.box, rj && rj.inTraffic ? 'is-watch' : '');
 
         const wx = a.weather;
@@ -425,20 +428,61 @@
       </div>`).join('');
     return `<div class="w-opt__head"><b>${esc(o.situation)}</b> · ${o.lapsLeft} laps left${o.freeStop ? ' · tyre change is free' : ''}</div><div class="w-opt__cards">${cards}</div>`;
   }
+  // ---------- Pit timing: which lap to box on ----------
+  // The bridge races every stop lap out to the flag; this lays out the
+  // first few and the best, with where each rejoins and finishes.
+  const whenText = (o) => (o.inLaps == null ? 'Stay out' : o.inLaps === 0 ? 'Box this lap' : o.inLaps === 1 ? 'Box next lap' : `Box in ${o.inLaps} laps`);
+  function pitTimingHtml(pt, s) {
+    const lap = s.player.currentLapNum;
+    const best = pt.options.find((o) => o.best);
+    const rows = pt.options.map((o) => `<tr class="${o.best ? 'is-best' : ''}">
+        <td class="strong">${o.inLaps == null ? 'Stay out' : o.inLaps === 0 ? 'This lap' : o.inLaps === 1 ? 'Next lap' : `In ${o.inLaps}`} <span class="dim">${o.inLaps == null ? '' : `L${lap + o.inLaps}`}</span></td>
+        <td class="tyre">${badge(o.compound)}</td>
+        <td class="num">P${o.rejoinPosition}${o.inTraffic ? ' <span class="pit-tag">TRAFFIC</span>' : ''}</td>
+        <td class="num strong">P${o.finishPosition}</td>
+        <td class="num ${o.best ? 'is-good' : 'dim'}">${o.best ? 'BEST' : `+${o.lossS.toFixed(1)}s`}</td></tr>`).join('');
+    const pl = s.analysis.pitLoss;
+    return `<div class="w-pt">
+      <div class="w-pt__head"><span class="w-pt__when">${whenText(best)}</span><span class="w-pt__sub">${best.inLaps == null ? `finish ~P${best.finishPosition}` : `lap ${lap + best.inLaps} · ${esc(best.compoundName)}s · finish ~P${best.finishPosition}`}</span></div>
+      <table class="tbl w-pt__tbl"><thead><tr><th>Stop</th><th>Tyre</th><th class="num">Rejoin</th><th class="num">Finish</th><th class="num">Cost</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="w-foot">Each stop lap raced to the flag against the field · pit loss ${pl ? secs(pl.ms) : '–'}s</div></div>`;
+  }
+  const ptSig = (pt) => JSON.stringify(pt.options.map((o) => [o.id, o.compound, o.rejoinPosition, o.inTraffic, o.finishPosition, o.lossS]));
+
+  W.pittiming = {
+    title: 'Pit timing',
+    description: 'Box this lap, next lap or later: every stop lap raced to the flag - rejoin and finish position, time cost against the best',
+    mount(el) {
+      el.innerHTML = '<div class="w-pt__wrap"></div>';
+      const box = el.firstElementChild;
+      return (s) => {
+        const pt = s.analysis && s.analysis.pitTiming;
+        const sig = pt ? ptSig(pt) + s.player.currentLapNum : '';
+        if (box.dataset.sig === sig) return;
+        box.dataset.sig = sig;
+        box.innerHTML = pt ? pitTimingHtml(pt, s) : '<div class="w-deb__empty dim">Needs a few green-flag laps of tyre data from the field - and a dry track.</div>';
+      };
+    },
+  };
+
   W.options = {
     title: 'Strategy options',
-    description: 'Under a safety car, VSC or red flag: stay out vs box for each tyre you have - rejoin position, tyre life vs laps left, pace. The cars around you the rest of the time',
+    description: 'Under a safety car, VSC or red flag: stay out vs box for each tyre you have. Under green: which lap to box on (pit timing), or the cars around you',
     mount(el) {
-      // Green flag: the cars around you, so the card is never an empty box.
-      el.innerHTML = '<div class="w-opt" hidden></div><div class="w-opt__near"></div>';
-      const [box, near] = el.children;
+      // Green flag: pit timing once there's tyre data, the cars around you until then.
+      el.innerHTML = '<div class="w-opt" hidden></div><div class="w-opt__pt" hidden></div><div class="w-opt__near"></div>';
+      const [box, ptBox, near] = el.children;
       const updateNear = W.nearby.mount(near);
+      const updatePt = W.pittiming.mount(ptBox);
       const title = el.closest('.card') && el.closest('.card').querySelector('.card__title');
       return (s) => {
         const o = s.analysis && s.analysis.options;
+        const pt = !o && s.analysis && s.analysis.pitTiming;
         box.hidden = !o;
-        near.hidden = !!o;
-        if (title) setText(title, o ? 'Strategy options' : 'Around you');
+        ptBox.hidden = !pt;
+        near.hidden = !!(o || pt);
+        if (title) setText(title, o ? 'Strategy options' : pt ? 'Pit timing' : 'Around you');
+        if (pt) return updatePt(s);
         if (!o) return updateNear(s);
         const sig = JSON.stringify(o.options.map((x) => [x.id, x.position, x.recommended, x.reachesFlag, Math.round(x.paceDeltaS * 10)]));
         if (box.dataset.sig === sig) return;
@@ -475,7 +519,10 @@
         setText(r.cliff, text);
         setTone(r.cliff, tone);
         const pay = tm && tm.payback;
-        setText(r.pay, pay ? `A new set gains ~${(pay.gainPerLapMs / 1000).toFixed(2)}s a lap - repays a stop in ~${pay.paybackLaps} laps${pay.worthIt === false ? ' (not before the flag)' : ''}` : 'Stop pay-back: needs a few laps of field data');
+        // The pit-timing pick, when there is one: it has the fresh set's real pace and the field.
+        const pt = s.analysis.pitTiming;
+        const ptBest = pt && pt.options.find((o) => o.best);
+        setText(r.pay, ptBest ? `Best stop: ${ptBest.inLaps == null ? 'stay out' : `lap ${s.player.currentLapNum + ptBest.inLaps}, onto ${ptBest.compoundName.toLowerCase()}s`} (pit timing)` : pay ? `A new set gains ~${(pay.gainPerLapMs / 1000).toFixed(2)}s a lap - repays a stop in ~${pay.paybackLaps} laps${pay.worthIt === false ? ' (not before the flag)' : ''}` : 'Stop pay-back: needs a few laps of field data');
         const rows = tm ? Object.entries(tm.compounds) : [];
         const sig = JSON.stringify(rows);
         if (r.deg.dataset.sig !== sig) {

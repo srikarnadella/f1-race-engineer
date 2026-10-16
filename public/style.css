@@ -58,7 +58,7 @@ body {
 
 /* ---------- Screen rail ---------- */
 /* Full height, left edge: the screen buttons share the height between them,
-   so each is a big target (~90px tall on an iPad) you can hit with a hand
+   so each is a big target (~90px tall on a tablet) you can hit with a hand
    off the wheel. Status sits above them, setup controls below. */
 .rail {
   flex: none;
@@ -712,3 +712,45 @@ body {
 .card--battle .w-battle__name { font-size: clamp(1rem, min(5cqh, 3.4cqw), 2rem); }
 .card--battle .w-battle__trend { font-size: clamp(0.9rem, min(4.5cqh, 3.2cqw), 1.9rem); }
 .card--battle .w-battle__ers { font-size: clamp(0.85rem, min(3.2cqh, 2.1cqw), 1.3rem); }
+
+/* ---------- Pit timing ---------- */
+.w-pt__wrap, .w-opt__pt { display: flex; flex-direction: column; min-height: 0; }
+.w-pt { display: flex; flex-direction: column; gap: 10px; min-height: 0; height: 100%; }
+.w-pt__head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.w-pt__when { font-size: clamp(1.4rem, min(12cqh, 7cqw), 3.4rem); font-weight: 900; line-height: 1; color: var(--good); }
+.w-pt__sub { font-size: clamp(0.9rem, min(5cqh, 3cqw), 1.3rem); font-weight: 700; color: var(--muted); }
+.w-pt__tbl { font-size: clamp(0.85rem, min(5.5cqh, 3cqw), 1.3rem); }
+.w-pt__tbl th { text-align: left; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--label); padding: 0.3em 0.45em; }
+.w-pt__tbl th.num { text-align: right; }
+.w-pt__tbl tr.is-best td { background: #0d2a18; }
+.w-pt__tbl tr.is-best td:first-child { box-shadow: inset 4px 0 0 var(--good); }
+
+/* ---------- Ask the engineer ---------- */
+.tool--ask { background: #0d2233; color: var(--info); }
+.ask-sheet {
+  position: fixed;
+  left: 140px;
+  right: max(14px, env(safe-area-inset-right, 0));
+  bottom: max(14px, env(safe-area-inset-bottom, 0));
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+.ask-sheet__top { display: flex; align-items: center; gap: 14px; }
+.ask-sheet__talk { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ask-sheet__talk b { font-size: clamp(1.05rem, 2.4vw, 1.5rem); font-weight: 800; }
+.ask-sheet__talk b:empty { display: none; }
+.ask-mic { appearance: none; flex: none; display: flex; align-items: center; gap: 8px; min-height: 60px; padding: 0 20px; border: 2px solid var(--info); border-radius: 14px; background: rgba(98, 195, 255, 0.1); color: var(--info); font: inherit; font-weight: 850; cursor: pointer; touch-action: manipulation; }
+.ask-mic__dot { width: 12px; height: 12px; border-radius: 50%; background: currentColor; }
+.ask-mic.is-on { background: var(--info); color: #001323; }
+.ask-mic.is-on .ask-mic__dot { animation: pulse 0.8s ease-in-out infinite; }
+.ask-sheet__qs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.ask-sheet__qs button { appearance: none; border: 0; min-height: 52px; border-radius: 12px; background: var(--panel); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; touch-action: manipulation; }
+.ask-sheet__qs button:active { background: var(--info); color: #001323; }
+@media (max-width: 599px) { .ask-sheet { left: 12px; } }

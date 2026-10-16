@@ -1,4 +1,4 @@
-// QR codes for pairing a phone or iPad with the bridge: printed in the
+// QR codes for pairing a phone or tablet with the bridge: printed in the
 // terminal at start-up, and served as an SVG for the dashboard's Settings.
 // qrcode-terminal (no dependencies) does the encoding; its vendored encoder
 // gives the module grid for the SVG. Pinned to an exact version in

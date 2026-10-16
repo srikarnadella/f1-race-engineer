@@ -2,7 +2,7 @@
   "name": "f1-race-engineer",
   "version": "0.1.0",
   "private": true,
-  "description": "UDP telemetry bridge for F1 26 - streams a race-engineer dashboard to any browser on your LAN (e.g. an iPad)",
+  "description": "UDP telemetry bridge for F1 26 - streams a race-engineer dashboard to any browser on your LAN - tablet, phone, laptop or second monitor",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/srikarnadella/f1-race-engineer.git"

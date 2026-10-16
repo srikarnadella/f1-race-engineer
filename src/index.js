@@ -89,7 +89,7 @@ function main() {
 
   // The engine runs on its own 10Hz tick, whether or not a dashboard is
   // connected - pit-loss measurement, wear history and weather memory must
-  // keep going while the iPad sleeps. Clients only ever read the latest
+  // keep going while a device sleeps. Clients only ever read the latest
   // result, so a reconnect can't trigger an extra, out-of-step evaluation.
   // `source` lets the dashboard label a replay as such - the public demo
   // must never pass itself off as a live session.

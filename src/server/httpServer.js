@@ -15,7 +15,7 @@ const MIME = {
 };
 const PUBLIC_DIR = path.resolve(__dirname, '..', '..', 'public');
 
-// Every non-internal IPv4 address on this PC - what you type on the iPad.
+// Every non-internal IPv4 address on this PC - what you type on the other device.
 function lanAddresses() {
   return Object.values(os.networkInterfaces())
     .flat()
@@ -86,7 +86,7 @@ function serveStatic(req, res) {
     }
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream',
-      // A tiny local app - always serve the latest files to the iPad.
+      // A tiny local app - always serve the latest files.
       'Cache-Control': 'no-cache',
     });
     res.end(content);
@@ -95,7 +95,7 @@ function serveStatic(req, res) {
 
 // Pushes the current snapshot to every connected client at a fixed rate
 // (not per-packet) - the game can emit telemetry at 60Hz but a human eye
-// and an iPad's battery don't need more than ~10 updates/sec.
+// and a tablet's battery don't need more than ~10 updates/sec.
 // Dashboard -> bridge messages (e.g. a driver's capture marker). Anyone on
 // the LAN can connect, so input is small, JSON objects only, rate-limited,
 // and the handler decides what's valid.
@@ -175,10 +175,10 @@ function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessag
   server.listen(httpPort, () => {
     const urls = lanAddresses().map((ip) => `http://${ip}:${httpPort}`);
     console.log(`[server] dashboard: http://localhost:${httpPort}`);
-    for (const url of urls) console.log(`[server] on your iPad / LAN: ${url}`);
+    for (const url of urls) console.log(`[server] on other devices (same Wi-Fi): ${url}`);
     const pair = pairUrl();
     if (pair) {
-      console.log(`[server] scan to open ${pair} on your iPad or phone (same Wi-Fi):`);
+      console.log(`[server] scan to open ${pair} on a phone or tablet (same Wi-Fi):`);
       printQr(pair);
     }
   });
