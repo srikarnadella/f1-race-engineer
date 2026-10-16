@@ -12,6 +12,7 @@ const { forecastAttack } = require('../analysis/attackForecast');
 const { strategyOptions } = require('../analysis/strategyOptions');
 const { battleCall } = require('../analysis/battleCall');
 const { projectBattery } = require('../analysis/batteryProjection');
+const { pitTiming } = require('../analysis/pitTiming');
 
 // The trained overtake model (npm run train:overtake), if one has been built.
 let OVERTAKE_MODEL = null;
@@ -71,6 +72,8 @@ const DRS_RANGE_MS = 1000;
 const MAX_PROJECTION_LAPS = 30;
 const TRAFFIC_MS = 1500;
 const PIT_LOSS_SANE_RANGE_MS = [8000, 45000];
+// A new best lap to box on must hold this long before it's shown.
+const PICK_SETTLE_MS = 5000;
 
 // Rough pit-lane time loss by F1 trackId (pit entry to exit vs. a racing
 // lap, stationary time included). Only a starting point: as soon as anyone
@@ -161,12 +164,57 @@ function predictRejoin(ordered, player, loss) {
   };
 }
 
+// Builds pitTiming()'s inputs from the field. Only called once the player's
+// degradation is trusted (the same bar as the stop pay-back).
+const DRY = new Set([16, 17, 18]);
+function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pitLossMs, prefer, hold }) {
+  const degOf = (compound) => (tyreModel.compounds[compound] ? tyreModel.compounds[compound].degMsPerLap : 0);
+  const age = player.status.tyresAgeLaps;
+  const fitted = (player.tyreSets || []).find((x) => x.fitted);
+  // The freshest dry set of each compound you have left.
+  const freshest = new Map();
+  for (const x of player.tyreSets || []) {
+    if (!x.available || x.fitted || !DRY.has(x.visualTyreCompound)) continue;
+    const b = freshest.get(x.visualTyreCompound);
+    if (!b || x.lifeSpan > b.lifeSpan) freshest.set(x.visualTyreCompound, x);
+  }
+  // No Tyre Sets packet (older games, the synthetic demo): a new set of the same compound.
+  const sets = freshest.size
+    ? [...freshest.values()].map((x) => ({ compound: x.visualTyreCompound, gainMs: x.lapDeltaTimeMs ? -x.lapDeltaTimeMs : myDeg.degMsPerLap * age, degMs: degOf(x.visualTyreCompound) || myDeg.degMsPerLap, life: x.lifeSpan }))
+    : [{ compound: player.status.visualTyreCompound, gainMs: myDeg.degMsPerLap * age, degMs: myDeg.degMsPerLap, life: Infinity }];
+  const times = timesBehindLeader(ordered);
+  const rivals = ordered
+    .filter((c) => c.carIndex !== player.carIndex && isRunning(c))
+    .map((c) => {
+      const pace = cleanPaceMs(c);
+      return {
+        t: times.get(c.carIndex) || 0,
+        paceDeltaMs: pace == null ? 0 : pace - myPace,
+        degMs: c.status ? degOf(c.status.visualTyreCompound) : 0,
+        owesStop: !c.lapData.numPitStops,
+      };
+    });
+  return pitTiming({
+    me: { t: times.get(player.carIndex) || 0, position: player.lapData.carPosition, compound: player.status.visualTyreCompound, degMs: myDeg.degMsPerLap, lifeLeft: fitted ? fitted.lifeSpan : null, stopped: player.lapData.numPitStops > 0 },
+    sets,
+    rivals,
+    laps: Math.ceil(lapsLeft),
+    pitLossMs,
+    prefer,
+    hold,
+  });
+}
+
 // options.hotspotPrior: use the pass map learned from recorded races (off when
 // evaluating on those same races, so they can't leak into the score).
 function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
   const measuredLosses = new Map(); // `${carIndex}:${inLapNum}` -> ms; survives lapHistory rolling over
   const weatherAnalysis = createWeatherAnalysis();
   let seenGeneration = fieldModel.getGeneration();
+  // The pit-timing pick (a lap number, or 'stay') and a different best lap
+  // waiting to settle - it replaces the pick once it has held PICK_SETTLE_MS.
+  let pitPick = null;
+  let pitNext = { lap: null, since: 0 };
 
   // A stop splits across two laps (pit entry before the line, box after it),
   // so loss = in-lap + out-lap - 2 x the car's clean pace around it.
@@ -213,6 +261,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       seenGeneration = fieldModel.getGeneration();
       measuredLosses.clear();
       weatherAnalysis.reset();
+      pitPick = null;
+      pitNext = { lap: null, since: 0 };
     }
     const playerIdx = fieldModel.playerIndex();
     const ordered = fieldModel.orderedByPosition();
@@ -341,12 +391,31 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       })
       : null;
 
+    // Green flag, dry, a race with laps to go: which lap to box on.
+    const dry = !weather || weather.trackState === 'dry';
+    const lapsLeftNow = raceLapsLeft(session, player.lapData);
+    const lap = player.lapData.currentLapNum;
+    const toLap = (k) => (k === 'stay' || k == null ? k : lap + k);
+    const timingInputs = { ordered, player, myPace, myDeg, tyreModel, lapsLeft: lapsLeftNow, pitLossMs: loss.ms };
+    let timing = !situation && dry && payback && rejoin && myPace != null && lapsLeftNow != null
+      ? pitTimingFor({ ...timingInputs, prefer: pitPick === 'stay' ? 'stay' : pitPick != null ? pitPick - lap : null, hold: true })
+      : null;
+    if (timing) {
+      const cheapest = toLap(timing.cheapestInLaps);
+      const shown = toLap(timing.bestInLaps == null ? 'stay' : timing.bestInLaps);
+      if (cheapest === shown) pitNext = { lap: null, since: 0 };
+      else if (pitNext.lap !== cheapest) pitNext = { lap: cheapest, since: Date.now() };
+      else if (Date.now() - pitNext.since >= PICK_SETTLE_MS) timing = pitTimingFor({ ...timingInputs, prefer: timing.cheapestInLaps });
+      pitPick = toLap(timing.bestInLaps == null ? 'stay' : timing.bestInLaps);
+    }
+
     return {
       field,
       playerPaceMs: myPace,
       pitLoss: loss,
       rejoin,
       options,
+      pitTiming: timing,
       weather,
       battle,
       tyreModel: { ...tyreModel, mine: myDeg ? { compound: myCompound, ...myDeg } : null, payback },

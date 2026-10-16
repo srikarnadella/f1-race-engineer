@@ -326,3 +326,15 @@ test('the call says PIT, not BOX, once the player is in the pit lane', () => {
   assert.strictEqual(ie.getStrategy().call.action, 'PIT');
 });
 
+
+test('pit window: the simulator picking this lap by a clear margin is a BOX call; a near-tie is not', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars() });
+  const timing = (marginS) => ({ pitTiming: { marginS, options: [{ id: 'box-0', inLaps: 0, best: true, rejoinPosition: 5, inTraffic: false, compoundName: 'Hard' }] } });
+  const insights = ie.evaluate(timing(2.4));
+  assert.match(insights.find((i) => i.id === 'pit-window').message, /^Pit window - box this lap, rejoin P5 on hards, 2\.4s better than waiting$/);
+  assert.strictEqual(ie.getStrategy().call.action, 'BOX');
+  assert.ok(!ie.evaluate(timing(0.6)).some((i) => i.id === 'pit-window'));
+  assert.strictEqual(ie.getStrategy().call.action, 'PUSH');
+});

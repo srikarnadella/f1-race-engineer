@@ -231,3 +231,40 @@ test('battery projection: the rest of this lap follows the same stretch of the l
   // In the pits: nothing to project.
   assert.strictEqual(projectBattery({ ...car(0, 2e6), lapData: { pitStatus: 1 } }, L), null);
 });
+
+const { pitTiming } = require('../src/analysis/pitTiming');
+
+test('pit timing: waits for the tyres to wear, then boxes; a set that cannot reach the flag costs a stop', () => {
+  // You lead by 30s on worn tyres; nobody close. New set 1.0s/lap quicker.
+  const me = { t: 0, position: 1, tyreAge: 10, compound: 17, degMs: 100, lifeLeft: null, stopped: false };
+  const rivals = [{ t: 30000, paceDeltaMs: 0, degMs: 100, owesStop: true }];
+  const sets = [{ compound: 18, gainMs: 1000, degMs: 100, life: 40 }];
+  const r = pitTiming({ me, sets, rivals, laps: 20, pitLossMs: 20000 });
+  // Each lap later swaps the last lap on the new set (worn by then) for one
+  // more on the old set: worth it until the old lap is the slower one, at +4.
+  assert.strictEqual(r.bestId, 'box-4');
+  assert.deepStrictEqual(r.options.map((o) => o.id), ['box-0', 'box-1', 'box-2', 'box-4']);
+  assert.strictEqual(r.options[0].rejoinPosition, 1);
+  assert.strictEqual(r.options[0].finishPosition, 1);
+  assert.ok(r.marginS > 0);
+  assert.match(r.headline, /^Best: box in 4 laps onto hards - finish ~P1, 0\.4s better than box in 2 laps$/);
+
+  // A near-tie keeps the last pick (no flicker); a clearly better lap replaces it.
+  assert.strictEqual(pitTiming({ me, sets, rivals, laps: 20, pitLossMs: 20000, prefer: 3 }).bestId, 'box-3');
+  assert.strictEqual(pitTiming({ me, sets, rivals, laps: 20, pitLossMs: 20000, prefer: 0 }).bestId, 'box-4');
+
+  // The only set left lasts 5 laps: boxing early means a second stop, so later is better.
+  const short = pitTiming({ me, sets: [{ ...sets[0], life: 5 }], rivals, laps: 20, pitLossMs: 20000 });
+  assert.ok(short.bestInLaps >= 14, `boxed at +${short.bestInLaps}`);
+});
+
+test('pit timing: rejoining behind a train costs track position; staying out is only offered after a stop', () => {
+  const rivals = [2000, 4000, 6000, 8000].map((t) => ({ t, paceDeltaMs: 0, degMs: 0, owesStop: false }));
+  const me = { t: 0, position: 1, tyreAge: 5, compound: 17, degMs: 50, lifeLeft: null, stopped: true };
+  const r = pitTiming({ me, sets: [{ compound: 16, gainMs: 300, degMs: 50, life: 30 }], rivals, laps: 10, pitLossMs: 20000 });
+  assert.strictEqual(r.bestId, 'stay');
+  assert.strictEqual(r.options.find((o) => o.id === 'box-0').rejoinPosition, 5);
+  assert.strictEqual(pitTiming({ me: { ...me, stopped: false }, sets: [{ compound: 16, gainMs: 300, degMs: 50, life: 30 }], rivals, laps: 10, pitLossMs: 20000 }).options.some((o) => o.id === 'stay'), false);
+  assert.strictEqual(pitTiming({ me, sets: [], rivals, laps: 10, pitLossMs: 20000 }), null);
+  assert.strictEqual(pitTiming({ me, sets: [{ compound: 16, gainMs: 300, degMs: 50, life: 30 }], rivals, laps: 1, pitLossMs: 20000 }), null);
+});

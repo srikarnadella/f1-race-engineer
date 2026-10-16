@@ -29,6 +29,9 @@ const UNDERCUT_GAP_MS = 1500;
 const STOP_WORTH_IT_TYRE_AGE = 8;
 const UNDERCUT_MIN_LAPS_LEFT = 5;
 const CHEAP_STOP_MIN_LAPS_LEFT = 3;
+// The pit-timing simulator's best lap is this one, by at least this much
+// over the next best - a near-tie is the driver's choice, not a call.
+const PIT_WINDOW_MARGIN_S = 1.5;
 // Weather: warn this many laps ahead of rain; call the tyre switch once the
 // other tyre is this much quicker per lap (less is lap-time noise).
 const RAIN_WARN_LAPS = 10;
@@ -196,7 +199,7 @@ function createInsightEngine(fieldModel) {
 
   // The headline call for the strategy tier, derived from the same numbers
   // the insight rules use so the call and the radio messages never disagree.
-  function strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps }) {
+  function strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps, pitWindow }) {
     if (inPits) return { action: 'PIT', reason: 'In the pit lane' };
     // The wrong tyre for the conditions costs more per lap than anything else.
     if (weatherBox) return { action: 'BOX', reason: weatherBox };
@@ -208,6 +211,7 @@ function createInsightEngine(fieldModel) {
         ? { action: 'BOX', reason: `Tyres at the cliff - rain within ~${laps(Math.max(1, Math.round(rainSoonLaps)))}, think inters` }
         : { action: 'BOX', reason: 'Tyres at the cliff - box this lap' };
     }
+    if (pitWindow) return { action: 'BOX', reason: pitWindow };
     // No racing under yellow, so "push" would be wrong whatever the tyres say.
     if (neutralised === 'Red flag') return { action: 'HOLD', reason: 'Red flag - race stopped' };
     if (neutralised) return { action: 'HOLD', reason: `${neutralised} - hold position, keep the delta positive` };
@@ -457,8 +461,9 @@ function createInsightEngine(fieldModel) {
     }
 
     // --- ML tyre model: would fresh tyres pay for a stop? ---
+    // Only until pit timing has an answer - it says which lap, not just whether.
     const payback = analysis && analysis.tyreModel && analysis.tyreModel.payback;
-    if (racing && greenRacing && payback && payback.worthIt && lapsLeft != null && payback.paybackLaps <= lapsLeft - 2 && myTyreAge >= STOP_WORTH_IT_TYRE_AGE) {
+    if (racing && greenRacing && payback && payback.worthIt && !(analysis && analysis.pitTiming) && lapsLeft != null && payback.paybackLaps <= lapsLeft - 2 && myTyreAge >= STOP_WORTH_IT_TYRE_AGE) {
       upsert('tyre-payback', {
         severity: SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
@@ -492,6 +497,22 @@ function createInsightEngine(fieldModel) {
       });
     } else {
       expire('undercut-window');
+    }
+
+    // --- Pit window: the simulator says this lap is the one ---
+    const pt = analysis && analysis.pitTiming;
+    const best = pt && pt.options.find((o) => o.best);
+    let pitWindow = null;
+    if (racing && greenRacing && best && best.inLaps === 0 && pt.marginS >= PIT_WINDOW_MARGIN_S) {
+      pitWindow = `Pit window - box this lap, rejoin P${best.rejoinPosition}${best.inTraffic ? ' in traffic' : ''} on ${best.compoundName.toLowerCase()}s`;
+      upsert('pit-window', {
+        severity: SEVERITY.ADVISORY,
+        category: CATEGORY.STRATEGY,
+        message: `${pitWindow}, ${pt.marginS.toFixed(1)}s better than waiting`,
+        expiresAtMs: Date.now() + 5000,
+      });
+    } else {
+      expire('pit-window');
     }
 
     // --- Cheap stop under a safety car / VSC ---
@@ -620,7 +641,7 @@ function createInsightEngine(fieldModel) {
       fuelMarginLaps,
       tyreLapsToCliff: lapsToCliff == null ? null : Math.max(0, lapsToCliff),
       tyreWearRatePerLap: wear ? wear.ratePerLap : null,
-      call: strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps }),
+      call: strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow }),
     };
 
     // Most severe first, then newest - insights[0] is the dashboard's banner,
