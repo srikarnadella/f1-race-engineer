@@ -55,11 +55,6 @@
     .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 12px; font-weight: 700; text-decoration: none; border: 1px solid var(--line-2); background: var(--panel); }
     .btn--go { background: var(--good); color: #03190c; border-color: var(--good); }
     .btn:hover { filter: brightness(1.08); }
-    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 820px; margin: 64px auto 0; border: 1px solid var(--line); border-radius: 16px; background: rgba(13, 17, 23, 0.7); }
-    .stats div { padding: 18px 12px; }
-    .stats div + div { border-left: 1px solid var(--line); }
-    .stats b { display: block; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
-    .stats span { color: var(--dim); font-size: 0.85rem; }
 
     /* Demo */
     #demo { padding-top: 40px; }
@@ -111,9 +106,6 @@
     @media (max-width: 860px) {
       section { padding: 64px 0; }
       .hero { padding: 72px 0 48px; }
-      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .stats div:nth-child(3) { border-left: 0; }
-      .stats div:nth-child(n + 3) { border-top: 1px solid var(--line); }
       .tabs { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; width: 100%; }
       .tab { flex: none; }
       .features, .flow { grid-template-columns: minmax(0, 1fr); }
@@ -145,12 +137,6 @@
       <div class="btns">
         <a class="btn btn--go" href="#demo">Try the live demo</a>
         <a class="btn" href="https://github.com/srikarnadella/f1-race-engineer">View the code</a>
-      </div>
-      <div class="stats">
-        <div><b>22 cars</b><span>tracked live</span></div>
-        <div><b>10 Hz</b><span>to every screen</span></div>
-        <div><b>3× closer</b><span>pit rejoin vs baseline</span></div>
-        <div><b>0</b><span>build steps</span></div>
       </div>
     </header>
 
@@ -184,7 +170,7 @@
         <div class="features">
           <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><h3>Pit timing</h3><p>Every lap you could box on, raced to the flag. Where you'd rejoin, where you'd finish.</p></div>
           <div class="feature" style="--c: var(--act)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18 14 8M14 8h-5M14 8v5M10 20l10-10"/></svg><h3>Battle calls</h3><p>Attack or defend, a trained pass-chance model, and each car's battery at the line.</p></div>
-          <div class="feature" style="--c: var(--info)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><h3>Ask the engineer</h3><p>"Gap behind?" "When do I box?" Ask out loud and hear the answer.</p></div>
+          <div class="feature" style="--c: var(--info)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><h3>Ask the engineer</h3><p>"Engineer, gap behind?" "Engineer, when do I box?" Ask out loud, hands-free, and hear the answer.</p></div>
           <div class="feature" style="--c: var(--info)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 16a4 4 0 0 1-.9-7.9 6 6 0 0 1 11.6 1.4A3.5 3.5 0 0 1 17 16"/><path d="M9 19l1-2M13 19l1-2"/></svg><h3>Weather in laps</h3><p>Rain in ~5 laps, not minutes, and whether inters or slicks are faster right now.</p></div>
           <div class="feature" style="--c: var(--watch)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><h3>Debrief</h3><p>Result, pace, lap-by-lap telemetry, and where you lose time to your rivals.</p></div>
           <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="14" height="10" rx="2"/><rect x="17" y="8" width="5" height="12" rx="1.5"/><path d="M6 18h6"/></svg><h3>Any screen</h3><p>Tablet, phone, laptop or a second monitor. Scan a QR code and it's on the same Wi-Fi.</p></div>

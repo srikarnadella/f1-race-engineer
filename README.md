@@ -139,9 +139,26 @@ the question. It ignores what it hears while the engineer is talking, and restar
 browser ends a listening session. Off by default, because while it's on the browser streams the
 microphone to its speech service. Run it in a browser on the gaming PC (`http://localhost:8080`, with
 a headset so it doesn't hear the game): that page counts as secure, while a tablet on plain `http://`
-over Wi-Fi can't open the microphone at all.
-Browsers only open the microphone on a secure page, which means the PC's own browser (`localhost`) or
-the https demo site; on other devices the same questions are one-tap buttons.
+over Wi-Fi can't open the microphone at all, so there the same questions are one-tap buttons.
+
+**Everything you can ask.** Start with "Engineer" in hands-free mode; with the Ask button, just the
+question. Any phrasing works as long as it has one of the key words.
+
+| Say | Key words it listens for | It answers with |
+|---|---|---|
+| "Engineer, gap behind?" | behind, back, mirrors | Who's behind, the gap, and whether they're catching you |
+| "Engineer, gap ahead?" | ahead, in front, gap | Who's ahead, the gap, and whether you're closing |
+| "Engineer, when do I box?" | box, pit, stop, window, undercut | The best lap to stop, the tyre, rejoin and finish position (the safety-car options under a safety car) |
+| "Engineer, how are my tyres?" | tyres, tires, wear, cliff | Tyre age and compound, laps to the cliff |
+| "Engineer, battery?" | battery, ERS, energy, deploy, overtake | Your battery now and at the line, and the cars either side |
+| "Engineer, is it going to rain?" | rain, weather, wet, dry, forecast | Rain in how many laps, or when it stops |
+| "Engineer, fuel?" | fuel, gas, petrol | Fuel margin to the flag |
+| "Engineer, laps left?" | laps, left, to go, position, where am I | Your position and laps to go |
+| "Engineer, what's the call?" | call, plan, strategy, what should I do | PUSH / HOLD / BOX and why, plus the battle call |
+| "Engineer" | (nothing else) | "Go ahead", then takes your next sentence as the question |
+
+If a question has key words for two of these, the earlier row wins ("gap behind" is about the car
+behind, not the car ahead). Anything it doesn't recognise gets "Didn't catch that" and a list of what to try.
 
 Things it works out for you:
 
