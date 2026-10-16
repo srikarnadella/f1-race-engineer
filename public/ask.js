@@ -112,9 +112,68 @@
   ];
   const HELP = 'Try: gap behind, when do I box, tyres, rain, fuel, battery, or what\'s the call.';
 
-  // text: what the recogniser heard (or a tapped question's id). Returns the reply.
-  function ask(text, s) {
+  // ---------- Custom commands: your phrase, the things you want reported ----------
+  const lapTime = (ms) => (isNum(ms) && ms > 0 ? `${Math.floor(ms / 60000)}:${((ms % 60000) / 1000).toFixed(1).padStart(4, '0')}` : null);
+  function lastLapAnswer(s) {
+    const last = lapTime(s.player.lastLapTimeInMS);
+    if (!last) return 'No lap time yet.';
+    const best = s.player.bestLapTimeInMS;
+    const off = isNum(best) && best > 0 ? s.player.lastLapTimeInMS - best : null;
+    return `Last lap ${last}${off == null ? '' : off <= 0 ? ', your best' : `, ${s1(off)}s off your best`}.`;
+  }
+  const bestLapAnswer = (s) => (lapTime(s.player.bestLapTimeInMS) ? `Best lap ${lapTime(s.player.bestLapTimeInMS)}.` : 'No clean lap yet.');
+  function paceAnswer(s) {
+    const mine = lapTime(s.player.paceMs);
+    if (!mine) return 'Pace needs a few clean laps.';
+    const side = (c, where) => (c && isNum(c.paceMs) ? `, ${c.name} ${where} ${lapTime(c.paceMs)}` : '');
+    return `Your pace ${mine}${side(neighbour(s, 'ahead'), 'ahead')}${side(neighbour(s, 'behind'), 'behind')}.`;
+  }
+  function rejoinAnswer(s) {
+    const rj = s.analysis && s.analysis.rejoin;
+    return rj ? `Box now and you rejoin P${rj.position}${rj.inTraffic ? ' in traffic' : ' in clean air'}.` : 'No rejoin estimate right now.';
+  }
+  function pitLossAnswer(s) {
+    const pl = s.analysis && s.analysis.pitLoss;
+    return pl ? `A stop costs ${s1(pl.ms)}s${pl.neutralised ? ` under the ${pl.neutralised}` : ''}.` : 'No pit loss yet.';
+  }
+  function carAnswer(s) {
+    const tip = s.adjust && s.adjust.suggestions[0];
+    return tip ? `Car: ${tip.action}, ${tip.where}.` : 'Car is balanced, no changes.';
+  }
+  // Everything a custom command can report, in the order it's read out.
+  const REPORTS = [
+    ...QUESTIONS.map((q) => ({ id: q.id, label: q.label.replace(/\?$/, ''), answer: q.answer })),
+    { id: 'lastlap', label: 'Last lap', answer: lastLapAnswer },
+    { id: 'bestlap', label: 'Best lap', answer: bestLapAnswer },
+    { id: 'pace', label: 'Pace vs cars either side', answer: paceAnswer },
+    { id: 'rejoin', label: 'Rejoin if I box now', answer: rejoinAnswer },
+    { id: 'pitloss', label: 'Pit loss', answer: pitLossAnswer },
+    { id: 'car', label: 'Car setting tip', answer: carAnswer },
+  ];
+  const REPORT = Object.fromEntries(REPORTS.map((r) => [r.id, r]));
+
+  const words = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').trim().replace(/\s+/g, ' ');
+  // A saved command, cleaned up - or null if it can't work. The phrase can't
+  // be the wake word, and needs at least one thing to report.
+  function cleanCommand(c) {
+    const phrase = words(c && c.phrase).slice(0, 40);
+    const reports = [...new Set((c && Array.isArray(c.reports) ? c.reports : []).filter((id) => REPORT[id]))];
+    if (phrase.length < 2 || /\bengineers?\b/.test(phrase) || !reports.length) return null;
+    return { phrase, reports };
+  }
+  // "status" matches "status", "status please" and "give me a status" - the
+  // phrase's words together, anywhere in what was said.
+  const said = (t, phrase) => ` ${words(t)} `.includes(` ${phrase} `);
+
+  // text: what the recogniser heard (or a tapped question's id). custom: your
+  // commands, checked first - you made them on purpose. Returns the reply.
+  function ask(text, s, custom = []) {
     const t = String(text || '').toLowerCase();
+    const mine = custom.find((c) => said(t, c.phrase));
+    if (mine) {
+      if (!s || !s.player) return { id: 'custom', reply: 'No telemetry yet - get on track first.' };
+      return { id: 'custom', reply: mine.reports.map((id) => REPORT[id].answer(s)).join(' ') };
+    }
     const q = QUESTIONS.find((x) => x.id === t) || QUESTIONS.find((x) => x.match.test(t));
     if (!q) return { id: null, reply: `Didn't catch that. ${HELP}` };
     if (!s || !s.player) return { id: q.id, reply: 'No telemetry yet - get on track first.' };
@@ -131,7 +190,7 @@
     return m ? t.slice(m.index + m[0].length).trim() : null;
   }
 
-  const api = { ask, afterWake, QUESTIONS, HELP };
+  const api = { ask, afterWake, cleanCommand, QUESTIONS, REPORTS, HELP };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RaceAsk = api;
 })(typeof window !== 'undefined' ? window : this);

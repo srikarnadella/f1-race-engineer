@@ -50,3 +50,18 @@ test('ask: hands-free only acts on what follows the wake word', () => {
   assert.strictEqual(afterWake('what is the gap'), null); // not for us
   assert.strictEqual(afterWake('the engineering on this car'), null);
 });
+
+test('ask: a custom command reads out everything it was set up to report', () => {
+  const { ask: askWith, cleanCommand } = require('../public/ask');
+  const status = cleanCommand({ phrase: '  Status! ', reports: ['ahead', 'behind', 'tyres', 'nonsense'] });
+  assert.deepStrictEqual(status, { phrase: 'status', reports: ['ahead', 'behind', 'tyres'] });
+  const r = askWith('give me a status please', snap, [status]);
+  assert.strictEqual(r.id, 'custom');
+  assert.strictEqual(r.reply, "NORRIS, P3, 1.2s ahead, you're closing 0.3s a lap. SAINZ, P5, 0.8s behind, catching you 0.2s a lap. 11 laps old mediums, about 6 laps to the cliff.");
+  // Custom first: "box report" is yours, not the built-in pit question.
+  const box = cleanCommand({ phrase: 'box report', reports: ['pitloss', 'rejoin'] });
+  assert.strictEqual(askWith('box report', { ...snap, analysis: { ...snap.analysis, pitLoss: { ms: 19400 }, rejoin: { position: 8, inTraffic: true } } }, [box]).reply, 'A stop costs 19.4s. Box now and you rejoin P8 in traffic.');
+  assert.strictEqual(askWith('statistics', snap, [status]).id, null); // whole words only
+  assert.strictEqual(cleanCommand({ phrase: 'engineer', reports: ['fuel'] }), null); // that's the wake word
+  assert.strictEqual(cleanCommand({ phrase: 'status', reports: [] }), null);
+});

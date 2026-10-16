@@ -757,3 +757,18 @@ body {
 .tool--ask.is-listening { background: rgba(62, 240, 138, 0.14); color: var(--good); }
 .tool--ask.is-listening::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--good); animation: pulse 1.6s ease-in-out infinite; }
 .setting input:disabled + .setting__text { opacity: 0.6; }
+
+/* ---------- Your voice commands (Settings) ---------- */
+.setting--cmds { flex-direction: column; align-items: stretch; gap: 10px; cursor: default; }
+.cmds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cmds:empty { display: none; }
+.cmds li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--panel-2); }
+.cmds li .dim { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd-phrase { font: inherit; font-weight: 700; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+.cmd-reports { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmd-reports label { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: var(--panel-2); font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+.cmd-reports label:has(input:checked) { background: var(--info); color: #001323; }
+.cmd-reports input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cmd-reports label:has(input:focus-visible) { outline: 2px solid var(--info); outline-offset: 2px; }
+.cmd-foot { display: flex; align-items: center; gap: 12px; }
+.ask-sheet__qs button.is-mine { background: #0d2233; color: var(--info); }

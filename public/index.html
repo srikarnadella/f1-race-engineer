@@ -101,6 +101,14 @@
           <span class="dim">Always listening, answers only what starts with "Engineer": "Engineer, gap behind?" Say just "Engineer" and it asks what you need. Wear a headset so it doesn't hear the game. While this is on, your browser sends the microphone to its speech service (Chrome: Google).</span>
           <span class="dim is-watch" id="handsfree-note"></span></span>
       </label>
+      <div class="setting setting--cmds">
+        <span class="setting__text"><b>Your voice commands</b>
+          <span class="dim">A phrase and what it reports, read out in one go - e.g. "status": gap ahead, gap behind, tyres. Works hands-free ("Engineer, status") and as a button under Ask. Saved on this device.</span></span>
+        <ul class="cmds" id="cmds"></ul>
+        <input class="cmd-phrase" id="cmd-phrase" type="text" placeholder="Phrase, e.g. status" maxlength="40" autocomplete="off">
+        <div class="cmd-reports" id="cmd-reports"></div>
+        <div class="cmd-foot"><button class="tool tool--primary" id="cmd-save" type="button">Add command</button><span class="dim" id="cmd-note"></span></div>
+      </div>
       <div class="setting setting--pair" id="pair" hidden>
         <img id="pair-qr" alt="QR code of the dashboard address" width="148" height="148">
         <span class="setting__text"><b>Open on another device</b>

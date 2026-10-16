@@ -160,6 +160,14 @@ question. Any phrasing works as long as it has one of the key words.
 If a question has key words for two of these, the earlier row wins ("gap behind" is about the car
 behind, not the car ahead). Anything it doesn't recognise gets "Didn't catch that" and a list of what to try.
 
+**Your own commands (Settings → Your voice commands).** Pick a phrase and tick what it should report;
+the engineer reads them all out in one go. For example, *"status"* with gap ahead, gap behind, tyres and
+last lap, then say *"Engineer, status"*. You can report any of the questions above, plus last lap (and how
+far off your best), best lap, pace against the cars either side, where you'd rejoin if you boxed now,
+pit loss, and the top car-setting tip. Your commands are checked before the built-in ones, match as
+whole words anywhere in the sentence ("give me a status" works), appear as buttons under **Ask**, and
+are saved on that device (set them up on the PC if that's where hands-free runs).
+
 Things it works out for you:
 
 - **Pit timing: which lap to box on.** Every lap from now to the flag is raced out against the field:

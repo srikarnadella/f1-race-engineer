@@ -9,7 +9,7 @@
   const STALE_AFTER_MS = 3000;
   const TOAST_MS = 6000;
   const CRITICAL_BAND_MS = 6000;
-  const STORE = { screen: 'raceEngineer.screen', custom: 'raceEngineer.custom', voice: 'raceEngineer.voice', auto: 'raceEngineer.auto', handsFree: 'raceEngineer.handsFree' };
+  const STORE = { screen: 'raceEngineer.screen', custom: 'raceEngineer.custom', voice: 'raceEngineer.voice', auto: 'raceEngineer.auto', handsFree: 'raceEngineer.handsFree', commands: 'raceEngineer.commands' };
 
   function load(key, fallback) {
     try {
@@ -632,7 +632,7 @@
     askTimer = setTimeout(() => { if (!recognition) closeAsk(); }, ASK_SHEET_MS);
   }
   function answer(question) {
-    const { reply } = window.RaceAsk.ask(question, lastSnapshot);
+    const { reply } = window.RaceAsk.ask(question, lastSnapshot, commands);
     setText($('ask-reply'), reply);
     say(reply, true, true);
     keepAskOpen();
@@ -659,7 +659,7 @@
       heard = true;
       // Of the recogniser's guesses, the first that is a question we know.
       const guesses = [...e.results[0]].map((x) => x.transcript);
-      const q = guesses.find((t) => window.RaceAsk.ask(t, null).id) || guesses[0];
+      const q = guesses.find((t) => window.RaceAsk.ask(t, null, commands).id) || guesses[0];
       setText($('ask-heard'), `"${q}"`);
       answer(q);
     };
@@ -690,16 +690,76 @@
     keepAskOpen();
     if (andListen && canListen) listen();
   }
-  $('ask-qs').replaceChildren(...window.RaceAsk.QUESTIONS.map((q) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = q.label;
-    b.addEventListener('click', () => {
-      setText($('ask-heard'), q.label);
-      answer(q.id);
-    });
-    return b;
+  // Your commands first, then the built-in questions - each a one-tap button.
+  function renderAskButtons() {
+    const button = (label, question, mine) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      if (mine) b.className = 'is-mine';
+      b.addEventListener('click', () => {
+        setText($('ask-heard'), label);
+        answer(question);
+      });
+      return b;
+    };
+    $('ask-qs').replaceChildren(
+      ...commands.map((c) => button(`"${c.phrase}"`, c.phrase, true)),
+      ...window.RaceAsk.QUESTIONS.map((q) => button(q.label, q.id, false)),
+    );
+  }
+
+  // ---------- Your voice commands (Settings) ----------
+  // A phrase and the things it reports: "Engineer, status" -> gap ahead,
+  // gap behind, tyres, read out in one go. Saved on this device.
+  let commands = (load(STORE.commands, []) || []).map(window.RaceAsk.cleanCommand).filter(Boolean);
+  const reportLabel = Object.fromEntries(window.RaceAsk.REPORTS.map((r) => [r.id, r.label]));
+  $('cmd-reports').replaceChildren(...window.RaceAsk.REPORTS.map((r) => {
+    const l = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.value = r.id;
+    l.append(box, r.label);
+    return l;
   }));
+  function renderCommands() {
+    $('cmds').replaceChildren(...commands.map((c, i) => {
+      const li = document.createElement('li');
+      const phrase = document.createElement('b');
+      phrase.textContent = `"Engineer, ${c.phrase}"`;
+      const what = document.createElement('span');
+      what.className = 'dim';
+      what.textContent = c.reports.map((id) => reportLabel[id]).join(' · ');
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'tool';
+      del.textContent = 'Remove';
+      del.addEventListener('click', () => {
+        commands.splice(i, 1);
+        save(STORE.commands, commands);
+        renderCommands();
+      });
+      li.append(phrase, what, del);
+      return li;
+    }));
+    renderAskButtons();
+  }
+  $('cmd-save').addEventListener('click', () => {
+    const picked = [...$('cmd-reports').querySelectorAll('input:checked')].map((x) => x.value);
+    const c = window.RaceAsk.cleanCommand({ phrase: $('cmd-phrase').value, reports: picked });
+    if (!c) {
+      setText($('cmd-note'), !picked.length ? 'Tick at least one thing to report.' : 'Pick a phrase of a word or more (not "engineer").');
+      return;
+    }
+    // The same phrase again replaces the old command.
+    commands = [...commands.filter((x) => x.phrase !== c.phrase), c];
+    save(STORE.commands, commands);
+    $('cmd-phrase').value = '';
+    $('cmd-reports').querySelectorAll('input').forEach((x) => { x.checked = false; });
+    setText($('cmd-note'), `Added. Say "Engineer, ${c.phrase}".`);
+    renderCommands();
+  });
+  renderCommands();
   $('ask').addEventListener('click', () => ($('ask-sheet').hidden ? openAsk(true) : closeAsk()));
   $('ask-mic').addEventListener('click', listen);
   $('ask-close').addEventListener('click', closeAsk);
