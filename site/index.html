@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>F1 26 Race Engineer</title>
+  <meta name="description" content="A live race-engineer dashboard for F1 26: it reads the game's telemetry, watches the whole field and calls the race on an iPad - box, defend, rain in 5 laps. Try the recorded demo in your browser.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="F1 26 Race Engineer - try the demo">
+  <meta property="og:description" content="Live telemetry, the whole field, calls you can act on mid-corner - and every prediction scored against what really happened.">
+  <meta property="og:image" content="https://srikarnadella.github.io/f1-race-engineer/img/drive.png">
+  <meta property="og:url" content="https://srikarnadella.github.io/f1-race-engineer/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2306080b'/%3E%3Cpath d='M6 22h20M9 16h14M12 10h8' stroke='%232fd877' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #05070a; --panel: #0d1117; --panel-2: #141a22; --line: #222b37;
+      --text: #f4f7fa; --muted: #a9b4c1; --dim: #7b8796;
+      --good: #3ef08a; --watch: #ffd23f; --act: #ff5252; --info: #62c3ff; --pb: #c792ff;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    a { color: var(--info); }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+    section { padding: 56px 0; border-top: 1px solid var(--line); }
+    h1, h2, h3 { line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.01em; }
+    h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); }
+    .lede { color: var(--muted); font-size: 1.1rem; max-width: 760px; }
+    .eyebrow { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--good); margin-bottom: 10px; }
+
+    /* Nav */
+    nav { position: sticky; top: 0; z-index: 10; background: rgba(5, 7, 10, 0.88); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+    nav .wrap { display: flex; align-items: center; gap: 20px; height: 58px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 850; letter-spacing: 0.04em; color: var(--text); text-decoration: none; }
+    .brand svg { width: 26px; height: 26px; }
+    nav .links { margin-left: auto; display: flex; gap: 18px; font-size: 0.92rem; }
+    nav .links a { color: var(--muted); text-decoration: none; }
+    nav .links a:hover { color: var(--text); }
+
+    /* Hero */
+    .hero { padding-top: 64px; padding-bottom: 40px; border-top: 0; }
+    .hero h1 { font-size: clamp(2.2rem, 6vw, 4rem); font-weight: 900; }
+    .hero h1 span { color: var(--good); }
+    .calls { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 28px; }
+    .call { padding: 8px 14px; border-radius: 10px; background: var(--panel-2); font-weight: 750; font-size: 0.95rem; box-shadow: inset 4px 0 0 var(--c, var(--info)); }
+    .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 12px; font-weight: 800; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--panel); }
+    .btn--go { background: var(--good); color: #032010; border-color: var(--good); }
+    .btn:hover { filter: brightness(1.1); }
+
+    /* Demo */
+    /* The dashboard is built for a whole iPad screen: give it the full width, guide on top. */
+    .demo { display: flex; flex-direction: column; gap: 14px; margin-top: 24px; }
+    .guide { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+    .step { text-align: left; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); padding: 12px 14px; font: inherit; cursor: pointer; }
+    .step b { display: block; font-size: 1rem; }
+    .step span { display: block; color: var(--muted); font-size: 0.88rem; line-height: 1.4; margin-top: 2px; }
+    .step:hover { border-color: #3a4656; }
+    .step.is-on { border-color: var(--good); box-shadow: inset 4px 0 0 var(--good); }
+    .step--auto.is-on { border-color: var(--info); box-shadow: inset 4px 0 0 var(--info); }
+    .frame { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: #030406; aspect-ratio: 4 / 3; }
+    /* Always laid out at iPad-landscape size, then scaled to fit, so a phone sees the real layout, smaller. */
+    .frame iframe { position: absolute; top: 0; left: 0; width: 1180px; height: 885px; border: 0; transform-origin: 0 0; transform: scale(var(--s, 1)); }
+    .frame-note { color: var(--dim); font-size: 0.85rem; margin-top: 10px; }
+
+    /* Cards */
+    .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+    .card h3 { font-size: 1.1rem; }
+    .card p { color: var(--muted); margin: 0; }
+
+    /* Pipeline */
+    .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 24px 0 12px; }
+    .node { flex: 1 1 150px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+    .node b { display: block; }
+    .node span { color: var(--muted); font-size: 0.86rem; }
+    .arrow { align-self: center; color: var(--dim); font-weight: 900; }
+
+    /* Accuracy table */
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--dim); font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    td.win { color: var(--good); font-weight: 800; }
+    td.tie { color: var(--watch); font-weight: 800; }
+    .note { color: var(--muted); font-size: 0.92rem; margin-top: 14px; }
+
+    /* Highlights */
+    .hl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin-top: 20px; }
+    .hl div { padding-left: 14px; border-left: 3px solid var(--line); }
+    .hl b { display: block; }
+    .hl span { color: var(--muted); font-size: 0.95rem; }
+    .stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .stack span { padding: 5px 10px; border-radius: 999px; background: var(--panel-2); color: var(--muted); font-size: 0.85rem; font-weight: 700; }
+
+    footer { padding: 32px 0 48px; border-top: 1px solid var(--line); color: var(--dim); font-size: 0.88rem; }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+
+    @media (max-width: 900px) {
+      .guide { display: flex; overflow-x: auto; padding-bottom: 4px; }
+      .step { flex: 0 0 200px; }
+      .grid3, .hl { grid-template-columns: minmax(0, 1fr); }
+      nav .links a:not(.gh) { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a class="brand" href="#top"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0d1117"/><path d="M6 22h20M9 16h14M12 10h8" stroke="#2fd877" stroke-width="3" stroke-linecap="round"/></svg>RACE ENGINEER</a>
+      <div class="links">
+        <a href="#demo">Demo</a>
+        <a href="#how">How it works</a>
+        <a href="#accuracy">Accuracy</a>
+        <a class="gh" href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main id="top">
+    <header class="hero wrap">
+      <div class="eyebrow">F1 26 · live telemetry · second screen</div>
+      <h1>A race engineer <span>on your iPad.</span></h1>
+      <p class="lede">The game streams telemetry for every car on track. This reads it as you drive, works out what matters
+        right now, and says it the way an engineer would, in words you can take in mid-corner. It shows only what
+        the game's own HUD can't.</p>
+      <div class="calls" aria-label="Example calls">
+        <span class="call" style="--c: var(--act)">BOX - tyres at the cliff</span>
+        <span class="call" style="--c: var(--act)">DEFEND vs Sainz - watch into corner 2</span>
+        <span class="call" style="--c: var(--watch)">Rain in ~5 laps</span>
+        <span class="call" style="--c: var(--good)">Box now: rejoin P14, clean air</span>
+      </div>
+      <div class="btns">
+        <a class="btn btn--go" href="#demo">Try the demo ↓</a>
+        <a class="btn" href="https://github.com/srikarnadella/f1-race-engineer">Code on GitHub</a>
+      </div>
+    </header>
+
+    <section id="demo">
+      <div class="wrap">
+        <div class="eyebrow">Interactive demo</div>
+        <h2>The real dashboard, replaying a race</h2>
+        <p class="lede">This is the actual app running in your browser, not a video. It's fed a recording the real engine
+          made from a five-lap stint, so every call fires in a few minutes. Pick a step, or click around inside it.</p>
+        <div class="demo">
+          <div class="guide" role="group" aria-label="Demo guide">
+            <button class="step" data-screen="drive" type="button"><b>1 · Drive</b><span>The screen to leave up: the call, the fight either side, the latest radio call, four projections.</span></button>
+            <button class="step" data-screen="battle" type="button"><b>2 · Battle</b><span>ATTACK / DEFEND, the ML pass chance, and each car's battery projected to the line against yours.</span></button>
+            <button class="step" data-screen="strategy" type="button"><b>3 · Strategy</b><span>"Should I box?" Where you'd rejoin, behind whom, and what fresh tyres would pay back.</span></button>
+            <button class="step" data-screen="weather" type="button"><b>4 · Weather</b><span>The forecast in laps, not minutes, and whether inters or slicks are faster right now.</span></button>
+            <button class="step" data-screen="debrief" type="button"><b>5 · Debrief</b><span>After the flag: a real Monaco race. Pace, a position chart, lap compare, and how well the models score.</span></button>
+            <button class="step step--auto" id="auto" type="button"><b>Auto-switch: off</b><span>Let the dashboard pick the screen as the race unfolds. The rail says why each time.</span></button>
+          </div>
+          <div>
+            <div class="frame"><iframe id="dash" src="demo/?recorded" title="Race Engineer dashboard - recorded demo" loading="lazy"></iframe></div>
+            <p class="frame-note">Recorded demo: synthetic race data run through the real engine. <a href="demo/?recorded">Open it full screen</a> - keys 1-6 switch screens.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="eyebrow">What it does</div>
+        <h2>Three things a driver can't do alone at 300 km/h</h2>
+        <div class="grid3">
+          <div class="card"><h3>Watches the whole field</h3><p>Gaps, closing rates, tyre age and pit stops for all 22 cars, so it can call an undercut, a car closing from 3 seconds back, or where you'd come out if you boxed now.</p></div>
+          <div class="card"><h3>Says only what matters</h3><p>Calls are settled before they're said, ranked by urgency and spoken once by the browser's own voice. Only a safety car, red flag, tyre cliff or fuel crisis takes over the screen.</p></div>
+          <div class="card"><h3>Measures itself</h3><p>Every prediction is replayed against real races and scored next to the obvious guess. Where a model doesn't beat that guess yet, the app says so.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <div class="wrap">
+        <div class="eyebrow">How it works</div>
+        <h2>One pipeline for live and replay</h2>
+        <div class="flow">
+          <div class="node"><b>F1 26</b><span>UDP, up to 60 Hz, 17 packet types</span></div><div class="arrow">→</div>
+          <div class="node"><b>Parsers</b><span>packed binary structs; layout drift degrades to a warning</span></div><div class="arrow">→</div>
+          <div class="node"><b>Field model</b><span>every car, on game time; flashbacks undone</span></div><div class="arrow">→</div>
+          <div class="node"><b>Rules + models</b><span>calls, pit loss, rejoin, battles, weather, ML</span></div><div class="arrow">→</div>
+          <div class="node"><b>Dashboard</b><span>one JSON snapshot, 10 Hz over WebSocket</span></div>
+        </div>
+        <p class="note">A small Node bridge on the PC takes the game's UDP stream and serves the dashboard to any browser on the network. iOS can't listen for raw UDP, and this way an iPad only needs Safari. The browser formats; it never decides. Every call is made server-side, so this demo runs the exact code a live session does.
+          <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/how-it-works.md">One radio call traced end to end →</a></p>
+      </div>
+    </section>
+
+    <section id="accuracy">
+      <div class="wrap">
+        <div class="eyebrow">Measured, not claimed</div>
+        <h2>Every prediction against the obvious guess</h2>
+        <p class="lede">Scored by replaying real recorded races through the engine (<code>npm run accuracy</code>).</p>
+        <table>
+          <thead><tr><th>Prediction</th><th>Model</th><th>Naive baseline</th></tr></thead>
+          <tbody>
+            <tr><td>Where you rejoin if you box now</td><td class="win">1.33 places off</td><td>4.33 - "you keep your place"</td></tr>
+            <tr><td>A rival's battery at the line, half a lap out</td><td class="win">7.4 points off</td><td>9.9 - "it stays where it is"</td></tr>
+            <tr><td>Overtake within 10 s (held-out AUC)</td><td class="tie">0.851</td><td>0.854 - gap alone</td></tr>
+            <tr><td>Which corner they'll attack at</td><td class="tie">5 of 20</td><td>5 of 20 - the busiest corner</td></tr>
+          </tbody>
+        </table>
+        <p class="note">The harness also caught two bugs before release. The game reports a 0 s gap while a car is in the
+          pit lane, which put rejoin predictions 8 places out during pit stops. And the first battery projection was worse
+          than doing nothing. Samples are still small (3 green-flag stops, 20 passes), and
+          <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">the full report</a> says so.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="eyebrow">For engineers</div>
+        <h2>What's under the hood</h2>
+        <div class="hl">
+          <div><b>Binary protocol parsing</b><span>Little-endian packed structs across two game versions, pinned by tests on real F1 26 packets.</span></div>
+          <div><b>Real-time architecture</b><span>60 Hz in, fixed 10 Hz out to every client, staleness detection, reconnecting clients.</span></div>
+          <div><b>ML from scratch</b><span>Logistic regression with leave-one-race-out evaluation and calibration; live tyre-degradation fit across the field.</span></div>
+          <div><b>Evaluation harness</b><span>Replays recorded races and scores each prediction against a baseline; it found two real bugs.</span></div>
+          <div><b>UX for a glance</b><span>Colour only means something, the decision is the biggest thing on screen, and auto-switching screens never flicker.</span></div>
+          <div><b>Lean by design</b><span>No build step, no framework, two small dependencies; under a millisecond per packet.</span></div>
+        </div>
+        <div class="stack"><span>Node.js</span><span>WebSockets</span><span>Vanilla JS / CSS</span><span>SVG charts</span><span>Web Speech API</span><span>node:test · 89 tests</span><span>GitHub Actions</span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Built by Srikar Nadella · <a href="https://github.com/srikarnadella/f1-race-engineer">source (MIT)</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/ux.md">UX decisions</a></span>
+      <span>Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts.</span>
+    </div>
+  </footer>
+
+  <script>
+    // The guide drives the embedded dashboard (same origin) and follows it back.
+    (function () {
+      const frame = document.getElementById('dash');
+      const steps = [...document.querySelectorAll('.step[data-screen]')];
+      const auto = document.getElementById('auto');
+      let autoOn = false;
+      const box = frame.parentElement;
+      const fit = () => box.style.setProperty('--s', box.clientWidth / 1180);
+      fit();
+      window.addEventListener('resize', fit);
+      const send = (msg) => frame.contentWindow && frame.contentWindow.postMessage(msg, location.origin);
+      steps.forEach((b) => b.addEventListener('click', () => send({ type: 'show', id: b.dataset.screen })));
+      auto.addEventListener('click', () => send({ type: 'auto', on: !autoOn }));
+      window.addEventListener('message', (e) => {
+        if (e.origin !== location.origin || !e.data || e.data.type !== 'screen') return;
+        steps.forEach((b) => b.classList.toggle('is-on', b.dataset.screen === e.data.id));
+        autoOn = !!e.data.auto;
+        auto.classList.toggle('is-on', autoOn);
+        auto.querySelector('b').textContent = `Auto-switch: ${autoOn ? 'on' : 'off'}`;
+      });
+    })();
+  </script>
+</body>
+</html>

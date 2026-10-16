@@ -12,3 +12,6 @@ demo/synthetic-session.f1log
 .vscode/
 .DS_Store
 Thumbs.db
+# Demo website: rebuilt by CI (npm run site); only site/race-data/ is committed.
+site/demo-data/
+_site/

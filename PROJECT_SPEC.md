@@ -130,8 +130,11 @@ f1-race-engineer/
 │   ├── generate-demo-session.js      [DONE] writes demo/synthetic-session.f1log (gitignored, ~17MB)
 │   ├── analyze-capture.js            [DONE] npm run analyze
 │   ├── train-overtake.js             [DONE] npm run train:overtake (from captures/)
-│   └── accuracy.js                   [DONE] npm run accuracy: predictions vs what happened -> docs/accuracy.md
+│   ├── accuracy.js                   [DONE] npm run accuracy: predictions vs what happened -> docs/accuracy.md
+│   └── build-demo-site.js            [DONE] npm run site: records the engine's snapshots for the demo website
 ├── docs/                             how-it-works, ux, accuracy, ml-overtake-model
+├── site/                             demo website: index.html (landing page) + race-data/ (a real race for the Debrief)
+├── .github/workflows/pages.yml       tests, builds the recording (npm run site), publishes to GitHub Pages
 ├── test/                             [DONE] node:test - parser round-trips, state + insight rules
 ├── demo/                             [PARTIAL] synthetic session generated on demand; real capture still TODO (Epic C)
 ├── captures/                         npm run capture output (gitignored)
@@ -251,10 +254,9 @@ the live tool and the public demo both work, not before.
 
 ## 11. Open decisions (need a call before those epics start)
 
-- **Demo hosting** (Epic G): static replay bundled as a tiny Node service (Render/Fly/a VPS) vs.
-  pre-baked WebSocket messages looped from a static host (cheaper, but "live" is simulated rather than
-  genuinely re-derived each time — acceptable tradeoff for a recruiter demo, worth being explicit about
-  in the README so it's not misrepresented).
+- **Demo hosting** (Epic G): decided - a static GitHub Pages site (`site/`, `.github/workflows/pages.yml`).
+  The real dashboard plays a recording the real engine makes at build time (`npm run site`), and is
+  labelled "Recorded demo" so it never passes for a live session. Free, nothing to keep running.
 - **Persistence** (Epic E): decided - one gzipped JSON file per session in `data/sessions/`, not
   SQLite: the debrief already holds the whole session in memory, so a file write at the end is all it
   needs, with no native dependency to install.

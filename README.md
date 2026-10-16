@@ -7,6 +7,8 @@ It doesn't just mirror numbers. It watches **the whole field** and calls what ma
 *box this lap*, *P8 is 0.5s behind — defend*, *Hamilton just pitted — undercut threat*, *fuel margin
 down to 0.3 laps*.
 
+**[▶ Try the interactive demo in your browser](https://srikarnadella.github.io/f1-race-engineer/)** - the real dashboard replaying a race, no install.
+
 ![The Drive screen: the call, the fight either side with projected battery, the radio, four projections](docs/screenshots/drive.png)
 
 | Battle | Strategy | Weather | Debrief (a real Monaco race) |
@@ -269,6 +271,7 @@ npm test                 # parsers (incl. real F1 26 packets), state rules, anal
 npm run demo:regenerate  # rebuild the synthetic demo session after changing src/sim/
 npm run train:overtake   # retrain + re-evaluate the overtake model from captures/
 npm run accuracy         # score the predictions on captures/, writes docs/accuracy.md
+npm run site             # build the demo website data; npm run site -- --serve to preview it
 node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay a real race, 8x
 ```
 
@@ -286,7 +289,7 @@ changes reaching the feed. Still open:
 - More races for the models: the overtake model ties the gap-only baseline, the attack forecast ties the
   busiest-corner rule, and only 3 green-flag stops have scored the rejoin model.
 - A real recorded race as the public demo (the synthetic one has no 2026 data).
-- A public hosted demo; an in-game overlay (needs a desktop wrapper; parked in favour of voice).
+- An in-game overlay (needs a desktop wrapper; parked in favour of voice).
 
 ## License
 

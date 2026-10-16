@@ -23,6 +23,27 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* private mode: just don't persist */ }
   }
 
+  // ---------- Recorded demo (the public website) ----------
+  // On GitHub Pages there's no bridge to talk to: the page plays a recording
+  // the real engine made (npm run site) instead. The debrief's on-demand
+  // requests are answered from files saved alongside it.
+  const RECORDED = location.hostname.endsWith('.github.io') || new URLSearchParams(location.search).has('recorded');
+  const DEMO_DATA = 'demo-data/';
+  if (RECORDED) {
+    const realFetch = window.fetch.bind(window);
+    window.fetch = (url, ...rest) => {
+      const u = new URL(url, location.href);
+      if (!u.pathname.includes('/api/')) return realFetch(url, ...rest);
+      const p = u.searchParams;
+      const file = u.pathname.endsWith('/api/models') ? 'models'
+        : u.pathname.endsWith('/rivals') ? `rivals-${p.get('session')}`
+          : u.pathname.endsWith('/compare') && !p.has('a') && !p.has('b') ? `compare-${p.get('session')}` : null;
+      if (file) return realFetch(`${DEMO_DATA}api/${file}.json`);
+      const error = u.pathname.endsWith('/compare') ? 'This recorded demo compares the best lap with the latest one - the full app compares any two.' : 'Not available in the recorded demo.';
+      return Promise.resolve(new Response(JSON.stringify({ error }), { headers: { 'Content-Type': 'application/json' } }));
+    };
+  }
+
   // ---------- Layouts ----------
   // Slots are [col, row, colSpan, rowSpan] on a grid that fills the screen.
   const LAYOUTS = {
@@ -97,6 +118,7 @@
       items.push(tabButton(s, i));
     });
     $('tabs').replaceChildren(...items);
+    if (RECORDED && window.parent !== window) window.parent.postMessage({ type: 'screen', id: currentId, auto: autoOn }, location.origin);
     const btn = $('customize');
     setText(btn, currentId === 'custom' ? (editing ? 'Done' : 'Edit') : 'Customize');
     btn.classList.toggle('is-active', editing);
@@ -354,6 +376,7 @@
     homeId = currentId;
     if (autoOn && lastSnapshot) applyFocus(lastSnapshot);
     renderAutoChip();
+    renderTabs();
   });
   // Pairing: this bridge's LAN address, and a QR code of it, for the iPad.
   fetch('/api/pair').then((r) => r.json()).then((p) => {
@@ -633,7 +656,7 @@
     const link = $('link');
     link.classList.toggle('is-live', !!live && !demo);
     link.classList.toggle('is-demo', !!demo);
-    setText($('link-text'), !socketOpen ? 'Bridge offline' : !fresh ? 'Stalled' : demo ? 'Demo replay' : live ? 'Live' : 'No telemetry');
+    setText($('link-text'), !socketOpen ? 'Bridge offline' : !fresh ? 'Stalled' : demo ? (RECORDED ? 'Recorded demo' : 'Demo replay') : live ? 'Live' : 'No telemetry');
 
     let title = null;
     let body = '';
@@ -738,10 +761,45 @@
     ws.onerror = () => ws.close();
   }
 
+  // Plays the recording on a loop, at the pace it was recorded.
+  function playRecording() {
+    Promise.all([DEMO_DATA + 'snapshots.json', DEMO_DATA + 'debrief.json'].map((u) => fetch(u).then((r) => r.json())))
+      .then(([frames, debrief]) => {
+        socketOpen = true;
+        let i = 0;
+        const step = () => {
+          const frame = frames[i];
+          render({ ...frame.s, updatedAtMs: Date.now(), debrief });
+          const last = i === frames.length - 1;
+          setTimeout(step, last ? 2000 : frames[i + 1].t - frame.t);
+          i = last ? 0 : i + 1;
+        };
+        step();
+      })
+      .catch(() => {
+        setText($('status-title'), 'Demo data missing.');
+        setText($('status-body'), 'Build it with npm run site.');
+        $('status-banner').hidden = false;
+      });
+  }
+
+  // The demo website's guide buttons drive this page when it's embedded.
+  if (RECORDED) {
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || !e.data) return;
+      if (e.data.type === 'show' && screens().some((x) => x.id === e.data.id)) showScreen(e.data.id);
+      if (e.data.type === 'auto') {
+        $('set-auto').checked = !!e.data.on;
+        $('set-auto').dispatchEvent(new Event('change'));
+      }
+    });
+  }
+
   renderTabs();
   renderScreen();
   setInterval(renderLink, 1000); // catches a silent stall between messages
   renderLink();
-  connect();
+  if (RECORDED) playRecording();
+  else connect();
   keepAwake();
 })();

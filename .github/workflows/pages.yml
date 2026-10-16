@@ -1,0 +1,48 @@
+# Tests, then builds and publishes the demo website to GitHub Pages:
+# site/index.html at the root, the dashboard (public/) at /demo/ playing a
+# recording the real engine makes here (npm run site), screenshots at /img/.
+name: Demo site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run site
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/demo _site/img
+          cp site/index.html _site/
+          cp -r public/. _site/demo/
+          cp -r site/demo-data _site/demo/demo-data
+          cp docs/screenshots/*.png _site/img/
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -23,7 +23,8 @@
     "demo": "node scripts/generate-demo-session.js --if-missing && node src/index.js --demo demo/synthetic-session.f1log",
     "demo:regenerate": "node scripts/generate-demo-session.js",
     "test": "node --test test/",
-    "accuracy": "node scripts/accuracy.js"
+    "accuracy": "node scripts/accuracy.js",
+    "site": "node scripts/build-demo-site.js"
   },
   "dependencies": {
     "qrcode-terminal": "0.12.0",
