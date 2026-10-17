@@ -25,7 +25,7 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
 
   const player = fieldModel.getCar(playerIdx);
   const delta = fieldModel.getPlayerDelta();
-  const { field, playerPaceMs, pitLoss, rejoin, options, pitTiming, damage, quali, weather, battle, tyreModel, regs2026, overtake } = analysis;
+  const { field, playerPaceMs, pitLoss, rejoin, options, pitTiming, damage, penalties, quali, weather, battle, tyreModel, regs2026, overtake } = analysis;
   // The raw 64-slot forecast stays server-side; `analysis.weather` carries
   // the part that matters, already in laps.
   const { forecast, ...session } = fieldModel.getSession() || {};
@@ -72,7 +72,7 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
       : null,
     nearby,
     field,
-    analysis: { pitLoss, rejoin, options, pitTiming, damage, quali, weather, battle, tyreModel, regs2026, overtake },
+    analysis: { pitLoss, rejoin, options, pitTiming, damage, penalties, quali, weather, battle, tyreModel, regs2026, overtake },
     insights,
     strategy: insightEngine.getStrategy(),
     adjust: insightEngine.getAdjust(),

@@ -276,6 +276,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // (the dashboard started mid-race) has no clean laps we know of.
   let sawUndamaged = false;
   const seenPitEntry = new Map(); // carIndex -> pitEntryAtMs already counted
+  // Where each of the player's track-limit warnings came (a corner, a
+  // distance, or null if it was already on the counter when we joined).
+  const trackLimitLog = [];
+  let trackLimitsSeen = false;
 
   // A stop splits across two laps (pit entry before the line, box after it),
   // so loss = in-lap + out-lap - 2 x the car's clean pace around it.
@@ -392,6 +396,41 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     };
   }
 
+  // The player's penalties and track-limit warnings. Time penalties are
+  // served at the next stop, or added at the flag; either way every option
+  // pays them, so the strategy comparisons leave them out and only the
+  // rejoin (where you'd actually come out) and the gap to the car behind
+  // at the flag include them.
+  function penaltiesFor({ player, behind, corners }) {
+    const l = player.lapData;
+    const cc = l.cornerCuttingWarnings || 0;
+    while (trackLimitLog.length > cc) trackLimitLog.pop(); // a flashback took one back
+    while (trackLimitLog.length < cc) {
+      const d = l.lapDistance;
+      const before = corners.filter((c) => c.startM <= d);
+      trackLimitLog.push(!trackLimitsSeen ? null : before.length ? { corner: before[before.length - 1].corner } : { atM: Math.max(0, Math.round(d)) });
+    }
+    trackLimitsSeen = true;
+    const timeS = l.penalties || 0;
+    const driveThroughs = l.numUnservedDriveThroughPens || 0;
+    const stopGos = l.numUnservedStopGoPens || 0;
+    if (!cc && !timeS && !driveThroughs && !stopGos) return null;
+    const last = trackLimitLog[trackLimitLog.length - 1];
+    const sameAgain = last && last.corner != null && trackLimitLog.slice(0, -1).some((x) => x && x.corner === last.corner);
+    // shortcut: "served at a stop" = still owes the compulsory stop; a wet
+    // race (no compulsory stop) or a planned second stop reads as "the flag".
+    const servedAt = timeS && !l.numPitStops ? 'stop' : 'flag';
+    const gapMs = behind ? behind.lapData.deltaToCarInFrontInMS : null;
+    return {
+      timeS,
+      servedAt,
+      driveThroughs,
+      stopGos,
+      trackLimits: { count: cc, last: last || null, sameAgain: !!sameAgain },
+      flag: timeS && servedAt === 'flag' && behind && gapMs > 0 ? { name: nameOf(behind), gapMs, covered: gapMs > timeS * 1000 } : null,
+    };
+  }
+
   function compute() {
     if (fieldModel.getGeneration() !== seenGeneration) {
       seenGeneration = fieldModel.getGeneration();
@@ -404,6 +443,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       seenPitEntry.clear();
       damageHit = null;
       sawUndamaged = false;
+      trackLimitLog.length = 0;
+      trackLimitsSeen = false;
     }
     const playerIdx = fieldModel.playerIndex();
     const ordered = fieldModel.orderedByPosition();
@@ -529,7 +570,9 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       ? stopPayback({ degMsPerLap: myDeg.degMsPerLap, tyreAge: player.status.tyresAgeLaps, pitLossMs: loss.ms, lapsLeft: raceLapsLeft(session, player.lapData) })
       : null;
 
-    const rejoin = predictRejoin(ordered, player, loss.ms);
+    const penalties = penaltiesFor({ player, behind: ordered[myPos + 1] || null, corners: fieldModel.getPlayerCorners() });
+    // A time penalty is served at the stop: you come out that much later.
+    const rejoin = predictRejoin(ordered, player, loss.ms + (penalties && penalties.servedAt === 'stop' ? penalties.timeS * 1000 : 0));
     const damage = damageFor({ player, session, tyreModel, myDeg, lapsLeft: raceLapsLeft(session, player.lapData), pitLossMs: loss.ms });
 
     // ATTACK / DEFEND / CLOSE IN / CLEAR.
@@ -585,6 +628,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       options,
       pitTiming: timing,
       damage,
+      penalties,
       // Practice / qualifying: the lap-by-lap view instead of the race calls.
       quali: qualifying({ session, cars: ordered, player, delta: fieldModel.getPlayerDelta() }),
       weather,

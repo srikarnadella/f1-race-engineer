@@ -21,6 +21,7 @@ const ERS_SETTLE_MS = 5000;
 const SETTLE_MS = 5000;
 // Drive-through, stop-go, time penalty, warning, disqualified.
 const RADIO_PENALTY_TYPES = new Set([0, 1, 4, 5, 6]);
+const PENALTY_WARNING = 5;
 const FALLBACK_LAP_MS = 90000;
 // Only cars that pitted this recently count as a fresh undercut threat; the
 // card itself then lives on via its own expiresAtMs.
@@ -245,11 +246,14 @@ function createInsightEngine(fieldModel) {
   let lastEventSeq = 0; // newest event already turned into a card
   let qualiBestMs = null; // the best lap last announced
   let qualiSeen = false;
+  let trackLimitsSaid = 0; // the player's track-limit warnings already on the radio
 
   // The headline call for the strategy tier, derived from the same numbers
   // the insight rules use so the call and the radio messages never disagree.
-  function strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox }) {
+  function strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }) {
     if (inPits) return { action: 'PIT', reason: 'In the pit lane' };
+    // Not served in time = disqualified. Not servable under a safety car or red flag.
+    if (penaltyBox && !neutralised) return { action: 'BOX', reason: penaltyBox };
     // The wrong tyre for the conditions costs more per lap than anything else.
     if (weatherBox) return { action: 'BOX', reason: weatherBox };
     if (damageBox) return { action: 'BOX', reason: damageBox };
@@ -290,6 +294,7 @@ function createInsightEngine(fieldModel) {
       announcedRetirements.clear();
       qualiBestMs = null;
       qualiSeen = false;
+      trackLimitsSaid = 0;
     }
     pruneExpired();
     strategy = null;
@@ -759,6 +764,46 @@ function createInsightEngine(fieldModel) {
       if (q.bestMs) qualiBestMs = q.bestMs;
     }
 
+    // --- Penalties and track limits ---
+    const pen = analysis && analysis.penalties;
+    const tl = pen ? pen.trackLimits : { count: 0 };
+    // The game's own "Warning" event for the same infringement would say less.
+    const trackLimitNew = tl.count > trackLimitsSaid;
+    if (tl.count < trackLimitsSaid) trackLimitsSaid = tl.count; // a flashback took one back
+    if (trackLimitNew) {
+      trackLimitsSaid = tl.count;
+      const where = !tl.last ? '' : tl.last.corner != null ? ` at turn ${tl.last.corner}` : ` at ${(tl.last.atM / 1000).toFixed(1)} km`;
+      upsert(`track-limits:${tl.count}`, {
+        severity: SEVERITY.ADVISORY,
+        category: CATEGORY.FLAG,
+        message: `Track limits - warning ${tl.count}${where}${tl.sameAgain ? ', same corner again - keep it inside there' : ''}`,
+        expiresAtMs: Date.now() + 15000,
+      });
+    }
+    let penaltyBox = null;
+    if (pen && (pen.stopGos || pen.driveThroughs)) {
+      penaltyBox = pen.stopGos ? 'Serve the stop-go - box, no tyre change' : 'Serve the drive-through - box';
+      upsert('penalty-serve', { severity: SEVERITY.CRITICAL, category: CATEGORY.FLAG, message: `${penaltyBox} (3 laps to take it)`, expiresAtMs: Date.now() + 5000 });
+    } else {
+      expire('penalty-serve');
+    }
+    if (racing && pen && pen.timeS) {
+      const f = pen.flag;
+      upsert('penalty-time', {
+        severity: f && !f.covered ? SEVERITY.ADVISORY : SEVERITY.INFO,
+        category: CATEGORY.FLAG,
+        // Whole seconds: the gap mustn't rewrite the card ten times a second.
+        message: pen.servedAt === 'stop'
+          ? `${pen.timeS}s penalty - served at your stop`
+          : f
+            ? `${pen.timeS}s penalty at the flag - ${f.name} ${Math.round(f.gapMs / 1000)}s behind: ${f.covered ? 'covered' : 'not covered, push'}`
+            : `${pen.timeS}s penalty - added at the flag`,
+        expiresAtMs: Date.now() + 5000,
+      });
+    } else {
+      expire('penalty-time');
+    }
+
     // --- Discrete event callouts (safety car, flags, fastest lap, penalties) ---
     // Every event since the last tick, not just the newest: a safety car
     // followed within 100ms by a speed-trap or button event must still land.
@@ -766,6 +811,7 @@ function createInsightEngine(fieldModel) {
       if (event.seq <= lastEventSeq) continue;
       lastEventSeq = event.seq;
       if (!ALERT_EVENT_CODES.has(event.code) || Date.now() - event.atMs >= EVENT_CARD_MS) continue;
+      if (trackLimitNew && event.code === 'PENA' && event.penaltyType === PENALTY_WARNING) continue;
       const card = eventCard(event, playerIdx);
       if (!card) continue;
       upsert(card.id || `event-${event.seq}`, {
@@ -783,7 +829,7 @@ function createInsightEngine(fieldModel) {
       fuelMarginLaps,
       tyreLapsToCliff: lapsToCliff == null ? null : Math.max(0, lapsToCliff),
       tyreWearRatePerLap: wear ? wear.ratePerLap : null,
-      call: q ? qualiCall(q) : strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox }),
+      call: q ? qualiCall(q) : strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }),
     };
 
     // Most severe first, then newest - insights[0] is the dashboard's banner,

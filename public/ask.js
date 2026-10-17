@@ -129,10 +129,27 @@
     return `${what}: costing ${s1(d.lossPerLapMs)}s a lap${flag}.${fix}`;
   }
 
+  function penaltyAnswer(s) {
+    const p = s.analysis && s.analysis.penalties;
+    if (!p) return 'No penalties, no track-limit warnings.';
+    const out = [];
+    if (p.stopGos) out.push('A stop-go to serve - box, no tyre change.');
+    else if (p.driveThroughs) out.push('A drive-through to serve - box.');
+    if (p.timeS) {
+      out.push(p.servedAt === 'stop'
+        ? `${p.timeS} second penalty, served at your stop.`
+        : p.flag ? `${p.timeS} second penalty at the flag - ${p.flag.name} is ${s1(p.flag.gapMs)} seconds behind, ${p.flag.covered ? 'covered' : 'not covered'}.` : `${p.timeS} second penalty at the flag.`);
+    }
+    const tl = p.trackLimits;
+    if (tl.count) out.push(`${tl.count} track-limit warning${tl.count === 1 ? '' : 's'}${tl.last && tl.last.corner != null ? `, the last at turn ${tl.last.corner}` : ''}.`);
+    return out.join(' ');
+  }
+
   // Most specific first: "gap behind" must not be read as a pit question,
   // nor "front wing" as the gap in front.
   const QUESTIONS = [
     { id: 'damage', label: 'Damage?', match: /\b(damage[ds]?|wing|nose|broken|floor|diffuser)\b/, answer: damageAnswer },
+    { id: 'penalty', label: 'Penalties?', match: /\b(penalt(y|ies)|track limits|warnings?|stop.go|drive.through)\b/, answer: penaltyAnswer },
     { id: 'behind', label: 'Gap behind?', match: /\b(behind|back|mirrors?)\b/, answer: (s) => gapAnswer(s, 'behind') },
     { id: 'ahead', label: 'Gap ahead?', match: /\b(ahead|in front|front|gap)\b/, answer: (s) => gapAnswer(s, 'ahead') },
     { id: 'box', label: 'When do I box?', match: /\b(box|pit|stop|window|undercut)\b/, answer: boxAnswer },

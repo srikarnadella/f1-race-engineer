@@ -182,3 +182,27 @@ test('rejoin: no prediction while the gaps are unknown (just out of the pits, re
   const redFlag = [car(0, 1, 0), car(1, 2, 0), car(2, 3, 0), car(3, 4, 0)];
   assert.strictEqual(predictRejoin(redFlag, redFlag[0], 20000), null);
 });
+
+test('penalties: track limits named once each, a time penalty at the flag against the car behind, a stop-go to serve', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  const ra = createRaceAnalysis(fm);
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318, sessionType: 15 });
+  let t = 0;
+  const tick = (o) => {
+    fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(5, o) });
+    return ie.evaluate(ra.compute());
+  };
+  tick({});
+  let cards = tick({ [PLAYER]: { cornerCuttingWarnings: 1, lapDistance: 2100 } });
+  assert.match(cards.find((c) => c.id === 'track-limits:1').message, /warning 1 at 2\.1 km/);
+  // Said once, not every tick.
+  assert.ok(tick({ [PLAYER]: { cornerCuttingWarnings: 1 } }).some((c) => c.id === 'track-limits:1'));
+  // A 5s penalty after the stop: added at the flag, the car behind is 2s back.
+  cards = tick({ [PLAYER]: { cornerCuttingWarnings: 1, penalties: 5, numPitStops: 1 } });
+  assert.match(cards.find((c) => c.id === 'penalty-time').message, /5s penalty at the flag - .* 2s behind: not covered/);
+  // A stop-go to serve: the call is BOX.
+  tick({ [PLAYER]: { numUnservedStopGoPens: 1 } });
+  assert.strictEqual(ie.getStrategy().call.action, 'BOX');
+  assert.match(ie.getStrategy().call.reason, /stop-go/);
+});

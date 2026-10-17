@@ -65,3 +65,11 @@ test('ask: a custom command reads out everything it was set up to report', () =>
   assert.strictEqual(cleanCommand({ phrase: 'engineer', reports: ['fuel'] }), null); // that's the wake word
   assert.strictEqual(cleanCommand({ phrase: 'status', reports: [] }), null);
 });
+
+test('ask: penalties and track limits', () => {
+  assert.strictEqual(ask('any penalties', snap).id, 'penalty');
+  assert.strictEqual(ask('how many track limits warnings', snap).id, 'penalty');
+  assert.match(ask('penalty', snap).reply, /No penalties/);
+  const withPen = { ...snap, analysis: { ...snap.analysis, penalties: { timeS: 5, servedAt: 'flag', stopGos: 0, driveThroughs: 0, trackLimits: { count: 2, last: { corner: 5 } }, flag: { name: 'SAINZ', gapMs: 6200, covered: true } } } };
+  assert.strictEqual(ask('penalty', withPen).reply, '5 second penalty at the flag - SAINZ is 6.2 seconds behind, covered. 2 track-limit warnings, the last at turn 5.');
+});
