@@ -18,6 +18,7 @@ const { expectedStopIn, learned, maxWear } = require('../analysis/rivalStops');
 const { damageLoss, MINI_SECTORS } = require('../analysis/damageLoss');
 const { qualifying } = require('../analysis/qualifying');
 const { createTyreTempTracker } = require('../analysis/tyreTemps');
+const { racePlan } = require('../analysis/racePlan');
 
 // The trained overtake model (npm run train:overtake), if one has been built.
 let OVERTAKE_MODEL = null;
@@ -282,6 +283,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   const trackLimitLog = [];
   let trackLimitsSeen = false;
   const tyreTemps = createTyreTempTracker();
+  // The last trusted wear fit this session: { trackId, compounds }, saved to
+  // the track's memory when the session ends - practice laps feed the race plan.
+  let lastFit = null;
+  let plan = { key: null, value: null };
 
   // A stop splits across two laps (pit entry before the line, box after it),
   // so loss = in-lap + out-lap - 2 x the car's clean pace around it.
@@ -436,6 +441,9 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   function compute() {
     if (fieldModel.getGeneration() !== seenGeneration) {
       seenGeneration = fieldModel.getGeneration();
+      if (lastFit) for (const [c, d] of Object.entries(lastFit.compounds)) memory.add(lastFit.trackId, `deg${c}`, d.degMsPerLap);
+      lastFit = null;
+      plan = { key: null, value: null };
       measuredLosses.clear();
       weatherAnalysis.reset();
       pitPick = null;
@@ -568,6 +576,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const tyreModel = fitDegradation(ordered, fieldBurnKgPerLap(ordered));
     const myCompound = player.status ? player.status.visualTyreCompound : null;
     const myDeg = tyreModel.compounds[myCompound];
+    const trusted = Object.fromEntries(Object.entries(tyreModel.compounds).filter(([, d]) => d.cars >= MIN_DEG_CARS && d.laps >= MIN_DEG_LAPS && d.degMsPerLap > 0));
+    if (session && Object.keys(trusted).length) lastFit = { trackId: session.trackId, compounds: trusted };
     // Only trusted with enough of the field behind it: at Monaco a fit from
     // 4 cars / 16 laps read 0.21 s per lap of age - traffic, not tyres.
     const payback = myDeg && myDeg.cars >= MIN_DEG_CARS && myDeg.laps >= MIN_DEG_LAPS && player.status
@@ -625,9 +635,25 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       pitPick = toLap(timing.bestInLaps == null ? 'stay' : timing.bestInLaps);
     }
 
+    // Before the start: one stop or two. Wear rates from this session, then
+    // earlier sessions at the track (practice included), then a default.
+    let racePlanNow = null;
+    if (session && RACE_SESSION_TYPES.has(session.sessionType) && player.lapData.currentLapNum <= 1 && dry) {
+      const deg = {};
+      for (const c of [16, 17, 18]) {
+        const remembered = memory.get(session.trackId, `deg${c}`);
+        deg[c] = trusted[c] ? trusted[c].degMsPerLap : remembered.length ? Math.round(median(remembered)) : null;
+      }
+      const inputs = { totalLaps: session.totalLaps, pitLossMs: loss.normalMs, sets: player.tyreSets, deg };
+      const key = JSON.stringify([inputs.totalLaps, inputs.pitLossMs, deg, (player.tyreSets || []).map((s) => [s.index, s.available, s.wear, s.lapDeltaTimeMs])]);
+      if (plan.key !== key) plan = { key, value: racePlan(inputs) };
+      racePlanNow = plan.value && { ...plan.value, degSource: Object.fromEntries([16, 17, 18].map((c) => [c, trusted[c] ? 'this session' : deg[c] ? 'earlier sessions here' : 'estimate'])) };
+    }
+
     return {
       field,
       playerPaceMs: myPace,
+      racePlan: racePlanNow,
       pitLoss: loss,
       rejoin,
       options,

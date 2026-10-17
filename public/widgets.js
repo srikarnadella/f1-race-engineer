@@ -538,6 +538,16 @@
       ${pt.stops && pt.stops.length ? `<div class="w-pt__stops"><span class="w-label">Expected stops</span>${pt.stops.map((x) => `<span>${esc(x.name)} <span class="dim">P${x.position}</span> ${x.inLaps === 0 ? 'this lap' : x.inLaps === 1 ? 'next lap' : `in ${x.inLaps}`}</span>`).join('')}</div>` : ''}
       <div class="w-foot">Each stop lap raced to the flag against the field and its expected stops · pit loss ${pl ? secs(pl.ms) : '–'}s</div></div>`;
   }
+  // Before the start: the race plan, until pit timing has the field's laps to go on.
+  function racePlanHtml(rp) {
+    const name = (c) => COMPOUND_NAME[c] || c;
+    const stints = (p) => p.stints.map((x) => `${name(x.compound)} ${x.laps}`).join(' → ');
+    const src = Object.entries(rp.degSource).map(([c, v]) => `${name(c).toLowerCase()} ${v}`).join(' · ');
+    return `<div class="w-pt">
+      <div class="w-pt__head"><span class="w-pt__when">${rp.best.stops} stop${rp.best.stops === 1 ? '' : 's'}</span><span class="w-pt__sub">${stints(rp.best)} · box end of lap ${rp.best.boxLaps.join(' and ')}</span></div>
+      ${rp.other ? `<div class="w-pt__stops"><span class="w-label">Instead</span><span>${rp.other.stops} stop${rp.other.stops === 1 ? '' : 's'}: ${stints(rp.other)} <span class="dim">~${Math.round(rp.other.slowerMs / 1000)}s slower</span></span></div>` : ''}
+      <div class="w-foot">The race plan from your tyre sets, the pit loss and each compound's wear (${src}). Pit timing takes over once the field has laps on the board.</div></div>`;
+  }
   const ptSig = (pt) => JSON.stringify([pt.options.map((o) => [o.id, o.compound, o.rejoinPosition, o.inTraffic, o.finishPosition, o.lossS]), pt.stops]);
 
   W.pittiming = {
@@ -548,10 +558,11 @@
       const box = el.firstElementChild;
       return (s) => {
         const pt = s.analysis && s.analysis.pitTiming;
-        const sig = pt ? ptSig(pt) + s.player.currentLapNum : '';
+        const rp = !pt && s.analysis && s.analysis.racePlan;
+        const sig = pt ? ptSig(pt) + s.player.currentLapNum : rp ? JSON.stringify(rp) : '';
         if (box.dataset.sig === sig) return;
         box.dataset.sig = sig;
-        box.innerHTML = pt ? pitTimingHtml(pt, s) : '<div class="w-deb__empty dim">Needs a few green-flag laps of tyre data from the field - and a dry track.</div>';
+        box.innerHTML = pt ? pitTimingHtml(pt, s) : rp ? racePlanHtml(rp) : '<div class="w-deb__empty dim">Needs a few green-flag laps of tyre data from the field - and a dry track.</div>';
       };
     },
   };

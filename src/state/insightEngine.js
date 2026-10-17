@@ -1,5 +1,6 @@
 const { computeAdjustments } = require('./adjustments');
 const { isRacing, raceLapsLeft } = require('./race');
+const { planText } = require('../analysis/racePlan');
 
 const SEVERITY = { INFO: 'info', ADVISORY: 'advisory', CRITICAL: 'critical' };
 const CATEGORY = { PACE: 'pace', STRATEGY: 'strategy', HEALTH: 'health', FLAG: 'flag', CAR: 'car' };
@@ -813,6 +814,19 @@ function createInsightEngine(fieldModel) {
       });
     } else {
       expire('penalty-time');
+    }
+
+    // --- Before the start: the plan ---
+    const rp = analysis && analysis.racePlan;
+    if (rp) {
+      upsert('race-plan', {
+        severity: SEVERITY.INFO,
+        category: CATEGORY.STRATEGY,
+        message: `Plan, ${planText(rp.best)}${rp.other ? ` (${rp.other.stops} stop${rp.other.stops === 1 ? '' : 's'} ~${Math.round(rp.other.slowerMs / 1000)}s slower)` : ''}`,
+        expiresAtMs: Date.now() + 5000,
+      });
+    } else {
+      expire('race-plan');
     }
 
     // --- The start: what lap 1 did, once, as lap 2 begins ---

@@ -56,6 +56,12 @@
     if (quali(s)) return `No pit strategy outside a race. ${qualiStanding(quali(s))}`;
     if (s.player && s.player.pitStatus) return 'You are in the pit lane.';
     if (a.options) return a.options.headline;
+    const rp = a.racePlan;
+    if (rp) {
+      const NAME = { 16: 'softs', 17: 'mediums', 18: 'hards' };
+      const p = rp.best;
+      return `The plan is ${p.stops} stop${p.stops === 1 ? '' : 's'}: ${p.stints.map((x) => `${NAME[x.compound]} for ${x.laps}`).join(', then ')}, boxing at the end of lap ${p.boxLaps.join(' and ')}.${rp.other ? ` ${rp.other.stops} stop${rp.other.stops === 1 ? '' : 's'} is about ${Math.round(rp.other.slowerMs / 1000)} seconds slower.` : ''}`;
+    }
     const pt = a.pitTiming;
     if (pt) {
       const best = pt.options.find((o) => o.best);

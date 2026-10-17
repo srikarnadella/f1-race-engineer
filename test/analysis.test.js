@@ -400,3 +400,20 @@ test('tyre temps: hotter than this stint started, colder than racing laps - stre
   assert.strictEqual(out.coldByC, 15);
   assert.strictEqual(out.hot, null);
 });
+
+const { racePlan, planText } = require('../src/analysis/racePlan');
+
+test('race plan: one stop or two from the sets, the pit loss and the wear', () => {
+  const set = (index, c, life, deltaMs, wear = 0) => ({ index, visualTyreCompound: c, usableLife: life, lifeSpan: life, lapDeltaTimeMs: deltaMs, wear, available: true });
+  const sets = [set(0, 16, 15, -600), set(1, 16, 15, -600), set(2, 17, 20, 0), set(3, 18, 25, 400)];
+  // A dear stop: one, softs then mediums, inside each set's rated life.
+  const p = racePlan({ totalLaps: 30, pitLossMs: 20000, sets });
+  assert.strictEqual(planText(p.best), '1 stop: Soft 14 laps, Medium 16 - box end of lap 14');
+  assert.strictEqual(p.other.stops, 2);
+  assert.ok(p.other.slowerMs > 0);
+  // Cheap stops and softs that fall away: two stops wins.
+  const two = racePlan({ totalLaps: 30, pitLossMs: 5000, sets, deg: { 16: 400, 17: 300, 18: 250 } });
+  assert.strictEqual(two.best.stops, 2);
+  // Never one compound only, never a set past its life: 30 laps on two softs can't be done.
+  assert.strictEqual(racePlan({ totalLaps: 40, pitLossMs: 20000, sets: [set(0, 16, 15, 0), set(1, 16, 15, 0)] }), null);
+});
