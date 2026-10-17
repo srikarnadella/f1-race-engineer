@@ -7,6 +7,7 @@ const { createCaptureSession, defaultCaptureDir } = require('./capture/session')
 const { createFieldModel } = require('./state/fieldModel');
 const { createInsightEngine } = require('./state/insightEngine');
 const { createRaceAnalysis } = require('./state/raceAnalysis');
+const { createTrackMemory } = require('./state/trackMemory');
 const { buildSnapshot } = require('./server/snapshot');
 const { createDebrief } = require('./state/debrief');
 const { createFocus } = require('./state/focus');
@@ -80,7 +81,10 @@ function main() {
   // differs, which is the whole point of the single parsePacket() path.
   const fieldModel = createFieldModel();
   const insightEngine = createInsightEngine(fieldModel);
-  const raceAnalysis = createRaceAnalysis(fieldModel);
+  // Live races teach the next race at the same track (pit loss, when the AI
+  // stops); a demo replay would only teach it the same race again.
+  const memory = createTrackMemory(opts.demoFile ? null : path.resolve(__dirname, '..', 'data', 'tracks.json'));
+  const raceAnalysis = createRaceAnalysis(fieldModel, { memory });
   const focus = createFocus();
   const onPacket = (packetId, header, data) => fieldModel.dispatch(packetId, header, data);
   const capture = opts.captureDir

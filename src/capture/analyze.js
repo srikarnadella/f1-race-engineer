@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const PACKET_IDS = require('../udp/packetIds');
 const { parseHeader } = require('../udp/parsers/header');
-const { parsePacket } = require('../udp/parsePacket');
+const { parsePacket, PARSED_PACKETS } = require('../udp/parsePacket');
 const { createFieldModel } = require('../state/fieldModel');
 const { createInsightEngine } = require('../state/insightEngine');
 const { createRaceAnalysis } = require('../state/raceAnalysis');
@@ -402,7 +402,7 @@ async function analyzeCapture(target) {
   for (const [pid, p] of [...packets.entries()].sort((a, b) => a[0] - b[0])) {
     const sizes = [...p.sizes.keys()];
     const expected = reference[pid];
-    const used = [1, 2, 3, 4, 5, 6, 7, 10, 13].includes(pid);
+    const used = PARSED_PACKETS.has(pid);
     const sizeOk = expected == null || (pid === 3 ? sizes.every((s) => s <= 64) : sizes.length === 1 && sizes[0] === expected);
     const errors = [...p.parseErrors.entries()].map(([e, n]) => `${n}× ${e}`).join('; ');
     check(`${PACKET_NAMES[pid] || `#${pid}`} packet${used ? '' : ' (not used)'}`,

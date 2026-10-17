@@ -285,7 +285,7 @@ test('pit timing: a rival due to stop is not a car you rejoin behind for good', 
   assert.deepStrictEqual(both.stops, [{ name: 'B', position: 3, inLaps: 0 }]);
 });
 
-const { expectedStopIn, learnedStopShare } = require('../src/analysis/rivalStops');
+const { expectedStopIn, learned } = require('../src/analysis/rivalStops');
 
 test('rival stops: owed stops at a share of the rated tyre life, never after the second-last lap', () => {
   // Medium rated 20 laps, 5 laps old, 20 laps left: due at 0.6 x 20 = 12 laps old.
@@ -305,8 +305,20 @@ test('rival stops: owed stops at a share of the rated tyre life, never after the
   assert.strictEqual(expectedStopIn({ compound: 16, age: 5, usableLife: 15, owesStop: false, lapsLeft: 15 }), 10);
   // No Tyre Sets packet yet: the compound's typical rated life.
   assert.strictEqual(expectedStopIn({ compound: 16, age: 3, usableLife: null, owesStop: true, lapsLeft: 30 }), 6);
-  assert.strictEqual(learnedStopShare([0.6]), null);
-  assert.strictEqual(learnedStopShare([0.5, 0.7, 0.6]), 0.6);
+  assert.strictEqual(learned([0.6]), null);
+  assert.strictEqual(learned([0.5, 0.7, 0.6]), 0.6);
+});
+
+test('rival stops: once the stop wear is known, each car is timed by its own wear rate', () => {
+  const base = { compound: 17, usableLife: 20, owesStop: true, lapsLeft: 25, stopWear: 36 };
+  // 3% a lap, 18% at 6 laps old: 36% at 12 - the same as the age rule.
+  assert.strictEqual(expectedStopIn({ ...base, age: 6, wear: 18 }), 6);
+  // Eating its tyres (4.5% a lap): 36% at 8 laps old, well before 0.6 x 20.
+  assert.strictEqual(expectedStopIn({ ...base, age: 6, wear: 27 }), 2);
+  // Past it already: the running-long rule, not "this lap" every lap.
+  assert.strictEqual(expectedStopIn({ ...base, age: 10, wear: 40 }), 10);
+  // A set 1 lap old has no steady rate yet: the age rule.
+  assert.strictEqual(expectedStopIn({ ...base, age: 1, wear: 8 }), 11);
 });
 
 const { damageLoss } = require('../src/analysis/damageLoss');

@@ -52,4 +52,7 @@ function parsePacket(buf) {
   return { header, data: parse(buf, carSlotsFor(header)) };
 }
 
-module.exports = { parsePacket };
+// The packets the pipeline reads; the capture report checks their layouts strictly.
+const PARSED_PACKETS = new Set(Object.keys(PARSERS).map(Number));
+
+module.exports = { parsePacket, PARSED_PACKETS };

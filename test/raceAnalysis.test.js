@@ -65,6 +65,54 @@ test('pit loss is measured from a rival stop: in-lap + out-lap - 2 x clean pace'
   assert.strictEqual(pitLoss.ms, 20000);
 });
 
+test('a race remembers its pit loss for the next race at the track; practice does not', () => {
+  const { createTrackMemory } = require('../src/state/trackMemory');
+  const run = (sessionType, memory) => {
+    const fm = createFieldModel();
+    let t = 0;
+    fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318, sessionType });
+    const send = (lap, o) => fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(lap, o) });
+    for (let lap = 1; lap <= 4; lap++) send(lap, {});
+    send(4, { 4: { pitStatus: 1 } });
+    send(5, { 4: { pitStatus: 2, lastLapTimeInMS: 100000 } });
+    send(5, { 4: { pitStatus: 1 } });
+    send(6, { 4: { pitStatus: 0, lastLapTimeInMS: 100000 } });
+    send(7, {});
+    createRaceAnalysis(fm, { memory }).compute();
+  };
+  const memory = createTrackMemory();
+  run(1, memory); // practice
+  assert.deepStrictEqual(memory.get(17, 'pitLossMs'), []);
+  run(15, memory); // race
+  assert.deepStrictEqual(memory.get(17, 'pitLossMs'), [20000]);
+  // The next race at the track, before anyone stops: the remembered figure, not the table.
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318, sessionType: 15 });
+  memory.add(17, 'pitLossMs', 22000);
+  runLaps(fm, 2);
+  const { pitLoss } = createRaceAnalysis(fm, { memory }).compute();
+  assert.strictEqual(pitLoss.source, 'earlier races here');
+  assert.strictEqual(pitLoss.normalMs, 21000);
+});
+
+test('track memory survives a restart and ignores a corrupt file', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { createTrackMemory } = require('../src/state/trackMemory');
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mem-')), 'tracks.json');
+  createTrackMemory(file).add(5, 'stopShare', 0.6);
+  assert.deepStrictEqual(createTrackMemory(file).get(5, 'stopShare'), [0.6]);
+  fs.writeFileSync(file, '{oops');
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    assert.deepStrictEqual(createTrackMemory(file).get(5, 'stopShare'), []);
+  } finally {
+    console.warn = warn;
+  }
+});
+
 test('pit loss falls back to a per-track estimate before anyone stops', () => {
   const fm = createFieldModel();
   fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318 });

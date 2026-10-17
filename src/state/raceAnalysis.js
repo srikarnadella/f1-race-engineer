@@ -4,7 +4,8 @@
 // they boxed now. Recomputed on every snapshot tick from FieldModel.
 
 const { createWeatherAnalysis } = require('./weather');
-const { raceLapsLeft, median, withoutSlowLaps } = require('./race');
+const { raceLapsLeft, median, withoutSlowLaps, RACE_SESSION_TYPES } = require('./race');
+const { createTrackMemory } = require('./trackMemory');
 const { fitDegradation, stopPayback } = require('../ml/tyreModel');
 const { pairFeatures, toVector } = require('../ml/overtakeFeatures');
 const { predict } = require('../ml/logistic');
@@ -13,7 +14,7 @@ const { strategyOptions } = require('../analysis/strategyOptions');
 const { battleCall } = require('../analysis/battleCall');
 const { projectBattery } = require('../analysis/batteryProjection');
 const { pitTiming } = require('../analysis/pitTiming');
-const { expectedStopIn, learnedStopShare } = require('../analysis/rivalStops');
+const { expectedStopIn, learned, maxWear } = require('../analysis/rivalStops');
 const { damageLoss, MINI_SECTORS } = require('../analysis/damageLoss');
 const { qualifying } = require('../analysis/qualifying');
 
@@ -134,7 +135,7 @@ const fittedSet = (car) => (car.tyreSets || []).find((x) => x.fitted) || null;
 
 // When this car is expected to box (laps from now), from its tyres and
 // whether it still owes the compulsory stop. Dry races only.
-function stopInLapsOf(car, session, dry, stopShare) {
+function stopInLapsOf(car, session, dry, stopShare, stopWear) {
   if (!car.lapData || !isRunning(car)) return null;
   // In the pit lane: the stop is happening now (its gap reads as the car ahead's until it rejoins).
   if (car.lapData.pitStatus !== 0) return 0;
@@ -147,6 +148,8 @@ function stopInLapsOf(car, session, dry, stopShare) {
     owesStop: !car.lapData.numPitStops,
     lapsLeft: raceLapsLeft(session, car.lapData),
     stopShare,
+    wear: maxWear(car),
+    stopWear,
   });
 }
 
@@ -251,7 +254,8 @@ function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pit
 
 // options.hotspotPrior: use the pass map learned from recorded races (off when
 // evaluating on those same races, so they can't leak into the score).
-function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
+// memory: earlier races' measurements by track (state/trackMemory.js); none by default.
+function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTrackMemory() } = {}) {
   const measuredLosses = new Map(); // `${carIndex}:${inLapNum}` -> ms; survives lapHistory rolling over
   const weatherAnalysis = createWeatherAnalysis();
   let seenGeneration = fieldModel.getGeneration();
@@ -260,8 +264,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
   let pitPick = null;
   let pitNext = { lap: null, since: 0 };
   // The share of its set's rated life each car had used when it made its
-  // first green-flag stop - how this race's AI is actually running it.
+  // first green-flag stop - how this race's AI is actually running it - and
+  // the wear on its most-worn tyre then.
   const stopShares = [];
+  const stopWears = [];
   // The player's damage: { firstLap, lap, atM, total, base } - the lap and
   // point of the first hit and of the latest, and the clean laps before it
   // (kept here: a long stint would otherwise roll them out of lap history).
@@ -273,7 +279,12 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
 
   // A stop splits across two laps (pit entry before the line, box after it),
   // so loss = in-lap + out-lap - 2 x the car's clean pace around it.
-  function measurePitLosses(car) {
+  // A measurement from a race goes into the track's memory too.
+  const remember = (session, kind, value) => {
+    if (session && RACE_SESSION_TYPES.has(session.sessionType)) memory.add(session.trackId, kind, value);
+  };
+
+  function measurePitLosses(car, session) {
     const h = car.lapHistory;
     for (let k = 0; k < h.length - 1; k++) {
       const inLap = h[k];
@@ -287,6 +298,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       const loss = inLap.lapMs + outLap.lapMs - 2 * avg(around.slice(-PACE_LAPS).map((l) => l.lapMs));
       if (loss >= PIT_LOSS_SANE_RANGE_MS[0] && loss <= PIT_LOSS_SANE_RANGE_MS[1]) {
         measuredLosses.set(key, { ms: Math.round(loss), by: nameOf(car) });
+        remember(session, 'pitLossMs', Math.round(loss));
       }
     }
   }
@@ -302,6 +314,9 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
         samples: samples.length,
         lastMeasuredFrom: samples[samples.length - 1].by,
       };
+    } else if (session && memory.get(session.trackId, 'pitLossMs').length) {
+      const samples = memory.get(session.trackId, 'pitLossMs');
+      base = { normalMs: Math.round(median(samples)), source: 'earlier races here', samples: samples.length, lastMeasuredFrom: null };
     } else {
       const est = session && PIT_LOSS_ESTIMATE_MS[session.trackId];
       base = { normalMs: est || PIT_LOSS_FALLBACK_MS, source: est ? 'track estimate' : 'generic estimate', samples: 0, lastMeasuredFrom: null };
@@ -385,14 +400,15 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       pitPick = null;
       pitNext = { lap: null, since: 0 };
       stopShares.length = 0;
+      stopWears.length = 0;
       seenPitEntry.clear();
       damageHit = null;
       sawUndamaged = false;
     }
     const playerIdx = fieldModel.playerIndex();
     const ordered = fieldModel.orderedByPosition();
-    for (const car of ordered) measurePitLosses(car);
     const session = fieldModel.getSession();
+    for (const car of ordered) measurePitLosses(car, session);
     const loss = pitLoss(session);
 
     const neutralisedNow = fieldModel.isRedFlag() || !!(session && session.safetyCarStatus);
@@ -402,7 +418,15 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       const set = fittedSet(car);
       // A stop under a safety car is opportunism, not the plan.
       if (!neutralisedNow && car.carIndex !== playerIdx && !car.lapData.numPitStops && set && set.usableLife && car.status && DRY.has(car.status.visualTyreCompound)) {
-        stopShares.push(car.status.tyresAgeLaps / set.usableLife);
+        const share = car.status.tyresAgeLaps / set.usableLife;
+        stopShares.push(share);
+        remember(session, 'stopShare', share);
+        // Wear reads 0 if the new set is already on; a set this young hasn't a steady rate.
+        const wear = maxWear(car);
+        if (wear > 0 && car.status.tyresAgeLaps >= 2) {
+          stopWears.push(wear);
+          remember(session, 'stopWear', wear);
+        }
       }
     }
 
@@ -422,8 +446,11 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
     const player = playerCar;
 
     const dry = !weather || weather.trackState === 'dry';
-    const stopShare = learnedStopShare(stopShares);
-    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare)]));
+    // This race's own stops first, then earlier races at this track.
+    const track = session && session.trackId;
+    const stopShare = learned(stopShares) || learned(memory.get(track, 'stopShare'));
+    const stopWear = learned(stopWears) || learned(memory.get(track, 'stopWear'));
+    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare, stopWear)]));
     const field = ordered.map((car, j) => {
       const pace = cleanPaceMs(car);
       const gap = gapBetweenMs(ordered, myPos, j);
