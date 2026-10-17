@@ -2,19 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { syntheticPackets, replay } = require('./helpers/synthetic');
 const { parsePacket } = require('../src/udp/parsePacket');
+const { rng } = require('./helpers/rng');
 
 // The bridge binds UDP on every interface, so anything on the LAN can send
 // it bytes. A bad packet may cost itself, never the engine tick or the
 // dashboard. Seeded, so a failure reproduces.
-function rng(seed) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 const MUTATIONS = {
   truncate: (buf, r) => buf.subarray(0, Math.floor(r() * buf.length)),
   // Body bytes only: the header still says "this session, this packet".

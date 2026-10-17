@@ -30,7 +30,7 @@ function fitSlope(points) {
     if (ps.length < MIN_LAPS_PER_CAR) continue;
     const mx = ps.reduce((a, p) => a + p.x, 0) / ps.length;
     const my = ps.reduce((a, p) => a + p.y, 0) / ps.length;
-    for (const p of ps) rows.push({ x: p.x - mx, y: p.y - my, car: p.car });
+    for (const p of ps) rows.push({ x: p.x - mx, y: p.y - my, car: p.car, point: p });
   }
   const cars = new Set(rows.map((r) => r.car)).size;
   const sxx = rows.reduce((a, r) => a + r.x * r.x, 0);
@@ -59,12 +59,17 @@ function fitDegradation(cars, burnKgPerLap = 1.6) {
   for (const [compound, points] of byCompound) {
     const first = fitSlope(points);
     if (!first) continue;
-    // Robust pass: drop laps more than 3 MADs off the first fit.
+    // Robust pass: drop laps more than 3 MADs off the first fit. Each row
+    // carries its lap, so a car left out of the fit (too few laps) can't shift
+    // which laps are dropped.
+    // shortcut: one pass - traffic late in a stint tilts the first fit and
+    // mostly survives it (test/invariants.test.js, todo); re-trimming until
+    // stable fixed that on synthetic laps but predicted held-out cars worse on
+    // the Suzuka race, so it waits for more races to judge it on.
     const resid = first.rows.map((r) => r.y - first.slope * r.x);
     const med = [...resid].sort((a, b) => a - b)[resid.length >> 1];
     const mad = [...resid.map((v) => Math.abs(v - med))].sort((a, b) => a - b)[resid.length >> 1] || 1;
-    const keep = new Set(first.rows.map((r, i) => (Math.abs(resid[i] - med) <= 3 * 1.4826 * mad ? i : -1)).filter((i) => i >= 0));
-    const kept = points.filter((_, i) => keep.has(i));
+    const kept = first.rows.filter((_, i) => Math.abs(resid[i] - med) <= 3 * 1.4826 * mad).map((r) => r.point);
     const fit = fitSlope(kept) || first;
     out[compound] = { name: NAMES[compound] || `compound ${compound}`, degMsPerLap: Math.round(fit.slope), laps: fit.rows.length, cars: fit.cars };
   }
