@@ -369,3 +369,34 @@ test('damage loss: a new nose only gets back the wing\'s share of the loss', () 
   assert.strictEqual(r.fix.savedMs, 4800);
   assert.strictEqual(r.fix.pays, false);
 });
+
+const { createTyreTempTracker } = require('../src/analysis/tyreTemps');
+
+test('tyre temps: hotter than this stint started, colder than racing laps - stretch for stretch', () => {
+  const tr = createTyreTempTracker();
+  const L = 5000;
+  // Surface follows the track (hot after slow corners), +rearExtra on the rears.
+  const temp = (d, rearExtra = 0) => 70 + 20 * Math.sin((d / L) * 2 * Math.PI);
+  let out = null;
+  const lap = (lapNum, age, { rearExtra = 0, green = true, all = 0 } = {}) => {
+    for (let k = 0; k < 200; k++) {
+      const d = (k / 200) * L;
+      const f = temp(d) + all;
+      const r = temp(d) + rearExtra + all;
+      out = tr.update({
+        telemetry: { speed: 200, tyresSurfaceTemperature: [r, r, f, f] },
+        lapData: { currentLapNum: lapNum, lapDistance: d },
+        status: { visualTyreCompound: 17, tyresAgeLaps: age },
+      }, green, L);
+    }
+  };
+  for (let n = 1; n <= 7; n++) lap(n, n);
+  // The same temperatures all stint: nothing, though the window passes hot and cold stretches.
+  assert.deepStrictEqual(out, { coldByC: null, hot: null });
+  lap(8, 8, { rearExtra: 10 });
+  assert.deepStrictEqual(out.hot, { axle: 'rear', byC: 10 });
+  // Behind the safety car, 15 degrees down everywhere.
+  lap(9, 9, { green: false, all: -15 });
+  assert.strictEqual(out.coldByC, 15);
+  assert.strictEqual(out.hot, null);
+});

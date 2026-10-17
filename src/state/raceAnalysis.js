@@ -17,6 +17,7 @@ const { pitTiming } = require('../analysis/pitTiming');
 const { expectedStopIn, learned, maxWear } = require('../analysis/rivalStops');
 const { damageLoss, MINI_SECTORS } = require('../analysis/damageLoss');
 const { qualifying } = require('../analysis/qualifying');
+const { createTyreTempTracker } = require('../analysis/tyreTemps');
 
 // The trained overtake model (npm run train:overtake), if one has been built.
 let OVERTAKE_MODEL = null;
@@ -280,6 +281,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // distance, or null if it was already on the counter when we joined).
   const trackLimitLog = [];
   let trackLimitsSeen = false;
+  const tyreTemps = createTyreTempTracker();
 
   // A stop splits across two laps (pit entry before the line, box after it),
   // so loss = in-lap + out-lap - 2 x the car's clean pace around it.
@@ -445,6 +447,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       sawUndamaged = false;
       trackLimitLog.length = 0;
       trackLimitsSeen = false;
+      tyreTemps.reset();
     }
     const playerIdx = fieldModel.playerIndex();
     const ordered = fieldModel.orderedByPosition();
@@ -570,6 +573,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       ? stopPayback({ degMsPerLap: myDeg.degMsPerLap, tyreAge: player.status.tyresAgeLaps, pitLossMs: loss.ms, lapsLeft: raceLapsLeft(session, player.lapData) })
       : null;
 
+    const temps = tyreTemps.update(player, !neutralisedNow && player.lapData.pitStatus === 0, session && session.trackLength);
     const penalties = penaltiesFor({ player, behind: ordered[myPos + 1] || null, corners: fieldModel.getPlayerCorners() });
     // A time penalty is served at the stop: you come out that much later.
     const rejoin = predictRejoin(ordered, player, loss.ms + (penalties && penalties.servedAt === 'stop' ? penalties.timeS * 1000 : 0));
@@ -629,6 +633,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       pitTiming: timing,
       damage,
       penalties,
+      tyreTemps: temps,
       // Practice / qualifying: the lap-by-lap view instead of the race calls.
       quali: qualifying({ session, cars: ordered, player, delta: fieldModel.getPlayerDelta() }),
       weather,

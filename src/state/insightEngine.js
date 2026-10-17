@@ -24,6 +24,7 @@ const RADIO_PENALTY_TYPES = new Set([0, 1, 4, 5, 6]);
 const PENALTY_WARNING = 5;
 // vehicleFiaFlags / zoneFlag: 0 none, 1 green, 2 blue, 3 yellow.
 const FIA_BLUE = 2;
+const OUT_LAP = 3; // lapData.driverStatus
 const FIA_YELLOW = 3;
 const YELLOW_AHEAD_M = 800;
 const BLUE_LOOKUP_M = 500;
@@ -807,6 +808,33 @@ function createInsightEngine(fieldModel) {
       });
     } else {
       expire('penalty-time');
+    }
+
+    // --- Tyre temperatures, against your own racing laps ---
+    const tt = racing && analysis && analysis.tyreTemps;
+    const fiveC = (c) => Math.max(5, Math.round(c / 5) * 5);
+    // Behind the safety car or on an out lap: the moment to get heat in.
+    if (tt && tt.coldByC && (neutralised || player.lapData.driverStatus === OUT_LAP)) {
+      upsert('tyres-cold', {
+        severity: SEVERITY.ADVISORY,
+        category: CATEGORY.CAR,
+        message: `Tyres ~${fiveC(tt.coldByC)}°C under racing temperature - ${neutralised ? 'get heat in before the restart' : 'careful on the out lap'}`,
+        expiresAtMs: Date.now() + 5000,
+      });
+    } else {
+      expire('tyres-cold');
+    }
+    if (tt && tt.hot && !neutralised && playerOnTrack) {
+      upsert('tyres-hot', {
+        severity: SEVERITY.INFO,
+        category: CATEGORY.CAR,
+        message: tt.hot.axle === 'rear'
+          ? `Rears ~${fiveC(tt.hot.byC)}°C hotter than early in the stint - easy on the throttle out of slow corners`
+          : `Fronts ~${fiveC(tt.hot.byC)}°C hotter than early in the stint - less lock, brake in a straight line`,
+        expiresAtMs: Date.now() + 5000,
+      });
+    } else {
+      expire('tyres-hot');
     }
 
     // --- Flags: a yellow round the next corners, a blue for the car lapping you ---
