@@ -30,7 +30,7 @@ flowchart LR
   end
   subgraph M[Machine learning]
     M1[M1 Pooled tyre model with intervals]
-    M2[M2 Overtake model calibration]:::part
+    M2[M2 Overtake model calibration]:::done
     M3[M3 Lap-time model with uncertainty]
     M4[M4 Backtest gate per model]:::part
   end
@@ -107,8 +107,9 @@ Each line: what it is, why it matters, and the acceptance test.
 
 - **M1 Pooled tyre model.** Wear rates pooled across cars and races with a prediction interval,
   scored against the per-race fit in `docs/accuracy.md`.
-- **M2 Overtake calibration.** *Partly done:* Brier score and Brier skill are in
-  [ml-overtake-model.md](ml-overtake-model.md); the reliability table is computed but not yet shown.
+- **M2 Overtake calibration.** *Done:* Brier score, Brier skill and a held-out reliability table
+  are in [ml-overtake-model.md](ml-overtake-model.md). It is well calibrated (20-40% predicted,
+  33% observed) but doesn't beat the gap-only baseline yet.
 - **M3 Lap-time model.** Fuel + tyre age + traffic, with residual spread, feeding A1.
 - **M4 Backtest gate.** Every model scored per race in CI against its baseline; a change that makes
   a model worse than it was fails the build. *Partly done:* rejoin, battery, attack forecast and
