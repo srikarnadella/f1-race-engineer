@@ -14,7 +14,12 @@ function createTrackMemory(file = null) {
     try {
       byTrack = JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (err) {
-      console.warn(`[memory] ignoring unreadable ${file}: ${err.message}`);
+      // Set aside, not overwritten by the next save: it may be fixable by hand.
+      const aside = `${file}.unreadable-${Date.now()}`;
+      try {
+        fs.renameSync(file, aside);
+      } catch (_) { /* leave it; the next save replaces it */ }
+      console.warn(`[memory] ${file} was unreadable (${err.message}) - moved to ${aside}, starting fresh`);
     }
   }
 

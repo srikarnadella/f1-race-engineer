@@ -108,6 +108,8 @@ test('track memory survives a restart and ignores a corrupt file', () => {
   console.warn = () => {};
   try {
     assert.deepStrictEqual(createTrackMemory(file).get(5, 'stopShare'), []);
+    // The unreadable file is kept aside, not overwritten.
+    assert.ok(fs.readdirSync(path.dirname(file)).some((n) => n.startsWith('tracks.json.unreadable-')));
   } finally {
     console.warn = warn;
   }
