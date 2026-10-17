@@ -32,7 +32,9 @@ function createTrackMemory(file = null) {
     if (!file) return;
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, JSON.stringify(byTrack));
+      // Write then rename, so a crash mid-write can't leave a half-written file.
+      fs.writeFileSync(file + '.tmp', JSON.stringify(byTrack));
+      fs.renameSync(file + '.tmp', file);
     } catch (err) {
       console.warn(`[memory] could not save: ${err.message}`);
     }

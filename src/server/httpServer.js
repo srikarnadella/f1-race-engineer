@@ -194,6 +194,7 @@ function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api
 
   return {
     broadcast,
+    server,
     close: () => {
       wss.close();
       server.close();

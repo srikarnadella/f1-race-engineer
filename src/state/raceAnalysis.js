@@ -727,4 +727,4 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   return { compute, flush: saveFit };
 }
 
-module.exports = { predictRejoin, createRaceAnalysis, gapBetweenMs, cleanPaceMs, nameOf, PIT_LOSS_ESTIMATE_MS };
+module.exports = { predictRejoin, createRaceAnalysis, nameOf, PIT_LOSS_ESTIMATE_MS };

@@ -57,4 +57,4 @@ const learned = (samples) => (samples.length < MIN_LEARNED_STOPS ? null : median
 // The most-worn tyre: the one that ends the stint.
 const maxWear = (car) => (car.damage && car.damage.tyresWear ? Math.max(...car.damage.tyresWear) : null);
 
-module.exports = { expectedStopIn, learned, maxWear, STOP_SHARE_PRIOR, DEFAULT_USABLE_LIFE };
+module.exports = { expectedStopIn, learned, maxWear };

@@ -88,4 +88,4 @@ function planText(p) {
   return `${p.stops} stop${p.stops === 1 ? '' : 's'}: ${stints} - box end of lap ${p.boxLaps.join(' and ')}`;
 }
 
-module.exports = { racePlan, planText, DEFAULT_DEG_MS };
+module.exports = { racePlan, planText };

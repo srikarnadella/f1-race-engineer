@@ -161,4 +161,4 @@ const THRESHOLDS = {
   UNDERSTEER_STEER, UNDERSTEER_FRONT_ANGLE, UNDERSTEER_MARGIN,
 };
 
-module.exports = { createCarBalanceTracker, WHEEL, THRESHOLDS };
+module.exports = { createCarBalanceTracker, THRESHOLDS };

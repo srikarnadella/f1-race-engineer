@@ -224,6 +224,8 @@ function main() {
   }
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+  // Closing the Windows terminal with the X sends SIGHUP, about 10 s before the kill.
+  process.on('SIGHUP', shutdown);
 }
 
 main();

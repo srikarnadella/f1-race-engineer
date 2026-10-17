@@ -121,7 +121,7 @@ function createCaptureSession({ dir, meta = {} }) {
     console.log(`[capture] analyze with: npm run analyze -- "${dir}"`);
   }
 
-  return { dir, recordPacket, logOutputs, addMarker, close, MARK_TAGS };
+  return { dir, recordPacket, logOutputs, addMarker, close };
 }
 
-module.exports = { createCaptureSession, defaultCaptureDir, MARK_TAGS, PACKET_NAMES };
+module.exports = { createCaptureSession, defaultCaptureDir, PACKET_NAMES };

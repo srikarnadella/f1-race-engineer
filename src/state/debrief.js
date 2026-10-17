@@ -75,7 +75,9 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       fs.mkdirSync(dir, { recursive: true });
       const stamp = new Date(rec.startedAt).toISOString().replace(/[:T]/g, '-').slice(0, 19);
       const name = `${stamp}_${(TRACKS[rec.trackId] || 'track').replace(/\W+/g, '-')}_${(SESSION_TYPES[rec.sessionType] || 'session').replace(/\W+/g, '-')}.json.gz`;
-      fs.writeFileSync(path.join(dir, name), toFile(rec));
+      // Write then rename, so a crash mid-write can't leave a half-written file.
+      fs.writeFileSync(path.join(dir, name + '.tmp'), toFile(rec));
+      fs.renameSync(path.join(dir, name + '.tmp'), path.join(dir, name));
       rec.saved = true;
     } catch (err) {
       console.warn(`[debrief] couldn't save the session: ${err.message}`);

@@ -80,4 +80,4 @@ function stopPayback({ degMsPerLap, tyreAge, pitLossMs, lapsLeft }) {
   return { gainPerLapMs: Math.round(gainPerLap), paybackLaps: Math.round(laps * 10) / 10, worthIt: lapsLeft != null ? laps < lapsLeft : null };
 }
 
-module.exports = { fitDegradation, stopPayback, FUEL_MS_PER_KG };
+module.exports = { fitDegradation, stopPayback };

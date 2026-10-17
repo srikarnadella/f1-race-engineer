@@ -116,4 +116,4 @@ function createTyreTempTracker() {
   return { update, reset };
 }
 
-module.exports = { createTyreTempTracker, WINDOW_TICKS, BINS };
+module.exports = { createTyreTempTracker };
