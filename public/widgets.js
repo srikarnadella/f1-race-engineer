@@ -535,8 +535,12 @@
         <td class="num strong">P${o.finishPosition}</td>
         <td class="num ${o.best ? 'is-good' : 'dim'}">${o.best ? 'BEST' : `+${o.lossS.toFixed(1)}s`}</td></tr>`).join('');
     const pl = s.analysis.pitLoss;
+    // Only when the pick moves within the tyre model's range: a firm pick needs no caveat.
+    const w = pt.wear && !pt.wear.holds ? pt.wear : null;
+    const wearNote = w ? `<div class="w-pt__wear is-watch">Lap ${lap + w.fromInLaps}${w.toInLaps == null ? ' or later' : w.toInLaps === w.fromInLaps ? '' : `–${lap + w.toInLaps}`}, depending on tyre wear</div>` : '';
     return `<div class="w-pt">
       <div class="w-pt__head"><span class="w-pt__when">${whenText(best)}</span><span class="w-pt__sub">${best.inLaps == null ? `finish ~P${best.finishPosition}` : `lap ${lap + best.inLaps} · ${esc(best.compoundName)}s · finish ~P${best.finishPosition}`}</span></div>
+      ${wearNote}
       <table class="tbl w-pt__tbl"><thead><tr><th>Stop</th><th>Tyre</th><th class="num">Rejoin</th><th class="num">Finish</th><th class="num">Cost</th></tr></thead><tbody>${rows}</tbody></table>
       ${pt.stops && pt.stops.length ? `<div class="w-pt__stops"><span class="w-label">Expected stops</span>${pt.stops.map((x) => `<span>${esc(x.name)} <span class="dim">P${x.position}</span> ${x.inLaps === 0 ? 'this lap' : x.inLaps === 1 ? 'next lap' : `in ${x.inLaps}`}</span>`).join('')}</div>` : ''}
       <div class="w-foot">Each stop lap raced to the flag against the field and its expected stops · pit loss ${pl ? secs(pl.ms) : '–'}s</div></div>`;
@@ -551,7 +555,7 @@
       ${rp.other ? `<div class="w-pt__stops"><span class="w-label">Instead</span><span>${rp.other.stops} stop${rp.other.stops === 1 ? '' : 's'}: ${stints(rp.other)} <span class="dim">~${Math.round(rp.other.slowerMs / 1000)}s slower</span></span></div>` : ''}
       <div class="w-foot">The race plan from your tyre sets, the pit loss and each compound's wear (${src}). Pit timing takes over once the field has laps on the board.</div></div>`;
   }
-  const ptSig = (pt) => JSON.stringify([pt.options.map((o) => [o.id, o.compound, o.rejoinPosition, o.inTraffic, o.finishPosition, o.lossS]), pt.stops]);
+  const ptSig = (pt) => JSON.stringify([pt.options.map((o) => [o.id, o.compound, o.rejoinPosition, o.inTraffic, o.finishPosition, o.lossS]), pt.stops, pt.wear]);
 
   W.pittiming = {
     title: 'Pit timing',

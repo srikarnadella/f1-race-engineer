@@ -75,6 +75,8 @@ function monacoFrames() {
 
 // Read by a widget but null all through the synthetic race, which has none of these yet.
 const NOT_IN_THE_SYNTHETIC_RACE = [
+  '$.analysis.pitTiming.wear.fromInLaps (empty)', // every pick is 'stay out', which holds
+  '$.analysis.pitTiming.wear.toInLaps (empty)',
   '$.analysis.options (empty)', // safety-car options: it has a VSC, and they are for a full safety car
   '$.analysis.damage.lossPerLapMs (empty)', // no wing damage
   '$.analysis.quali (empty)', // a race, not qualifying
@@ -178,4 +180,20 @@ test('tyre card: the wear rate comes with its 90% range, e.g. "+0.090s (0.071-0.
   const [, c] = Object.entries(shown.tm.compounds).find(([, x]) => x.ciMs);
   const s = (ms) => (ms / 1000).toFixed(3);
   assert.ok(shown.text.includes(`+${s(c.degMsPerLap)}s (${s(c.ciMs[0])}–${s(c.ciMs[1])})`), shown.text);
+});
+
+test('pit timing card: a pick that depends on tyre wear says so; a firm one adds nothing', () => {
+  let snap = null;
+  replay(syntheticPackets(), { onTick: ({ snap: s }) => { if (!snap && s.analysis && s.analysis.pitTiming) snap = s; } });
+  assert.ok(snap, 'the synthetic race has a pit-timing pick');
+  const lap = snap.player.currentLapNum;
+  const show = (wear) => {
+    const d = dashboard();
+    const card = d.mounted.find((w) => w.id === 'pittiming');
+    card.update({ ...snap, analysis: { ...snap.analysis, pitTiming: { ...snap.analysis.pitTiming, wear } } });
+    return card.card.textContent;
+  };
+  assert.ok(!/tyre wear/.test(show({ holds: true, fromInLaps: null, toInLaps: null })));
+  assert.match(show({ holds: false, fromInLaps: 1, toInLaps: 4 }), new RegExp(`Lap ${lap + 1}–${lap + 4}, depending on tyre wear`));
+  assert.match(show({ holds: false, fromInLaps: 2, toInLaps: null }), new RegExp(`Lap ${lap + 2} or later, depending on tyre wear`));
 });

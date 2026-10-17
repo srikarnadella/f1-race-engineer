@@ -35,9 +35,9 @@ flowchart LR
     M4[M4 Backtest gate per model]:::done
   end
   subgraph A[Analysis and decisions]
-    A1[A1 Monte Carlo strategy]
+    A1[A1 Monte Carlo strategy]:::next
     A2[A2 Calls audit: was the call right?]
-    A3[A3 Confidence on every call]:::next
+    A3[A3 Confidence on every call]:::part
   end
   subgraph U[User experience]
     U1[U1 Calls audit screen]
@@ -128,7 +128,10 @@ Each line: what it is, why it matters, and the acceptance test.
 - **A1 Monte Carlo strategy.** One-stop vs two-stop as a distribution of finishing positions,
   not one number.
 - **A2 Calls audit.** After the race, each BOX/PUSH/HOLD call graded against what then happened.
-- **A3 Confidence on calls.** Every call carries how sure it is, from M1/M2 intervals.
+- **A3 Confidence on calls.** Every call carries how sure it is, from M1/M2 intervals. *Partly
+  done:* the pit-timing pick is re-run at both ends of the wear range; when it moves, the card says
+  "Lap 14–22, depending on tyre wear" (and nothing when it holds). On the recordings it moves a
+  quarter of the time at Monaco, 5% at Barcelona. Still to do: the cliff warning and battle calls.
 
 ### User experience
 

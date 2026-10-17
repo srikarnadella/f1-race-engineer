@@ -780,3 +780,4 @@ body {
 .cmd-reports label:has(input:focus-visible) { outline: 2px solid var(--info); outline-offset: 2px; }
 .cmd-foot { display: flex; align-items: center; gap: 12px; }
 .ask-sheet__qs button.is-mine { background: #0d2233; color: var(--info); }
+.w-pt__wear { font-size: 0.9rem; font-weight: 700; margin: 2px 0 6px; }

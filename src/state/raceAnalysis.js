@@ -13,7 +13,7 @@ const { forecastAttack } = require('../analysis/attackForecast');
 const { strategyOptions } = require('../analysis/strategyOptions');
 const { battleCall } = require('../analysis/battleCall');
 const { projectBattery } = require('../analysis/batteryProjection');
-const { pitTiming } = require('../analysis/pitTiming');
+const { pitTiming, wearRange } = require('../analysis/pitTiming');
 const { expectedStopIn, learned, maxWear } = require('../analysis/rivalStops');
 const { damageLoss, MINI_SECTORS } = require('../analysis/damageLoss');
 const { qualifying } = require('../analysis/qualifying');
@@ -699,6 +699,14 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       else if (pitNext.lap !== cheapest) pitNext = { lap: cheapest, since: clock() };
       else if (clock() - pitNext.since >= PICK_SETTLE_MS) timing = pitTimingFor({ ...timingInputs, prefer: timing.cheapestInLaps });
       pitPick = toLap(timing.bestInLaps == null ? 'stay' : timing.bestInLaps);
+      // How sure: the same pick at both ends of the wear rates' 90% ranges?
+      if (myDeg && myDeg.ciMs) {
+        const atEnd = (k) => {
+          const tm = { ...tyreModel, compounds: Object.fromEntries(Object.entries(tyreModel.compounds).map(([c, d]) => [c, d.ciMs ? { ...d, degMsPerLap: d.ciMs[k] } : d])) };
+          return pitTimingFor({ ...timingInputs, tyreModel: tm, myDeg: tm.compounds[myCompound] });
+        };
+        timing = { ...timing, wear: wearRange(timing.bestInLaps, atEnd(0), atEnd(1)) };
+      }
     }
 
     // Before the start: one stop or two. Wear rates from this session, then

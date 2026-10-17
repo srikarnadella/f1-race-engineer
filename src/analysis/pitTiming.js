@@ -135,4 +135,14 @@ function pitTiming({ me, sets, rivals, laps, pitLossMs, prefer = null, hold = fa
   };
 }
 
-module.exports = { pitTiming, CLIFF_MS_PER_LAP };
+// How sure the pick is: the same simulation at the low and high ends of the
+// tyre model's 90% wear range. Laps from now; null = stay out (after every lap).
+function wearRange(bestInLaps, atLow, atHigh) {
+  if (!atLow || !atHigh) return null;
+  const picks = [bestInLaps, atLow.bestInLaps, atHigh.bestInLaps];
+  const order = (k) => (k == null ? Infinity : k);
+  const sorted = [...picks].sort((a, b) => order(a) - order(b));
+  return { holds: picks.every((k) => k === bestInLaps), fromInLaps: sorted[0], toInLaps: sorted[2] };
+}
+
+module.exports = { pitTiming, wearRange, CLIFF_MS_PER_LAP };
