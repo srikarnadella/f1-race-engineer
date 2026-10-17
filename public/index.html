@@ -107,7 +107,7 @@
         <span class="setting__text"><b>Your voice commands</b>
           <span class="dim">A phrase and what it reports, read out in one go - e.g. "status": gap ahead, gap behind, tyres. Works hands-free ("Engineer, status") and as a button under Ask. Saved on this device.</span></span>
         <ul class="cmds" id="cmds"></ul>
-        <input class="cmd-phrase" id="cmd-phrase" type="text" placeholder="Phrase, e.g. status" maxlength="40" autocomplete="off">
+        <input class="cmd-phrase" id="cmd-phrase" type="text" aria-label="Phrase that triggers the command" placeholder="Phrase, e.g. status" maxlength="40" autocomplete="off">
         <div class="cmd-reports" id="cmd-reports"></div>
         <div class="cmd-foot"><button class="tool tool--primary" id="cmd-save" type="button">Add command</button><span class="dim" id="cmd-note"></span></div>
       </div>
@@ -122,6 +122,8 @@
 
   <!-- Non-critical radio calls when no Radio widget is on screen. -->
   <div id="toasts" class="toasts" aria-live="polite"></div>
+  <!-- Read out by screen readers when the call changes (PUSH -> BOX); the screen shows it already. -->
+  <div id="call-announcer" class="sr-only" aria-live="polite"></div>
 
   <script src="widgets.js"></script>
   <script src="ask.js"></script>

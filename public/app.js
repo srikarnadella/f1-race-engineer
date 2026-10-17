@@ -942,6 +942,15 @@
     }
   }
 
+  // A new call is read out by a screen reader; its live numbers ticking are not.
+  let announcedAction = null;
+  function announceCall(strategy) {
+    const call = strategy && strategy.call;
+    if (!call || call.action === announcedAction) return;
+    announcedAction = call.action;
+    setText($('call-announcer'), `${call.action}: ${call.reason}`);
+  }
+
   let lastDebrief = null;
   function render(s) {
     // The debrief arrives once a second; other snapshots reuse the last one.
@@ -957,6 +966,7 @@
       ['topbar', () => renderTopbar(s)],
       ['toasts', () => renderRadio(s.insights || [])],
       ['voice', () => voiceInsights(s.insights || [], s.strategy)],
+      ['announce', () => announceCall(s.strategy)],
       ['widgets', () => updateWidgets(s)],
       ['auto', () => { applyFocus(s); renderAutoChip(); }],
       ['link', renderLink],

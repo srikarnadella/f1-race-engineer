@@ -23,6 +23,7 @@ flowchart LR
   end
   subgraph D[Data engineering]
     D1[D1 Capture catalog]:::next
+    %% next after D1: D3, then M1
     D2[D2 Feed health: loss, rate, lag]:::done
     D3[D3 Lap-level dataset export]
     D4[D4 Tick budget test]:::done
@@ -43,7 +44,7 @@ flowchart LR
     U1[U1 Calls audit screen]
     U2[U2 Uncertainty bands]
     U3[U3 Feed health badge]:::done
-    U4[U4 Accessibility pass]:::next
+    U4[U4 Accessibility pass]:::done
   end
 
   T1 --> T2 --> T4
@@ -131,8 +132,9 @@ Each line: what it is, why it matters, and the acceptance test.
 
 - **U1 Calls audit screen** in the Debrief. **U2 Uncertainty bands** on rejoin and gap charts.
   **U3 Feed health badge** (*done*): the link chip says "Live · 8% lost" from 2% loss, and nothing
-  extra when the feed is fine. **U4 Accessibility:** radio cards in an `aria-live` region, contrast
-  checked in both themes, every screen reachable by keyboard.
+  extra when the feed is fine. **U4 Accessibility** (*done*): every text colour on every background at
+  4.5:1 or more (dashboard and website), every control on every screen named for a screen reader,
+  tabs that say which is selected, and a new call (PUSH → BOX) announced, not only drawn.
 
 ## What the tests found
 
@@ -144,6 +146,8 @@ Each of these was a failing test before it was a fix; none was found by reading 
 | T5 invariants | The tyre fit's outlier trim applied indices from the fitted rows to the raw laps, so one car with too few laps on a compound shifted which laps were dropped. | Each row carries its lap. Held-out Monaco error 147 → 130 ms. |
 | T5 invariants | Late-stint traffic (1-3 s, under the slow-lap filter) tilts the wear fit by up to 49 ms/lap on synthetic laps. | Not fixed: re-trimming fixed it there but predicted held-out cars worse on Suzuka. Kept as a `todo` test. |
 | T4 scenarios | Damage read "front wing l 12%" on the radio, the voice answer and the card; an existing test asserted that text. | "front-left wing". |
+| U4 accessibility | A new call (PUSH → BOX) was drawn but never announced to a screen reader; the voice-command phrase box had no label; the website's dim grey was 3.9:1. | A polite live region that speaks the call when the action changes (not its ticking numbers); a label; a lighter grey (5.1:1). |
+| D4 budget | The tick-time budget failed in full test runs (p99 11 ms) even before any change: other test files run in parallel. | The mean is now CPU time, which contention can't inflate; a planted 3 ms stall still fails it. |
 | T6 contract | (Mutation check) 5 of 5 snapshot field renames now fail a test; before, all 5 passed silently. | - |
 
 Mutation checks - a test only counts once it fails on a planted bug:
