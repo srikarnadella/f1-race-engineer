@@ -20,7 +20,7 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
   const insights = insightEngine.evaluate(analysis);
 
   if (playerIdx == null) {
-    return { connected: false, updatedAtMs: fieldModel.clock(), session: null, player: null, nearby: [], field: [], analysis: null, insights, strategy: null };
+    return { connected: false, updatedAtMs: fieldModel.clock(), feed: fieldModel.getFeedHealth(), session: null, player: null, nearby: [], field: [], analysis: null, insights, strategy: null };
   }
 
   const player = fieldModel.getCar(playerIdx);
@@ -42,6 +42,8 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
     // "paused" over it rather than blanking.
     connected: lastPacketAtMs != null && fieldModel.clock() - lastPacketAtMs < STALE_AFTER_MS,
     updatedAtMs: fieldModel.clock(),
+    // Packet rate and loss over the last 10 s: how much to trust the rest.
+    feed: fieldModel.getFeedHealth(),
     session: fieldModel.getSession() ? session : null,
     // Only what the dashboard or the capture analyzer reads - raw HUD values
     // (temps, RPM, damage...) stay in FieldModel for the models to use.

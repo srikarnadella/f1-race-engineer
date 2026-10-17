@@ -7,6 +7,7 @@
   const { widgets: WIDGETS, setText, setTone, lapsTxt } = window.RaceWidgets;
   const $ = (id) => document.getElementById(id);
   const STALE_AFTER_MS = 3000;
+  const LOSSY_FEED_PCT = 2;
   const TOAST_MS = 6000;
   const CRITICAL_BAND_MS = 6000;
   const STORE = { screen: 'raceEngineer.screen', custom: 'raceEngineer.custom', voice: 'raceEngineer.voice', auto: 'raceEngineer.auto', handsFree: 'raceEngineer.handsFree', commands: 'raceEngineer.commands' };
@@ -916,7 +917,11 @@
     const link = $('link');
     link.classList.toggle('is-live', !!live && !demo);
     link.classList.toggle('is-demo', !!demo);
-    setText($('link-text'), !socketOpen ? 'Bridge offline' : !fresh ? 'Stalled' : demo ? (RECORDED ? 'Recorded demo' : 'Demo replay') : live ? 'Live' : 'No telemetry');
+    // Packets lost between the game and the bridge (Wi-Fi from a console): calls run on less.
+    const loss = live && lastSnapshot.feed && lastSnapshot.feed.lossPct >= LOSSY_FEED_PCT ? Math.round(lastSnapshot.feed.lossPct) : null;
+    link.classList.toggle('is-lossy', loss != null);
+    link.title = loss != null ? `${loss}% of telemetry packets lost in the last 10 s (${lastSnapshot.feed.rateHz} a second arriving). A wired connection or a closer router helps.` : 'Connection to the bridge';
+    setText($('link-text'), !socketOpen ? 'Bridge offline' : !fresh ? 'Stalled' : demo ? (RECORDED ? 'Recorded demo' : 'Demo replay') : live ? (loss != null ? `Live · ${loss}% lost` : 'Live') : 'No telemetry');
 
     let title = null;
     let body = '';

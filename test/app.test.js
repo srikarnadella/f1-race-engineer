@@ -120,3 +120,18 @@ test('app: the whole synthetic race plays through every screen without an error'
   }
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('app: a lossy feed is flagged on the link; a healthy one says nothing extra', (t) => {
+  const app = open(t);
+  app.connect();
+  const snap = raceSnapshots()[200];
+  app.send({ ...snap, feed: { rateHz: 52, lossPct: 0.5 } });
+  assert.strictEqual(app.$('link-text').textContent, 'Live');
+  assert.ok(!app.$('link').classList.contains('is-lossy'));
+  app.send({ ...snap, feed: { rateHz: 18.4, lossPct: 8 } });
+  assert.strictEqual(app.$('link-text').textContent, 'Live · 8% lost');
+  assert.ok(app.$('link').classList.contains('is-lossy'));
+  assert.match(app.$('link').title, /8% of telemetry packets lost/);
+  app.send({ ...snap, feed: { rateHz: null, lossPct: null } });
+  assert.strictEqual(app.$('link-text').textContent, 'Live', 'no reading is not a warning');
+});

@@ -10,6 +10,7 @@ const SLOW_VICTIM_KMH = 80;
 // Battery sampled in this many slices of a lap, per car: last lap's shape is
 // the best guess at how the rest of this lap goes (see batteryProjection.js).
 const ERS_BINS = 20;
+const { createFeedHealth } = require('./feedHealth');
 
 // Tracks every car on track, keyed by car index - not just the player's.
 // This is the join point for "relative to the field": gaps, pace trends,
@@ -29,6 +30,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
   let classification = null; // the official result, once the results screen is up
   let lapPositions = null; // { lapStart, laps[k][carIdx] = position }
   let eventSeq = 0; // monotonic across resets
+  const feed = createFeedHealth(clock); // the connection, not the session: kept across resets
   // Bumped on every reset so derived state elsewhere (InsightEngine's wear
   // history) knows to drop its own per-session memory too.
   let generation = 0;
@@ -311,6 +313,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
 
   function dispatch(packetId, header, data) {
     handlePacket(packetId, header);
+    if (packetId === PACKET_IDS.CAR_TELEMETRY) feed.record(header);
     switch (packetId) {
       case PACKET_IDS.CAR_TELEMETRY: return onCarTelemetry(data);
       case PACKET_IDS.CAR_STATUS: return onCarStatus(data);
@@ -408,7 +411,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
   const getClassification = () => classification;
   const getLapPositions = () => lapPositions;
 
-  return { clock, dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
+  return { clock, getFeedHealth: feed.view, dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
 }
 
 module.exports = { createFieldModel };

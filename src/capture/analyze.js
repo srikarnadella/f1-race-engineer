@@ -113,6 +113,7 @@ async function analyzeCapture(target) {
   const timeline = [];
   let timelineTruncated = 0;
   const markerContext = [];
+  const feedReadings = []; // { rateHz, lossPct } each engine tick
   const stats = { badLines: 0, truncated: false };
   let lastTick = -Infinity;
   let lastForecastCheck = -Infinity;
@@ -277,6 +278,7 @@ async function analyzeCapture(target) {
       let snap;
       try {
         snap = pipeline.tick();
+        if (snap.feed && snap.feed.lossPct != null) feedReadings.push(snap.feed);
       } catch (err) {
         const key = `snapshot: ${err.message}`;
         warnings.set(key, (warnings.get(key) || 0) + 1);
@@ -406,6 +408,11 @@ async function analyzeCapture(target) {
 
   const sampleNames = [...names.values()].filter(Boolean);
   const readable = sampleNames.filter((n) => /^[\x20-\x7EÀ-ɏ]+$/.test(n));
+  if (feedReadings.length) {
+    const meanOf = (k) => feedReadings.reduce((a, f) => a + f[k], 0) / feedReadings.length;
+    const worst = Math.max(...feedReadings.map((f) => f.lossPct));
+    check('Feed health', meanOf('lossPct') >= 2 ? 'WARN' : 'OK', `${meanOf('rateHz').toFixed(0)} telemetry packets a second, ${meanOf('lossPct').toFixed(1)}% lost on average (worst 10 s: ${worst}%)`);
+  }
   check('Participant names', sampleNames.length && readable.length === sampleNames.length ? 'OK' : 'WARN',
     sampleNames.length ? `${readable.length}/${sampleNames.length} readable · e.g. ${sampleNames.slice(0, 6).join(', ')}` : 'no Participants packets');
 

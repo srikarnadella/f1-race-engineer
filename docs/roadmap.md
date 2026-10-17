@@ -23,7 +23,7 @@ flowchart LR
   end
   subgraph D[Data engineering]
     D1[D1 Capture catalog]:::next
-    D2[D2 Feed health: loss, rate, lag]:::next
+    D2[D2 Feed health: loss, rate, lag]:::done
     D3[D3 Lap-level dataset export]
     D4[D4 Tick budget test]:::done
     D5[D5 Session store pruning]
@@ -42,7 +42,7 @@ flowchart LR
   subgraph U[User experience]
     U1[U1 Calls audit screen]
     U2[U2 Uncertainty bands]
-    U3[U3 Feed health badge]
+    U3[U3 Feed health badge]:::done
     U4[U4 Accessibility pass]:::next
   end
 
@@ -96,8 +96,11 @@ Each line: what it is, why it matters, and the acceptance test.
 
 - **D1 Capture catalog.** `captures/index.json`: track, session type, laps, stops, packet counts,
   quality per capture, so accuracy and training pick races by query, not by hand.
-- **D2 Feed health.** Packet loss from `frameIdentifier` gaps, per-packet rates and lag, in the
-  snapshot and the capture report. *Test:* dropping every 10th packet reads as 10% loss.
+- **D2 Feed health.** *Done.* Packet rate and loss over the last 10 s, from Car Telemetry's overall
+  frame counter, measured against its usual step (1 frame at 60 Hz, 3 at 20 Hz) so the send rate
+  isn't read as loss, and a pause isn't either. In the snapshot (`feed`) and the capture report.
+  *Tests:* every 10th packet dropped reads 10%, random 5% averages 5%, a 30 s pause reads 0%.
+  On the Suzuka capture: 51 packets a second, 0% lost (localhost).
 - **D3 Lap-level dataset.** One tidy row per car per lap (tyre, age, fuel, gap, lap time, flags)
   from every capture, schema documented, feeding M1-M3.
 - **D4 Tick budget.** *Test:* a full synthetic race keeps the mean engine tick under 2 ms.
@@ -127,7 +130,8 @@ Each line: what it is, why it matters, and the acceptance test.
 ### User experience
 
 - **U1 Calls audit screen** in the Debrief. **U2 Uncertainty bands** on rejoin and gap charts.
-  **U3 Feed health badge.** **U4 Accessibility:** radio cards in an `aria-live` region, contrast
+  **U3 Feed health badge** (*done*): the link chip says "Live · 8% lost" from 2% loss, and nothing
+  extra when the feed is fine. **U4 Accessibility:** radio cards in an `aria-live` region, contrast
   checked in both themes, every screen reachable by keyboard.
 
 ## What the tests found

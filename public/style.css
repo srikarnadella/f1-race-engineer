@@ -125,6 +125,8 @@ body {
 .link__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--act); }
 .link.is-live .link__dot { background: var(--good); }
 .link.is-demo .link__dot { background: var(--info); }
+.link.is-lossy { color: var(--watch); }
+.link.is-lossy .link__dot { background: var(--watch); }
 
 .editbar {
   display: flex;
