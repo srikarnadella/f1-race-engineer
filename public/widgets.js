@@ -76,6 +76,9 @@
     return `${n} lap${n === 1 ? '' : 's'} ${d > 0 ? 'older' : 'fresher'} tyres`;
   }
 
+  // A wear rate and, once the field has enough laps, its 90% range: "+0.090s (0.071–0.110)".
+  const degText = (d) => `+${(d.degMsPerLap / 1000).toFixed(3)}s${d.ciMs ? ` <span class="dim">(${(d.ciMs[0] / 1000).toFixed(3)}–${(d.ciMs[1] / 1000).toFixed(3)})</span>` : ''}`;
+
   const W = {};
 
   // ---------- Radio ----------
@@ -630,7 +633,7 @@
         if (r.deg.dataset.sig !== sig) {
           r.deg.dataset.sig = sig;
           r.deg.innerHTML = rows.length
-            ? `<tr><th>Compound</th><th class="num">Loss / lap of age</th><th class="num">Laps · cars</th></tr>${rows.map(([c, d]) => `<tr><td>${COMPOUND_NAME[c] || c}</td><td class="num strong">+${(d.degMsPerLap / 1000).toFixed(3)}s</td><td class="num dim">${d.laps} · ${d.cars}</td></tr>`).join('')}`
+            ? `<tr><th>Compound</th><th class="num">Loss / lap of age</th><th class="num">Laps · cars</th></tr>${rows.map(([c, d]) => `<tr><td>${COMPOUND_NAME[c] || c}</td><td class="num strong">${degText(d)}</td><td class="num dim">${d.laps} · ${d.cars}</td></tr>`).join('')}`
             : '<tr><td class="dim">Learning from the field - needs 3 cars with 3 clean laps on a compound</td></tr>';
         }
       };
@@ -979,7 +982,7 @@
     }
     const rows = tyre ? Object.entries(tyre.compounds) : [];
     html += `<div class="w-mdl__card"><h3>Tyre degradation (live)</h3><p class="dim">Fitted during the session from every car's clean laps: each car against its own average, fuel-corrected (${tyre ? `${tyre.fuelMsPerLap} ms/lap` : '~30 ms per kg'}), outlier laps trimmed. Feeds the cliff projection and stop pay-back.</p>`
-      + (rows.length ? `<table class="tbl"><thead><tr><th>Compound</th><th class="num">Loss per lap of age</th><th class="num">Laps</th><th class="num">Cars</th></tr></thead><tbody>${rows.map(([c, d]) => `<tr><td>${COMPOUND_NAME[c] || c}</td><td class="num strong">+${(d.degMsPerLap / 1000).toFixed(3)}s</td><td class="num">${d.laps}</td><td class="num">${d.cars}</td></tr>`).join('')}</tbody></table>` : '<p class="dim">Waiting for enough laps in this session.</p>')
+      + (rows.length ? `<table class="tbl"><thead><tr><th>Compound</th><th class="num">Loss per lap of age</th><th class="num">Laps</th><th class="num">Cars</th></tr></thead><tbody>${rows.map(([c, d]) => `<tr><td>${COMPOUND_NAME[c] || c}</td><td class="num strong">${degText(d)}</td><td class="num">${d.laps}</td><td class="num">${d.cars}</td></tr>`).join('')}</tbody></table>` : '<p class="dim">Waiting for enough laps in this session.</p>')
       + '</div>';
     return html;
   }

@@ -116,6 +116,9 @@ const NEUTRALISED_LABEL = { 1: 'SC', 2: 'VSC' };
 
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const DRY = new Set([16, 17, 18]);
+// Resamples for the tyre fit's 90% range: 100 is ~10 ms a refit, and the 5th/95th
+// percentiles of 100 are steady to a few ms/lap.
+const TYRE_FIT_RESAMPLES = 100;
 
 // Average of the last few laps that weren't pit or safety-car laps.
 function cleanPaceMs(car) {
@@ -269,6 +272,17 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // waiting to settle - it replaces the pick once it has held PICK_SETTLE_MS.
   let pitPick = null;
   let pitNext = { lap: null, since: 0 };
+  // The tyre fit, with its 90% range, changes only when a lap completes: refit
+  // then (~10 ms with the range), not on every 10 Hz tick.
+  let tyreFit = { key: null, model: null };
+  function tyreModelFor(ordered) {
+    const key = ordered.map((c) => {
+      const l = c.lapHistory && c.lapHistory[c.lapHistory.length - 1];
+      return l ? `${c.carIndex}:${l.lapNum}:${l.lapMs}:${l.compound}` : '';
+    }).join('|');
+    if (key !== tyreFit.key) tyreFit = { key, model: fitDegradation(ordered, fieldBurnKgPerLap(ordered), { bootstrap: TYRE_FIT_RESAMPLES }) };
+    return tyreFit.model;
+  }
   // The share of its set's rated life each car had used when it made its
   // first green-flag stop - how this race's AI is actually running it - and
   // the wear on its most-worn tyre then.
@@ -622,7 +636,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     };
 
     // ML: field-wide tyre degradation, and whether a stop would pay off now.
-    const tyreModel = fitDegradation(ordered, fieldBurnKgPerLap(ordered));
+    const tyreModel = tyreModelFor(ordered);
     const myCompound = player.status ? player.status.visualTyreCompound : null;
     const myDeg = tyreModel.compounds[myCompound];
     const trusted = Object.fromEntries(Object.entries(tyreModel.compounds).filter(([, d]) => d.cars >= MIN_DEG_CARS && d.laps >= MIN_DEG_LAPS && d.degMsPerLap > 0));

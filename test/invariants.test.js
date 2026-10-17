@@ -176,6 +176,31 @@ test('tyre model backtest: each car predicted from the others beats "no tyre wea
   assert.ok(flat.model.medianMs < flat.naive.medianMs * 1.1, JSON.stringify(flat));
 });
 
+test('tyre model interval: the 90% range holds the true wear rate about 90% of the time', () => {
+  const r = rng(31);
+  let inside = 0;
+  const N = 80;
+  for (let c = 0; c < N; c++) {
+    const degMs = 30 + r() * 150;
+    const fit = fitDegradation(syntheticField(r, { degMs, cars: 10, noiseMs: 250, slowLapRate: 0 }), 1.6, { bootstrap: 200 }).compounds[17];
+    const [lo, hi] = fit.ciMs;
+    assert.ok(lo <= fit.degMsPerLap && fit.degMsPerLap <= hi, `estimate ${fit.degMsPerLap} outside its own range ${lo}-${hi}`);
+    if (lo <= degMs && degMs <= hi) inside++;
+  }
+  assert.ok(inside / N >= 0.8 && inside / N <= 0.98, `${inside} of ${N} ranges held the truth`);
+});
+
+test('tyre model interval: more cars, a narrower range; the same laps, the same range', () => {
+  const width = (cars) => {
+    const f = fitDegradation(syntheticField(rng(32), { degMs: 90, cars, noiseMs: 250, slowLapRate: 0 }), 1.6, { bootstrap: 200 }).compounds[17];
+    return f.ciMs[1] - f.ciMs[0];
+  };
+  assert.ok(width(20) < width(5), `20 cars ${width(20)} ms wide, 5 cars ${width(5)}`);
+  const field = syntheticField(rng(33), { degMs: 90 });
+  assert.deepStrictEqual(fitDegradation(field, 1.6, { bootstrap: 100 }).compounds[17].ciMs, fitDegradation(field, 1.6, { bootstrap: 100 }).compounds[17].ciMs);
+  assert.strictEqual(fitDegradation(field).compounds[17].ciMs, undefined, 'no range unless asked: it costs 100+ fits');
+});
+
 test('stop payback: older tyres, more wear and a cheaper stop all pay back sooner', () => {
   const r = rng(8);
   for (let c = 0; c < CASES; c++) {

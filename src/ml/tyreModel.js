@@ -41,9 +41,52 @@ function fitSlope(points) {
 // Green racing laps with a known tyre: the laps that say something about wear.
 const usableLaps = (car) => (car.lapHistory || []).filter((l) => !l.pit && !l.neutralised && l.lapNum > 1 && l.lapMs > 0 && l.compound != null && l.tyreAge != null);
 
+// One compound's laps -> the robust fit, or null with too few cars or laps.
+function fitCompound(points) {
+  const first = fitSlope(points);
+  if (!first) return null;
+  // Robust pass: drop laps more than 3 MADs off the first fit. Each row
+  // carries its lap, so a car left out of the fit (too few laps) can't shift
+  // which laps are dropped.
+  // shortcut: one pass - traffic late in a stint tilts the first fit and
+  // mostly survives it (test/invariants.test.js, todo); re-trimming until
+  // stable fixed that on synthetic laps but predicted held-out cars worse on
+  // the Suzuka race, so it waits for more races to judge it on.
+  const resid = first.rows.map((r) => r.y - first.slope * r.x);
+  const med = [...resid].sort((a, b) => a - b)[resid.length >> 1];
+  const mad = [...resid.map((v) => Math.abs(v - med))].sort((a, b) => a - b)[resid.length >> 1] || 1;
+  const kept = first.rows.filter((_, i) => Math.abs(resid[i] - med) <= 3 * 1.4826 * mad).map((r) => r.point);
+  return fitSlope(kept) || first;
+}
+
+// How sure the slope is: refit on the field resampled car by car (cars, not
+// laps, are the independent units - one car's laps share its pace and its
+// set). Seeded, so the same laps always give the same range.
+function slopeInterval(points, samples) {
+  const byCar = [...points.reduce((m, p) => m.set(p.car, [...(m.get(p.car) || []), p]), new Map()).values()];
+  let seed = 0x5eed;
+  const rand = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const slopes = [];
+  for (let b = 0; b < samples; b++) {
+    // Each draw is a car of its own, even if the same car is drawn twice.
+    const resampled = byCar.flatMap((_, k) => byCar[Math.floor(rand() * byCar.length)].map((p) => ({ ...p, car: k })));
+    const fit = fitCompound(resampled);
+    if (fit) slopes.push(fit.slope);
+  }
+  if (slopes.length < samples / 2) return null;
+  slopes.sort((a, b) => a - b);
+  return [Math.round(slopes[Math.floor(slopes.length * 0.05)]), Math.round(slopes[Math.ceil(slopes.length * 0.95) - 1])];
+}
+
 // cars: FieldModel cars (lapHistory entries carry compound + tyreAge).
 // burnKgPerLap: measured fuel use per lap (the player's), or a typical 1.6.
-function fitDegradation(cars, burnKgPerLap = 1.6) {
+// bootstrap: resamples for a 90% range on each slope (ciMs); 0 = none.
+function fitDegradation(cars, burnKgPerLap = 1.6, { bootstrap = 0 } = {}) {
   const fuelMsPerLap = burnKgPerLap * FUEL_MS_PER_KG;
   const byCompound = new Map();
   for (const car of cars) {
@@ -60,21 +103,14 @@ function fitDegradation(cars, burnKgPerLap = 1.6) {
   }
   const out = {};
   for (const [compound, points] of byCompound) {
-    const first = fitSlope(points);
-    if (!first) continue;
-    // Robust pass: drop laps more than 3 MADs off the first fit. Each row
-    // carries its lap, so a car left out of the fit (too few laps) can't shift
-    // which laps are dropped.
-    // shortcut: one pass - traffic late in a stint tilts the first fit and
-    // mostly survives it (test/invariants.test.js, todo); re-trimming until
-    // stable fixed that on synthetic laps but predicted held-out cars worse on
-    // the Suzuka race, so it waits for more races to judge it on.
-    const resid = first.rows.map((r) => r.y - first.slope * r.x);
-    const med = [...resid].sort((a, b) => a - b)[resid.length >> 1];
-    const mad = [...resid.map((v) => Math.abs(v - med))].sort((a, b) => a - b)[resid.length >> 1] || 1;
-    const kept = first.rows.filter((_, i) => Math.abs(resid[i] - med) <= 3 * 1.4826 * mad).map((r) => r.point);
-    const fit = fitSlope(kept) || first;
+    const fit = fitCompound(points);
+    if (!fit) continue;
     out[compound] = { name: NAMES[compound] || `compound ${compound}`, degMsPerLap: Math.round(fit.slope), laps: fit.rows.length, cars: fit.cars };
+    if (bootstrap) {
+      const ci = slopeInterval(points, bootstrap);
+      // The estimate always sits inside its own range.
+      if (ci) out[compound].ciMs = [Math.min(ci[0], out[compound].degMsPerLap), Math.max(ci[1], out[compound].degMsPerLap)];
+    }
   }
   return { fuelMsPerLap: Math.round(fuelMsPerLap), compounds: out };
 }

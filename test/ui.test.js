@@ -161,3 +161,21 @@ test('debrief: each view (summary, lap compare, rivals, models) renders from the
     assert.ok(!leak, `${b.textContent} shows "${leak && leak[0]}": ...${leak && text.slice(Math.max(0, leak.index - 60), leak.index + 20)}...`);
   }
 });
+
+test('tyre card: the wear rate comes with its 90% range, e.g. "+0.090s (0.071-0.110)"', () => {
+  const d = dashboard();
+  const card = d.mounted.find((w) => w.id === 'tyrecall');
+  let shown = null;
+  replay(syntheticPackets(), {
+    onTick: ({ snap }) => {
+      const tm = snap.analysis && snap.analysis.tyreModel;
+      if (shown || !tm || !Object.values(tm.compounds).some((c) => c.ciMs)) return;
+      card.update(snap);
+      shown = { text: card.card.textContent, tm };
+    },
+  });
+  assert.ok(shown, 'the synthetic race gets a fitted range');
+  const [, c] = Object.entries(shown.tm.compounds).find(([, x]) => x.ciMs);
+  const s = (ms) => (ms / 1000).toFixed(3);
+  assert.ok(shown.text.includes(`+${s(c.degMsPerLap)}s (${s(c.ciMs[0])}–${s(c.ciMs[1])})`), shown.text);
+});

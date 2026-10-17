@@ -29,7 +29,7 @@ flowchart LR
     D5[D5 Session store pruning]
   end
   subgraph M[Machine learning]
-    M1[M1 Pooled tyre model with intervals]:::next
+    M1[M1 Pooled tyre model with intervals]:::done
     M2[M2 Overtake model calibration]:::done
     M3[M3 Lap-time model with uncertainty]
     M4[M4 Backtest gate per model]:::done
@@ -37,7 +37,7 @@ flowchart LR
   subgraph A[Analysis and decisions]
     A1[A1 Monte Carlo strategy]
     A2[A2 Calls audit: was the call right?]
-    A3[A3 Confidence on every call]
+    A3[A3 Confidence on every call]:::next
   end
   subgraph U[User experience]
     U1[U1 Calls audit screen]
@@ -109,8 +109,11 @@ Each line: what it is, why it matters, and the acceptance test.
 
 ### Machine learning
 
-- **M1 Pooled tyre model.** Wear rates pooled across cars and races with a prediction interval,
-  scored against the per-race fit in `docs/accuracy.md`.
+- **M1 Tyre model with intervals.** *Done:* each compound's wear rate comes with a 90% range, from
+  refitting on the field resampled car by car (cars, not laps, are independent). On synthetic fields
+  the range holds the true rate about 90% of the time and narrows with more cars. The engine refits
+  only when a lap completes (~10 ms), not every tick. Pooling across races stays with the per-track
+  memory: tracks wear tyres too differently to pool across them.
 - **M2 Overtake calibration.** *Done:* Brier score, Brier skill and a held-out reliability table
   are in [ml-overtake-model.md](ml-overtake-model.md). It is well calibrated (20-40% predicted,
   33% observed) but doesn't beat the gap-only baseline yet.
