@@ -17,15 +17,16 @@ function syntheticPackets() {
 }
 
 // Feeds `packets` and ticks the engine every 100 ms of race time, as the
-// bridge does. onTick({ tMs, snap, pipeline }) sees every snapshot.
+// bridge does. onPacket(p, pipeline) runs after each packet is fed;
+// onTick({ tMs, snap, pipeline }) sees every snapshot.
 function replay(packets, { onTick, onPacket, pipelineOptions = {} } = {}) {
   let tNow = 0;
   const pipeline = createPipeline({ now: () => EPOCH + tNow, ...pipelineOptions });
   let lastTick = -Infinity;
   for (const p of packets) {
     tNow = p.tMs;
-    if (onPacket) onPacket(p, pipeline);
     pipeline.feed(p.buf);
+    if (onPacket) onPacket(p, pipeline);
     if (p.tMs - lastTick < 100) continue;
     lastTick = p.tMs;
     const snap = pipeline.tick();

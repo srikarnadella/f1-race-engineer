@@ -48,6 +48,9 @@ class BufferReader {
   f32() {
     const v = this.buf.readFloatLE(this.offset);
     this.offset += 4;
+    // The game never sends NaN or Infinity (none in 2.26M captured packets): it
+    // means a corrupt packet, which would stick in histories, so drop it whole.
+    if (!Number.isFinite(v)) throw new RangeError(`non-finite float at byte ${this.offset - 4}`);
     return v;
   }
 
