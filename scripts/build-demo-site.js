@@ -110,9 +110,12 @@ function sampler(keep) {
   return { frames, onTick, tyre: () => tyre };
 }
 
-// Each session's lap compare and rivals, as the bridge's API would answer them.
+// Each session's lap compare and rivals, as the bridge's API would answer them -
+// the default comparison, and your best lap against each rival lap it offers.
 const debriefSessions = (debrief, dir) => debrief.view().sessions.filter((x) => x.laps.length).map((x) => {
-  write(`api/compare-${x.id}.json`, debrief.compare(x.id, null, null), dir);
+  const cmp = debrief.compare(x.id, null, null);
+  write(`api/compare-${x.id}.json`, cmp, dir);
+  for (const r of cmp.rivals || []) write(`api/compare-${x.id}-${r.id}.json`, debrief.compare(x.id, null, r.id), dir);
   write(`api/rivals-${x.id}.json`, debrief.rivals(x.id), dir);
   return { ...x, live: false };
 });

@@ -37,9 +37,11 @@
       const p = u.searchParams;
       const file = u.pathname.endsWith('/api/models') ? 'models'
         : u.pathname.endsWith('/rivals') ? `rivals-${p.get('session')}`
-          : u.pathname.endsWith('/compare') && !p.has('a') && !p.has('b') ? `compare-${p.get('session')}` : null;
+          : u.pathname.endsWith('/compare') && !p.has('a') && !p.has('b') ? `compare-${p.get('session')}`
+            // Your best lap against a rival's: saved for each rival lap offered.
+            : u.pathname.endsWith('/compare') && !p.has('a') && /^r\d+$/.test(p.get('b') || '') ? `compare-${p.get('session')}-${p.get('b')}` : null;
       if (file) return realFetch(`${DEMO_DATA}api/${file}.json`);
-      const error = u.pathname.endsWith('/compare') ? 'This recorded demo compares the best lap with the latest one - the full app compares any two.' : 'Not available in the recorded demo.';
+      const error = u.pathname.endsWith('/compare') ? 'This recorded demo compares the best lap with the latest one, or with a rival\'s best - the full app compares any two.' : 'Not available in the recorded demo.';
       return Promise.resolve(new Response(JSON.stringify({ error }), { headers: { 'Content-Type': 'application/json' } }));
     };
   }
