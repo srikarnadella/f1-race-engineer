@@ -95,19 +95,21 @@ f1-race-engineer/
 │   │   ├── fieldModel.js             [DONE] per-car state; resets on new sessionUID or replay loop;
 │   │   │                                    game-time gap history; latched pit entry; staleness
 │   │   ├── lapDelta.js               [DONE] live delta to the player's PB lap (distance/time trace)
-│   │   ├── lapTrace.js               [DONE] player inputs vs distance per lap (feeds lap compare)
+│   │   ├── lapTrace.js               [DONE] inputs vs distance per lap, every car (feeds lap compare)
 │   │   ├── raceAnalysis.js           [DONE] clean-lap pace, gap trends, measured pit loss, rejoin prediction
 │   │   ├── race.js                   [DONE] shared race-distance helpers
 │   │   ├── weather.js                [DONE] forecast -> laps; drying track; inters/slicks crossover
 │   │   ├── carBalance.js             [DONE] per-corner lockup / wheelspin / understeer memory
 │   │   ├── adjustments.js            [DONE] brake bias / diff / ERS suggestions
 │   │   ├── debrief.js                [DONE] lap-by-lap record kept after the session; saved to data/sessions/
+│   │   ├── trackMemory.js            [DONE] per-track pit loss, AI stop timing and wear rates; data/tracks.json
 │   │   ├── focus.js                  [DONE] which screen matters now, for auto-switch (with hold times)
 │   │   └── insightEngine.js          [DONE] radio-call rules + strategy summary (PUSH/HOLD/BOX)
 │   ├── analysis/                     [DONE] battleCall, attackForecast, batteryProjection, strategyOptions (SC/VSC),
 │   │                                        pitTiming (which lap to box on), rivalStops (when each car boxes),
 │   │                                        damageLoss (what damage costs, from mini-sectors),
-│   │                                        qualifying (practice / qualifying lap view), lapCompare, rivals
+│   │                                        qualifying (practice / qualifying lap view), lapCompare, rivals,
+│   │                                        tyreTemps (against your own laps), racePlan (one stop or two)
 │   ├── ml/                           [DONE] logistic.js (from scratch), overtakeFeatures.js, tyreModel.js, models/*.json
 │   ├── capture/
 │   │   ├── logFile.js                [DONE] .f1log(.gz) read/write
@@ -120,7 +122,7 @@ f1-race-engineer/
 │   │   └── syntheticSession.js       [DONE] scripted 5-lap stint used as the demo until a real capture exists
 │   └── server/
 │       ├── snapshot.js               [DONE] FieldModel + InsightEngine -> wire payload (§6)
-│       ├── httpServer.js             [DONE] static files + WebSocket at 10Hz; prints LAN URLs + pairing QR
+│       ├── httpServer.js             [DONE] static files + WebSocket at 10Hz (http, or https with a cert); LAN URLs + QR
 │       └── qr.js                     [DONE] QR code (terminal + SVG) of the LAN address
 ├── public/                           [DONE] Epic B dashboard - plain HTML/CSS/JS, no build
 │   ├── index.html                           shell: screen tabs, custom-screen editor, settings, radio band/toasts
@@ -165,10 +167,11 @@ f1-race-engineer/
              intervalMs, lastLapTimeInMS, paceMs /* avg of last 3 clean laps */,
              gapTrendMsPerLap /* change in |gap| per lap, negative = shrinking */, lapsToDrs, lapsToCatch,
              tyreCompound, tyresAgeLaps, numPitStops, pitStatus, running,
-             stopInLaps /* expected stop, laps from now (0 = this lap), or null */ }, ... ],  // whole grid, by position
+             stopInLaps /* expected stop, laps from now (0 = this lap), or null */,
+             topSpeedKmh /* last green lap */ }, ... ],  // whole grid, by position
   nearby: [ ...same shape as field... ],                     // up to 2 ahead, 2 behind
   analysis: {
-    pitLoss: { ms, normalMs, neutralised, source: measured|track estimate|generic estimate, samples, lastMeasuredFrom },
+    pitLoss: { ms, normalMs, neutralised, source: measured|earlier races here|track estimate|generic estimate, samples, lastMeasuredFrom },
     rejoin: { position, positionsLost, inTraffic, ahead: { carIndex, name, gapMs, tyreCompound, tyresAgeLaps },
               behind: { ... } } | null,                      // null in the pits, or while gaps are unknown
     options: { situation, lapsLeft, freeStop, options: [ ... ] } | null,   // only under SC / VSC / red flag
@@ -179,18 +182,25 @@ f1-race-engineer/
     damage: { parts: [ { label, pct, fixable } ], sinceLap, fixableShare,
               lossPerLapMs /* null while measuring */, basis: laps|partial|measuring|no-baseline, lapsMeasured,
               where: [corner], toFlagMs, fix: { costMs, savedMs, stopAnyway, pays } } | null,
+    penalties: { timeS, servedAt: stop|flag, driveThroughs, stopGos,
+                 trackLimits: { count, last: { corner } | { atM } | null, sameAgain },
+                 flag: { name, gapMs, covered } | null } | null,   // null: no penalties, no warnings
+    tyreTemps: { coldByC, hot: { axle: front|rear, byC } | null } | null,   // against your own laps
+    racePlan: { best, other /* + slowerMs */: { stops, stints: [ { compound, laps, setIndex } ], boxLaps, totalMs },
+                degSource: { [compound]: this session|earlier sessions here|estimate } } | null,   // race, lap <= 1, dry
     quali: { kind: practice|qualifying|time trial, name, status: garage|out|flying|in|track, lapInvalid,
              timeLeftS, position, bestMs, poleMs, gapToPoleMs, cut: { position, lineMs, marginMs } | null,
              projected: { lapMs, position, improves } | null, toLine: { startsInS, spareS, makesIt } | null,
              runs, traffic: { ahead, behind /* { name, gapS, status } */ } } | null,   // null in a race
-    weather: { trackState, nextChange, timeline[], crossover, accuracy, ... } | null,
+    weather: { trackState, nextChange, timeline[], accuracy, ...,
+               crossover: { wetGainMs, basis: switchers|groups, switchers, wetCars, slickCars, wetMs, slickMs } } | null,
     battle: { attack, defend /* ML: { p, level } */, attackForecast, defendForecast, call,
               battery: { you, ahead, behind /* { nowPct, atLinePct, trendPctPerLap, basis } */ } },
     tyreModel: { compounds, mine, payback }, regs2026, overtake
   } | null,
   insights: [ { id, severity: info|advisory|critical, category: pace|strategy|health|flag, message,
                 createdAtMs, expiresAtMs }, ... ],            // sorted most severe first; [0] is the banner
-  strategy: { lapsRemaining, fuelMarginLaps, tyreLapsToCliff, tyreWearRatePerLap, battle /* ATTACK|DEFEND|... */,
+  strategy: { lapsRemaining, fuelMarginLaps, fuelSavePct /* % of a lap's fuel to save, when short */, tyreLapsToCliff, tyreWearRatePerLap, battle /* ATTACK|DEFEND|... */,
               call: { action: PUSH|HOLD|BOX|PIT|PREP /* PREP: out lap, qualifying */, reason } } | null,
   adjust: { current, suggestions: [ { id, kind: bias|diff|ers, action, where, why } ] } | null,
   focus: { screen: drive|battle|strategy|weather|debrief, reason, sinceMs } | null,   // auto-switch

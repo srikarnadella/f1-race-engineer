@@ -82,6 +82,20 @@ The game shows damage in %, which says nothing about whether to stop. The Car ti
 cost ("+0.8s/lap") and the verdict ("box for a new nose", "not worth a stop"). The radio says it twice
 at most: once when the damage appears ("measuring what it costs") and once with the figure.
 
+## Penalties and flags
+
+Radio text that counts down rewrites the card ten times a second and makes it unreadable, so a yellow
+ahead is named by the corner it covers, not "in 0.6 km", and a time penalty against the car behind is
+in whole seconds. A track-limit warning is said once each, with the corner, and "same corner again" when
+it repeats; the game's own "Warning" event for it is dropped because it says less. The yellow you're
+already in isn't called: the HUD shows it.
+
+## Tyre temperatures
+
+The HUD shows the temperatures, so the dashboard only says something when they mean something:
+hotter than early in this stint on the same stretches of track, or well under your racing temperature
+behind a safety car. Each is said once, rounded to 5 °C so it doesn't rewrite itself.
+
 ## Options considered and rejected
 
 - **One adaptive screen that rearranges its cards.** Cards moving under your eyes mid-corner are

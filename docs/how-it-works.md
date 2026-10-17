@@ -30,6 +30,12 @@ the demo can't drift from the real tool: it *is* the real tool.
 20 slices of the last lap. Flashbacks (game time going backwards, or the lap counter dropping) undo
 history instead of recording fake laps; one real Monaco race had 20 of them.
 
+Offline the game sends every car's speed, throttle, brake and tyre wear, not just yours, so each rival's
+best lap is traced for lap compare and each car's own wear rate times its next stop. What a race
+measured at a track (pit loss, the tyre age and wear the AI boxed at, each compound's wear rate in
+practice) is kept in [`trackMemory.js`](../src/state/trackMemory.js), so the next race there starts
+from it.
+
 ## 3. Judgement: rules, two small models, and honesty about both
 
 Ten times a second, [`raceAnalysis.compute()`](../src/state/raceAnalysis.js) works out the fight
@@ -57,6 +63,10 @@ Every prediction is scored against a naive baseline on real races by `npm run ac
 - **The first battery projection was worse than doing nothing.** Extrapolating this lap's use by
   distance scored 12.3 points of error against 9.9 for "it stays where it is", because drivers spend
   on straights, not evenly. Replaying the same stretch of the last lap brought it to 7.4.
+- **Tyre temperatures had to be compared like for like.** A plain 10-second average against the
+  stint's early laps made 17 overheating calls in one Monaco race, flipping between fronts and rears:
+  the surface is hotter after every slow corner and cooler on every straight. Comparing the same
+  stretches of track on earlier laps brought it to 3.
 - **The overtake model doesn't beat a gap-only model yet** (held-out AUC 0.851 vs 0.854), and the
   attack forecast ties the track's busiest passing corner. Both are shown that way in the app: the
   Models tab prints the verdict and a calibration chart, and the forecast is worded as a "likely spot".
