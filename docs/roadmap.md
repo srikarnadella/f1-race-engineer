@@ -22,18 +22,17 @@ flowchart LR
     T8[T8 Coverage gate in CI]:::done
   end
   subgraph D[Data engineering]
-    D1[D1 Capture catalog]:::next
-    %% next after D1: D3, then M1
+    D1[D1 Capture catalog]:::done
     D2[D2 Feed health: loss, rate, lag]:::done
-    D3[D3 Lap-level dataset export]
+    D3[D3 Lap-level dataset export]:::done
     D4[D4 Tick budget test]:::done
     D5[D5 Session store pruning]
   end
   subgraph M[Machine learning]
-    M1[M1 Pooled tyre model with intervals]
+    M1[M1 Pooled tyre model with intervals]:::next
     M2[M2 Overtake model calibration]:::done
     M3[M3 Lap-time model with uncertainty]
-    M4[M4 Backtest gate per model]:::part
+    M4[M4 Backtest gate per model]:::done
   end
   subgraph A[Analysis and decisions]
     A1[A1 Monte Carlo strategy]
@@ -95,15 +94,16 @@ Each line: what it is, why it matters, and the acceptance test.
 
 ### Data engineering
 
-- **D1 Capture catalog.** `captures/index.json`: track, session type, laps, stops, packet counts,
-  quality per capture, so accuracy and training pick races by query, not by hand.
+- **D1 Capture catalog.** *Done:* [datasets/races.csv](../datasets/races.csv), one row per race
+  session: track, laps run, cars, stops, neutralised laps, feed rate and loss.
 - **D2 Feed health.** *Done.* Packet rate and loss over the last 10 s, from Car Telemetry's overall
   frame counter, measured against its usual step (1 frame at 60 Hz, 3 at 20 Hz) so the send rate
   isn't read as loss, and a pause isn't either. In the snapshot (`feed`) and the capture report.
   *Tests:* every 10th packet dropped reads 10%, random 5% averages 5%, a 30 s pause reads 0%.
   On the Suzuka capture: 51 packets a second, 0% lost (localhost).
-- **D3 Lap-level dataset.** One tidy row per car per lap (tyre, age, fuel, gap, lap time, flags)
-  from every capture, schema documented, feeding M1-M3.
+- **D3 Lap-level dataset.** *Done:* [datasets/laps.csv](../datasets/laps.csv), 1,159 laps from 5
+  races, no driver names, schema in [datasets/README.md](../datasets/README.md). Laps are recorded
+  as they complete (the field model keeps only 12), taken back on a flashback, the flag lap kept.
 - **D4 Tick budget.** *Test:* a full synthetic race keeps the mean engine tick under 2 ms.
 - **D5 Session store pruning.** Keep the newest 50 debriefs on disk.
 
@@ -116,10 +116,9 @@ Each line: what it is, why it matters, and the acceptance test.
   33% observed) but doesn't beat the gap-only baseline yet.
 - **M3 Lap-time model.** Fuel + tyre age + traffic, with residual spread, feeding A1.
 - **M4 Backtest gate.** Every model scored per race in CI against its baseline; a change that makes
-  a model worse than it was fails the build. *Partly done:* rejoin, battery, attack forecast and
-  (new) the tyre model are scored per race against a baseline in [accuracy.md](accuracy.md), but
-  locally - the captures are too large for the repo, so CI can't gate on them yet (needs D1/D3:
-  a small committed lap-level dataset).
+  a model worse than it was fails the build. *Done for the lap-level models:* the tyre model and
+  rival-stop timing are scored on the committed dataset in CI against `datasets/scores.json`.
+  Rejoin and battery need the packet stream, so they're still scored locally (`npm run accuracy`).
 
 ### Analysis and decisions
 
@@ -148,6 +147,9 @@ Each of these was a failing test before it was a fix; none was found by reading 
 | T4 scenarios | Damage read "front wing l 12%" on the radio, the voice answer and the card; an existing test asserted that text. | "front-left wing". |
 | U4 accessibility | A new call (PUSH → BOX) was drawn but never announced to a screen reader; the voice-command phrase box had no label; the website's dim grey was 3.9:1. | A polite live region that speaks the call when the action changes (not its ticking numbers); a label; a lighter grey (5.1:1). |
 | D4 budget | The tick-time budget failed in full test runs (p99 11 ms) even before any change: other test files run in parallel. | The mean is now CPU time, which contention can't inflate; a planted 3 ms stall still fails it. |
+| D1 catalog | The first lap dataset dropped every car's last lap: at the flag the lap counter doesn't move on. Seen as "4 of 5 laps" in the catalog. | Kept once the car has finished; a test for it. |
+| D3 dataset | The tyre backtest in accuracy.md had scored only each race's last 12 laps (all the field model keeps). | Scored on every lap from the dataset: the model still beats "no wear" on 4 of 5 races (311 vs 417 ms a lap). |
+| M4 backtest | Learning when the AI stops from the stops seen so far is biased early: the first stops a race sees are the early ones. In a field whose stops spread out it does worse than the prior (2.2 vs 1.5 laps off). | Not fixed (the real races hold only 3 green-flag stops to judge a fix on); a `todo` test. |
 | T6 contract | (Mutation check) 5 of 5 snapshot field renames now fail a test; before, all 5 passed silently. | - |
 
 Mutation checks - a test only counts once it fails on a planted bug:

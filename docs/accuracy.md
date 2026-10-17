@@ -31,20 +31,37 @@ like the same stretch of the last lap) against the store when the car crossed it
 
 ## Tyre wear model
 
-At the end of each race, every car's green-flag laps are predicted from a wear fit on the *other*
-cars (held out, so a car never grades its own fit), up to that car's own pace level - only the slope
-is tested. Against the naive "tyres don't wear" guess. Error per lap, slow laps (spins, traffic over
-7%) left out.
+Every car's green-flag laps predicted from a wear fit on the *other* cars (held out, so a car never
+grades its own fit), up to that car's own pace level - only the slope is tested. Against the naive
+"tyres don't wear" guess. Mean error per lap over every lap of each race in the lap dataset
+([datasets/](../datasets/)), slow laps (spins, traffic over 7%) left out.
 
-| Race | Laps (cars) | **Model** median / mean | Naive median / mean |
+| Race | Laps | **Model** | Naive |
 |---|---|---|---|
-| Silverstone | 71 (22) | **200 / 338 ms** | 180 / 334 ms |
-| Suzuka | 70 (22) | **116 / 342 ms** | 189 / 366 ms |
-| Monaco | 134 (22) | **133 / 205 ms** | 422 / 440 ms |
-| Montreal | 63 (21) | **92 / 192 ms** | 169 / 255 ms |
-| Barcelona | 154 (21) | **319 / 388 ms** | 366 / 491 ms |
+| Silverstone | 71 | **338 ms** | 334 ms |
+| Suzuka | 70 | **342 ms** | 366 ms |
+| Monaco | 344 | **289 ms** | 464 ms |
+| Montreal | 63 | **192 ms** | 255 ms |
+| Barcelona | 217 | **360 ms** | 434 ms |
+| All | 765 | **311 ms** | 417 ms |
 
 It beats the naive guess on 4 of 5 races; not on Silverstone (71 laps).
+
+## When rivals stop
+
+Each AI car's first green-flag stop, predicted at the end of every lap 1-10 laps before it, learning
+from the stops already made in that race - against the same model learning nothing (60% of the set's
+rated life). Laps off the real in-lap.
+
+| | Mean error | Within 1 lap |
+|---|---|---|
+| **Model** | **1.07 laps** | **93%** |
+| Prior only | 1.07 laps | 93% |
+
+3 green-flag AI stops, 30 predictions: the recorded races' other stops came under a red flag
+or a safety car, which are a different decision. Too few stops have been seen for the learning
+to change a prediction yet, so the two rows match. Known weakness (a `todo` test): the stops a race
+sees first are its early ones, so a field whose stops spread out is called early.
 
 ## Attack forecast ("where will the car behind attack?")
 
