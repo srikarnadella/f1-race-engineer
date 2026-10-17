@@ -90,7 +90,8 @@
   function fuelAnswer(s) {
     const m = s.strategy && s.strategy.fuelMarginLaps;
     if (!isNum(m)) return 'Fuel: not enough laps to say yet.';
-    return m < 0 ? `Fuel is ${Math.abs(m).toFixed(1)} laps short - lift and coast.` : `Fuel is fine, ${m.toFixed(1)} laps of margin.`;
+    const save = s.strategy.fuelSavePct;
+    return m < 0 ? `Fuel is ${Math.abs(m).toFixed(1)} laps short - save about ${save || 1} percent a lap, lift and coast.` : `Fuel is fine, ${m.toFixed(1)} laps of margin.`;
   }
 
   function batteryAnswer(s) {

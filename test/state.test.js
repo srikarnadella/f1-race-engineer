@@ -186,6 +186,12 @@ test('fuel: the MFD surplus reading is used as the margin directly', () => {
   assert.ok(Math.abs(ie.getStrategy().fuelMarginLaps - 0.5) < 1e-9);
   fm.dispatch(PACKET_IDS.CAR_STATUS, header(3), fuelStatus(-0.4));
   assert.strictEqual(ie.evaluate().find((i) => i.id === 'fuel-risk').severity, 'critical');
+  // 0.4 laps short over ~41 laps: save ~1% of each lap's fuel.
+  assert.strictEqual(ie.getStrategy().fuelSavePct, 1);
+  fm.dispatch(PACKET_IDS.CAR_STATUS, header(4), fuelStatus(-2));
+  ie.evaluate();
+  assert.strictEqual(ie.getStrategy().fuelSavePct, 5);
+  assert.match(ie.getStrategy().call.reason, /save ~5% a lap/);
 });
 
 test('fuel margin uses remaining race distance, so it does not jump at the line', () => {
@@ -340,4 +346,15 @@ test('pit window: the simulator picking this lap by a clear margin is a BOX call
   assert.strictEqual(ie.getStrategy().call.action, 'BOX');
   assert.ok(!ie.evaluate(timing(0.6)).some((i) => i.id === 'pit-window'));
   assert.strictEqual(ie.getStrategy().call.action, 'PUSH');
+});
+
+test('the start: lap 1 against the grid, said once as lap 2 begins', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  fm.dispatch(PACKET_IDS.SESSION, header(1), { totalLaps: 20, trackLength: 5000, sessionType: 15 });
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(2), { cars: lapCars({ [PLAYER]: { currentLapNum: 1, gridPosition: 5 } }) });
+  assert.ok(!ie.evaluate().some((i) => i.id === 'start'));
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(3), { cars: lapCars({ [PLAYER]: { currentLapNum: 2, gridPosition: 5 } }) });
+  const pos = fm.getCar(PLAYER).lapData.carPosition;
+  assert.strictEqual(ie.evaluate().find((i) => i.id === 'start').message, `Lap 1: P${pos} from P5 on the grid - up ${5 - pos}`);
 });

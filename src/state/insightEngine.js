@@ -253,10 +253,11 @@ function createInsightEngine(fieldModel) {
   let qualiBestMs = null; // the best lap last announced
   let qualiSeen = false;
   let trackLimitsSaid = 0; // the player's track-limit warnings already on the radio
+  let startSaid = false;
 
   // The headline call for the strategy tier, derived from the same numbers
   // the insight rules use so the call and the radio messages never disagree.
-  function strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }) {
+  function strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }) {
     if (inPits) return { action: 'PIT', reason: 'In the pit lane' };
     // Not served in time = disqualified. Not servable under a safety car or red flag.
     if (penaltyBox && !neutralised) return { action: 'BOX', reason: penaltyBox };
@@ -275,7 +276,7 @@ function createInsightEngine(fieldModel) {
     // No racing under yellow, so "push" would be wrong whatever the tyres say.
     if (neutralised === 'Red flag') return { action: 'HOLD', reason: 'Red flag - race stopped' };
     if (neutralised) return { action: 'HOLD', reason: `${neutralised} - hold position, keep the delta positive` };
-    if (fuelMarginLaps != null && fuelMarginLaps < 0) return { action: 'HOLD', reason: 'Fuel short - lift and coast' };
+    if (fuelMarginLaps != null && fuelMarginLaps < 0) return { action: 'HOLD', reason: `Fuel short - save ~${fuelSavePct || 1}% a lap, lift and coast` };
     if (lapsToCliff != null && lapsToCliff <= 3) return { action: 'HOLD', reason: `Manage tyres - ~${laps(Math.round(lapsToCliff))} to the cliff` };
     if (fuelMarginLaps != null && fuelMarginLaps < 0.3) return { action: 'HOLD', reason: 'Fuel tight - save where you can' };
     // An undercut is an option, not an order - but the call must not read as
@@ -301,6 +302,7 @@ function createInsightEngine(fieldModel) {
       qualiBestMs = null;
       qualiSeen = false;
       trackLimitsSaid = 0;
+      startSaid = false;
     }
     pruneExpired();
     strategy = null;
@@ -313,6 +315,7 @@ function createInsightEngine(fieldModel) {
     let lapsToCliff = null;
     let lapsLeft = null;
     let fuelMarginLaps = null;
+    let fuelSavePct = null;
 
     const ordered = fieldModel.orderedByPosition();
     const myPosIdx = ordered.findIndex((c) => c.carIndex === playerIdx);
@@ -364,12 +367,14 @@ function createInsightEngine(fieldModel) {
       if (!fuelReading) fuelReading = fuelMeaning(frl, lapsLeft);
       const fuelDelta = fuelReading === 'laps-of-fuel' ? frl - lapsLeft : frl;
       fuelMarginLaps = fuelDelta;
+      // A lap of fuel is a lap's burn: 0.4 laps short with 14 to go = save ~3% of every lap's fuel.
+      fuelSavePct = fuelDelta < 0 && lapsLeft >= 1 ? Math.max(1, Math.round((-fuelDelta / lapsLeft) * 100)) : null;
       if (fuelDelta < 0.3) {
         upsert('fuel-risk', {
           severity: fuelDelta < 0 ? SEVERITY.CRITICAL : SEVERITY.ADVISORY,
           category: CATEGORY.STRATEGY,
           message: fuelDelta < 0
-            ? `Fuel: on pace to run ${Math.abs(fuelDelta).toFixed(1)} laps short - lift and coast`
+            ? `Fuel: on pace to run ${Math.abs(fuelDelta).toFixed(1)} laps short - save ~${fuelSavePct}% a lap: lift and coast into the big stops`
             : `Fuel: only ${fuelDelta.toFixed(1)} laps of margin to the end`,
           expiresAtMs: Date.now() + 15000,
         });
@@ -810,6 +815,20 @@ function createInsightEngine(fieldModel) {
       expire('penalty-time');
     }
 
+    // --- The start: what lap 1 did, once, as lap 2 begins ---
+    const grid = player.lapData.gridPosition;
+    if (racing && !startSaid && player.lapData.currentLapNum === 2 && grid > 0) {
+      startSaid = true;
+      const pos = player.lapData.carPosition;
+      const d = grid - pos;
+      upsert('start', {
+        severity: SEVERITY.INFO,
+        category: CATEGORY.PACE,
+        message: `Lap 1: P${pos} from P${grid} on the grid - ${d > 0 ? `up ${d}` : d < 0 ? `down ${-d}` : 'held position'}`,
+        expiresAtMs: Date.now() + 15000,
+      });
+    }
+
     // --- Tyre temperatures, against your own racing laps ---
     const tt = racing && analysis && analysis.tyreTemps;
     const fiveC = (c) => Math.max(5, Math.round(c / 5) * 5);
@@ -894,9 +913,10 @@ function createInsightEngine(fieldModel) {
       battle: battleShown,
       lapsRemaining: lapsLeft,
       fuelMarginLaps,
+      fuelSavePct,
       tyreLapsToCliff: lapsToCliff == null ? null : Math.max(0, lapsToCliff),
       tyreWearRatePerLap: wear ? wear.ratePerLap : null,
-      call: q ? qualiCall(q) : strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }),
+      call: q ? qualiCall(q) : strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }),
     };
 
     // Most severe first, then newest - insights[0] is the dashboard's banner,
