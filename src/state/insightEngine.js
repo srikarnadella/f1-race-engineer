@@ -670,11 +670,11 @@ function createInsightEngine(fieldModel) {
       }
     }
     if (weatherBox) {
-      const n = wx.playerOnSlicks ? cx.wetCars : cx.slickCars;
+      const n = cx.basis === 'switchers' ? cx.switchers : wx.playerOnSlicks ? cx.wetCars : cx.slickCars;
       upsert('crossover', {
         severity: SEVERITY.ADVISORY,
         category: CATEGORY.STRATEGY,
-        message: `${weatherBox} (${n} car${n === 1 ? '' : 's'} on them)`,
+        message: `${weatherBox} (${n} car${n === 1 ? '' : 's'} ${cx.basis === 'switchers' ? `that switched, before vs after` : 'on them'})`,
         expiresAtMs: Date.now() + 5000,
       });
     } else {

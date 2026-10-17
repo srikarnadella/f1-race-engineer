@@ -19,8 +19,37 @@ const FALLBACK_LAP_MS = 90000;
 
 const isWet = (weather) => weather >= WET_FROM;
 
-// Median last clean lap of the cars on wet-weather tyres vs the cars on
-// slicks. wetGainMs > 0 = inters/wets are quicker right now.
+const groupOf = (compound) => (WET_COMPOUNDS.has(compound) ? 'wet' : SLICK_COMPOUNDS.has(compound) ? 'slick' : null);
+// A switch older than this says little about the track now.
+const SWITCH_FRESH_LAPS = 3;
+
+// A car that just changed between slicks and wets is the cleanest read on
+// the crossover: its own last clean lap on the old tyre against its first
+// clean lap on the new one - same car, same driver, a couple of laps apart.
+// Returned as the wet tyre's gain (ms per lap), or null.
+function switchGainMs(car) {
+  const h = car.lapHistory;
+  const clean = (l) => l && !l.pit && !l.neutralised && groupOf(l.compound);
+  for (let k = h.length - 1; k > 0; k--) {
+    const after = h[k];
+    if (!clean(after)) continue;
+    if (car.lapData && after.lapNum < car.lapData.currentLapNum - SWITCH_FRESH_LAPS) return null;
+    // The clean lap before this one, past the pit laps between them.
+    let j = k - 1;
+    while (j >= 0 && !clean(h[j])) j--;
+    if (j < 0) return null;
+    const before = h[j];
+    if (groupOf(before.compound) === groupOf(after.compound)) continue;
+    const gain = before.lapMs - after.lapMs; // > 0: the new tyre is quicker
+    return groupOf(after.compound) === 'wet' ? gain : -gain;
+  }
+  return null;
+}
+
+// The crossover: from cars that just switched when there are two or more,
+// otherwise the median last clean lap of the cars on wet-weather tyres vs
+// the cars on slicks (different cars, so a fast car on inters flatters
+// them). wetGainMs > 0 = inters/wets are quicker right now.
 function crossoverPace(cars) {
   const wet = [];
   const slick = [];
@@ -33,12 +62,17 @@ function crossoverPace(cars) {
     group.push(last.lapMs);
   }
   const both = wet.length && slick.length;
+  const switches = cars.map(switchGainMs).filter((g) => g != null);
+  const groupGain = both ? Math.round(median(slick) - median(wet)) : null;
+  const basis = switches.length >= 2 || (switches.length && groupGain == null) ? 'switchers' : groupGain != null ? 'groups' : null;
   return {
     wetCars: wet.length,
     slickCars: slick.length,
     wetMs: wet.length ? Math.round(median(wet)) : null,
     slickMs: slick.length ? Math.round(median(slick)) : null,
-    wetGainMs: both ? Math.round(median(slick) - median(wet)) : null,
+    switchers: switches.length,
+    basis,
+    wetGainMs: basis === 'switchers' ? Math.round(median(switches)) : groupGain,
   };
 }
 
@@ -114,4 +148,4 @@ function createWeatherAnalysis() {
   return { compute, reset };
 }
 
-module.exports = { createWeatherAnalysis, crossoverPace, isWet };
+module.exports = { createWeatherAnalysis, crossoverPace, switchGainMs, isWet };

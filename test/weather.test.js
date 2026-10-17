@@ -113,3 +113,24 @@ test('tyres at the cliff with rain imminent: box, but think inters', () => {
   }
   assert.match(ie.getStrategy().call.reason, /Tyres at the cliff - rain within ~\d laps?, think inters/);
 });
+
+const { crossoverPace, switchGainMs } = require('../src/state/weather');
+
+test('crossover: a car that just switched is compared with itself, before and after', () => {
+  const lap = (lapNum, lapMs, compound, pit = false) => ({ lapNum, lapMs, compound, pit, neutralised: false });
+  // Slicks at 100s, in/out laps, then inters at 96s: inters 4s a lap quicker.
+  const switcher = (old, neu) => ({
+    lapData: { currentLapNum: 14, pitStatus: 0 },
+    status: { visualTyreCompound: 7, tyresAgeLaps: 2 },
+    lapHistory: [lap(10, 100000, 17), lap(11, old, 17), lap(12, 120000, 17, true), lap(13, neu, 7)],
+  });
+  assert.strictEqual(switchGainMs(switcher(100000, 96000)), 4000);
+  // A switch long ago says nothing about the track now.
+  assert.strictEqual(switchGainMs({ ...switcher(100000, 96000), lapData: { currentLapNum: 20 } }), null);
+  // A fast car on slicks makes the group medians say slicks; two switchers say inters.
+  const fastOnSlicks = { lapData: { currentLapNum: 14, pitStatus: 0 }, status: { visualTyreCompound: 17, tyresAgeLaps: 8 }, lapHistory: [lap(13, 92000, 17)] };
+  const cx = crossoverPace([switcher(100000, 96000), switcher(101000, 98000), fastOnSlicks]);
+  assert.strictEqual(cx.basis, 'switchers');
+  assert.strictEqual(cx.switchers, 2);
+  assert.strictEqual(cx.wetGainMs, 3500);
+});
