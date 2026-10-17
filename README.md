@@ -365,13 +365,20 @@ flowchart LR
 - **Measuring instead of claiming:** every prediction is replayed against real races and scored next to
   a naive baseline (`scripts/accuracy.js`, held-out evaluation for the ML); the harness found two bugs in the
   rejoin model, and the app says plainly where a model doesn't beat the simple rule yet.
+- **Tests that find bugs, not tests that agree with the code:** malformed-packet fuzzing of the LAN-facing
+  UDP port, property tests of the models over seeded random cases, scenario tests that check each call
+  follows its cause, and a dashboard contract test that records every field a widget reads. Each was
+  mutation-checked (planted bugs must fail it); they found three bugs and one model weakness
+  ([docs/roadmap.md](docs/roadmap.md#what-the-tests-found)).
 - **UX under a glanceability constraint:** tiered type scale, colour used only for meaning, numbers
   that scale with screen size, and auto-switching screens that never flap ([docs/ux.md](docs/ux.md)).
 
 ## Development
 
 ```bash
-npm test                 # parsers (incl. real F1 26 packets), state rules, analysis, models (node:test, no deps)
+npm test                 # ~180 tests (node:test): parsers on real F1 26 packets, fuzzing, model properties,
+                         # race scenarios, every dashboard widget and screen in jsdom, a tick-time budget
+npm run test:coverage    # the same with a coverage gate (CI: fails below 88% of lines in src/ and public/)
 npm run demo:regenerate  # rebuild the synthetic demo session after changing src/sim/
 npm run train:overtake   # retrain + re-evaluate the overtake model from captures/
 npm run accuracy         # score the predictions on captures/, writes docs/accuracy.md
@@ -381,7 +388,8 @@ node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay
 ```
 
 Node 18.3+ and two small runtime dependencies (`ws` for the WebSocket, `qrcode-terminal` for the pairing
-QR code). No build step.
+QR code); `jsdom` and `c8` for tests only. No build step. The work plan is a dependency graph in
+[docs/roadmap.md](docs/roadmap.md): each node ships with the test that defines it as done.
 
 ## Project status
 
