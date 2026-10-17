@@ -795,7 +795,7 @@ function createInsightEngine(fieldModel) {
     let penaltyBox = null;
     if (pen && (pen.stopGos || pen.driveThroughs)) {
       penaltyBox = pen.stopGos ? 'Serve the stop-go - box, no tyre change' : 'Serve the drive-through - box';
-      upsert('penalty-serve', { severity: SEVERITY.CRITICAL, category: CATEGORY.FLAG, message: `${penaltyBox} (3 laps to take it)`, expiresAtMs: Date.now() + 5000 });
+      upsert('penalty-serve', { severity: SEVERITY.CRITICAL, category: CATEGORY.FLAG, message: neutralised ? `${penaltyBox} once the ${neutralised === 'Red flag' ? 'race restarts' : 'safety car is in'}` : `${penaltyBox} (3 laps to take it)`, expiresAtMs: Date.now() + 5000 });
     } else {
       expire('penalty-serve');
     }

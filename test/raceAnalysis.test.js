@@ -241,3 +241,30 @@ test('race plan on the grid uses wear rates remembered from practice at the trac
   assert.deepStrictEqual(racePlan.degSource, { 16: 'earlier sessions here', 17: 'estimate', 18: 'estimate' });
   assert.strictEqual(racePlan.best.stops, 1);
 });
+
+test('a rival first stop is learned once, even when a flashback brings it round again', () => {
+  const { createTrackMemory } = require('../src/state/trackMemory');
+  const memory = createTrackMemory();
+  const realNow = Date.now;
+  let now = 1000;
+  Date.now = () => now;
+  try {
+    const fm = createFieldModel();
+    const ra = createRaceAnalysis(fm, { memory });
+    fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318, sessionType: 15 });
+    fm.dispatch(PACKET_IDS.TYRE_SETS, header(0), { carIdx: 4, sets: [{ index: 0, visualTyreCompound: 17, usableLife: 20, fitted: true }] });
+    fm.dispatch(PACKET_IDS.CAR_STATUS, header(0), { cars: Array.from({ length: 5 }, () => ({ visualTyreCompound: 17, tyresAgeLaps: 12 })) });
+    const tick = (t, o) => {
+      now += 100;
+      fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars(12, o) });
+      ra.compute();
+    };
+    tick(10, {});
+    tick(11, { 4: { pitStatus: 1 } }); // into the pit lane
+    tick(5, {}); // flashback to before it
+    tick(6, { 4: { pitStatus: 1 } }); // the same stop again
+    assert.deepStrictEqual(memory.get(17, 'stopShare'), [0.6]);
+  } finally {
+    Date.now = realNow;
+  }
+});

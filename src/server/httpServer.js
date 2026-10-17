@@ -129,7 +129,7 @@ function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessag
     }
   };
   const server = tls ? https.createServer(tls, handler) : http.createServer(handler);
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ server, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
   // ws re-emits the HTTP server's errors; those are handled on `server` below.
   wss.on('error', () => {});
 

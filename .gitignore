@@ -15,3 +15,5 @@ Thumbs.db
 # Demo website: rebuilt by CI (npm run site); only site/race-data/ is committed.
 site/demo-data/
 _site/
+# Private review notes - not part of the repo.
+notes/

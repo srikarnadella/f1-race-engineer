@@ -32,6 +32,7 @@ try {
 const PASS_CAP = 0.5;
 const MIN_DEG_CARS = 5;
 const MIN_DEG_LAPS = 25;
+const PRACTICE_TYPES = new Set([1, 2, 3, 4]);
 const passLevel = (p) => (p >= 0.25 ? 'high' : p >= 0.1 ? 'medium' : 'low');
 function passChance(attacker, defender) {
   if (!OVERTAKE_MODEL || !attacker || !defender) return null;
@@ -269,7 +270,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // first green-flag stop - how this race's AI is actually running it - and
   // the wear on its most-worn tyre then.
   const stopShares = [];
-  const stopWears = [];
+  const stopWears = []; // { compound, wear }
+  // Cars whose first stop is already counted: a flashback to before it
+  // brings the same stop round again with a new pit-entry time.
+  const learnedFrom = new Set();
   // The player's damage: { firstLap, lap, atM, total, base } - the lap and
   // point of the first hit and of the latest, and the clean laps before it
   // (kept here: a long stint would otherwise roll them out of lap history).
@@ -455,6 +459,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       pitNext = { lap: null, since: 0 };
       stopShares.length = 0;
       stopWears.length = 0;
+      learnedFrom.clear();
       seenPitEntry.clear();
       damageHit = null;
       sawUndamaged = false;
@@ -474,15 +479,17 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       seenPitEntry.set(car.carIndex, car.pitEntryAtMs);
       const set = fittedSet(car);
       // A stop under a safety car is opportunism, not the plan.
-      if (!neutralisedNow && car.carIndex !== playerIdx && !car.lapData.numPitStops && set && set.usableLife && car.status && DRY.has(car.status.visualTyreCompound)) {
+      if (!neutralisedNow && car.carIndex !== playerIdx && !car.lapData.numPitStops && set && set.usableLife && car.status && DRY.has(car.status.visualTyreCompound) && !learnedFrom.has(car.carIndex)) {
+        learnedFrom.add(car.carIndex);
         const share = car.status.tyresAgeLaps / set.usableLife;
         stopShares.push(share);
         remember(session, 'stopShare', share);
         // Wear reads 0 if the new set is already on; a set this young hasn't a steady rate.
         const wear = maxWear(car);
         if (wear > 0 && car.status.tyresAgeLaps >= 2) {
-          stopWears.push(wear);
-          remember(session, 'stopWear', wear);
+          const compound = car.status.visualTyreCompound;
+          stopWears.push({ compound, wear });
+          remember(session, `stopWear${compound}`, wear);
         }
       }
     }
@@ -506,8 +513,13 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     // This race's own stops first, then earlier races at this track.
     const track = session && session.trackId;
     const stopShare = learned(stopShares) || learned(memory.get(track, 'stopShare'));
-    const stopWear = learned(stopWears) || learned(memory.get(track, 'stopWear'));
-    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare, stopWear)]));
+    // The wear the AI boxes at, per compound: this race, earlier races here,
+    // then any compound (shortcut: assumes the AI stops at one wear on all of them).
+    const stopWearFor = (c) => learned(stopWears.filter((x) => x.compound === c).map((x) => x.wear))
+      || learned(memory.get(track, `stopWear${c}`))
+      || learned(stopWears.map((x) => x.wear));
+    const stopWear = Object.fromEntries([...DRY].map((c) => [c, stopWearFor(c)]));
+    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare, car.status ? stopWear[car.status.visualTyreCompound] : null)]));
     const field = ordered.map((car, j) => {
       const pace = cleanPaceMs(car);
       const gap = gapBetweenMs(ordered, myPos, j);
@@ -582,7 +594,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const myCompound = player.status ? player.status.visualTyreCompound : null;
     const myDeg = tyreModel.compounds[myCompound];
     const trusted = Object.fromEntries(Object.entries(tyreModel.compounds).filter(([, d]) => d.cars >= MIN_DEG_CARS && d.laps >= MIN_DEG_LAPS && d.degMsPerLap > 0));
-    if (session && Object.keys(trusted).length) lastFit = { trackId: session.trackId, compounds: trusted };
+    // Practice and race laps only: qualifying is fresh tyres, low fuel and cool-down laps.
+    if (session && Object.keys(trusted).length && (PRACTICE_TYPES.has(session.sessionType) || RACE_SESSION_TYPES.has(session.sessionType))) lastFit = { trackId: session.trackId, compounds: trusted };
     // Only trusted with enough of the field behind it: at Monaco a fit from
     // 4 cars / 16 laps read 0.21 s per lap of age - traffic, not tyres.
     const payback = myDeg && myDeg.cars >= MIN_DEG_CARS && myDeg.laps >= MIN_DEG_LAPS && player.status

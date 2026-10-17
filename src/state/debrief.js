@@ -41,7 +41,9 @@ function bestSectors(sh) {
 // Saved sessions: one gzipped JSON file per session in `dir` (data/sessions),
 // written once when the session ends. The Maps go to arrays and back.
 function toFile(rec) {
-  return zlib.gzipSync(JSON.stringify({ ...rec, field: [...rec.field], traces: [...rec.traces], rivalBest: [...rec.rivalBest] }));
+  // Only the rival laps lap compare offers: all 21 would double the file, and every saved session is reloaded at start.
+  const rivalBest = [...rec.rivalBest].sort((x, y) => x[1].lapMs - y[1].lapMs).slice(0, RIVAL_CHOICES);
+  return zlib.gzipSync(JSON.stringify({ ...rec, field: [...rec.field], traces: [...rec.traces], rivalBest }));
 }
 function fromFile(buf) {
   const rec = JSON.parse(zlib.gunzipSync(buf));
@@ -49,6 +51,7 @@ function fromFile(buf) {
 }
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const RIVAL_ID = /^r\d+$/;
+const RIVAL_CHOICES = 5; // rivals' best laps offered in lap compare
 
 // dir: where to save finished sessions (null = keep them in memory only,
 // e.g. the demo replay, tests and capture analysis).
@@ -128,6 +131,8 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       const car = fieldModel.getCar(t.carIndex);
       const rec = car.lapHistory.find((l) => l.lapNum === t.lapNum);
       if (!t.startedAtLine || t.invalid || !(t.lapMs > 0) || !rec || rec.pit || rec.neutralised || t.lapNum < 2) continue;
+      // Online, other cars' telemetry may be withheld (sent as zeros).
+      if (!t.points.some((p) => p[2] > 0)) continue;
       const had = current.rivalBest.get(t.carIndex);
       if (!had || t.lapMs < had.lapMs) current.rivalBest.set(t.carIndex, { name: (car.participant && car.participant.name) || `Car ${t.carIndex}`, ...t });
     }
@@ -319,7 +324,6 @@ function createDebrief(fieldModel, { dir = null } = {}) {
   }
 
   // The fastest rivals' best laps, for "vs" in lap compare: ids are 'r<carIndex>'.
-  const RIVAL_CHOICES = 5;
   const rivalChoices = (s) => [...(s.rivalBest || new Map())]
     .sort((x, y) => x[1].lapMs - y[1].lapMs)
     .slice(0, RIVAL_CHOICES)
