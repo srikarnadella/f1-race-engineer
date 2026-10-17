@@ -159,6 +159,7 @@ function createFieldModel() {
         for (const n of car.lapFlags.keys()) if (n > c.currentLapNum) car.lapFlags.delete(n);
         car.ersLap = null;
         car.ersPrevLap = null;
+        car.lapTopKmh = 0;
       }
       // One entry per completed lap: pace trends, stint pace, pit loss.
       // Forwards - usually +1, but a red-flag restart can jump the counter (13 -> 16 at Monaco).
@@ -182,9 +183,13 @@ function createFieldModel() {
           ? { ...car.ersLap, lineJ: car.status.ersStoreEnergy, unusual: !!(car.lapNeutralised || car.lapTouchedPit) }
           : null;
         car.ersLap = null;
+        // Straight-line speed: the lap's top speed, from green racing laps only.
+        if (car.lapTopKmh > 0 && !car.lapTouchedPit && !car.lapNeutralised) car.topSpeedKmh = car.lapTopKmh;
+        car.lapTopKmh = 0;
         car.lapTouchedPit = c.pitStatus !== 0; // out-lap starts in the pit lane
         car.lapNeutralised = isNeutralised();
       }
+      if (car.telemetry && c.pitStatus === 0) car.lapTopKmh = Math.max(car.lapTopKmh || 0, car.telemetry.speed);
 
       // Gap-ahead trend, sampled on game time (not per packet) so the closing
       // rate means the same thing at 20Hz or 60Hz and pauses don't skew it.

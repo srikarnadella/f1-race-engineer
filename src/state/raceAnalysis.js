@@ -523,6 +523,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
         numPitStops: car.lapData.numPitStops,
         // Laps until this car is expected to box (0 = this lap), or null.
         stopInLaps: stopIn.get(car.carIndex),
+        topSpeedKmh: car.topSpeedKmh || null, // last green lap's
         pitStatus: car.lapData.pitStatus,
         running: isRunning(car),
         // F1 26 Overtake mode: this car has it available right now.

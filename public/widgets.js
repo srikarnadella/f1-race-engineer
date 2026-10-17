@@ -209,6 +209,13 @@
       out.extra = `DRS range in ~${Math.ceil(car.lapsToDrs)} lap${Math.ceil(car.lapsToDrs) === 1 ? '' : 's'}`;
     }
     out.tyre = tyreCompare(car, s.player && s.player.tyresAgeLaps);
+    // Straight-line speed on the last green lap: who has the edge down the straights.
+    const me = (s.field || []).find((c) => c.isPlayer);
+    if (isNum(car.topSpeedKmh) && me && isNum(me.topSpeedKmh)) {
+      const edge = me.topSpeedKmh - car.topSpeedKmh;
+      out.speed = `Top speed ${car.topSpeedKmh} km/h · you ${me.topSpeedKmh}`;
+      out.speedTone = Math.abs(edge) < 5 ? 'is-muted' : edge > 0 ? 'is-good' : which === 'behind' ? 'is-act' : 'is-watch';
+    }
     // Projected battery at the line, theirs against yours.
     const bat = a.battle && a.battle.battery;
     const them = bat && bat[which];
@@ -248,6 +255,11 @@
     setText(r[`${k}Ers`], v.ers || '');
     setTone(r[`${k}Ers`], v.ersTone || '');
     r[`${k}Ers`].hidden = !v.ers;
+    if (r[`${k}Spd`]) {
+      setText(r[`${k}Spd`], v.speed || '');
+      setTone(r[`${k}Spd`], v.speedTone || '');
+      r[`${k}Spd`].hidden = !v.speed;
+    }
     setText(r[`${k}Fc`], v.forecast || '');
     r[`${k}Fc`].hidden = !v.forecast;
     if (r[`${k}Badge`]) {
@@ -263,6 +275,7 @@
       <div class="w-battle__trend" data-ref="${k}Trend"></div>
       <div class="w-battle__chips"><span class="chip" data-ref="${k}Chip" hidden></span><span class="w-battle__extra" data-ref="${k}Extra"></span></div>
       <div class="w-battle__ers" data-ref="${k}Ers" hidden></div>
+      ${withTyre ? `<div class="w-battle__ers" data-ref="${k}Spd" hidden></div>` : ''}
       <div class="w-battle__fc w-battle__fc--${k}" data-ref="${k}Fc" hidden></div>
       ${withTyre ? `<div class="w-battle__tyre"><span data-ref="${k}Badge" class="compound"></span> <span data-ref="${k}Tyre"></span></div>` : ''}
     </div>`;
