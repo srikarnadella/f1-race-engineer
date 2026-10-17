@@ -207,6 +207,7 @@ function main() {
     console.log('\n[main] shutting down');
     clearInterval(engineTick);
     debrief.flush();
+    raceAnalysis.flush();
     if (socket) socket.close();
     server.close();
     // Let the capture files finish writing (gzip trailer) before exiting.

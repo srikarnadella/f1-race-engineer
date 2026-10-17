@@ -227,3 +227,17 @@ test('flags: a yellow within 800 m is called once, a blue names the car lapping 
   const cards = tick({ [PLAYER]: { lapDistance: 2100 }, 4: { currentLapNum: 6, lapDistance: 1900 } }, 2);
   assert.strictEqual(cards.find((c) => c.id === 'blue').message, 'Blue flag - let CAR4 by');
 });
+
+test('race plan on the grid uses wear rates remembered from practice at the track', () => {
+  const { createTrackMemory } = require('../src/state/trackMemory');
+  const memory = createTrackMemory();
+  memory.add(17, 'deg16', 300);
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318, sessionType: 15 });
+  const set = (index, c, life, lapDeltaTimeMs) => ({ index, visualTyreCompound: c, usableLife: life, lifeSpan: life, lapDeltaTimeMs, wear: 0, available: true, fitted: index === 0 });
+  fm.dispatch(PACKET_IDS.TYRE_SETS, header(0), { carIdx: PLAYER, sets: [set(0, 16, 12, 0), set(1, 17, 18, 500), set(2, 18, 25, 900)] });
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars(1) });
+  const { racePlan } = createRaceAnalysis(fm, { memory }).compute();
+  assert.deepStrictEqual(racePlan.degSource, { 16: 'earlier sessions here', 17: 'estimate', 18: 'estimate' });
+  assert.strictEqual(racePlan.best.stops, 1);
+});

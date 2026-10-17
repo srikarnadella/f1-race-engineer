@@ -438,11 +438,16 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     };
   }
 
+  // The session's wear rates into the track's memory: at the next session, or on shutdown.
+  function saveFit() {
+    if (lastFit) for (const [c, d] of Object.entries(lastFit.compounds)) memory.add(lastFit.trackId, `deg${c}`, d.degMsPerLap);
+    lastFit = null;
+  }
+
   function compute() {
     if (fieldModel.getGeneration() !== seenGeneration) {
       seenGeneration = fieldModel.getGeneration();
-      if (lastFit) for (const [c, d] of Object.entries(lastFit.compounds)) memory.add(lastFit.trackId, `deg${c}`, d.degMsPerLap);
-      lastFit = null;
+      saveFit();
       plan = { key: null, value: null };
       measuredLosses.clear();
       weatherAnalysis.reset();
@@ -671,7 +676,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     };
   }
 
-  return { compute };
+  return { compute, flush: saveFit };
 }
 
 module.exports = { predictRejoin, createRaceAnalysis, gapBetweenMs, cleanPaceMs, nameOf, PIT_LOSS_ESTIMATE_MS };
