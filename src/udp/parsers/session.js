@@ -46,7 +46,12 @@ function parseSession(buf) {
   const sliProNativeSupport = r.u8();
   const numMarshalZones = r.u8();
 
-  r.skip(MARSHAL_ZONE_SLOTS * MARSHAL_ZONE_SIZE);
+  // Each zone: where it starts (fraction of the lap) and its flag
+  // (-1 unknown, 0 none, 1 green, 2 blue, 3 yellow) - seen populated on a real F1 26 race.
+  const marshalZones = [];
+  const zonesAt = r.offset;
+  for (let i = 0; i < Math.min(numMarshalZones, MARSHAL_ZONE_SLOTS); i++) marshalZones.push({ zoneStart: r.f32(), zoneFlag: r.i8() });
+  r.offset = zonesAt + MARSHAL_ZONE_SLOTS * MARSHAL_ZONE_SIZE;
 
   const safetyCarStatus = r.remaining >= 1 ? r.u8() : null;
   const networkGame = r.remaining >= 1 ? r.u8() : null;
@@ -81,6 +86,7 @@ function parseSession(buf) {
     spectatorCarIndex,
     sliProNativeSupport,
     numMarshalZones,
+    marshalZones,
     safetyCarStatus,
     networkGame,
     forecast,

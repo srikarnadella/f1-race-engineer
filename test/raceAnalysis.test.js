@@ -206,3 +206,24 @@ test('penalties: track limits named once each, a time penalty at the flag agains
   assert.strictEqual(ie.getStrategy().call.action, 'BOX');
   assert.match(ie.getStrategy().call.reason, /stop-go/);
 });
+
+test('flags: a yellow within 800 m is called once, a blue names the car lapping you', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  const ra = createRaceAnalysis(fm);
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4000, sessionType: 15, marshalZones: [{ zoneStart: 0.5, zoneFlag: 3 }] });
+  fm.dispatch(PACKET_IDS.PARTICIPANTS, header(0), { participants: Array.from({ length: 5 }, (_, i) => ({ name: `CAR${i}` })) });
+  let t = 0;
+  const tick = (o, flag = 0) => {
+    fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(5, o) });
+    fm.dispatch(PACKET_IDS.CAR_STATUS, header(t), { cars: Array.from({ length: 5 }, (_, i) => ({ vehicleFiaFlags: i === PLAYER ? flag : 0 })) });
+    return ie.evaluate(ra.compute());
+  };
+  assert.ok(!tick({ [PLAYER]: { lapDistance: 100 } }).some((c) => c.id === 'yellow')); // 1.9 km away
+  assert.strictEqual(tick({ [PLAYER]: { lapDistance: 1500 } }).find((c) => c.id === 'yellow').message, 'Yellow ahead - careful, no overtaking');
+  // In it: the HUD shows it.
+  assert.ok(!tick({ [PLAYER]: { lapDistance: 2100 } }, 3).some((c) => c.id === 'yellow'));
+  // Car 4 is a lap up and 200 m behind on the road.
+  const cards = tick({ [PLAYER]: { lapDistance: 2100 }, 4: { currentLapNum: 6, lapDistance: 1900 } }, 2);
+  assert.strictEqual(cards.find((c) => c.id === 'blue').message, 'Blue flag - let CAR4 by');
+});

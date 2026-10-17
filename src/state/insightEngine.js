@@ -22,6 +22,11 @@ const SETTLE_MS = 5000;
 // Drive-through, stop-go, time penalty, warning, disqualified.
 const RADIO_PENALTY_TYPES = new Set([0, 1, 4, 5, 6]);
 const PENALTY_WARNING = 5;
+// vehicleFiaFlags / zoneFlag: 0 none, 1 green, 2 blue, 3 yellow.
+const FIA_BLUE = 2;
+const FIA_YELLOW = 3;
+const YELLOW_AHEAD_M = 800;
+const BLUE_LOOKUP_M = 500;
 const FALLBACK_LAP_MS = 90000;
 // Only cars that pitted this recently count as a fresh undercut threat; the
 // card itself then lives on via its own expiresAtMs.
@@ -802,6 +807,40 @@ function createInsightEngine(fieldModel) {
       });
     } else {
       expire('penalty-time');
+    }
+
+    // --- Flags: a yellow round the next corners, a blue for the car lapping you ---
+    // The HUD shows the flag for where you are; a yellow a few hundred metres
+    // on is the one worth hearing early (a stopped car after a blind corner).
+    const L = session && session.trackLength;
+    const myFlag = player.status ? player.status.vehicleFiaFlags : null;
+    // Already in it: the HUD says so, the radio needn't.
+    let yellow = null;
+    if (myFlag !== FIA_YELLOW && L > 0 && session.marshalZones && player.lapData.lapDistance >= 0) {
+      const me = player.lapData.lapDistance;
+      const next = session.marshalZones
+        .filter((z) => z.zoneFlag === FIA_YELLOW)
+        .map((z) => ({ atM: z.zoneStart * L, inM: (z.zoneStart * L - me + L) % L }))
+        .filter((z) => z.inM <= YELLOW_AHEAD_M)
+        .sort((a, b) => a.inM - b.inM)[0];
+      if (next) {
+        // Named by the corner it covers, not a distance that counts down every tick.
+        const corner = fieldModel.getPlayerCorners().find((c) => c.startM >= next.atM);
+        yellow = `Yellow ahead${corner ? ` at turn ${corner.corner}` : ''} - careful, no overtaking`;
+      }
+    }
+    if (yellow) upsert('yellow', { severity: SEVERITY.ADVISORY, category: CATEGORY.FLAG, message: yellow, expiresAtMs: Date.now() + 3000 });
+    else expire('yellow');
+    if (racing && myFlag === FIA_BLUE) {
+      // The car lapping you: a lap or more up, closest behind on the road.
+      const lapper = ordered
+        .filter((c) => c.lapData && c.carIndex !== playerIdx && c.lapData.currentLapNum > player.lapData.currentLapNum)
+        .map((c) => ({ c, behindM: L > 0 ? (player.lapData.lapDistance - c.lapData.lapDistance + L) % L : Infinity }))
+        .sort((a, b) => a.behindM - b.behindM)[0];
+      const who = lapper && lapper.behindM < BLUE_LOOKUP_M && lapper.c.participant ? lapper.c.participant.name : 'the leaders';
+      upsert('blue', { severity: SEVERITY.ADVISORY, category: CATEGORY.FLAG, message: `Blue flag - let ${who} by`, expiresAtMs: Date.now() + 3000 });
+    } else {
+      expire('blue');
     }
 
     // --- Discrete event callouts (safety car, flags, fastest lap, penalties) ---
