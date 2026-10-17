@@ -23,6 +23,8 @@ const SETTLE_MS = 5000;
 // Drive-through, stop-go, time penalty, warning, disqualified.
 const RADIO_PENALTY_TYPES = new Set([0, 1, 4, 5, 6]);
 const PENALTY_WARNING = 5;
+const TEXT_HOLD_MS = 5000;
+const numbersOut = (text) => String(text).replace(/[0-9]+([.:][0-9]+)?/g, '#');
 // vehicleFiaFlags / zoneFlag: 0 none, 1 green, 2 blue, 3 yellow.
 const FIA_BLUE = 2;
 const OUT_LAP = 3; // lapData.driverStatus
@@ -141,9 +143,22 @@ function createInsightEngine(fieldModel) {
   const tyreWearHistory = new Map(); // carIndex -> [{ lapNum, avgWear }]
   const activeInsights = new Map(); // id -> insight
 
+  // A card whose only change is its numbers ("0.3s behind" -> "0.4s") keeps
+  // its text for TEXT_HOLD_MS: on a real race those rewrites were most of
+  // the radio band's churn (97 for one "Closing on" card), unreadable at a
+  // glance. A new word or severity shows at once.
   function upsert(id, insight) {
     const prior = activeInsights.get(id);
-    activeInsights.set(id, { id, createdAtMs: prior ? prior.createdAtMs : Date.now(), ...insight });
+    const now = Date.now();
+    let message = insight.message;
+    let textAtMs = now;
+    if (prior && prior.message !== message) {
+      const sameWords = numbersOut(prior.message) === numbersOut(message) && prior.severity === insight.severity;
+      if (sameWords && now - prior.textAtMs < TEXT_HOLD_MS) [message, textAtMs] = [prior.message, prior.textAtMs];
+    } else if (prior) {
+      textAtMs = prior.textAtMs;
+    }
+    activeInsights.set(id, { id, createdAtMs: prior ? prior.createdAtMs : now, ...insight, message, textAtMs });
   }
 
   function expire(id) {

@@ -34,7 +34,7 @@ const REFERENCE_SIZES = { 2025: F1_25_SIZES, 2026: F1_26_SIZES };
 const TICK_MS = 100;
 const RACE_TYPES = new Set([15, 16, 17]);
 const MAX_SAMPLES = 400000;
-const TIMELINE_LIMIT = 400;
+const TIMELINE_LIMIT = 1500; // a 25-lap race with its practice and qualifying fits
 const MARKER_WINDOW_MS = 8000;
 
 function resolveTarget(target) {
@@ -308,8 +308,11 @@ async function analyzeCapture(target) {
         if (call) note(tMs, 'call', call);
       }
       const adj = snap.adjust ? snap.adjust.suggestions.map((x) => `${x.action} @ ${x.where} (${x.why})`).join(' ; ') : '';
-      if (adj !== prev.adjust) {
-        prev.adjust = adj;
+      // A new suggestion, not its live reason ticking along ("car 0.4s behind" -> "0.9s"):
+      // that filled half of a race's timeline.
+      const adjGist = adj.replace(/[0-9]+([.:][0-9]+)?/g, '#');
+      if (adjGist !== prev.adjust) {
+        prev.adjust = adjGist;
         note(tMs, 'adjust', adj || '(none)');
       }
       const wx = snap.analysis && snap.analysis.weather;

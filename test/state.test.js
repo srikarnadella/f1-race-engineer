@@ -358,3 +358,28 @@ test('the start: lap 1 against the grid, said once as lap 2 begins', () => {
   const pos = fm.getCar(PLAYER).lapData.carPosition;
   assert.strictEqual(ie.evaluate().find((i) => i.id === 'start').message, `Lap 1: P${pos} from P5 on the grid - up ${5 - pos}`);
 });
+
+test('a card whose numbers tick keeps its text for a few seconds; a new word shows at once', () => {
+  const realNow = Date.now;
+  let now = 1e6;
+  Date.now = () => now;
+  try {
+    const fm = createFieldModel();
+    const ie = createInsightEngine(fm);
+    fm.dispatch(PACKET_IDS.SESSION, header(1), { totalLaps: 50, trackLength: 5000 });
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(2), { cars: lapCars({ [PLAYER]: { currentLapNum: 10 } }) });
+    const fuel = (v) => {
+      fm.dispatch(PACKET_IDS.CAR_STATUS, header(3), fuelStatus(v));
+      return ie.evaluate().find((i) => i.id === 'fuel-risk').message;
+    };
+    assert.match(fuel(0.2), /only 0\.2 laps/);
+    now += 1000;
+    assert.match(fuel(0.1), /only 0\.2 laps/); // held
+    now += 5000;
+    assert.match(fuel(0.1), /only 0\.1 laps/);
+    now += 1000;
+    assert.match(fuel(-0.1), /laps short/); // different words: at once
+  } finally {
+    Date.now = realNow;
+  }
+});

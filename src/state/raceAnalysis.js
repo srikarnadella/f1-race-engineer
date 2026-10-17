@@ -696,7 +696,9 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
         deg[c] = trusted[c] ? trusted[c].degMsPerLap : remembered.length ? Math.round(median(remembered)) : null;
       }
       const inputs = { totalLaps: session.totalLaps, pitLossMs: loss.normalMs, sets: player.tyreSets, deg };
-      const key = JSON.stringify([inputs.totalLaps, inputs.pitLossMs, deg, (player.tyreSets || []).map((s) => [s.index, s.available, s.wear, s.lapDeltaTimeMs])]);
+      // Not the sets' wear or pace deltas: the fitted set wears on the formation
+      // lap and lap 1, and recomputing on that flipped "Soft 10" / "Soft 11" on a real race.
+      const key = JSON.stringify([inputs.totalLaps, inputs.pitLossMs, deg, (player.tyreSets || []).map((s) => [s.index, s.available])]);
       if (plan.key !== key) plan = { key, value: racePlan(inputs) };
       racePlanNow = plan.value && { ...plan.value, degSource: Object.fromEntries([16, 17, 18].map((c) => [c, trusted[c] ? 'this session' : deg[c] ? 'earlier sessions here' : 'estimate'])) };
     }
