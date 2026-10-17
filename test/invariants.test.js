@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const { rng, gauss, int } = require('./helpers/rng');
 const { predictRejoin } = require('../src/state/raceAnalysis');
 const { expectedStopIn } = require('../src/analysis/rivalStops');
-const { fitDegradation, stopPayback } = require('../src/ml/tyreModel');
+const { fitDegradation, stopPayback, holdOutScore } = require('../src/ml/tyreModel');
 const { auc, evaluate } = require('../src/ml/logistic');
 
 // Properties that must hold for any input, each checked on a few hundred
@@ -164,6 +164,16 @@ test('tyre model: too few cars or laps is no fit, not a guess', () => {
   const r = rng(7);
   assert.strictEqual(fitDegradation(syntheticField(r, { degMs: 80, cars: 2 })).compounds[17], undefined);
   assert.strictEqual(fitDegradation(syntheticField(r, { degMs: 80, laps: 2 })).compounds[17], undefined);
+});
+
+test('tyre model backtest: each car predicted from the others beats "no tyre wear" when tyres do wear', () => {
+  const worn = holdOutScore(syntheticField(rng(13), { degMs: 120, noiseMs: 100, slowLapRate: 0 }));
+  assert.ok(worn.laps > 150 && worn.cars === 12);
+  assert.ok(worn.model.medianMs < worn.naive.medianMs / 3, JSON.stringify(worn));
+  assert.ok(Math.abs(worn.model.medianMs - 100 * 0.6745) < 25, 'noise-level error: the median |N(0, 100)| is 67 ms');
+  // No wear at all: the model has nothing to add, and must not do worse than the baseline by much.
+  const flat = holdOutScore(syntheticField(rng(14), { degMs: 0, noiseMs: 100, slowLapRate: 0 }));
+  assert.ok(flat.model.medianMs < flat.naive.medianMs * 1.1, JSON.stringify(flat));
 });
 
 test('stop payback: older tyres, more wear and a cheaper stop all pay back sooner', () => {

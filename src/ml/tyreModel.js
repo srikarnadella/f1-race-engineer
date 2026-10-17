@@ -11,7 +11,7 @@
 // Laps far off a car's own trend (traffic, a mistake) are trimmed with a
 // robust MAD filter before the final fit.
 
-const { withoutSlowLaps } = require('../state/race');
+const { withoutSlowLaps, median } = require('../state/race');
 
 const FUEL_MS_PER_KG = 30;
 const MIN_LAPS_PER_CAR = 3;
@@ -38,13 +38,16 @@ function fitSlope(points) {
   return { slope: rows.reduce((a, r) => a + r.x * r.y, 0) / sxx, rows, cars };
 }
 
+// Green racing laps with a known tyre: the laps that say something about wear.
+const usableLaps = (car) => (car.lapHistory || []).filter((l) => !l.pit && !l.neutralised && l.lapNum > 1 && l.lapMs > 0 && l.compound != null && l.tyreAge != null);
+
 // cars: FieldModel cars (lapHistory entries carry compound + tyreAge).
 // burnKgPerLap: measured fuel use per lap (the player's), or a typical 1.6.
 function fitDegradation(cars, burnKgPerLap = 1.6) {
   const fuelMsPerLap = burnKgPerLap * FUEL_MS_PER_KG;
   const byCompound = new Map();
   for (const car of cars) {
-    const usable = (car.lapHistory || []).filter((l) => !l.pit && !l.neutralised && l.lapNum > 1 && l.lapMs > 0 && l.compound != null && l.tyreAge != null);
+    const usable = usableLaps(car);
     for (const compound of new Set(usable.map((l) => l.compound))) {
       if (!byCompound.has(compound)) byCompound.set(compound, []);
       // A slow lap at a young tyre age (one spin) tilts the whole slope - the
@@ -85,4 +88,33 @@ function stopPayback({ degMsPerLap, tyreAge, pitLossMs, lapsLeft }) {
   return { gainPerLapMs: Math.round(gainPerLap), paybackLaps: Math.round(laps * 10) / 10, worthIt: lapsLeft != null ? laps < lapsLeft : null };
 }
 
-module.exports = { fitDegradation, stopPayback };
+// Backtest: each car's laps predicted from a fit on every other car, against
+// the naive "tyres don't wear" guess. A lap is predicted up to the car's own
+// level (its median, fuel removed) - the slope is what's being tested.
+// Returns median and mean absolute error per lap, in ms.
+function holdOutScore(cars, burnKgPerLap = 1.6) {
+  const fuelMsPerLap = burnKgPerLap * FUEL_MS_PER_KG;
+  const model = [];
+  const naive = [];
+  const scored = new Set();
+  for (const held of cars) {
+    const fit = fitDegradation(cars.filter((c) => c !== held), burnKgPerLap).compounds;
+    const usable = usableLaps(held);
+    for (const compound of new Set(usable.map((l) => l.compound))) {
+      const laps = withoutSlowLaps(usable.filter((l) => l.compound === compound));
+      if (!fit[compound] || laps.length < MIN_LAPS_PER_CAR) continue;
+      const y = laps.map((l) => l.lapMs + fuelMsPerLap * l.lapNum);
+      const errs = (slope) => {
+        const level = median(y.map((v, i) => v - slope * laps[i].tyreAge));
+        return y.map((v, i) => Math.abs(v - slope * laps[i].tyreAge - level));
+      };
+      model.push(...errs(fit[compound].degMsPerLap));
+      naive.push(...errs(0));
+      scored.add(held.carIndex);
+    }
+  }
+  const summary = (e) => ({ medianMs: e.length ? Math.round(median(e)) : null, meanMs: e.length ? Math.round(e.reduce((a, b) => a + b, 0) / e.length) : null });
+  return { laps: model.length, cars: scored.size, model: summary(model), naive: summary(naive) };
+}
+
+module.exports = { fitDegradation, stopPayback, holdOutScore };

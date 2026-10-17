@@ -29,6 +29,23 @@ like the same stretch of the last lap) against the store when the car crossed it
 
 471 half-laps scored. Points = percentage points of a full 4 MJ store.
 
+## Tyre wear model
+
+At the end of each race, every car's green-flag laps are predicted from a wear fit on the *other*
+cars (held out, so a car never grades its own fit), up to that car's own pace level - only the slope
+is tested. Against the naive "tyres don't wear" guess. Error per lap, slow laps (spins, traffic over
+7%) left out.
+
+| Race | Laps (cars) | **Model** median / mean | Naive median / mean |
+|---|---|---|---|
+| Silverstone | 71 (22) | **200 / 338 ms** | 180 / 334 ms |
+| Suzuka | 70 (22) | **116 / 342 ms** | 189 / 366 ms |
+| Monaco | 134 (22) | **133 / 205 ms** | 422 / 440 ms |
+| Montreal | 63 (21) | **92 / 192 ms** | 169 / 255 ms |
+| Barcelona | 154 (21) | **319 / 388 ms** | 366 / 491 ms |
+
+It beats the naive guess on 4 of 5 races; not on Silverstone (71 laps).
+
 ## Attack forecast ("where will the car behind attack?")
 
 Of 33 real passes on the player in 4 race(s) (from each capture's `npm run analyze` report), 6 came at the

@@ -10,6 +10,8 @@
 //   Projected battery: at half-distance on a lap, the projected ERS store at
 //   the line vs the store when the car gets there.
 //   Attack forecast: summed from each capture's report.json (npm run analyze).
+//   Tyre model: at the end of each race, every car's laps predicted from a
+//   wear fit on the other 21 cars, vs "tyres don't wear".
 //
 //   npm run accuracy [-- capture-folder ...]   (default: every folder in captures/)
 // Writes docs/accuracy.md.
@@ -20,6 +22,8 @@ const { parsePacket } = require('../src/udp/parsePacket');
 const { createFieldModel } = require('../src/state/fieldModel');
 const { createRaceAnalysis, predictRejoin, PIT_LOSS_ESTIMATE_MS } = require('../src/state/raceAnalysis');
 const { projectBattery, ERS_MAX_J } = require('../src/analysis/batteryProjection');
+const { holdOutScore } = require('../src/ml/tyreModel');
+const { TRACKS } = require('../src/state/debrief');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'docs', 'accuracy.md');
@@ -47,6 +51,11 @@ async function score(file, out) {
   let lastT = null;
   let races = 0;
   let uid = null;
+  let race = null; // { trackId, cars } as of the latest tick of the race in progress
+  const scoreTyres = () => {
+    if (race) out.tyre.push({ track: TRACKS[race.trackId] || `track ${race.trackId}`, ...holdOutScore(race.cars) });
+    race = null;
+  };
   for await (const { buf } of readLog(file)) {
     let parsed;
     try {
@@ -60,6 +69,7 @@ async function score(file, out) {
     const session = fm.getSession();
     if (!session || !RACE_TYPES.has(session.sessionType) || fm.playerIndex() == null) continue;
     if (String(header.sessionUID) !== uid) {
+      scoreTyres(); // the previous race, whose cars the reset left untouched
       uid = String(header.sessionUID);
       races++;
     }
@@ -78,6 +88,7 @@ async function score(file, out) {
     const analysis = ra.compute();
     const neutralised = !!session.safetyCarStatus || fm.isRedFlag();
     const ordered = fm.orderedByPosition();
+    race = { trackId: session.trackId, cars: ordered };
     const L = session.trackLength;
     for (const car of ordered) {
       const ld = car.lapData;
@@ -123,6 +134,7 @@ async function score(file, out) {
       out.rejoin.push({ err: Math.abs(e.p.position - actual), fixed: Math.abs(e.p.fixedPosition - actual), keep: Math.abs(e.p.keepPosition - actual) });
     }
   }
+  scoreTyres();
   return races;
 }
 
@@ -154,7 +166,15 @@ from a random corner. **It beats chance, but not yet the simpler "busiest corner
 words it as a "likely spot" and it stays marked experimental until more races are recorded.`;
 }
 
-const pctWithin = (xs, k, n) => (xs.length ? Math.round((xs.filter((x) => x[k] <= n).length / xs.length) * 100) : null);
+// Says where the wear fit doesn't beat "no wear", rather than leaving it to the table.
+function tyreVerdict(races) {
+  if (!races.length) return 'No race long enough to fit wear yet.';
+  const lost = races.filter((x) => x.model.medianMs >= x.naive.medianMs);
+  const won = races.length - lost.length;
+  return `It beats the naive guess on ${won} of ${races.length} races${lost.length ? `; not on ${lost.map((x) => `${x.track} (${x.laps} laps)`).join(', ')}` : ''}.`;
+}
+
+const pctWithin =(xs, k, n) => (xs.length ? Math.round((xs.filter((x) => x[k] <= n).length / xs.length) * 100) : null);
 const mean = (xs, k) => (xs.length ? xs.reduce((a, x) => a + x[k], 0) / xs.length : null);
 
 async function main() {
@@ -163,7 +183,7 @@ async function main() {
     console.error('No captures found - record races with `npm run capture` first.');
     process.exit(1);
   }
-  const out = { rejoin: [], battery: [] };
+  const out = { rejoin: [], battery: [], tyre: [] };
   let races = 0;
   for (const f of files) {
     process.stdout.write(`  ${path.relative(ROOT, f)} ... `);
@@ -203,6 +223,19 @@ like the same stretch of the last lap) against the store when the car crossed it
 | Naive: "stays where it is now" | ${mean(b, 'naive') != null ? mean(b, 'naive').toFixed(1) : '-'} pts | ${pctWithin(b, 'naive', 5)}% |
 
 ${b.length} half-laps scored. Points = percentage points of a full 4 MJ store.
+
+## Tyre wear model
+
+At the end of each race, every car's green-flag laps are predicted from a wear fit on the *other*
+cars (held out, so a car never grades its own fit), up to that car's own pace level - only the slope
+is tested. Against the naive "tyres don't wear" guess. Error per lap, slow laps (spins, traffic over
+7%) left out.
+
+| Race | Laps (cars) | **Model** median / mean | Naive median / mean |
+|---|---|---|---|
+${out.tyre.filter((x) => x.laps).map((x) => `| ${x.track} | ${x.laps} (${x.cars}) | **${x.model.medianMs} / ${x.model.meanMs} ms** | ${x.naive.medianMs} / ${x.naive.meanMs} ms |`).join('\n')}
+
+${tyreVerdict(out.tyre.filter((x) => x.laps))}
 
 ## Attack forecast ("where will the car behind attack?")
 
