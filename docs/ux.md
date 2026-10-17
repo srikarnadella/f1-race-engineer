@@ -21,7 +21,7 @@ Every choice below follows from that.
 
 | Screen | For | Layout reasoning |
 |---|---|---|
-| **Drive** | Leaving up all race | One composite card: the call, the battle either side, the latest radio call, four projections. Under a safety car its middle turns into the strategy options. |
+| **Drive** | Leaving up all race | One composite card: the call, the battle either side, the latest radio call, four projections. Under a safety car its middle turns into the strategy options. In practice and qualifying the battle becomes **This lap** (where it would put you, the delta to your best, traffic) and **Standing** (position, gap to P1, through or out at the cut), and the tiles become time left, best lap, the cut and the car. On a phone it gets three rows of height and the call stacks above its reason. |
 | **Battle** | A fight either side | The battle card takes two thirds of the screen: gaps big enough to read from the seat, the battle call as a banner, the pass / threat chance, and **projected battery at the line** for both cars against yours. |
 | **Strategy** | "Should I box?" | "If you box now" and the call on top; **pit timing** (which lap to box on, or the SC/VSC options) in the big slot; tyre model and weather at the side. |
 | **Weather** | Rain on the way | The forecast gets the big slot (bars = rain chance, in laps), with the tyre projection and the box call beside it. |
@@ -63,7 +63,24 @@ would mishear constantly.
 The answer first ("Box in 3 laps", big, green), then the rows that justify it: this lap, the next two,
 and the best. Each row is the decision's consequences in the driver's terms (rejoin position, traffic,
 finish position, seconds lost), not the model's inputs. A new best has to hold 5 s before it replaces
-the old one, and near-ties keep the last pick, so the headline doesn't flicker as gaps move.
+the old one, and near-ties keep the last pick, so the headline doesn't flicker as gaps move. Under the
+table, the stops it expects from the cars within a pit stop of you, so "stay out" or "box in 3" can be
+checked against "RUSSELL due next lap".
+
+## Qualifying
+
+The race layout in qualifying was worse than nothing: a gap to the car "ahead" that's on a different
+lap, defend calls for cars on out laps, "PUSH - tyres and fuel OK" in the garage. The call now follows
+the run (PREP, PUSH, BOX) and says the one thing that matters on each lap: when the push lap starts and
+how much time is spare, where this lap would put you, where you stand at the cut. Traffic is named once
+on the radio; the gap that ticks down sits on the This lap panel, not in the radio text, so the card
+isn't rewritten ten times a second.
+
+## Damage
+
+The game shows damage in %, which says nothing about whether to stop. The Car tile shows the measured
+cost ("+0.8s/lap") and the verdict ("box for a new nose", "not worth a stop"). The radio says it twice
+at most: once when the damage appears ("measuring what it costs") and once with the figure.
 
 ## Options considered and rejected
 

@@ -31,7 +31,7 @@ function runLaps(fm, laps, perLap = () => ({})) {
   }
 }
 
-test('pace averages the last clean laps, ignoring pit laps', () => {
+test('pace averages the last clean laps, ignoring pit laps and the standing-start lap 1', () => {
   const fm = createFieldModel();
   let t = 0;
   const send = (lap, o) => fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(lap, o) });
@@ -45,7 +45,7 @@ test('pace averages the last clean laps, ignoring pit laps', () => {
   send(5, { 0: { lastLapTimeInMS: 105000 } });
   send(6, { 0: { lastLapTimeInMS: 91000 } });
   const leader = createRaceAnalysis(fm).compute().field.find((c) => c.carIndex === 0);
-  assert.strictEqual(leader.paceMs, Math.round((90000 + 90000 + 91000) / 3));
+  assert.strictEqual(leader.paceMs, Math.round((90000 + 91000) / 2));
 });
 
 test('pit loss is measured from a rival stop: in-lap + out-lap - 2 x clean pace', () => {

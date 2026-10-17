@@ -20,7 +20,25 @@
     return cars[0] || null;
   }
 
+  // Qualifying / practice: the road around you, not the order.
+  const quali = (s) => (s.analysis && s.analysis.quali) || null;
+  const s3 = (ms) => (Math.abs(ms) / 1000).toFixed(3);
+  function qualiStanding(q) {
+    const left = isNum(q.timeLeftS) ? `, ${Math.floor(q.timeLeftS / 60)} minutes ${q.timeLeftS % 60} left` : '';
+    if (q.position == null) return `${q.name}: no time yet${left}.`;
+    const where = q.cut && isNum(q.cut.marginMs)
+      ? `, ${s3(q.cut.marginMs)} ${q.cut.marginMs < 0 ? 'clear of the cut' : `short of P${q.cut.position} - you're out`}`
+      : q.position === 1 ? ', fastest' : `, ${s3(q.gapToPoleMs)} off P1`;
+    return `${q.name}: P${q.position}${where}${left}.`;
+  }
+  function qualiRoad(q, side) {
+    const t = q.traffic && q.traffic[side];
+    if (t) return side === 'ahead' ? `${t.name} on ${t.status === 'out' ? 'an out lap' : 'a slow lap'}, ${t.gapS.toFixed(1)}s up the road.` : `${t.name} on a push lap ${t.gapS.toFixed(1)}s behind - let them by.`;
+    return side === 'ahead' ? 'Clear road ahead.' : 'Nobody close behind on a push lap.';
+  }
+
   function gapAnswer(s, side) {
+    if (quali(s)) return qualiRoad(quali(s), side);
     const c = neighbour(s, side);
     if (!c) return side === 'ahead' ? 'Nobody ahead - you are leading.' : 'Nobody behind you.';
     const t = c.gapTrendMsPerLap;
@@ -35,6 +53,7 @@
 
   function boxAnswer(s) {
     const a = s.analysis || {};
+    if (quali(s)) return `No pit strategy outside a race. ${qualiStanding(quali(s))}`;
     if (s.player && s.player.pitStatus) return 'You are in the pit lane.';
     if (a.options) return a.options.headline;
     const pt = a.pitTiming;
@@ -87,6 +106,7 @@
   }
 
   function lapsAnswer(s) {
+    if (quali(s)) return qualiStanding(quali(s));
     const left = s.strategy && s.strategy.lapsRemaining;
     return isNum(left) ? `P${s.player.position}, ${Math.ceil(left)} laps to go.` : `P${s.player.position}, lap ${s.player.currentLapNum}.`;
   }
@@ -98,8 +118,21 @@
     return `${st.call.action[0]}${st.call.action.slice(1).toLowerCase()} - ${st.call.reason}.${bc && bc.mode !== 'CLEAR' ? ` ${bc.reason}.` : ''}`;
   }
 
-  // Most specific first: "gap behind" must not be read as a pit question.
+  function damageAnswer(s) {
+    const d = s.analysis && s.analysis.damage;
+    if (!d) return 'No damage.';
+    const what = d.parts.map((x) => `${x.label.toLowerCase()} ${x.pct}%`).join(', ');
+    if (d.lossPerLapMs == null) return `Damage: ${what}. ${d.basis === 'no-baseline' ? 'No clean lap from before it to compare with.' : 'Still measuring what it costs.'}`;
+    if (d.lossPerLapMs < 150) return `Damage: ${what}, but it isn't costing lap time.`;
+    const flag = isNum(d.toFlagMs) ? `, about ${Math.round(d.toFlagMs / 1000)}s to the flag` : '';
+    const fix = d.fix ? (d.fix.pays ? (d.fix.stopAnyway ? ' Change the nose at your stop.' : ` A new nose costs about ${Math.round(d.fix.costMs / 1000)}s - box for it.`) : ` A new nose costs about ${Math.round(d.fix.costMs / 1000)}s - not worth a stop.`) : '';
+    return `${what}: costing ${s1(d.lossPerLapMs)}s a lap${flag}.${fix}`;
+  }
+
+  // Most specific first: "gap behind" must not be read as a pit question,
+  // nor "front wing" as the gap in front.
   const QUESTIONS = [
+    { id: 'damage', label: 'Damage?', match: /\b(damage[ds]?|wing|nose|broken|floor|diffuser)\b/, answer: damageAnswer },
     { id: 'behind', label: 'Gap behind?', match: /\b(behind|back|mirrors?)\b/, answer: (s) => gapAnswer(s, 'behind') },
     { id: 'ahead', label: 'Gap ahead?', match: /\b(ahead|in front|front|gap)\b/, answer: (s) => gapAnswer(s, 'ahead') },
     { id: 'box', label: 'When do I box?', match: /\b(box|pit|stop|window|undercut)\b/, answer: boxAnswer },
@@ -107,10 +140,10 @@
     { id: 'tyres', label: 'Tyres?', match: /\b(tyres?|tires?|wear|cliff|rubber)\b/, answer: tyreAnswer },
     { id: 'weather', label: 'Rain?', match: /\b(rain|weather|wet|dry|forecast)\b/, answer: weatherAnswer },
     { id: 'fuel', label: 'Fuel?', match: /\b(fuel|gas|petrol)\b/, answer: fuelAnswer },
-    { id: 'laps', label: 'Laps left?', match: /\b(laps?|left|to go|position|where am i)\b/, answer: lapsAnswer },
+    { id: 'laps', label: 'Laps left?', match: /\b(laps?|left|to go|position|where am i|cut|through|pole)\b/, answer: lapsAnswer },
     { id: 'call', label: 'The call?', match: /\b(call|plan|what (do|should) i do|strategy)\b/, answer: callAnswer },
   ];
-  const HELP = 'Try: gap behind, when do I box, tyres, rain, fuel, battery, or what\'s the call.';
+  const HELP = 'Try: gap behind, when do I box, tyres, damage, rain, fuel, battery, or what\'s the call.';
 
   // ---------- Custom commands: your phrase, the things you want reported ----------
   const lapTime = (ms) => (isNum(ms) && ms > 0 ? `${Math.floor(ms / 60000)}:${((ms % 60000) / 1000).toFixed(1).padStart(4, '0')}` : null);

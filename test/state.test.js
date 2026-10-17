@@ -215,10 +215,11 @@ test('insights are ordered most severe first', () => {
   const ie = createInsightEngine(fm);
   fm.dispatch(PACKET_IDS.SESSION, header(1), { totalLaps: 20, trackLength: 5000 });
   // P4 right behind the player (advisory defend), P2 just pitted (info
-  // overcut), then a red flag (critical).
+  // overcut), then a safety car deployment call (critical) - the event lands
+  // before the Session packet says the safety car is out.
   fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars({ 3: { deltaToCarInFrontInMS: 300 } }) });
   fm.dispatch(PACKET_IDS.LAP_DATA, header(1.1), { cars: lapCars({ 1: { pitStatus: 1 }, 3: { deltaToCarInFrontInMS: 300 } }) });
-  fm.dispatch(PACKET_IDS.EVENT, header(1.2), { code: 'RDFL', name: 'Red Flag' });
+  fm.dispatch(PACKET_IDS.EVENT, header(1.2), { code: 'SCAR', name: 'Safety Car' });
   const severities = ie.evaluate().map((i) => i.severity);
   assert.ok(severities.length >= 2, `expected several insights, got ${severities}`);
   assert.strictEqual(severities[0], 'critical');
@@ -301,16 +302,18 @@ test('under a safety car: no defend calls, HOLD instead of PUSH, and a cheap-sto
   assert.deepStrictEqual(ie2.getStrategy().call, { action: 'HOLD', reason: 'Safety car - hold position, keep the delta positive' });
 });
 
-test('undercut window on the car ahead needs a close gap, old tyres and clean air', () => {
-  const analysis = (inTraffic) => ({ rejoin: { position: 4, positionsLost: 1, inTraffic, ahead: null, behind: null } });
-  const run = (opts, gapAhead, inTraffic = false) => {
+test('undercut window on the car ahead needs a close gap, old tyres, clean air - and the car ahead due to stop', () => {
+  const analysis = (inTraffic, theyStopIn) => ({ rejoin: { position: 4, positionsLost: 1, inTraffic, ahead: null, behind: null }, field: [{ carIndex: 1, stopInLaps: theyStopIn }] });
+  const run = (opts, gapAhead, inTraffic = false, theyStopIn = 2) => {
     const fm = createFieldModel();
     const ie = createInsightEngine(fm);
     raceWithTyres(fm, opts);
     fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: gapAhead } }) });
-    return ie.evaluate(analysis(inTraffic)).find((i) => i.id === 'undercut-window');
+    return ie.evaluate(analysis(inTraffic, theyStopIn)).find((i) => i.id === 'undercut-window');
   };
-  assert.match(run({}, 1200).message, /Undercut on P2 is on - box now, rejoin P4 in clean air/);
+  assert.match(run({}, 1200).message, /Undercut on P2 is on - they're due in ~2 laps: box now, rejoin P4 in clean air/);
+  assert.ok(!run({}, 1200, false, null), 'the car ahead has no stop left to make');
+  assert.ok(!run({}, 1200, false, 6), 'the car ahead is not stopping for a while');
   assert.ok(!run({}, 2500), 'too far back to jump the car');
   assert.ok(!run({}, 1200, true), 'would rejoin in traffic');
   assert.ok(!run({ myAge: 3 }, 1200), 'own tyres too fresh to stop');

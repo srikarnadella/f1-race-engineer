@@ -237,7 +237,7 @@ const { pitTiming } = require('../src/analysis/pitTiming');
 test('pit timing: waits for the tyres to wear, then boxes; a set that cannot reach the flag costs a stop', () => {
   // You lead by 30s on worn tyres; nobody close. New set 1.0s/lap quicker.
   const me = { t: 0, position: 1, tyreAge: 10, compound: 17, degMs: 100, lifeLeft: null, stopped: false };
-  const rivals = [{ t: 30000, paceDeltaMs: 0, degMs: 100, owesStop: true }];
+  const rivals = [{ name: 'B', position: 2, t: 30000, paceDeltaMs: 0, degMs: 100, age: 10, stopIn: 9 }];
   const sets = [{ compound: 18, gainMs: 1000, degMs: 100, life: 40 }];
   const r = pitTiming({ me, sets, rivals, laps: 20, pitLossMs: 20000 });
   // Each lap later swaps the last lap on the new set (worn by then) for one
@@ -259,7 +259,7 @@ test('pit timing: waits for the tyres to wear, then boxes; a set that cannot rea
 });
 
 test('pit timing: rejoining behind a train costs track position; staying out is only offered after a stop', () => {
-  const rivals = [2000, 4000, 6000, 8000].map((t) => ({ t, paceDeltaMs: 0, degMs: 0, owesStop: false }));
+  const rivals = [2000, 4000, 6000, 8000].map((t, i) => ({ name: `R${i}`, position: i + 2, t, paceDeltaMs: 0, degMs: 0, age: 5, stopIn: null }));
   const me = { t: 0, position: 1, tyreAge: 5, compound: 17, degMs: 50, lifeLeft: null, stopped: true };
   const r = pitTiming({ me, sets: [{ compound: 16, gainMs: 300, degMs: 50, life: 30 }], rivals, laps: 10, pitLossMs: 20000 });
   assert.strictEqual(r.bestId, 'stay');
@@ -267,4 +267,93 @@ test('pit timing: rejoining behind a train costs track position; staying out is 
   assert.strictEqual(pitTiming({ me: { ...me, stopped: false }, sets: [{ compound: 16, gainMs: 300, degMs: 50, life: 30 }], rivals, laps: 10, pitLossMs: 20000 }).options.some((o) => o.id === 'stay'), false);
   assert.strictEqual(pitTiming({ me, sets: [], rivals, laps: 10, pitLossMs: 20000 }), null);
   assert.strictEqual(pitTiming({ me, sets: [{ compound: 16, gainMs: 300, degMs: 50, life: 30 }], rivals, laps: 1, pitLossMs: 20000 }), null);
+});
+
+test('pit timing: a rival due to stop is not a car you rejoin behind for good', () => {
+  // A leads by 10s; B is 5s behind you. A stop costs 20s.
+  const me = { t: 10000, position: 2, compound: 17, degMs: 100, lifeLeft: null, stopped: false };
+  const sets = [{ compound: 18, gainMs: 1000, degMs: 100, life: 40 }];
+  const run = (bStopIn) => pitTiming({ me, sets, rivals: [
+    { name: 'A', position: 1, t: 0, paceDeltaMs: 0, degMs: 100, age: 10, stopIn: null },
+    { name: 'B', position: 3, t: 15000, paceDeltaMs: 0, degMs: 100, age: 10, stopIn: bStopIn },
+  ], laps: 20, pitLossMs: 20000 });
+  // B staying out: boxing now drops you behind it.
+  assert.strictEqual(run(null).options.find((o) => o.id === 'box-0').rejoinPosition, 3);
+  // B boxing this lap too: you come out still ahead of it.
+  const both = run(0);
+  assert.strictEqual(both.options.find((o) => o.id === 'box-0').rejoinPosition, 2);
+  assert.deepStrictEqual(both.stops, [{ name: 'B', position: 3, inLaps: 0 }]);
+});
+
+const { expectedStopIn, learnedStopShare } = require('../src/analysis/rivalStops');
+
+test('rival stops: owed stops at a share of the rated tyre life, never after the second-last lap', () => {
+  // Medium rated 20 laps, 5 laps old, 20 laps left: due at 0.6 x 20 = 12 laps old.
+  assert.strictEqual(expectedStopIn({ compound: 17, age: 5, usableLife: 20, owesStop: true, lapsLeft: 20 }), 7);
+  // Due now.
+  assert.strictEqual(expectedStopIn({ compound: 17, age: 12, usableLife: 20, owesStop: true, lapsLeft: 20 }), 0);
+  // Running long past it: at the end of the set's rated life, not "this lap" every lap...
+  assert.strictEqual(expectedStopIn({ compound: 17, age: 15, usableLife: 20, owesStop: true, lapsLeft: 20 }), 5);
+  // ...and past that, the last chance.
+  assert.strictEqual(expectedStopIn({ compound: 17, age: 22, usableLife: 20, owesStop: true, lapsLeft: 20 }), 18);
+  // Late in the race it still has to stop - by the end of the second-last lap.
+  assert.strictEqual(expectedStopIn({ compound: 18, age: 2, usableLife: 25, owesStop: true, lapsLeft: 5 }), 3);
+  // This race's own stops override the prior.
+  assert.strictEqual(expectedStopIn({ compound: 17, age: 5, usableLife: 20, owesStop: true, lapsLeft: 20, stopShare: 0.8 }), 11);
+  // Already stopped: only again if the set can't reach the flag.
+  assert.strictEqual(expectedStopIn({ compound: 18, age: 5, usableLife: 25, owesStop: false, lapsLeft: 15 }), null);
+  assert.strictEqual(expectedStopIn({ compound: 16, age: 5, usableLife: 15, owesStop: false, lapsLeft: 15 }), 10);
+  // No Tyre Sets packet yet: the compound's typical rated life.
+  assert.strictEqual(expectedStopIn({ compound: 16, age: 3, usableLife: null, owesStop: true, lapsLeft: 30 }), 6);
+  assert.strictEqual(learnedStopShare([0.6]), null);
+  assert.strictEqual(learnedStopShare([0.5, 0.7, 0.6]), 0.6);
+});
+
+const { damageLoss } = require('../src/analysis/damageLoss');
+
+test('damage loss: mini-sectors after the hit against clean laps before it, projected and set against a new nose', () => {
+  const lap = (extra = {}) => Array.from({ length: 25 }, (_, k) => 3000 + (extra[k] || 0));
+  const corners = [{ corner: 1, startM: 300 }, { corner: 2, startM: 1100 }, { corner: 3, startM: 2900 }];
+  const base = { baseline: [lap(), lap(), lap()], corners, trackLength: 5000, pitLossMs: 20000, fixable: true };
+  // Slices 5 and 6 (1.0-1.4 km) lose 0.2s each: 0.4s a lap, at corner 2.
+  const r = damageLoss({ ...base, damaged: [lap({ 5: 200, 6: 200 })], lapsLeft: 10 });
+  assert.strictEqual(r.lossPerLapMs, 400);
+  assert.strictEqual(r.basis, 'laps');
+  assert.deepStrictEqual(r.where, [2]);
+  assert.strictEqual(r.toFlagMs, 4000);
+  assert.deepStrictEqual(r.fix, { costMs: 26000, savedMs: 3600, stopAnyway: false, pays: false });
+  // Fuel burnt since makes the car quicker anyway: that drift is part of the loss.
+  assert.strictEqual(damageLoss({ ...base, damaged: [lap({ 5: 200, 6: 200 })], driftMs: -300, lapsLeft: 10 }).lossPerLapMs, 700);
+  // 3s a lap with 15 to go: a new nose pays - and costs only the change if you stop anyway.
+  const big = damageLoss({ ...base, damaged: [lap({ 3: 1500, 4: 1500 })], lapsLeft: 15 });
+  assert.strictEqual(big.fix.pays, true);
+  assert.strictEqual(damageLoss({ ...base, damaged: [lap({ 3: 1500, 4: 1500 })], lapsLeft: 15, stopAnyway: true }).fix.costMs, 6000);
+  // Part of a lap since the hit: the slices run so far, scaled up to a whole lap.
+  const splits = lap({ 10: 100, 11: 100, 12: 100, 13: 100, 14: 100, 15: 100, 16: 100 }).map((v, k) => (k >= 10 && k <= 16 ? v : null));
+  const early = damageLoss({ ...base, damaged: [], partial: { splits, fromSector: 10 }, lapsLeft: 10 });
+  assert.strictEqual(early.basis, 'partial');
+  assert.strictEqual(early.lossPerLapMs, 2500); // 0.7s over 7 of 25 slices
+  assert.strictEqual(damageLoss({ ...base, damaged: [], partial: { splits: splits.map((v, k) => (k <= 12 ? v : null)), fromSector: 10 } }).basis, 'measuring');
+  // Nothing clean before the hit to compare with.
+  assert.strictEqual(damageLoss({ ...base, baseline: [], damaged: [lap()] }), null);
+});
+
+
+test('tyre model: one slow lap at a young tyre age does not flip the slope', () => {
+  // Five cars, 0.1s/lap of wear on hards - and every car's first lap on the
+  // set ran half behind the safety car (115s) with nothing flagging it.
+  const cars = Array.from({ length: 5 }, (_, c) => ({
+    carIndex: c,
+    lapHistory: Array.from({ length: 8 }, (_, k) => ({ lapNum: 7 + k, compound: 18, tyreAge: 1 + k, pit: false, neutralised: false, lapMs: k === 0 ? 115000 : 78000 + 100 * k })),
+  }));
+  const deg = fitDegradation(cars, 0).compounds[18].degMsPerLap;
+  assert.ok(deg > 80 && deg < 120, `deg ${deg}`);
+});
+
+test('damage loss: a new nose only gets back the wing\'s share of the loss', () => {
+  const lap = (extra = {}) => Array.from({ length: 25 }, (_, k) => 3000 + (extra[k] || 0));
+  const r = damageLoss({ baseline: [lap()], damaged: [lap({ 3: 600, 4: 600 })], trackLength: 5000, lapsLeft: 21, pitLossMs: 20000, fixable: true, fixableShare: 0.2 });
+  // 1.2s a lap, but the wing is a fifth of it: 0.24s x 20 laps = 4.8s back for ~26s.
+  assert.strictEqual(r.fix.savedMs, 4800);
+  assert.strictEqual(r.fix.pays, false);
 });

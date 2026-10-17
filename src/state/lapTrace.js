@@ -105,7 +105,14 @@ function createMiniSectorTracker() {
     state.delete(carIndex);
   }
 
-  return { update, close, reset: () => state.clear() };
+  // The lap in progress: { lapNum, splits } with null for slices not run yet.
+  function partial(carIndex) {
+    const s = state.get(carIndex);
+    if (!s) return null;
+    return { lapNum: s.lapNum, splits: s.crossings.map((t, k) => (t != null && (k === 0 || s.crossings[k - 1] != null) ? t - (k ? s.crossings[k - 1] : 0) : null)).concat([null]) };
+  }
+
+  return { update, close, partial, reset: () => state.clear() };
 }
 
 module.exports = { createLapTraceRecorder, createMiniSectorTracker, MINI_SECTORS };

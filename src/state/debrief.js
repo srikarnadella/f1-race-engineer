@@ -70,7 +70,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     try {
       fs.mkdirSync(dir, { recursive: true });
       const stamp = new Date(rec.startedAt).toISOString().replace(/[:T]/g, '-').slice(0, 19);
-      const name = `${stamp}_${(TRACKS[rec.trackId] || 'track').replace(/W+/g, '-')}_${(SESSION_TYPES[rec.sessionType] || 'session').replace(/W+/g, '-')}.json.gz`;
+      const name = `${stamp}_${(TRACKS[rec.trackId] || 'track').replace(/\W+/g, '-')}_${(SESSION_TYPES[rec.sessionType] || 'session').replace(/\W+/g, '-')}.json.gz`;
       fs.writeFileSync(path.join(dir, name), toFile(rec));
       rec.saved = true;
     } catch (err) {

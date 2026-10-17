@@ -69,7 +69,7 @@ function createFieldModel() {
 
   function getCar(i) {
     if (!cars.has(i)) {
-      cars.set(i, { lapHistory: [], gapAheadHistory: [], ersHistory: [], lastPitStatus: null });
+      cars.set(i, { lapHistory: [], gapAheadHistory: [], ersHistory: [], lastPitStatus: null, lapFlags: new Map() });
     }
     return cars.get(i);
   }
@@ -145,8 +145,14 @@ function createFieldModel() {
         car.lapHistory = car.lapHistory.filter((l) => l.lapNum < c.currentLapNum);
         car.ersHistory = car.ersHistory.filter((h) => h.lapNum <= c.currentLapNum);
         if (car.miniSectors) car.miniSectors = car.miniSectors.filter((m) => m.lapNum < c.currentLapNum);
-        car.lapTouchedPit = c.pitStatus !== 0;
-        car.lapNeutralised = isNeutralised();
+        // The lap rewound into keeps what it already had: a flashback from
+        // just after a safety car into its last lap otherwise recorded that
+        // 1:55 lap as clean for every car, and the tyre model read it as
+        // tyres getting 18s a lap faster with age.
+        const flags = car.lapFlags.get(c.currentLapNum);
+        car.lapTouchedPit = c.pitStatus !== 0 || !!(flags && flags.pit);
+        car.lapNeutralised = isNeutralised() || !!(flags && flags.neutralised);
+        for (const n of car.lapFlags.keys()) if (n > c.currentLapNum) car.lapFlags.delete(n);
         car.ersLap = null;
         car.ersPrevLap = null;
       }
@@ -219,6 +225,8 @@ function createFieldModel() {
       }
       miniSectors.update(i, car, c, session && session.trackLength);
       car.lapData = c;
+      car.lapFlags.set(c.currentLapNum, { pit: !!car.lapTouchedPit, neutralised: !!car.lapNeutralised });
+      if (car.lapFlags.size > LAP_HISTORY_SIZE) car.lapFlags.delete(car.lapFlags.keys().next().value);
     });
   }
 
@@ -361,6 +369,11 @@ function createFieldModel() {
     return playerBalance.corners();
   }
 
+  // The player's mini-sectors on the lap in progress (see lapTrace.js).
+  function getPlayerPartialSectors() {
+    return playerCarIndex == null ? null : miniSectors.partial(playerCarIndex);
+  }
+
   function getPassLog() {
     return passLog;
   }
@@ -377,7 +390,7 @@ function createFieldModel() {
   const getClassification = () => classification;
   const getLapPositions = () => lapPositions;
 
-  return { dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, getPlayerCorners, getPassLog, isRedFlag };
+  return { dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
 }
 
 module.exports = { createFieldModel };

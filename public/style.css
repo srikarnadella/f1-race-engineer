@@ -156,6 +156,8 @@ body {
 .grid--medium { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max(210px, 26vh); }
 .grid--narrow { grid-template-columns: minmax(0, 1fr); grid-auto-rows: 220px; }
 .grid--medium .card--tall, .grid--narrow .card--tall { grid-row: span 2; }
+/* Drive holds the call, both sides of the fight, the radio and four tiles: two rows squeezed the middle to nothing on a phone. */
+.grid--medium .card--drive, .grid--narrow .card--drive { grid-row: span 3; }
 
 .card {
   position: relative;
@@ -250,7 +252,7 @@ body {
 .w-call__action[data-action="PUSH"] { color: var(--good); }
 .w-call__action[data-action="HOLD"] { color: var(--watch); }
 .w-call__action[data-action="BOX"] { color: var(--act); animation: pulse 1s ease-in-out infinite; }
-.w-call__action[data-action="PIT"] { color: var(--info); }
+.w-call__action[data-action="PIT"], .w-call__action[data-action="PREP"] { color: var(--info); }
 .w-call__reason { color: var(--muted); font-weight: 650; font-size: clamp(0.85rem, min(11cqh, 5.5cqw), 1.4rem); }
 
 /* Rejoin */
@@ -392,15 +394,15 @@ body {
 .w-drive__call[data-action="PUSH"] { box-shadow: inset 6px 0 0 var(--good); }
 .w-drive__call[data-action="HOLD"] { box-shadow: inset 6px 0 0 var(--watch); }
 .w-drive__call[data-action="BOX"] { background: #3a0d10; box-shadow: inset 6px 0 0 var(--act); }
-.w-drive__call[data-action="PIT"] { box-shadow: inset 6px 0 0 var(--info); }
+.w-drive__call[data-action="PIT"], .w-drive__call[data-action="PREP"] { box-shadow: inset 6px 0 0 var(--info); }
 .w-drive__action { flex: none; font-size: clamp(2rem, 9cqh, 4.6rem); font-weight: 900; letter-spacing: 0.04em; line-height: 1; }
 .w-drive__call[data-action="PUSH"] .w-drive__action { color: var(--good); }
 .w-drive__call[data-action="HOLD"] .w-drive__action { color: var(--watch); }
 .w-drive__call[data-action="BOX"] .w-drive__action { color: var(--act); animation: pulse 1s ease-in-out infinite; }
-.w-drive__call[data-action="PIT"] .w-drive__action { color: var(--info); }
+.w-drive__call[data-action="PIT"] .w-drive__action, .w-drive__call[data-action="PREP"] .w-drive__action { color: var(--info); }
 .w-drive__reason { font-size: clamp(1rem, 3.6cqh, 1.7rem); font-weight: 750; color: var(--text); min-width: 0; }
 .w-drive__battle { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; }
-.w-drive__battle .w-battle__side { padding: 14px 20px; border-radius: 16px; background: var(--panel); justify-content: center; gap: 6px; container-type: size; }
+.w-drive__battle .w-battle__side { padding: 14px 20px; border-radius: 16px; background: var(--panel); justify-content: center; justify-content: safe center; gap: 6px; container-type: size; }
 .w-drive__battle .w-battle__side + .w-battle__side { border-left: 0; padding: 14px 20px; }
 .w-drive__battle .w-battle__gap { font-size: clamp(2.6rem, min(42cqh, 30cqw), 11rem); font-weight: 900; }
 .w-drive__battle .w-battle__name { font-size: clamp(1rem, min(11cqh, 6cqw), 1.8rem); }
@@ -411,6 +413,7 @@ body {
 .w-drive__radio[data-severity="critical"] { background: #3a0d10; box-shadow: inset 6px 0 0 var(--act); }
 .w-drive__radio[data-severity="none"] span:last-child { color: var(--muted); }
 .w-drive__radio-tag { flex: none; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.14em; color: var(--label); }
+.w-pt__stops { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; font-weight: 700; font-size: 0.92rem; }
 .w-drive__tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .w-drive__tile { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; border-radius: 14px; background: var(--panel); min-width: 0; }
 .w-drive__tile b { font-size: clamp(1.05rem, 3.6cqh, 1.7rem); font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -626,7 +629,9 @@ body {
 .w-opt__line { font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .w-opt__line.is-good { color: var(--good); }
 .w-opt__line.is-watch { color: var(--watch); }
-.w-drive__options { background: var(--bg); }
+.w-drive__options { background: var(--bg); overflow-y: auto; }
+/* A phone is too narrow for the action and a long reason side by side. */
+.grid--narrow .w-drive__call { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 16px; }
 
 /* ---------- Lap delta ---------- */
 .w-lt { display: flex; flex-direction: column; gap: 12px; }

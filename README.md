@@ -107,15 +107,15 @@ A full race is a few hundred MB. Replay any capture into the dashboard with
 ## The dashboard
 
 **One rule: nothing the game's HUD or MFD already shows.** Tyre wear %, temperatures, fuel, ERS %,
-damage, the timing tower and the delta are all on screen in the game already, so the dashboard doesn't
-repeat them. The bridge still tracks all of that, because the models and calls are built on it. What's
+damage %, the timing tower and the delta are all on screen in the game already, so the dashboard doesn't
+repeat them (what the damage *costs* is new, so that is shown). The bridge still tracks all of that, because the models and calls are built on it. What's
 left is what the game *can't* tell you, laid out for a half-second glance, with the **Voice** button
 reading the calls out so you don't have to look at all. Switch with the buttons down the left edge (keys
 **1–6**):
 
 | | Screen | What it shows |
 |---|---|---|
-| Live | **Drive** | The one to leave up. The PUSH / HOLD / BOX call and why; the battle call (ATTACK / DEFEND / CLOSE IN); the car ahead and behind: gap, where it's heading, **pass / threat chance (ML)**, **projected battery at the line**, 2026 **Overtake mode**; the engineer's latest radio call; four projections: laps to the tyre cliff, where you'd rejoin if you boxed now, weather in laps, and the top car-setting tip |
+| Live | **Drive** | The one to leave up. The PUSH / HOLD / BOX call and why; the battle call (ATTACK / DEFEND / CLOSE IN); the car ahead and behind: gap, where it's heading, **pass / threat chance (ML)**, **projected battery at the line**, 2026 **Overtake mode**; the engineer's latest radio call; four projections: laps to the tyre cliff, where you'd rejoin if you boxed now, weather in laps, and what damage costs (or the top car-setting tip). **In practice and qualifying** it switches to the lap view: where this lap would put you, your standing against P1 and the knockout line, time left, and traffic on the road |
 | Live | **Battle** | The fight either side, big enough to read from the seat: the battle call, gaps and closing rates, pass / threat chance, and **each car's battery now and projected at the line against yours** |
 | Live | **Strategy** | "Should I box?": rejoin position and who you'd come out next to, the call, **pit timing** (which lap to box on; the stay-out / box options side by side under a safety car), the **tyre model**, weather |
 | Live | **Weather** | The forecast in laps, big; tyre life, the call and where a stop would put you beside it |
@@ -146,14 +146,15 @@ question. Any phrasing works as long as it has one of the key words.
 
 | Say | Key words it listens for | It answers with |
 |---|---|---|
-| "Engineer, gap behind?" | behind, back, mirrors | Who's behind, the gap, and whether they're catching you |
-| "Engineer, gap ahead?" | ahead, in front, gap | Who's ahead, the gap, and whether you're closing |
+| "Engineer, how bad is the damage?" | damage, wing, nose, broken, floor | What's damaged, what it costs a lap and to the flag, and whether a new nose is worth a stop |
+| "Engineer, gap behind?" | behind, back, mirrors | Who's behind, the gap, and whether they're catching you (in qualifying: a car on a push lap you should let by) |
+| "Engineer, gap ahead?" | ahead, in front, gap | Who's ahead, the gap, and whether you're closing (in qualifying: traffic up the road) |
 | "Engineer, when do I box?" | box, pit, stop, window, undercut | The best lap to stop, the tyre, rejoin and finish position (the safety-car options under a safety car) |
 | "Engineer, how are my tyres?" | tyres, tires, wear, cliff | Tyre age and compound, laps to the cliff |
 | "Engineer, battery?" | battery, ERS, energy, deploy, overtake | Your battery now and at the line, and the cars either side |
 | "Engineer, is it going to rain?" | rain, weather, wet, dry, forecast | Rain in how many laps, or when it stops |
 | "Engineer, fuel?" | fuel, gas, petrol | Fuel margin to the flag |
-| "Engineer, laps left?" | laps, left, to go, position, where am I | Your position and laps to go |
+| "Engineer, laps left?" | laps, left, to go, position, where am I, cut, through, pole | Your position and laps to go (in qualifying: position, the gap to the cut or P1, and time left) |
 | "Engineer, what's the call?" | call, plan, strategy, what should I do | PUSH / HOLD / BOX and why, plus the battle call |
 | "Engineer" | (nothing else) | "Go ahead", then takes your next sentence as the question |
 
@@ -170,10 +171,27 @@ are saved on that device (set them up on the PC if that's where hands-free runs)
 
 Things it works out for you:
 
+- **Qualifying mode.** Gaps, defending, fuel and pit calls mean nothing when the order is by best lap, so
+  in practice and qualifying the call becomes PREP (out lap: "push lap starts in 0:33, 1:49 to spare"),
+  PUSH (timed lap: "On for P13, 0.525 up on your best") or BOX (in lap: "P14, 0.080 clear of the cut").
+  It knows the knockout line in Q1 and Q2, how many runs fit in the time left from the garage, whether
+  you'll reach the line before the flag, and who is in the way: a car on an out lap up the road while
+  you're pushing, or a car on a push lap behind you while you're not.
+- **What damage costs.** When bodywork is damaged, your mini-sectors (25 slices of the lap) on clean laps
+  since the hit are compared with clean laps before it, less what fuel burn and tyre wear alone would
+  have changed. That gives the time lost per lap, where on the lap it goes ("most of it at corners 4 and
+  9"), the cost to the flag, and whether a new front wing (the only part a stop changes) pays for its
+  stop. An early figure comes from the part of the lap already run since the hit. A heavily broken wing
+  with no clean lap before it to compare (a lap-1 hit) is a BOX call straight away.
 - **Pit timing: which lap to box on.** Every lap from now to the flag is raced out against the field:
   your tyres wearing at the rate learned from the whole field, a fresh set starting as much quicker as
-  the game itself estimates, rivals on their own pace and wear (and a stop if they still owe one), and
-  every place lost at the rejoin charged as track position you'd have to win back. It shows this lap,
+  the game itself estimates, a damaged front wing costing its measured time until a stop changes it,
+  rivals on their own pace and wear, **and each rival's own stop** (the pit lane, then fresh tyres from
+  there), and every place lost at the rejoin charged as track position you'd have to win back. A rival
+  that still owes its stop is expected at a share of its set's rated life: the AI cars at a real Monaco
+  race all boxed at 12 laps on sets rated for 19-20. That share is learned from this race's own
+  green-flag stops once there are two. The card lists the expected stops of the cars within a pit stop
+  of you. It shows this lap,
   the next two and the best one, each with rejoin and finish position and the time it costs against the
   best. A new best has to hold for 5 s before it replaces the old one, and when the best lap is this one
   by a clear margin it becomes a **BOX** call. On a real Monaco race, from three laps out, it picked
@@ -185,8 +203,10 @@ Things it works out for you:
 - **Gap trends:** each car's clean-lap pace (ignoring pit and safety-car laps) turns gaps into
   "closing 0.5s/lap, DRS range in ~2 laps".
 - **Radio calls:** tyre cliff, fuel margin, closing/defending, an undercut window on the car ahead
-  (close behind it, tyres as old, clean air at the rejoin), the car behind pitting (undercut threat) or
-  the car ahead pitting (overcut chance), and a cheap stop under a safety car / VSC with the reduced pit loss.
+  (close behind it, tyres as old, clean air at the rejoin, and the car ahead due to stop within 3 laps:
+  with no stop left to make there is nothing to undercut), a car either side due to box next lap, the
+  car behind pitting (undercut threat) or the car ahead pitting (overcut chance) under green, and a cheap
+  stop under a safety car / VSC with the reduced pit loss.
 - **Weather in laps, not minutes:** the game's forecast slots become "Rain in ~5 laps (75%)" or "Rain
   stops in ~3 laps", shown on the rail on every screen. Slots after the chequered flag are faded out.
   Once rain has stopped the track counts as **drying** until everyone is back on slicks. While it's
@@ -340,6 +360,11 @@ changes reaching the feed. Still open:
 - More races for the models: the overtake model ties the gap-only baseline, the attack forecast ties the
   busiest-corner rule, and only 3 green-flag stops have scored the rejoin model.
 - Scoring pit timing: it needs races where the same stop was made on different laps.
+- Damage cost on a full lap: in the races recorded so far every hit was undone by a flashback within a
+  few corners, so the measurement is tested on constructed laps only. The extra time a nose change adds
+  to a stop (6 s) is a first guess.
+- The rival-stop share (60% of rated tyre life) comes from one race's AI stops; more races will tell
+  whether it holds across tracks and compounds.
 - Voice questions on a tablet need https on the bridge (browsers only open the mic on a secure page).
 - An in-game overlay (needs a desktop wrapper; parked in favour of voice).
 

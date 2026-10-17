@@ -17,6 +17,9 @@ const RANK = { drive: 0, battle: 1, weather: 2, strategy: 3, debrief: 4 };
 function wanted({ strategy, analysis, sessionOver }) {
   if (sessionOver) return { screen: 'debrief', reason: 'Session over' };
   const a = analysis || {};
+  // Practice / qualifying: Drive has the lap view; the race screens have nothing to say
+  // (and the in-lap call is BOX, which would otherwise flip to Strategy every run).
+  if (a.quali) return { screen: 'drive', reason: '' };
   if (a.options) return { screen: 'strategy', reason: a.options.situation };
   const call = strategy && strategy.call;
   if (call && call.action === 'BOX') return { screen: 'strategy', reason: call.reason };

@@ -10,6 +10,8 @@ test('focus: priority - debrief > SC options > box > weather > battle > drive', 
   assert.strictEqual(wanted({ ...boxing, sessionOver: true }).screen, 'debrief');
   assert.strictEqual(wanted({ ...battle, analysis: { options: { situation: 'VSC' } } }).screen, 'strategy');
   assert.strictEqual(wanted(boxing).screen, 'strategy');
+  // A qualifying in-lap is a BOX call too, but Drive is the screen for it.
+  assert.strictEqual(wanted({ ...boxing, analysis: { quali: { name: 'Q1' } } }).screen, 'drive');
   const rain = { trackState: 'rain-coming', nextChange: { inLaps: 3.4 } };
   assert.deepStrictEqual(wanted({ ...battle, analysis: { weather: rain } }), { screen: 'weather', reason: 'Rain in ~3 laps' });
   assert.strictEqual(wanted({ ...battle, analysis: { weather: { ...rain, nextChange: { inLaps: 9 } } } }).screen, 'battle');

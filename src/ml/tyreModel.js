@@ -11,6 +11,8 @@
 // Laps far off a car's own trend (traffic, a mistake) are trimmed with a
 // robust MAD filter before the final fit.
 
+const { withoutSlowLaps } = require('../state/race');
+
 const FUEL_MS_PER_KG = 30;
 const MIN_LAPS_PER_CAR = 3;
 const MIN_CARS = 3;
@@ -42,11 +44,15 @@ function fitDegradation(cars, burnKgPerLap = 1.6) {
   const fuelMsPerLap = burnKgPerLap * FUEL_MS_PER_KG;
   const byCompound = new Map();
   for (const car of cars) {
-    for (const l of car.lapHistory || []) {
-      if (l.pit || l.neutralised || l.lapNum <= 1 || !(l.lapMs > 0) || l.compound == null || l.tyreAge == null) continue;
-      if (!byCompound.has(l.compound)) byCompound.set(l.compound, []);
-      // Add back the time the car gained from being lighter, so only tyre wear is left.
-      byCompound.get(l.compound).push({ car: car.carIndex, x: l.tyreAge, y: l.lapMs + fuelMsPerLap * l.lapNum });
+    const usable = (car.lapHistory || []).filter((l) => !l.pit && !l.neutralised && l.lapNum > 1 && l.lapMs > 0 && l.compound != null && l.tyreAge != null);
+    for (const compound of new Set(usable.map((l) => l.compound))) {
+      if (!byCompound.has(compound)) byCompound.set(compound, []);
+      // A slow lap at a young tyre age (one spin) tilts the whole slope - the
+      // MAD trim below can't catch it, the first fit already leans on it.
+      for (const l of withoutSlowLaps(usable.filter((x) => x.compound === compound))) {
+        // Add back the time the car gained from being lighter, so only tyre wear is left.
+        byCompound.get(compound).push({ car: car.carIndex, x: l.tyreAge, y: l.lapMs + fuelMsPerLap * l.lapNum });
+      }
     }
   }
   const out = {};

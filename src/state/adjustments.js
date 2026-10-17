@@ -113,6 +113,8 @@ function ersSuggestion({ pct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, ne
   const top = (regs2026 ? ERS_MODE_2026 : ERS_MODE)[OVERTAKE];
   const s = (action, why, radio) => ({ id: 'ers', kind: 'ers', action, where: 'Straights', why, radio });
   // Nearest 5%: the exact figure is on the widget; the call shouldn't churn.
+  // The attack / defend radio leaves it out: it changed the line every few
+  // seconds of a real battle, and the why on the Adjust card has it.
   const battery = `battery ~${Math.round(pct / 5) * 5}%`;
 
   if (neutralised) {
@@ -123,13 +125,13 @@ function ersSuggestion({ pct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, ne
   }
   if (gapBehindMs != null && gapBehindMs < DEFEND_GAP_MS && (gapAheadMs == null || gapBehindMs < gapAheadMs)) {
     if (pct >= DEFEND_MIN_PCT && mode !== OVERTAKE) {
-      return s(`ERS: ${top}`, `Defend - car ${(gapBehindMs / 1000).toFixed(1)}s behind, ${battery}`, `Defend - ${top} on the straights, ${battery}`);
+      return s(`ERS: ${top}`, `Defend - car ${(gapBehindMs / 1000).toFixed(1)}s behind, ${battery}`, `Defend - ${top} on the straights`);
     }
-    if (pct < DEFEND_MIN_PCT) return s('Save for the straight', `Defend, but ${battery}`, `Battery low at ${Math.round(pct)}% - save it for the main straight to defend`);
+    if (pct < DEFEND_MIN_PCT) return s('Save for the straight', `Defend, but ${battery}`, `Battery low, ${battery} - save it for the main straight to defend`);
   }
   if (gapAheadMs != null && gapAheadMs < ATTACK_GAP_MS) {
     if (pct >= ATTACK_MIN_PCT && mode !== OVERTAKE) {
-      return s(`ERS: ${top}`, `Attack - ${(gapAheadMs / 1000).toFixed(1)}s to the car ahead, ${battery}`, `Attack - ${top} on the straights, ${battery}`);
+      return s(`ERS: ${top}`, `Attack - ${(gapAheadMs / 1000).toFixed(1)}s to the car ahead, ${battery}`, `Attack - ${top} on the straights`);
     }
     if (pct < ATTACK_MIN_PCT) return s('ERS: Medium', `Harvest a lap, then attack - ${battery}`, `${battery} - harvest this lap in Medium, attack on the next`);
   }

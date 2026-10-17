@@ -300,8 +300,11 @@ async function analyzeCapture(target) {
       for (const [iid, sig] of nowInsights) if (prev.insights.get(iid) !== sig) note(tMs, `insight.${sig.split('|')[0]}`, sig.slice(sig.indexOf('|') + 1));
       prev.insights = nowInsights;
       const call = snap.strategy ? `${snap.strategy.call.action} - ${snap.strategy.call.reason}` : '';
-      if (call !== prev.call) {
-        prev.call = call;
+      // A new call, not its live numbers ("On for P13 - 0.4 up" ticking along a
+      // qualifying lap). Race calls keep theirs: "rejoin P5" -> "P9" is a change.
+      const callGist = snap.analysis && snap.analysis.quali ? call.replace(/[0-9]+([.:][0-9]+)?/g, '#') : call;
+      if (callGist !== prev.call) {
+        prev.call = callGist;
         if (call) note(tMs, 'call', call);
       }
       const adj = snap.adjust ? snap.adjust.suggestions.map((x) => `${x.action} @ ${x.where} (${x.why})`).join(' ; ') : '';

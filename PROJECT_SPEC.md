@@ -105,7 +105,9 @@ f1-race-engineer/
 │   │   ├── focus.js                  [DONE] which screen matters now, for auto-switch (with hold times)
 │   │   └── insightEngine.js          [DONE] radio-call rules + strategy summary (PUSH/HOLD/BOX)
 │   ├── analysis/                     [DONE] battleCall, attackForecast, batteryProjection, strategyOptions (SC/VSC),
-│   │                                        pitTiming (which lap to box on), lapCompare, rivals
+│   │                                        pitTiming (which lap to box on), rivalStops (when each car boxes),
+│   │                                        damageLoss (what damage costs, from mini-sectors),
+│   │                                        qualifying (practice / qualifying lap view), lapCompare, rivals
 │   ├── ml/                           [DONE] logistic.js (from scratch), overtakeFeatures.js, tyreModel.js, models/*.json
 │   ├── capture/
 │   │   ├── logFile.js                [DONE] .f1log(.gz) read/write
@@ -162,7 +164,8 @@ f1-race-engineer/
   field: [ { carIndex, position, name, teamId, isPlayer, gapToPlayerMs /* signed: negative = ahead */,
              intervalMs, lastLapTimeInMS, paceMs /* avg of last 3 clean laps */,
              gapTrendMsPerLap /* change in |gap| per lap, negative = shrinking */, lapsToDrs, lapsToCatch,
-             tyreCompound, tyresAgeLaps, numPitStops, pitStatus, running }, ... ],  // whole grid, by position
+             tyreCompound, tyresAgeLaps, numPitStops, pitStatus, running,
+             stopInLaps /* expected stop, laps from now (0 = this lap), or null */ }, ... ],  // whole grid, by position
   nearby: [ ...same shape as field... ],                     // up to 2 ahead, 2 behind
   analysis: {
     pitLoss: { ms, normalMs, neutralised, source: measured|track estimate|generic estimate, samples, lastMeasuredFrom },
@@ -171,7 +174,15 @@ f1-race-engineer/
     options: { situation, lapsLeft, freeStop, options: [ ... ] } | null,   // only under SC / VSC / red flag
     pitTiming: { bestId, bestInLaps, cheapestInLaps, marginS, headline, label,
                  options: [ { id: box-<k>|stay, inLaps, compound, compoundName, rejoinPosition, inTraffic,
-                              finishPosition, lossS, best } ] } | null,   // green flag, dry, tyre data trusted
+                              finishPosition, lossS, best } ],
+                 stops: [ { name, position, inLaps } ] } | null,   // green flag, dry, tyre data trusted
+    damage: { parts: [ { label, pct, fixable } ], sinceLap, fixableShare,
+              lossPerLapMs /* null while measuring */, basis: laps|partial|measuring|no-baseline, lapsMeasured,
+              where: [corner], toFlagMs, fix: { costMs, savedMs, stopAnyway, pays } } | null,
+    quali: { kind: practice|qualifying|time trial, name, status: garage|out|flying|in|track, lapInvalid,
+             timeLeftS, position, bestMs, poleMs, gapToPoleMs, cut: { position, lineMs, marginMs } | null,
+             projected: { lapMs, position, improves } | null, toLine: { startsInS, spareS, makesIt } | null,
+             runs, traffic: { ahead, behind /* { name, gapS, status } */ } } | null,   // null in a race
     weather: { trackState, nextChange, timeline[], crossover, accuracy, ... } | null,
     battle: { attack, defend /* ML: { p, level } */, attackForecast, defendForecast, call,
               battery: { you, ahead, behind /* { nowPct, atLinePct, trendPctPerLap, basis } */ } },
@@ -180,7 +191,7 @@ f1-race-engineer/
   insights: [ { id, severity: info|advisory|critical, category: pace|strategy|health|flag, message,
                 createdAtMs, expiresAtMs }, ... ],            // sorted most severe first; [0] is the banner
   strategy: { lapsRemaining, fuelMarginLaps, tyreLapsToCliff, tyreWearRatePerLap, battle /* ATTACK|DEFEND|... */,
-              call: { action: PUSH|HOLD|BOX|PIT, reason } } | null,
+              call: { action: PUSH|HOLD|BOX|PIT|PREP /* PREP: out lap, qualifying */, reason } } | null,
   adjust: { current, suggestions: [ { id, kind: bias|diff|ers, action, where, why } ] } | null,
   focus: { screen: drive|battle|strategy|weather|debrief, reason, sinceMs } | null,   // auto-switch
   capturing: bool,

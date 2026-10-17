@@ -397,6 +397,9 @@
     const sc = sess && SAFETY_CAR[sess.safetyCarStatus];
     $('flag').hidden = !sc;
     setText($('flag'), sc || '');
+    const q = s.analysis && s.analysis.quali;
+    $('sess').hidden = !q;
+    setText($('sess'), q ? q.name.toUpperCase() : '');
 
     const wx = s.analysis && s.analysis.weather;
     const nc = wx && wx.nextChange;

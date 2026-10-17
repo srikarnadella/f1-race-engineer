@@ -4,7 +4,7 @@
 // they boxed now. Recomputed on every snapshot tick from FieldModel.
 
 const { createWeatherAnalysis } = require('./weather');
-const { raceLapsLeft, median } = require('./race');
+const { raceLapsLeft, median, withoutSlowLaps } = require('./race');
 const { fitDegradation, stopPayback } = require('../ml/tyreModel');
 const { pairFeatures, toVector } = require('../ml/overtakeFeatures');
 const { predict } = require('../ml/logistic');
@@ -13,6 +13,9 @@ const { strategyOptions } = require('../analysis/strategyOptions');
 const { battleCall } = require('../analysis/battleCall');
 const { projectBattery } = require('../analysis/batteryProjection');
 const { pitTiming } = require('../analysis/pitTiming');
+const { expectedStopIn, learnedStopShare } = require('../analysis/rivalStops');
+const { damageLoss, MINI_SECTORS } = require('../analysis/damageLoss');
+const { qualifying } = require('../analysis/qualifying');
 
 // The trained overtake model (npm run train:overtake), if one has been built.
 let OVERTAKE_MODEL = null;
@@ -68,6 +71,7 @@ function fieldBurnKgPerLap(cars) {
 }
 
 const PACE_LAPS = 3;
+const RECENT_LAPS = 5;
 const DRS_RANGE_MS = 1000;
 const MAX_PROJECTION_LAPS = 30;
 const TRAFFIC_MS = 1500;
@@ -84,6 +88,21 @@ const PIT_LOSS_ESTIMATE_MS = {
   19: 22000, 20: 19000, 26: 21000, 27: 27000, 29: 20000, 30: 20000, 31: 20000, 32: 25000,
 };
 const PIT_LOSS_FALLBACK_MS = 22000;
+
+// Bodywork the Car Damage packet reports, in %. Only the front wing can be
+// changed at a stop in the F1 games. Below DAMAGE_MIN_PCT it's a scratch.
+const DAMAGE_PARTS = [
+  ['frontLeftWingDamage', 'Front wing L', true],
+  ['frontRightWingDamage', 'Front wing R', true],
+  ['rearWingDamage', 'Rear wing', false],
+  ['floorDamage', 'Floor', false],
+  ['diffuserDamage', 'Diffuser', false],
+  ['sidepodDamage', 'Sidepod', false],
+];
+const DAMAGE_MIN_PCT = 10;
+// More damage than this on top counts as a new hit: measure from there.
+const DAMAGE_STEP_PCT = 10;
+const DAMAGE_LAPS = 3;
 // The field crawls under a safety car (1) or VSC (2) while the pit lane
 // speed limit doesn't change, so a stop costs a fraction of its usual time.
 // Rough real-world ratios; the reason a stop under yellow is "cheap".
@@ -91,10 +110,13 @@ const NEUTRALISED_PIT_LOSS_FACTOR = { 1: 0.55, 2: 0.65 };
 const NEUTRALISED_LABEL = { 1: 'SC', 2: 'VSC' };
 
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+const DRY = new Set([16, 17, 18]);
 
 // Average of the last few laps that weren't pit or safety-car laps.
 function cleanPaceMs(car) {
-  const clean = car.lapHistory.filter((l) => !l.pit && !l.neutralised).slice(-PACE_LAPS);
+  // Slow against the recent laps, not the whole race: when rain slows everyone,
+  // the slow laps are the pace now.
+  const clean = withoutSlowLaps(car.lapHistory.filter((l) => !l.pit && !l.neutralised && l.lapNum > 1).slice(-RECENT_LAPS)).slice(-PACE_LAPS);
   return clean.length ? Math.round(avg(clean.map((l) => l.lapMs))) : null;
 }
 
@@ -106,6 +128,26 @@ function gapBetweenMs(ordered, myIdx, theirIdx) {
   let sum = 0;
   for (let k = from + 1; k <= to; k++) sum += ordered[k].lapData.deltaToCarInFrontInMS || 0;
   return theirIdx < myIdx ? -sum : sum;
+}
+
+const fittedSet = (car) => (car.tyreSets || []).find((x) => x.fitted) || null;
+
+// When this car is expected to box (laps from now), from its tyres and
+// whether it still owes the compulsory stop. Dry races only.
+function stopInLapsOf(car, session, dry, stopShare) {
+  if (!car.lapData || !isRunning(car)) return null;
+  // In the pit lane: the stop is happening now (its gap reads as the car ahead's until it rejoins).
+  if (car.lapData.pitStatus !== 0) return 0;
+  if (!dry || !car.status || !DRY.has(car.status.visualTyreCompound)) return null;
+  const set = fittedSet(car);
+  return expectedStopIn({
+    compound: car.status.visualTyreCompound,
+    age: car.status.tyresAgeLaps,
+    usableLife: set ? set.usableLife : null,
+    owesStop: !car.lapData.numPitStops,
+    lapsLeft: raceLapsLeft(session, car.lapData),
+    stopShare,
+  });
 }
 
 const isRunning = (car) => car.lapData && (car.lapData.resultStatus == null || car.lapData.resultStatus === 2);
@@ -166,11 +208,10 @@ function predictRejoin(ordered, player, loss) {
 
 // Builds pitTiming()'s inputs from the field. Only called once the player's
 // degradation is trusted (the same bar as the stop pay-back).
-const DRY = new Set([16, 17, 18]);
-function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pitLossMs, prefer, hold }) {
+function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pitLossMs, stopIn, wingLossMs, prefer, hold }) {
   const degOf = (compound) => (tyreModel.compounds[compound] ? tyreModel.compounds[compound].degMsPerLap : 0);
   const age = player.status.tyresAgeLaps;
-  const fitted = (player.tyreSets || []).find((x) => x.fitted);
+  const fitted = fittedSet(player);
   // The freshest dry set of each compound you have left.
   const freshest = new Map();
   for (const x of player.tyreSets || []) {
@@ -188,14 +229,17 @@ function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pit
     .map((c) => {
       const pace = cleanPaceMs(c);
       return {
+        name: nameOf(c),
+        position: c.lapData.carPosition,
         t: times.get(c.carIndex) || 0,
         paceDeltaMs: pace == null ? 0 : pace - myPace,
         degMs: c.status ? degOf(c.status.visualTyreCompound) : 0,
-        owesStop: !c.lapData.numPitStops,
+        age: c.status ? c.status.tyresAgeLaps : 0,
+        stopIn: stopIn.get(c.carIndex) ?? null,
       };
     });
   return pitTiming({
-    me: { t: times.get(player.carIndex) || 0, position: player.lapData.carPosition, compound: player.status.visualTyreCompound, degMs: myDeg.degMsPerLap, lifeLeft: fitted ? fitted.lifeSpan : null, stopped: player.lapData.numPitStops > 0 },
+    me: { t: times.get(player.carIndex) || 0, position: player.lapData.carPosition, compound: player.status.visualTyreCompound, degMs: myDeg.degMsPerLap, lifeLeft: fitted ? fitted.lifeSpan : null, stopped: player.lapData.numPitStops > 0, wingLossMs },
     sets,
     rivals,
     laps: Math.ceil(lapsLeft),
@@ -215,6 +259,17 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
   // waiting to settle - it replaces the pick once it has held PICK_SETTLE_MS.
   let pitPick = null;
   let pitNext = { lap: null, since: 0 };
+  // The share of its set's rated life each car had used when it made its
+  // first green-flag stop - how this race's AI is actually running it.
+  const stopShares = [];
+  // The player's damage: { firstLap, lap, atM, total, base } - the lap and
+  // point of the first hit and of the latest, and the clean laps before it
+  // (kept here: a long stint would otherwise roll them out of lap history).
+  let damageHit = null;
+  // Seen the car undamaged this session: damage there from the first look
+  // (the dashboard started mid-race) has no clean laps we know of.
+  let sawUndamaged = false;
+  const seenPitEntry = new Map(); // carIndex -> pitEntryAtMs already counted
 
   // A stop splits across two laps (pit entry before the line, box after it),
   // so loss = in-lap + out-lap - 2 x the car's clean pace around it.
@@ -256,6 +311,72 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
     return { ms: factor ? Math.round(base.normalMs * factor) : base.normalMs, neutralised: NEUTRALISED_LABEL[sc] || null, ...base };
   }
 
+  // What the damage on the player's car costs per lap, from mini-sectors.
+  function damageFor({ player, session, tyreModel, myDeg, lapsLeft, pitLossMs }) {
+    const d = player.damage;
+    const parts = d ? DAMAGE_PARTS.map(([k, label, fixable]) => ({ label, pct: d[k], fixable })).filter((x) => x.pct >= DAMAGE_MIN_PCT) : [];
+    const lap = player.lapData.currentLapNum;
+    const total = parts.reduce((a, x) => a + x.pct, 0);
+    // Repaired - or a flashback to before the hit.
+    if (!parts.length || (damageHit && lap < damageHit.firstLap)) damageHit = null;
+    if (!parts.length) {
+      sawUndamaged = true;
+      return null;
+    }
+    const atM = Math.max(0, player.lapData.lapDistance);
+    if (!damageHit) damageHit = { firstLap: lap, lap, atM, total };
+    else if (total >= damageHit.total + DAMAGE_STEP_PCT || lap < damageHit.lap) damageHit = { ...damageHit, lap, atM, total };
+    else damageHit.total = Math.min(damageHit.total, total);
+
+    const byLap = new Map(player.lapHistory.map((l) => [l.lapNum, l]));
+    const clean = (n) => byLap.has(n) && !byLap.get(n).pit && !byLap.get(n).neutralised;
+    const ms = player.miniSectors || [];
+    if (!damageHit.base && !sawUndamaged) damageHit.base = [];
+    if (!damageHit.base) {
+      damageHit.base = ms.filter((m) => m.lapNum < damageHit.firstLap && clean(m.lapNum)).slice(-DAMAGE_LAPS)
+        .map((m) => ({ splits: m.splits, ...byLap.get(m.lapNum) }));
+    }
+    const hitLaps = ms.filter((m) => m.lapNum > damageHit.lap && clean(m.lapNum)).slice(-DAMAGE_LAPS);
+    const L = session && session.trackLength;
+    let partial = null;
+    const p = fieldModel.getPlayerPartialSectors();
+    if (!hitLaps.length && p && L && p.lapNum >= damageHit.lap && !player.lapTouchedPit && !player.lapNeutralised) {
+      partial = { splits: p.splits, fromSector: p.lapNum === damageHit.lap ? Math.floor(damageHit.atM / (L / MINI_SECTORS)) + 1 : 0 };
+    }
+    // What fuel burn and tyre wear alone would have done to the lap time.
+    const meanOf = (xs, f) => xs.reduce((a, x) => a + f(x), 0) / xs.length;
+    const baseEntries = damageHit.base;
+    const nowEntries = hitLaps.length
+      ? hitLaps.map((m) => byLap.get(m.lapNum))
+      : [{ lapNum: lap, tyreAge: player.status ? player.status.tyresAgeLaps : null, compound: player.status ? player.status.visualTyreCompound : null }];
+    let driftMs = 0;
+    if (baseEntries.length) {
+      driftMs -= tyreModel.fuelMsPerLap * (meanOf(nowEntries, (l) => l.lapNum) - meanOf(baseEntries, (l) => l.lapNum));
+      const sameSet = myDeg && nowEntries.concat(baseEntries).every((l) => l.compound === nowEntries[0].compound && l.tyreAge != null);
+      if (sameSet) driftMs += myDeg.degMsPerLap * (meanOf(nowEntries, (l) => l.tyreAge) - meanOf(baseEntries, (l) => l.tyreAge));
+    }
+    const loss = L ? damageLoss({
+      baseline: damageHit.base.map((m) => m.splits),
+      damaged: hitLaps.map((m) => m.splits),
+      partial,
+      driftMs: Math.round(driftMs),
+      corners: fieldModel.getPlayerCorners(),
+      trackLength: L,
+      lapsLeft,
+      pitLossMs,
+      fixable: parts.some((x) => x.fixable),
+      fixableShare: Math.round((parts.filter((x) => x.fixable).reduce((a, x) => a + x.pct, 0) / total) * 100) / 100,
+      stopAnyway: !player.lapData.numPitStops && lapsLeft != null,
+    }) : null;
+    return {
+      parts,
+      sinceLap: damageHit.firstLap,
+      // The share of the loss a new nose gets back: the wing's part of the damage.
+      fixableShare: Math.round((parts.filter((x) => x.fixable).reduce((a, x) => a + x.pct, 0) / total) * 100) / 100,
+      ...(loss || { lossPerLapMs: null, basis: 'no-baseline', lapsMeasured: 0, where: [] }),
+    };
+  }
+
   function compute() {
     if (fieldModel.getGeneration() !== seenGeneration) {
       seenGeneration = fieldModel.getGeneration();
@@ -263,12 +384,27 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       weatherAnalysis.reset();
       pitPick = null;
       pitNext = { lap: null, since: 0 };
+      stopShares.length = 0;
+      seenPitEntry.clear();
+      damageHit = null;
+      sawUndamaged = false;
     }
     const playerIdx = fieldModel.playerIndex();
     const ordered = fieldModel.orderedByPosition();
     for (const car of ordered) measurePitLosses(car);
     const session = fieldModel.getSession();
     const loss = pitLoss(session);
+
+    const neutralisedNow = fieldModel.isRedFlag() || !!(session && session.safetyCarStatus);
+    for (const car of ordered) {
+      if (!car.pitEntryAtMs || seenPitEntry.get(car.carIndex) === car.pitEntryAtMs) continue;
+      seenPitEntry.set(car.carIndex, car.pitEntryAtMs);
+      const set = fittedSet(car);
+      // A stop under a safety car is opportunism, not the plan.
+      if (!neutralisedNow && car.carIndex !== playerIdx && !car.lapData.numPitStops && set && set.usableLife && car.status && DRY.has(car.status.visualTyreCompound)) {
+        stopShares.push(car.status.tyresAgeLaps / set.usableLife);
+      }
+    }
 
     const myPos = ordered.findIndex((c) => c.carIndex === playerIdx);
     const playerCar = myPos === -1 ? null : ordered[myPos];
@@ -285,6 +421,9 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
     if (myPos === -1) return { field: [], playerPaceMs: null, pitLoss: loss, rejoin: null, weather };
     const player = playerCar;
 
+    const dry = !weather || weather.trackState === 'dry';
+    const stopShare = learnedStopShare(stopShares);
+    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare)]));
     const field = ordered.map((car, j) => {
       const pace = cleanPaceMs(car);
       const gap = gapBetweenMs(ordered, myPos, j);
@@ -311,6 +450,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
         tyreCompound: car.status ? car.status.visualTyreCompound : null,
         tyresAgeLaps: car.status ? car.status.tyresAgeLaps : null,
         numPitStops: car.lapData.numPitStops,
+        // Laps until this car is expected to box (0 = this lap), or null.
+        stopInLaps: stopIn.get(car.carIndex),
         pitStatus: car.lapData.pitStatus,
         running: isRunning(car),
         // F1 26 Overtake mode: this car has it available right now.
@@ -362,9 +503,9 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       : null;
 
     const rejoin = predictRejoin(ordered, player, loss.ms);
+    const damage = damageFor({ player, session, tyreModel, myDeg, lapsLeft: raceLapsLeft(session, player.lapData), pitLossMs: loss.ms });
 
     // ATTACK / DEFEND / CLOSE IN / CLEAR.
-    const neutralisedNow = fieldModel.isRedFlag() || !!(session && session.safetyCarStatus);
     battle.call = player.lapData.pitStatus === 0 ? battleCall({
       ahead: rowOf(ahead),
       behind: rowOf(behind),
@@ -392,11 +533,11 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       : null;
 
     // Green flag, dry, a race with laps to go: which lap to box on.
-    const dry = !weather || weather.trackState === 'dry';
     const lapsLeftNow = raceLapsLeft(session, player.lapData);
     const lap = player.lapData.currentLapNum;
     const toLap = (k) => (k === 'stay' || k == null ? k : lap + k);
-    const timingInputs = { ordered, player, myPace, myDeg, tyreModel, lapsLeft: lapsLeftNow, pitLossMs: loss.ms };
+    const wingLossMs = damage && damage.lossPerLapMs > 0 ? Math.round(damage.lossPerLapMs * damage.fixableShare) : 0;
+    const timingInputs = { ordered, player, myPace, myDeg, tyreModel, lapsLeft: lapsLeftNow, pitLossMs: loss.ms, stopIn, wingLossMs };
     let timing = !situation && dry && payback && rejoin && myPace != null && lapsLeftNow != null
       ? pitTimingFor({ ...timingInputs, prefer: pitPick === 'stay' ? 'stay' : pitPick != null ? pitPick - lap : null, hold: true })
       : null;
@@ -416,6 +557,9 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true } = {}) {
       rejoin,
       options,
       pitTiming: timing,
+      damage,
+      // Practice / qualifying: the lap-by-lap view instead of the race calls.
+      quali: qualifying({ session, cars: ordered, player, delta: fieldModel.getPlayerDelta() }),
       weather,
       battle,
       tyreModel: { ...tyreModel, mine: myDeg ? { compound: myCompound, ...myDeg } : null, payback },

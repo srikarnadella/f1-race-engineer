@@ -292,6 +292,62 @@
     },
   };
 
+  // ---------- Qualifying / practice: this lap and where you stand ----------
+  const clockText = (s) => (isNum(s) ? `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, Math.round(s)) % 60).padStart(2, '0')}` : '–');
+  const LAP_STATUS = { garage: 'In the garage', out: 'Out lap', in: 'In lap', track: 'On track', flying: 'Push lap' };
+  function qualiSides(s, q) {
+    const lap = { name: LAP_STATUS[q.status] || '', gap: '–', gapTone: 'is-muted', trend: '', trendTone: 'is-muted', chip: '', extra: '' };
+    if (q.status === 'flying') {
+      if (q.lapInvalid) Object.assign(lap, { gap: 'Deleted', gapTone: 'is-act', trend: "track limits - it won't count", trendTone: 'is-act' });
+      else if (q.projected) {
+        const tone = q.projected.improves ? 'is-pb' : 'is-watch';
+        Object.assign(lap, { gap: `P${q.projected.position}`, gapTone: tone, trend: `${deltaText(s.player.deltaToBestMs)} to your best`, trendTone: tone });
+      } else Object.assign(lap, { gap: 'Timed', gapTone: 'is-good', trend: 'first time on the board' });
+    } else if (q.toLine) {
+      const ok = q.toLine.makesIt;
+      Object.assign(lap, { gap: clockText(q.toLine.startsInS), gapTone: ok ? '' : 'is-act', trend: !ok ? 'the flag falls first' : q.toLine.spareS != null ? `to the line · ${clockText(q.toLine.spareS)} to spare` : 'to the line', trendTone: ok ? 'is-muted' : 'is-act' });
+    } else if (q.status === 'garage') {
+      Object.assign(lap, { gap: clockText(q.timeLeftS), gapTone: '', trend: q.runs === 0 ? 'left · no time for another run' : `left · time for ${q.runs} run${q.runs === 1 ? '' : 's'}` });
+    }
+    const t = q.traffic && (q.traffic.ahead || q.traffic.behind);
+    if (t) Object.assign(lap, { chip: q.traffic.ahead ? `TRAFFIC ${t.gapS.toFixed(1)}s` : 'LET BY', chipTone: 'is-watch', extra: t.name });
+    const stand = { name: q.cut ? `Top ${q.cut.position} go through` : 'By best lap', gap: q.position ? `P${q.position}` : '–', gapTone: q.position ? '' : 'is-muted', trend: q.position == null ? 'no time yet' : q.position === 1 ? 'fastest' : `+${secs(q.gapToPoleMs, 3)} to P1`, trendTone: 'is-muted', chip: '', extra: '' };
+    if (q.cut && q.cut.marginMs != null) {
+      const through = q.cut.marginMs < 0;
+      Object.assign(stand, { chip: through ? 'THROUGH' : 'OUT', chipTone: through ? 'is-good' : 'is-act', extra: `${secs(q.cut.marginMs, 3)} ${through ? 'clear of' : 'short of'} P${q.cut.position}` });
+    }
+    return { lap, stand };
+  }
+  function qualiTiles(q) {
+    const best = [q.bestMs ? fmtLap(q.bestMs) : 'No time', q.position ? `P${q.position}${q.position > 1 ? ` · +${secs(q.gapToPoleMs, 3)} to P1` : ''}` : 'set a lap', q.bestMs ? '' : 'is-muted'];
+    let cut = ['–', 'no cut this session', 'is-muted'];
+    if (q.cut) {
+      cut = q.cut.marginMs == null
+        ? ['–', `P${q.cut.position} goes through`, 'is-muted']
+        : [`${secs(q.cut.marginMs, 3)} ${q.cut.marginMs < 0 ? 'clear' : 'short'}`, `P${q.cut.position} at ${fmtLap(q.cut.lineMs)}`, q.cut.marginMs < 0 ? 'is-good' : 'is-act'];
+    } else if (q.poleMs) {
+      cut = [q.position === 1 ? 'You' : `+${secs(q.gapToPoleMs, 3)}`, `P1 ${fmtLap(q.poleMs)}`, q.position === 1 ? 'is-pb' : ''];
+    }
+    return {
+      tyre: ['Time left', q.timeLeftS == null ? 'No clock' : clockText(q.timeLeftS), q.runs != null ? (q.runs === 0 ? 'no time for another run' : `time for ${q.runs} run${q.runs === 1 ? '' : 's'}`) : q.toLine && q.toLine.spareS != null ? `${clockText(q.toLine.spareS)} spare at the line` : q.timeLeftS == null ? 'time trial' : 'start a lap before 0:00', q.timeLeftS <= 120 ? 'is-watch' : ''],
+      box: ['Best', ...best],
+      wx: [q.cut ? 'Cut' : 'To P1', ...cut],
+    };
+  }
+  // The Car tile: what damage is costing, else the setup tip.
+  function carTile(s) {
+    const d = s.analysis && s.analysis.damage;
+    if (d) {
+      const l = d.lossPerLapMs;
+      if (l == null) return ['Damage', d.basis === 'no-baseline' ? 'no clean lap to compare' : 'measuring the cost', 'is-watch'];
+      if (l < 150) return ['Damage', 'not costing lap time', 'is-muted'];
+      const verdict = d.fix ? (d.fix.pays ? (d.fix.stopAnyway ? 'new nose at your stop' : 'box for a new nose') : 'not worth a stop') : d.parts.map((x) => x.label.toLowerCase()).join(', ');
+      return [`+${secs(l)}s/lap`, verdict, 'is-act'];
+    }
+    const tip = s.adjust && s.adjust.suggestions[0];
+    return tip ? [tip.action, tip.where, 'is-info'] : ['Balanced', 'no changes needed', 'is-muted'];
+  }
+
   // ---------- Drive: the one screen to leave up while racing ----------
   // Only what the game's HUD and MFD can't tell you, sized for a half-second
   // glance: the call, the fight either side, the engineer's latest radio
@@ -301,7 +357,8 @@
     description: 'The glance screen: the call, the battle either side, the radio, and what\'s coming',
     tall: true,
     mount(el) {
-      const tile = (k, label) => `<div class="w-drive__tile" data-ref="${k}Tile"><span class="w-label">${label}</span><b data-ref="${k}">–</b><span class="w-drive__sub" data-ref="${k}Sub"></span></div>`;
+      const tile = (k, label) => `<div class="w-drive__tile" data-ref="${k}Tile"><span class="w-label" data-ref="${k}Label">${label}</span><b data-ref="${k}">–</b><span class="w-drive__sub" data-ref="${k}Sub"></span></div>`;
+      const LABELS = { tyre: 'Tyres', box: 'Box now', wx: 'Weather' };
       const r = template(el, `
         <div class="w-drive">
           <div class="w-drive__call" data-ref="callBox"><span class="w-drive__action" data-ref="action">–</span><span class="w-drive__reason" data-ref="reason">Waiting for lap data</span></div>
@@ -309,6 +366,7 @@
           <div class="w-drive__middle">
             <div class="w-drive__battle" data-ref="battleBox">${sideHtml('a', 'Ahead', false)}${sideHtml('b', 'Behind', false)}</div>
             <div class="w-drive__options w-opt" data-ref="optBox" hidden></div>
+            <div class="w-drive__battle w-drive__quali" data-ref="qualiBox" hidden>${sideHtml('q', 'This lap', false)}${sideHtml('s', 'Standing', false)}</div>
           </div>
           <div class="w-drive__radio" data-ref="radioBox"><span class="w-drive__radio-tag">RADIO</span><span data-ref="radio">No calls - drive</span></div>
           <div class="w-drive__tiles">${tile('tyre', 'Tyres')}${tile('box', 'Box now')}${tile('wx', 'Weather')}${tile('tip', 'Car')}</div>
@@ -319,6 +377,34 @@
         setText(r.action, st ? st.call.action : '–');
         r.callBox.dataset.action = st ? st.call.action : '';
         setText(r.reason, st ? st.call.reason : 'Waiting for lap data');
+
+        const top = (s.insights || [])[0];
+        setText(r.radio, top ? top.message : 'No calls - drive');
+        r.radioBox.dataset.severity = top ? top.severity : 'none';
+        const car = carTile(s);
+        setText(r.tip, car[0]);
+        setText(r.tipSub, car[1]);
+        setTone(r.tip, car[2]);
+
+        // Practice / qualifying: this lap and where you stand, not a battle.
+        const q = a.quali;
+        r.qualiBox.hidden = !q;
+        if (q) {
+          r.battleBox.hidden = true;
+          r.optBox.hidden = true;
+          r.modeBox.hidden = true;
+          const sides = qualiSides(s, q);
+          fillSide(r, 'q', sides.lap, null);
+          fillSide(r, 's', sides.stand, null);
+          for (const [k, [label, value, sub, tone]] of Object.entries(qualiTiles(q))) {
+            setText(r[`${k}Label`], label);
+            setText(r[k], value);
+            setText(r[`${k}Sub`], sub);
+            setTone(r[k], tone);
+          }
+          return;
+        }
+        for (const [k, label] of Object.entries(LABELS)) setText(r[`${k}Label`], label);
 
         const { ahead, behind } = neighbours(s);
         fillSide(r, 'a', battleSide(s, ahead, 'ahead'), ahead);
@@ -336,10 +422,6 @@
           r.optBox.dataset.sig = osig;
           r.optBox.innerHTML = optionsHtml(o);
         }
-
-        const top = (s.insights || [])[0];
-        setText(r.radio, top ? top.message : 'No calls - drive');
-        r.radioBox.dataset.severity = top ? top.severity : 'none';
 
         // Tyres: the projection, not the wear % the MFD already shows.
         const cliff = st && st.tyreLapsToCliff;
@@ -372,11 +454,6 @@
         setText(r.wx, w[0]);
         setText(r.wxSub, w[1]);
         setTone(r.wx, w[2]);
-
-        const tip = s.adjust && s.adjust.suggestions[0];
-        setText(r.tip, tip ? tip.action : 'Balanced');
-        setText(r.tipSub, tip ? tip.where : 'no changes needed');
-        setTone(r.tip, tip ? 'is-info' : 'is-muted');
       };
     },
   };
@@ -445,9 +522,10 @@
     return `<div class="w-pt">
       <div class="w-pt__head"><span class="w-pt__when">${whenText(best)}</span><span class="w-pt__sub">${best.inLaps == null ? `finish ~P${best.finishPosition}` : `lap ${lap + best.inLaps} · ${esc(best.compoundName)}s · finish ~P${best.finishPosition}`}</span></div>
       <table class="tbl w-pt__tbl"><thead><tr><th>Stop</th><th>Tyre</th><th class="num">Rejoin</th><th class="num">Finish</th><th class="num">Cost</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="w-foot">Each stop lap raced to the flag against the field · pit loss ${pl ? secs(pl.ms) : '–'}s</div></div>`;
+      ${pt.stops && pt.stops.length ? `<div class="w-pt__stops"><span class="w-label">Expected stops</span>${pt.stops.map((x) => `<span>${esc(x.name)} <span class="dim">P${x.position}</span> ${x.inLaps === 0 ? 'this lap' : x.inLaps === 1 ? 'next lap' : `in ${x.inLaps}`}</span>`).join('')}</div>` : ''}
+      <div class="w-foot">Each stop lap raced to the flag against the field and its expected stops · pit loss ${pl ? secs(pl.ms) : '–'}s</div></div>`;
   }
-  const ptSig = (pt) => JSON.stringify(pt.options.map((o) => [o.id, o.compound, o.rejoinPosition, o.inTraffic, o.finishPosition, o.lossS]));
+  const ptSig = (pt) => JSON.stringify([pt.options.map((o) => [o.id, o.compound, o.rejoinPosition, o.inTraffic, o.finishPosition, o.lossS]), pt.stops]);
 
   W.pittiming = {
     title: 'Pit timing',
