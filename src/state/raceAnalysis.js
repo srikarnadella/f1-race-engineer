@@ -97,8 +97,8 @@ const PIT_LOSS_FALLBACK_MS = 22000;
 // Bodywork the Car Damage packet reports, in %. Only the front wing can be
 // changed at a stop in the F1 games. Below DAMAGE_MIN_PCT it's a scratch.
 const DAMAGE_PARTS = [
-  ['frontLeftWingDamage', 'Front wing L', true],
-  ['frontRightWingDamage', 'Front wing R', true],
+  ['frontLeftWingDamage', 'Front-left wing', true],
+  ['frontRightWingDamage', 'Front-right wing', true],
   ['rearWingDamage', 'Rear wing', false],
   ['floorDamage', 'Floor', false],
   ['diffuserDamage', 'Diffuser', false],

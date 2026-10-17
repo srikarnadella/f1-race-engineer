@@ -85,9 +85,9 @@ test('qualifying: the call is about the lap, and the race calls stay quiet', () 
 test('ask: damage, and qualifying answers', () => {
   const s = {
     player: { position: 5 },
-    analysis: { damage: { parts: [{ label: 'Front wing L', pct: 40, fixable: true }], lossPerLapMs: 800, toFlagMs: 12000, fix: { costMs: 26000, pays: false, stopAnyway: false } } },
+    analysis: { damage: { parts: [{ label: 'Front-left wing', pct: 40, fixable: true }], lossPerLapMs: 800, toFlagMs: 12000, fix: { costMs: 26000, pays: false, stopAnyway: false } } },
   };
-  assert.strictEqual(ask('how bad is the front wing', s).reply, 'front wing l 40%: costing 0.8s a lap, about 12s to the flag. A new nose costs about 26s - not worth a stop.');
+  assert.strictEqual(ask('how bad is the front wing', s).reply, 'front-left wing 40%: costing 0.8s a lap, about 12s to the flag. A new nose costs about 26s - not worth a stop.');
   assert.strictEqual(ask('damage', { player: {}, analysis: {} }).reply, 'No damage.');
   const q = { player: { position: 5 }, analysis: { quali: { name: 'Q1', position: 14, gapToPoleMs: 1200, cut: { position: 15, marginMs: -80 }, timeLeftS: 125, traffic: { ahead: { name: 'STROLL', gapS: 1.3, status: 'out' }, behind: null } } } };
   assert.strictEqual(ask('am I through', q).reply, 'Q1: P14, 0.080 clear of the cut, 2 minutes 5 left.');
