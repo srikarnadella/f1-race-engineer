@@ -9,7 +9,7 @@ const { createInsightEngine } = require('./state/insightEngine');
 const { createRaceAnalysis } = require('./state/raceAnalysis');
 const { createTrackMemory } = require('./state/trackMemory');
 const { buildSnapshot } = require('./server/snapshot');
-const { createDebrief } = require('./state/debrief');
+const { createDebrief, RIVAL_ID } = require('./state/debrief');
 const { createFocus } = require('./state/focus');
 const { startServer } = require('./server/httpServer');
 
@@ -147,7 +147,9 @@ function main() {
   })();
   function api(pathname, params) {
     const lap = (k) => (params.get(k) ? Number(params.get(k)) : null);
-    if (pathname === '/api/debrief/compare') return debrief.compare(params.get('session'), lap('a'), lap('b'));
+    // b: a lap number, or a rival's best lap ('r<carIndex>').
+    const b = params.get('b');
+    if (pathname === '/api/debrief/compare') return debrief.compare(params.get('session'), lap('a'), b && RIVAL_ID.test(b) ? b : lap('b'));
     if (pathname === '/api/debrief/rivals') return debrief.rivals(params.get('session'));
     if (pathname === '/api/models') return { ...MODEL_INFO, tyre: latest.analysis ? latest.analysis.tyreModel : null };
     return null;

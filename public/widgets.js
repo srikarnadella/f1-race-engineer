@@ -852,6 +852,15 @@
     const dMax = Math.max(...t.delta);
     const pad = Math.max(0.1, (dMax - dMin) * 0.1);
     const opts = (sel) => c.laps.map((l) => `<option value="${l.lap}"${l.lap === sel ? ' selected' : ''}>Lap ${l.lap} · ${fmtLap(l.timeMs)}</option>`).join('');
+    // The vs list also offers the fastest rivals' best laps.
+    const rivalOpts = (c.rivals || []).length
+      ? `<optgroup label="Best laps in the field">${c.rivals.map((r) => `<option value="${r.id}"${r.id === c.lapA.id ? ' selected' : ''}>${esc(r.name)} · ${fmtLap(r.timeMs)}</option>`).join('')}</optgroup>`
+      : '';
+    // Against a rival their lap is the reference (A) and yours is B; the pickers stay "your lap" / "vs".
+    const vsRival = !!c.lapA.rival;
+    const mine = vsRival ? c.lapB : c.lapA;
+    const nameA = vsRival ? esc(c.lapA.rival) : `lap ${c.lapA.lapNum}`;
+    const nameB = `lap ${c.lapB.lapNum}`;
     const spread = new Map((c.consistency || []).map((x) => [x.corner, x]));
     const rows = c.corners.map((k) => {
       const sp = spread.get(k.corner);
@@ -862,14 +871,14 @@
     }).join('');
     return `
       <div class="w-cmp__bar">
-        <label>Reference <select data-pick="a">${opts(c.lapA.lapNum)}</select></label>
-        <label>vs <select data-pick="b">${opts(c.lapB.lapNum)}</select></label>
+        <label>${vsRival ? 'Your lap' : 'Reference'} <select data-pick="a">${opts(mine.lapNum)}</select></label>
+        <label>vs <select data-pick="b">${opts(vsRival ? null : c.lapB.lapNum)}${rivalOpts}</select></label>
         <b class="w-cmp__total ${c.totalS > 0 ? 'is-act' : 'is-good'}">${signedS(c.totalS, 3)}</b>
       </div>
       <ul class="w-cmp__headline">${c.headline.length ? c.headline.map((h) => `<li>${esc(h)}</li>`).join('') : '<li class="dim">Nothing stands out - the two laps are close everywhere.</li>'}</ul>
-      <div class="w-cmp__chart"><div class="w-label">Time gap (lap ${c.lapB.lapNum} vs ${c.lapA.lapNum}) <span class="dim">up = losing</span></div>
+      <div class="w-cmp__chart"><div class="w-label">Time gap (${nameB} vs ${nameA}) <span class="dim">up = losing</span></div>
         ${lineChart([{ d: t.d, values: t.delta, cls: 'delta' }], { yMin: dMin - pad, yMax: dMax + pad, zero: true, markers: c.corners.map((k) => k.atM), endD, height: 90 })}</div>
-      <div class="w-cmp__chart"><div class="w-label">Speed <span class="w-cmp__key"><i class="a"></i>lap ${c.lapA.lapNum} <i class="b"></i>lap ${c.lapB.lapNum}</span></div>
+      <div class="w-cmp__chart"><div class="w-label">Speed <span class="w-cmp__key"><i class="a"></i>${nameA} <i class="b"></i>${nameB}</span></div>
         ${lineChart([{ d: t.d, values: t.a.speed, cls: 'a' }, { d: t.d, values: t.b.speed, cls: 'b' }], { yMin: 0, yMax: 350, markers: c.corners.map((k) => k.atM), endD, height: 130 })}</div>
       <div class="w-cmp__chart"><div class="w-label">Throttle</div>
         ${lineChart([{ d: t.d, values: t.a.throttle, cls: 'a thr' }, { d: t.d, values: t.b.throttle, cls: 'b thr' }], { yMin: 0, yMax: 1.05, endD, height: 54 })}</div>
@@ -902,7 +911,7 @@
         <div class="w-riv__axis"><span>Start</span><span>Lap distance →</span><span>Finish</span></div></div>
       <div class="w-label">Where the time goes</div>
       <ul class="w-cmp__headline">${r.biggestLosses.length ? r.biggestLosses.map((l) => `<li>${esc(l.text)}</li>`).join('') : '<li class="dim">You match them everywhere.</li>'}</ul>
-      <div class="w-foot">Every car is timed through ${r.miniSectors} equal slices of the lap from the game's lap data - only your own inputs are sent, but everyone's timing is.</div>`;
+      <div class="w-foot">Every car is timed through ${r.miniSectors} equal slices of the lap from the game's lap data. For brake points against a rival, pick their best lap in Lap compare.</div>`;
   }
 
   const FEATURE_LABEL = {
@@ -992,7 +1001,8 @@
       body.addEventListener('change', (e) => {
         const which = e.target.dataset && e.target.dataset.pick;
         if (!which) return;
-        pick[which] = Number(e.target.value);
+        // A lap number, or a rival's best lap ('r<carIndex>').
+        pick[which] = /^r\d+$/.test(e.target.value) ? e.target.value : Number(e.target.value);
         sig = '';
         draw();
       });

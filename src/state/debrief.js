@@ -41,13 +41,14 @@ function bestSectors(sh) {
 // Saved sessions: one gzipped JSON file per session in `dir` (data/sessions),
 // written once when the session ends. The Maps go to arrays and back.
 function toFile(rec) {
-  return zlib.gzipSync(JSON.stringify({ ...rec, field: [...rec.field], traces: [...rec.traces] }));
+  return zlib.gzipSync(JSON.stringify({ ...rec, field: [...rec.field], traces: [...rec.traces], rivalBest: [...rec.rivalBest] }));
 }
 function fromFile(buf) {
   const rec = JSON.parse(zlib.gunzipSync(buf));
-  return { ...rec, field: new Map(rec.field), traces: new Map(rec.traces), generation: null };
+  return { ...rec, field: new Map(rec.field), traces: new Map(rec.traces), rivalBest: new Map(rec.rivalBest || []), generation: null };
 }
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+const RIVAL_ID = /^r\d+$/;
 
 // dir: where to save finished sessions (null = keep them in memory only,
 // e.g. the demo replay, tests and capture analysis).
@@ -95,6 +96,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       safetyCars: 0,
       fastestLap: null, // { name, ms }
       traces: new Map(), // lapNum -> the player's input trace (debrief lap comparison)
+      rivalBest: new Map(), // carIndex -> { name, ...trace } of that car's best clean lap
       classification: null, // Final Classification: the official result
       lapPositions: null, // every car's position at the start of each lap
       playerIdx: null,
@@ -121,6 +123,19 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     if (session && current.sessionType == null) Object.assign(current, { sessionType: session.sessionType, trackId: session.trackId, totalLaps: session.totalLaps });
     if (session && session.trackLength) current.trackLength = session.trackLength;
     for (const trace of fieldModel.takePlayerLapTraces()) current.traces.set(trace.lapNum, trace);
+    // Each rival's best clean lap from the line - one per car keeps a saved session small.
+    for (const t of fieldModel.takeRivalLapTraces()) {
+      const car = fieldModel.getCar(t.carIndex);
+      const rec = car.lapHistory.find((l) => l.lapNum === t.lapNum);
+      if (!t.startedAtLine || t.invalid || !(t.lapMs > 0) || !rec || rec.pit || rec.neutralised || t.lapNum < 2) continue;
+      const had = current.rivalBest.get(t.carIndex);
+      if (!had || t.lapMs < had.lapMs) current.rivalBest.set(t.carIndex, { name: (car.participant && car.participant.name) || `Car ${t.carIndex}`, ...t });
+    }
+    // A flashback: a best lap the rival hasn't driven yet never happened.
+    for (const [idx, t] of current.rivalBest) {
+      const ld = fieldModel.getCar(idx).lapData;
+      if (ld && ld.currentLapNum <= t.lapNum) current.rivalBest.delete(idx);
+    }
 
     const pi = fieldModel.playerIndex();
     const player = pi == null ? null : fieldModel.getCar(pi);
@@ -303,21 +318,37 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       .map((l) => ({ lap: l.lap, timeMs: l.timeMs, neutralised: l.neutralised }));
   }
 
+  // The fastest rivals' best laps, for "vs" in lap compare: ids are 'r<carIndex>'.
+  const RIVAL_CHOICES = 5;
+  const rivalChoices = (s) => [...(s.rivalBest || new Map())]
+    .sort((x, y) => x[1].lapMs - y[1].lapMs)
+    .slice(0, RIVAL_CHOICES)
+    .map(([idx, t]) => ({ id: `r${idx}`, name: t.name, lapNum: t.lapNum, timeMs: t.lapMs }));
+
   // Lap B against lap A (default: the best comparable lap vs the latest).
+  // b may be a rival's best lap ('r<carIndex>'): then their lap is the
+  // reference and yours (a, or your best) is measured against it - where
+  // you lose time to them, brake point by brake point.
   function compare(id, a, b) {
     const s = find(id);
     if (!s) return { error: 'No such session' };
     const laps = comparableLaps(s).filter((l) => !l.neutralised);
-    if (laps.length < 2) return { error: 'Needs two complete, clean laps with telemetry' };
+    const rivals = rivalChoices(s);
+    const rivalB = typeof b === 'string' && RIVAL_ID.test(b) && s.rivalBest ? s.rivalBest.get(Number(b.slice(1))) : null;
+    if (laps.length < (rivalB ? 1 : 2)) return { error: 'Needs two complete, clean laps with telemetry' };
     const best = laps.reduce((x, y) => (y.timeMs < x.timeMs ? y : x));
     const lapA = s.traces.get(a != null ? a : best.lap);
-    const lapB = s.traces.get(b != null ? b : laps.filter((l) => l.lap !== best.lap).pop().lap);
+    const lapB = rivalB || s.traces.get(b != null ? Number(b) : laps.filter((l) => l.lap !== best.lap).pop().lap);
     if (!lapA || !lapB) return { error: 'No telemetry for that lap' };
     const recA = s.laps.find((l) => l.lap === lapA.lapNum);
-    const recB = s.laps.find((l) => l.lap === lapB.lapNum);
+    const recB = rivalB ? null : s.laps.find((l) => l.lap === lapB.lapNum);
+    const mine = { ...lapA, lapMs: recA ? recA.timeMs : lapA.lapMs };
+    const out = rivalB ? compareLaps(rivalB, mine) : compareLaps(mine, { ...lapB, lapMs: recB ? recB.timeMs : lapB.lapMs });
+    if (rivalB) out.lapA = { ...out.lapA, rival: rivalB.name, id: b };
     return {
       laps,
-      ...compareLaps({ ...lapA, lapMs: recA ? recA.timeMs : lapA.lapMs }, { ...lapB, lapMs: recB ? recB.timeMs : lapB.lapMs }),
+      rivals,
+      ...out,
       consistency: consistency(laps.map((l) => s.traces.get(l.lap))),
     };
   }
@@ -335,4 +366,4 @@ function createDebrief(fieldModel, { dir = null } = {}) {
   return { tick, view, compare, rivals, flush };
 }
 
-module.exports = { createDebrief, SESSION_TYPES, TRACKS };
+module.exports = { RIVAL_ID, createDebrief, SESSION_TYPES, TRACKS };

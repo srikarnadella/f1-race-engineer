@@ -284,9 +284,12 @@ real bugs in the rejoin model, written up in [how it works](docs/how-it-works.md
   140 m apart can't swap), and explains each corner by brake point, apex and exit speed. Losses away from any
   braking zone (contact, traffic, a fast corner) are named too. On a real Suzuka race it found the 1.35 s lost to a
   lap-4 contact after the hairpin, and that the hairpin brake point varied ±11 m from lap to lap.
-- **Rivals:** the game only sends inputs for your car, but its lap data gives every car's distance and time, so each
-  car is timed through 25 equal slices of the lap. Lap 1 and physically impossible splits (flashback glitches) are
-  dropped.
+- **Rivals:** every car is timed through 25 equal slices of the lap from its lap data. Lap 1 and physically impossible
+  splits (flashback glitches) are dropped.
+- **Your lap against a rival's:** offline, the game sends every car's speed, throttle and brake, not just yours. Each
+  rival's best clean lap is traced, and Lap compare can set your lap against the five fastest ("corner 8: braked 25 m
+  earlier, 4 km/h slower at the apex" against Antonelli at Suzuka). Online, other cars' telemetry may be withheld;
+  that's untested.
 
 ## How it works
 

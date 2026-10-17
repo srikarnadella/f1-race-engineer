@@ -1,10 +1,12 @@
-// Records the player's inputs against distance for every lap, at full packet
+// Records a car's inputs against distance for every lap, at full packet
 // rate - the raw material for the debrief's lap comparison ("braked 12 m
 // earlier into turn 1, 6 km/h slower at the apex"). A completed lap's trace
 // is handed over once; the debrief keeps it.
 
 const SAMPLE_EVERY_M = 2;
 const FLASHBACK_REWIND_M = 30;
+// Uncollected laps kept (a replay without a debrief never collects them).
+const MAX_PENDING = 3;
 
 function createLapTraceRecorder() {
   let lapNum = null;
@@ -19,7 +21,10 @@ function createLapTraceRecorder() {
       // Only a lap completed going forwards; a flashback back across the
       // line throws the partial lap away (and any traces not yet collected
       // for laps that are now in the future).
-      if (lap.currentLapNum > lapNum && points.length > 50) completed.push({ lapNum, startedAtLine, invalid, lapMs: lap.lastLapTimeInMS, points });
+      if (lap.currentLapNum > lapNum && points.length > 50) {
+        completed.push({ lapNum, startedAtLine, invalid, lapMs: lap.lastLapTimeInMS, points });
+        if (completed.length > MAX_PENDING) completed.shift();
+      }
       if (lap.currentLapNum < lapNum) for (let i = completed.length - 1; i >= 0; i--) if (completed[i].lapNum >= lap.currentLapNum) completed.splice(i, 1);
       points = [];
       invalid = false;
@@ -52,8 +57,8 @@ function createLapTraceRecorder() {
 }
 
 // Each car's time at evenly spaced points round the lap ("mini-sectors"),
-// from Lap Data alone - so every car on track can be compared, not just the
-// player (the game only sends inputs for your own car).
+// from Lap Data alone - so every car on track can be compared, online too,
+// where other cars' telemetry may be withheld.
 const MINI_SECTORS = 25;
 
 function createMiniSectorTracker() {

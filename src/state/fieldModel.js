@@ -39,6 +39,9 @@ function createFieldModel() {
   let playerDelta = createLapDeltaTracker();
   let playerBalance = createCarBalanceTracker();
   let playerTrace = createLapTraceRecorder();
+  // Offline the game sends every car's speed, throttle and brake, not just
+  // yours (seen on real F1 26 races), so rivals' laps can be traced too.
+  let rivalTraces = new Map(); // carIndex -> recorder
   const miniSectors = createMiniSectorTracker();
 
   // A new session in-game, or a demo replay looping back to its start, must
@@ -58,6 +61,7 @@ function createFieldModel() {
     playerDelta = createLapDeltaTracker();
     playerBalance = createCarBalanceTracker();
     playerTrace = createLapTraceRecorder();
+    rivalTraces = new Map();
     miniSectors.reset();
     generation++;
   }
@@ -222,6 +226,9 @@ function createFieldModel() {
       if (i === playerCarIndex) {
         playerDelta.update(c, session && session.trackLength);
         playerTrace.update(c, car.telemetry);
+      } else if (car.telemetry) {
+        if (!rivalTraces.has(i)) rivalTraces.set(i, createLapTraceRecorder());
+        rivalTraces.get(i).update(c, car.telemetry);
       }
       miniSectors.update(i, car, c, session && session.trackLength);
       car.lapData = c;
@@ -387,10 +394,15 @@ function createFieldModel() {
     return playerTrace.take();
   }
 
+  // The same for every other car: [{ carIndex, ...trace }].
+  function takeRivalLapTraces() {
+    return [...rivalTraces].flatMap(([carIndex, r]) => r.take().map((t) => ({ carIndex, ...t })));
+  }
+
   const getClassification = () => classification;
   const getLapPositions = () => lapPositions;
 
-  return { dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
+  return { dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
 }
 
 module.exports = { createFieldModel };
