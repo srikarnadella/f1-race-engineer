@@ -1,6 +1,6 @@
 node_modules/
 # Saved Debrief sessions (one per race you drive) - yours, not the repo's.
-data/
+/data/
 # Live capture sessions (npm run capture) - large, and they're your races.
 # Copy a good one to demo/ deliberately if it should be committed.
 captures/
