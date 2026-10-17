@@ -244,6 +244,21 @@ test('race plan on the grid uses wear rates remembered from practice at the trac
   assert.strictEqual(racePlan.best.stops, 1);
 });
 
+test('race plan on the grid comes with odds: how often each plan wins across what is known', () => {
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318, sessionType: 15 });
+  const set = (index, c, life, lapDeltaTimeMs) => ({ index, visualTyreCompound: c, usableLife: life, lifeSpan: life, lapDeltaTimeMs, wear: 0, available: true, fitted: index === 0 });
+  fm.dispatch(PACKET_IDS.TYRE_SETS, header(0), { carIdx: PLAYER, sets: [set(0, 16, 12, 0), set(1, 17, 18, 500), set(2, 18, 25, 900)] });
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars(1) });
+  const { racePlan } = createRaceAnalysis(fm).compute();
+  const { oneStopPct, twoStopPct, samples } = racePlan.odds;
+  assert.strictEqual(oneStopPct + twoStopPct, 100);
+  assert.strictEqual(samples, 1000);
+  // 20 laps and a ~22 s stop: one stop wins whatever the (still default) wear rates turn out to be.
+  assert.strictEqual(racePlan.best.stops, 1);
+  assert.ok(oneStopPct >= 50, JSON.stringify(racePlan.odds));
+});
+
 test('a rival first stop is learned once, even when a flashback brings it round again', () => {
   const { createTrackMemory } = require('../src/state/trackMemory');
   const memory = createTrackMemory();

@@ -197,3 +197,17 @@ test('pit timing card: a pick that depends on tyre wear says so; a firm one adds
   assert.match(show({ holds: false, fromInLaps: 1, toInLaps: 4 }), new RegExp(`Lap ${lap + 1}–${lap + 4}, depending on tyre wear`));
   assert.match(show({ holds: false, fromInLaps: 2, toInLaps: null }), new RegExp(`Lap ${lap + 2} or later, depending on tyre wear`));
 });
+
+test('race plan card: the plan comes with how often it wins the simulated races', () => {
+  const { racePlan, planOdds } = require('../src/analysis/racePlan');
+  const set = (index, c, life, deltaMs) => ({ index, visualTyreCompound: c, usableLife: life, lifeSpan: life, lapDeltaTimeMs: deltaMs, wear: 0, available: true });
+  const inputs = { totalLaps: 30, pitLossMs: 18000, sets: [set(0, 16, 15, -600), set(1, 16, 15, -600), set(2, 17, 20, 0), set(3, 18, 25, 400)], deg: { 16: 150, 17: 90, 18: 60 } };
+  const plan = { ...racePlan(inputs), odds: planOdds(inputs, { degSd: { 16: 60, 17: 36, 18: 24 }, pitLossSdMs: 3000 }), degSource: { 16: 'estimate', 17: 'estimate', 18: 'estimate' } };
+  let snap = null;
+  replay(syntheticPackets().slice(0, 3000), { onTick: ({ snap: s }) => { if (s.player) snap = s; } });
+  const d = dashboard();
+  const card = d.mounted.find((w) => w.id === 'pittiming');
+  card.update({ ...snap, analysis: { ...snap.analysis, pitTiming: null, racePlan: plan } });
+  const pct = plan.best.stops === 1 ? plan.odds.oneStopPct : plan.odds.twoStopPct;
+  assert.match(card.card.textContent, new RegExp(`wins ${pct}% of 1,000 simulated races`));
+});

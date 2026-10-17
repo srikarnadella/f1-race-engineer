@@ -18,7 +18,7 @@ const { expectedStopIn, learned, maxWear } = require('../analysis/rivalStops');
 const { damageLoss, MINI_SECTORS } = require('../analysis/damageLoss');
 const { qualifying } = require('../analysis/qualifying');
 const { createTyreTempTracker } = require('../analysis/tyreTemps');
-const { racePlan } = require('../analysis/racePlan');
+const { racePlan, planOdds, planUncertainty } = require('../analysis/racePlan');
 
 // The trained overtake model (npm run train:overtake), if one has been built.
 let OVERTAKE_MODEL = null;
@@ -722,7 +722,13 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       // Not the sets' wear or pace deltas: the fitted set wears on the formation
       // lap and lap 1, and recomputing on that flipped "Soft 10" / "Soft 11" on a real race.
       const key = JSON.stringify([inputs.totalLaps, inputs.pitLossMs, deg, (player.tyreSets || []).map((s) => [s.index, s.available])]);
-      if (plan.key !== key) plan = { key, value: racePlan(inputs) };
+      if (plan.key !== key) {
+        const value = racePlan(inputs);
+        // The same plan as odds, with each input drawn as widely as it is uncertain.
+        const remembered = Object.fromEntries([16, 17, 18].map((c) => [c, trusted[c] ? [] : memory.get(session.trackId, `deg${c}`)]));
+        const odds = value && planOdds(inputs, planUncertainty({ fitted: trusted, remembered, lossSource: loss.source }));
+        plan = { key, value: value && { ...value, odds } };
+      }
       racePlanNow = plan.value && { ...plan.value, degSource: Object.fromEntries([16, 17, 18].map((c) => [c, trusted[c] ? 'this session' : deg[c] ? 'earlier sessions here' : 'estimate'])) };
     }
 

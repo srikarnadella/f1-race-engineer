@@ -35,8 +35,8 @@ flowchart LR
     M4[M4 Backtest gate per model]:::done
   end
   subgraph A[Analysis and decisions]
-    A1[A1 Monte Carlo strategy]:::next
-    A2[A2 Calls audit: was the call right?]
+    A1[A1 Monte Carlo strategy]:::done
+    A2[A2 Calls audit: was the call right?]:::next
     A3[A3 Confidence on every call]:::part
   end
   subgraph U[User experience]
@@ -125,8 +125,12 @@ Each line: what it is, why it matters, and the acceptance test.
 
 ### Analysis and decisions
 
-- **A1 Monte Carlo strategy.** One-stop vs two-stop as a distribution of finishing positions,
-  not one number.
+- **A1 Monte Carlo strategy.** *Done:* the grid plan raced 1,000 times with each wear rate and the
+  pit loss drawn as widely as they're uncertain (a rate fitted this session by its 90% range, one
+  remembered from earlier sessions by their spread, a default at ±40%). The card says "wins 87% of
+  1,000 simulated races". Each plan's total is linear in the wear rates, so the search runs once and
+  1,000 races take a few ms (5,800 plans pruned to 500 shapes). All three recorded races were short
+  enough that one stop wins 100%; the tests cover the coin-flip case.
 - **A2 Calls audit.** After the race, each BOX/PUSH/HOLD call graded against what then happened.
 - **A3 Confidence on calls.** Every call carries how sure it is, from M1/M2 intervals. *Partly
   done:* the pit-timing pick is re-run at both ends of the wear range; when it moves, the card says

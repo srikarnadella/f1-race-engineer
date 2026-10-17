@@ -550,8 +550,11 @@
     const name = (c) => COMPOUND_NAME[c] || c;
     const stints = (p) => p.stints.map((x) => `${name(x.compound)} ${x.laps}`).join(' → ');
     const src = Object.entries(rp.degSource).map(([c, v]) => `${name(c).toLowerCase()} ${v}`).join(' · ');
+    // The plan raced over with each wear rate and the pit loss drawn as widely as they're uncertain.
+    const odds = rp.odds ? (rp.best.stops === 1 ? rp.odds.oneStopPct : rp.odds.twoStopPct) : null;
     return `<div class="w-pt">
       <div class="w-pt__head"><span class="w-pt__when">${rp.best.stops} stop${rp.best.stops === 1 ? '' : 's'}</span><span class="w-pt__sub">${stints(rp.best)} · box end of lap ${rp.best.boxLaps.join(' and ')}</span></div>
+      ${odds != null ? `<div class="w-pt__wear ${odds >= 80 ? 'is-good' : 'is-watch'}">wins ${odds}% of ${rp.odds.samples.toLocaleString('en-US')} simulated races</div>` : ''}
       ${rp.other ? `<div class="w-pt__stops"><span class="w-label">Instead</span><span>${rp.other.stops} stop${rp.other.stops === 1 ? '' : 's'}: ${stints(rp.other)} <span class="dim">~${Math.round(rp.other.slowerMs / 1000)}s slower</span></span></div>` : ''}
       <div class="w-foot">The race plan from your tyre sets, the pit loss and each compound's wear (${src}). Pit timing takes over once the field has laps on the board.</div></div>`;
   }
