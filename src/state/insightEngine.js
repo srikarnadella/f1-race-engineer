@@ -140,6 +140,7 @@ function closingRateMsPerLap(car) {
 // same card on the dashboard (refreshing its text) instead of re-firing a
 // new toast every tick; a condition that's no longer true expires its id.
 function createInsightEngine(fieldModel) {
+  const { clock } = fieldModel;
   const tyreWearHistory = new Map(); // carIndex -> [{ lapNum, avgWear }]
   const activeInsights = new Map(); // id -> insight
 
@@ -149,7 +150,7 @@ function createInsightEngine(fieldModel) {
   // glance. A new word or severity shows at once.
   function upsert(id, insight) {
     const prior = activeInsights.get(id);
-    const now = Date.now();
+    const now = clock();
     let message = insight.message;
     let textAtMs = now;
     if (prior && prior.message !== message) {
@@ -166,7 +167,7 @@ function createInsightEngine(fieldModel) {
   }
 
   function pruneExpired() {
-    const now = Date.now();
+    const now = clock();
     for (const [id, insight] of activeInsights) {
       if (insight.expiresAtMs && now > insight.expiresAtMs) activeInsights.delete(id);
     }
@@ -209,10 +210,10 @@ function createInsightEngine(fieldModel) {
   function settled(id, key) {
     const s = settleState.get(id);
     if (!s || s.key !== key) {
-      settleState.set(id, { key, since: Date.now() });
+      settleState.set(id, { key, since: clock() });
       return false;
     }
-    return Date.now() - s.since >= SETTLE_MS;
+    return clock() - s.since >= SETTLE_MS;
   }
 
   // A new ERS tip (or none) replaces the one on screen only after it has
@@ -223,12 +224,12 @@ function createInsightEngine(fieldModel) {
     const key = tip ? tip.action : null;
     const shownKey = ersShown ? ersShown.action : null;
     if (key === shownKey) {
-      ersCandidate = { key, since: Date.now() };
+      ersCandidate = { key, since: clock() };
       ersShown = tip;
       return ersShown;
     }
-    if (ersCandidate.key !== key) ersCandidate = { key, since: Date.now() };
-    if (Date.now() - ersCandidate.since >= ERS_SETTLE_MS) ersShown = tip;
+    if (ersCandidate.key !== key) ersCandidate = { key, since: clock() };
+    if (clock() - ersCandidate.since >= ERS_SETTLE_MS) ersShown = tip;
     return ersShown;
   }
 
@@ -352,7 +353,7 @@ function createInsightEngine(fieldModel) {
           message: lapsToCliff < 0.5
             ? 'Tyres: at the cliff - lap time is going'
             : `Tyres: ~${laps(Math.round(lapsToCliff))} to the cliff at this wear rate`,
-          expiresAtMs: Date.now() + 15000,
+          expiresAtMs: clock() + 15000,
         });
       } else {
         expire('tyre-cliff');
@@ -392,7 +393,7 @@ function createInsightEngine(fieldModel) {
           message: fuelDelta < 0
             ? `Fuel: on pace to run ${Math.abs(fuelDelta).toFixed(1)} laps short - save ~${fuelSavePct}% a lap: lift and coast into the big stops`
             : `Fuel: only ${fuelDelta.toFixed(1)} laps of margin to the end`,
-          expiresAtMs: Date.now() + 15000,
+          expiresAtMs: clock() + 15000,
         });
       } else {
         expire('fuel-risk');
@@ -411,7 +412,7 @@ function createInsightEngine(fieldModel) {
           severity: SEVERITY.INFO,
           category: CATEGORY.PACE,
           message: `Closing on P${ahead.lapData.carPosition} by ${(Math.abs(closingRate) / 1000).toFixed(1)}s/lap - gap ${(player.lapData.deltaToCarInFrontInMS / 1000).toFixed(1)}s`,
-          expiresAtMs: Date.now() + 10000,
+          expiresAtMs: clock() + 10000,
         });
       } else {
         expire('closing-ahead');
@@ -444,7 +445,7 @@ function createInsightEngine(fieldModel) {
           // changed the text 250 times in one real race without telling the
           // driver anything new (the Battle card has the number).
           message: `${behind.participant && behind.participant.name ? behind.participant.name : `P${behind.lapData.carPosition}`} ${gapBehindNow < 500 ? 'is right behind you' : `is ${(gapBehindNow / 1000).toFixed(1)}s behind`} - defend${likely ? ', pass likely' : ''}${watch}`,
-          expiresAtMs: Date.now() + 8000,
+          expiresAtMs: clock() + 8000,
         });
       } else {
         expire('under-attack');
@@ -475,7 +476,7 @@ function createInsightEngine(fieldModel) {
     const balanceTip = adjust.suggestions.find((s) => s.kind !== 'ers');
     for (const [id, tip] of [['ers', ersTip], ['balance', balanceTip]]) {
       if (tip && playerOnTrack) {
-        upsert(id, { severity: SEVERITY.INFO, category: CATEGORY.CAR, message: tip.radio, expiresAtMs: Date.now() + 5000 });
+        upsert(id, { severity: SEVERITY.INFO, category: CATEGORY.CAR, message: tip.radio, expiresAtMs: clock() + 5000 });
       } else {
         expire(id);
       }
@@ -491,7 +492,7 @@ function createInsightEngine(fieldModel) {
       && settled('battle-call', `${bc.mode}:${bc.target}`)) {
       battleShown = bc;
       const text = bc.mode === 'ATTACK' ? `Attack ${bc.target} - ${bc.reason}` : bc.mode === 'DEFEND' ? `Defend from ${bc.target} - ${bc.reason}` : `Close in on ${bc.target} - ${bc.reason}`;
-      upsert('battle-call', { severity: bc.mode === 'CLOSE IN' ? SEVERITY.INFO : SEVERITY.ADVISORY, category: CATEGORY.PACE, message: text, expiresAtMs: Date.now() + 4000 });
+      upsert('battle-call', { severity: bc.mode === 'CLOSE IN' ? SEVERITY.INFO : SEVERITY.ADVISORY, category: CATEGORY.PACE, message: text, expiresAtMs: clock() + 4000 });
     } else if (!bc || bc.mode === 'CLEAR' || bc.mode === 'HOLD' || !(racing && greenRacing)) {
       expire('battle-call');
     }
@@ -504,7 +505,7 @@ function createInsightEngine(fieldModel) {
     // --- Safety car / VSC / red flag: the options, once per decision ---
     const opts = analysis && analysis.options;
     if (racing && opts && settled('sc-options', `${opts.situation}:${opts.recommendedId}`)) {
-      upsert('sc-options', { severity: SEVERITY.ADVISORY, category: CATEGORY.STRATEGY, message: opts.headline, expiresAtMs: Date.now() + 4000 });
+      upsert('sc-options', { severity: SEVERITY.ADVISORY, category: CATEGORY.STRATEGY, message: opts.headline, expiresAtMs: clock() + 4000 });
     } else if (!opts) {
       expire('sc-options');
     }
@@ -520,7 +521,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.PACE,
         message: `${nameOf(behind)} closing ${dfc.closingSPerLap.toFixed(1)}s/lap - expect an attack into corner ${dfc.where.corner} (${km(dfc.where.atM)}) ${dfc.when.text}`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('attack-warning');
@@ -533,7 +534,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.PACE,
         message: `Best chance on ${nameOf(ahead)}: into corner ${afc.where.corner} (${km(afc.where.atM)})${gain}`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('attack-chance');
@@ -543,7 +544,7 @@ function createInsightEngine(fieldModel) {
     const ot = analysis && analysis.overtake;
     if (racing && greenRacing && ot && ot.available && onTrack(ahead) && player.lapData.deltaToCarInFrontInMS > 0 && player.lapData.deltaToCarInFrontInMS < 1500) {
       const name = ahead.participant && ahead.participant.name ? ahead.participant.name : `P${ahead.lapData.carPosition}`;
-      upsert('overtake-ready', { severity: SEVERITY.INFO, category: CATEGORY.PACE, message: `Overtake mode available on ${name} - use it on the straight`, expiresAtMs: Date.now() + 4000 });
+      upsert('overtake-ready', { severity: SEVERITY.INFO, category: CATEGORY.PACE, message: `Overtake mode available on ${name} - use it on the straight`, expiresAtMs: clock() + 4000 });
     } else {
       expire('overtake-ready');
     }
@@ -556,7 +557,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
         message: `Fresh tyres would pay back a stop in ~${laps(Math.max(1, Math.round(payback.paybackLaps)))} (${Math.floor(lapsLeft)} left)`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('tyre-payback');
@@ -586,7 +587,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
         message: `Undercut on ${name} is on - they're due in ${theyStopIn <= 1 ? 'this lap or next' : `~${laps(theyStopIn)}`}: box now, rejoin P${rejoin.position} in clean air`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('undercut-window');
@@ -601,7 +602,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
         message: `${nameOf(c)} ${side} is due to box ${row.stopInLaps === 0 ? 'this lap' : 'next lap'} (tyres ${row.tyresAgeLaps} laps old)${side === 'ahead' ? ' - clean air after, push' : ' - cover the undercut'}`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else if (!due) {
       expire('rival-stop');
@@ -617,7 +618,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.ADVISORY,
         category: CATEGORY.STRATEGY,
         message: `${pitWindow}, ${pt.marginS.toFixed(1)}s better than waiting`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('pit-window');
@@ -637,7 +638,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.ADVISORY,
         category: CATEGORY.STRATEGY,
         message: `${cheapStop} - box this lap?`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('cheap-stop');
@@ -661,7 +662,7 @@ function createInsightEngine(fieldModel) {
         severity: imminent ? SEVERITY.ADVISORY : SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
         message: `Rain within ${lapsAway(nc.inLaps)} (${WEATHER_NAME[nc.weather]}, ${nc.rainPct}%)${wx.playerOnSlicks ? ' - plan the inters stop' : ''}`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('rain-coming');
@@ -671,7 +672,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
         message: `Rain stops within ${lapsAway(nc.inLaps)} - then the track starts drying`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('rain-stopping');
@@ -691,7 +692,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.ADVISORY,
         category: CATEGORY.STRATEGY,
         message: `${weatherBox} (${n} car${n === 1 ? '' : 's'} ${cx.basis === 'switchers' ? `that switched, before vs after` : 'on them'})`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('crossover');
@@ -706,7 +707,7 @@ function createInsightEngine(fieldModel) {
     const label = (c) => (c.participant ? c.participant.name : `P${c.pitEntryPosition}`);
     // Under a safety car or red flag the whole field stops: nobody is undercutting anybody.
     for (const c of racing && !neutralised ? ordered : []) {
-      if (c.carIndex === playerIdx || !c.pitEntryAtMs || Date.now() - c.pitEntryAtMs >= UNDERCUT_DETECT_WINDOW_MS) continue;
+      if (c.carIndex === playerIdx || !c.pitEntryAtMs || clock() - c.pitEntryAtMs >= UNDERCUT_DETECT_WINDOW_MS) continue;
       const myPosThen = c.pitEntryPlayerPosition;
       if (myPosThen == null) continue;
       if (c.pitEntryPosition === myPosThen + 1) {
@@ -756,7 +757,7 @@ function createInsightEngine(fieldModel) {
     }
     for (const id of DAMAGE_STAGES) if (!damageCard || damageCard.id !== id) expire(id);
     if (damageCard) {
-      upsert(damageCard.id, { severity: damageCard.severity || (damageBox ? SEVERITY.ADVISORY : SEVERITY.INFO), category: CATEGORY.CAR, message: damageCard.message, expiresAtMs: Date.now() + 5000 });
+      upsert(damageCard.id, { severity: damageCard.severity || (damageBox ? SEVERITY.ADVISORY : SEVERITY.INFO), category: CATEGORY.CAR, message: damageCard.message, expiresAtMs: clock() + 5000 });
     }
 
     // --- Qualifying / practice: traffic on the road, a new best ---
@@ -771,7 +772,7 @@ function createInsightEngine(fieldModel) {
           // The gap ticks on the This lap panel; here it would rewrite the card every tick.
           ? `Traffic: ${tr.ahead.name} on ${tr.ahead.status === 'out' ? 'an out lap' : tr.ahead.status === 'in' ? 'an in lap' : 'a slow lap'} up the road`
           : `${tr.behind.name} on a push lap behind - let them by`,
-        expiresAtMs: Date.now() + 4000,
+        expiresAtMs: clock() + 4000,
       });
     } else if (!inTheWay) {
       expire('traffic');
@@ -783,7 +784,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.PACE,
         message: `Best lap ${m}:${((q.bestMs % 60000) / 1000).toFixed(3).padStart(6, '0')} - ${standing(q)}`,
-        expiresAtMs: Date.now() + 10000,
+        expiresAtMs: clock() + 10000,
       });
     }
     if (q) {
@@ -804,13 +805,13 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.ADVISORY,
         category: CATEGORY.FLAG,
         message: `Track limits - warning ${tl.count}${where}${tl.sameAgain ? ', same corner again - keep it inside there' : ''}`,
-        expiresAtMs: Date.now() + 15000,
+        expiresAtMs: clock() + 15000,
       });
     }
     let penaltyBox = null;
     if (pen && (pen.stopGos || pen.driveThroughs)) {
       penaltyBox = pen.stopGos ? 'Serve the stop-go - box, no tyre change' : 'Serve the drive-through - box';
-      upsert('penalty-serve', { severity: SEVERITY.CRITICAL, category: CATEGORY.FLAG, message: neutralised ? `${penaltyBox} once the ${neutralised === 'Red flag' ? 'race restarts' : 'safety car is in'}` : `${penaltyBox} (3 laps to take it)`, expiresAtMs: Date.now() + 5000 });
+      upsert('penalty-serve', { severity: SEVERITY.CRITICAL, category: CATEGORY.FLAG, message: neutralised ? `${penaltyBox} once the ${neutralised === 'Red flag' ? 'race restarts' : 'safety car is in'}` : `${penaltyBox} (3 laps to take it)`, expiresAtMs: clock() + 5000 });
     } else {
       expire('penalty-serve');
     }
@@ -825,7 +826,7 @@ function createInsightEngine(fieldModel) {
           : f
             ? `${pen.timeS}s penalty at the flag - ${f.name} ${Math.round(f.gapMs / 1000)}s behind: ${f.covered ? 'covered' : 'not covered, push'}`
             : `${pen.timeS}s penalty - added at the flag`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('penalty-time');
@@ -838,7 +839,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
         message: `Plan, ${planText(rp.best)}${rp.other ? ` (${rp.other.stops} stop${rp.other.stops === 1 ? '' : 's'} ~${Math.round(rp.other.slowerMs / 1000)}s slower)` : ''}`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('race-plan');
@@ -854,7 +855,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.INFO,
         category: CATEGORY.PACE,
         message: `Lap 1: P${pos} from P${grid} on the grid - ${d > 0 ? `up ${d}` : d < 0 ? `down ${-d}` : 'held position'}`,
-        expiresAtMs: Date.now() + 15000,
+        expiresAtMs: clock() + 15000,
       });
     }
 
@@ -867,7 +868,7 @@ function createInsightEngine(fieldModel) {
         severity: SEVERITY.ADVISORY,
         category: CATEGORY.CAR,
         message: `Tyres ~${fiveC(tt.coldByC)}°C under racing temperature - ${neutralised ? 'get heat in before the restart' : 'careful on the out lap'}`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('tyres-cold');
@@ -879,7 +880,7 @@ function createInsightEngine(fieldModel) {
         message: tt.hot.axle === 'rear'
           ? `Rears ~${fiveC(tt.hot.byC)}°C hotter than early in the stint - easy on the throttle out of slow corners`
           : `Fronts ~${fiveC(tt.hot.byC)}°C hotter than early in the stint - less lock, brake in a straight line`,
-        expiresAtMs: Date.now() + 5000,
+        expiresAtMs: clock() + 5000,
       });
     } else {
       expire('tyres-hot');
@@ -905,7 +906,7 @@ function createInsightEngine(fieldModel) {
         yellow = `Yellow ahead${corner ? ` at turn ${corner.corner}` : ''} - careful, no overtaking`;
       }
     }
-    if (yellow) upsert('yellow', { severity: SEVERITY.ADVISORY, category: CATEGORY.FLAG, message: yellow, expiresAtMs: Date.now() + 3000 });
+    if (yellow) upsert('yellow', { severity: SEVERITY.ADVISORY, category: CATEGORY.FLAG, message: yellow, expiresAtMs: clock() + 3000 });
     else expire('yellow');
     if (racing && myFlag === FIA_BLUE) {
       // The car lapping you: a lap or more up, closest behind on the road.
@@ -914,7 +915,7 @@ function createInsightEngine(fieldModel) {
         .map((c) => ({ c, behindM: L > 0 ? (player.lapData.lapDistance - c.lapData.lapDistance + L) % L : Infinity }))
         .sort((a, b) => a.behindM - b.behindM)[0];
       const who = lapper && lapper.behindM < BLUE_LOOKUP_M && lapper.c.participant ? lapper.c.participant.name : 'the leaders';
-      upsert('blue', { severity: SEVERITY.ADVISORY, category: CATEGORY.FLAG, message: `Blue flag - let ${who} by`, expiresAtMs: Date.now() + 3000 });
+      upsert('blue', { severity: SEVERITY.ADVISORY, category: CATEGORY.FLAG, message: `Blue flag - let ${who} by`, expiresAtMs: clock() + 3000 });
     } else {
       expire('blue');
     }
@@ -925,7 +926,7 @@ function createInsightEngine(fieldModel) {
     for (const event of fieldModel.getRecentEvents()) {
       if (event.seq <= lastEventSeq) continue;
       lastEventSeq = event.seq;
-      if (!ALERT_EVENT_CODES.has(event.code) || Date.now() - event.atMs >= EVENT_CARD_MS) continue;
+      if (!ALERT_EVENT_CODES.has(event.code) || clock() - event.atMs >= EVENT_CARD_MS) continue;
       if (trackLimitNew && event.code === 'PENA' && event.penaltyType === PENALTY_WARNING) continue;
       const card = eventCard(event, playerIdx);
       if (!card) continue;

@@ -3,11 +3,7 @@ const path = require('path');
 const PACKET_IDS = require('../udp/packetIds');
 const { parseHeader } = require('../udp/parsers/header');
 const { parsePacket, PARSED_PACKETS } = require('../udp/parsePacket');
-const { createFieldModel } = require('../state/fieldModel');
-const { createInsightEngine } = require('../state/insightEngine');
-const { createRaceAnalysis } = require('../state/raceAnalysis');
-const { buildSnapshot } = require('../server/snapshot');
-const { createFocus } = require('../state/focus');
+const { createPipeline } = require('../pipeline');
 const { THRESHOLDS } = require('../state/carBalance');
 const { readLog } = require('./logFile');
 const { PACKET_NAMES } = require('./session');
@@ -91,18 +87,12 @@ async function analyzeCapture(target) {
     const key = args.map(String).join(' ');
     warnings.set(key, (warnings.get(key) || 0) + 1);
   };
-  // The pipeline timestamps everything with Date.now(); drive it from the
-  // capture's own clock so expiries and windows behave as they did live.
-  const realNow = Date.now;
+  // The engine runs on the capture's own clock, so expiries, windows and
+  // auto-switch holds play out as they did live.
   const EPOCH = 1_700_000_000_000;
   let clock = EPOCH;
-  Date.now = () => clock;
-
-  const fm = createFieldModel();
-  const ie = createInsightEngine(fm);
-  const ra = createRaceAnalysis(fm);
-  let clockMs = 0; // capture time, so auto-switch holds play out as they did live
-  const focus = createFocus(() => clockMs);
+  const pipeline = createPipeline({ now: () => clock });
+  const fm = pipeline.fieldModel;
   let lastFocus = 'drive';
 
   const packets = new Map(); // id -> { count, sizes: Map, firstT, lastT, parseErrors: Map }
@@ -286,8 +276,7 @@ async function analyzeCapture(target) {
       lastTick = tMs;
       let snap;
       try {
-        clockMs = tMs;
-        snap = buildSnapshot(fm, ie, ra, focus);
+        snap = pipeline.tick();
       } catch (err) {
         const key = `snapshot: ${err.message}`;
         warnings.set(key, (warnings.get(key) || 0) + 1);
@@ -360,7 +349,6 @@ async function analyzeCapture(target) {
     }
   } finally {
     console.warn = realWarn;
-    Date.now = realNow;
   }
   // Any marks after the last packet (tapped after the session ended).
   while (markerIdx < markers.length) addMarkerContext(markers[markerIdx++]);

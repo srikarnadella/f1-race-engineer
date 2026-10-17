@@ -14,7 +14,8 @@ const ERS_BINS = 20;
 // Tracks every car on track, keyed by car index - not just the player's.
 // This is the join point for "relative to the field": gaps, pace trends,
 // and undercut threats all need the rest of the grid, not just your own car.
-function createFieldModel() {
+// `clock` is the engine's time (ms): the wall clock live, the recording's own clock in a replay.
+function createFieldModel({ clock = () => Date.now() } = {}) {
   // carIndex -> { telemetry, status, damage, lapData, participant,
   //               lapHistory: [{ lapNum, lapMs, pit, neutralised }], gapAheadHistory }
   const cars = new Map();
@@ -87,7 +88,7 @@ function createFieldModel() {
     }
     sessionUID = header.sessionUID;
     sessionTime = header.sessionTime;
-    lastPacketAtMs = Date.now();
+    lastPacketAtMs = clock();
     playerCarIndex = header.playerCarIndex;
   }
 
@@ -213,7 +214,7 @@ function createFieldModel() {
       // drives down the pit lane, and whether it was ahead of or behind the
       // player when it stopped is what makes it an undercut or an overcut.
       if (car.lastPitStatus === 0 && c.pitStatus !== 0) {
-        car.pitEntryAtMs = Date.now();
+        car.pitEntryAtMs = clock();
         car.pitEntryPosition = car.lapData ? car.lapData.carPosition : c.carPosition;
         car.pitEntryPlayerPosition = playerCarIndex != null && cars.get(playerCarIndex) && cars.get(playerCarIndex).lapData
           ? cars.get(playerCarIndex).lapData.carPosition
@@ -291,7 +292,7 @@ function createFieldModel() {
     if (data.code === 'RDFL') redFlag = true;
     else if (data.code === 'LGOT' || data.code === 'SSTA') redFlag = false;
     // seq: two events can share a millisecond, so consumers track this instead.
-    recentEvents.push({ ...data, atMs: Date.now(), seq: ++eventSeq });
+    recentEvents.push({ ...data, atMs: clock(), seq: ++eventSeq });
     if (recentEvents.length > 30) recentEvents.shift();
     // Where on the lap each pass happened - the "where do they attack"
     // forecast learns this track's passing spots from it. Lap 1 is skipped:
@@ -365,7 +366,7 @@ function createFieldModel() {
     return generation;
   }
 
-  // Seconds of game time - stops while the game is paused, unlike Date.now().
+  // Seconds of game time - stops while the game is paused, unlike the wall clock.
   function getSessionTime() {
     return sessionTime;
   }
@@ -407,7 +408,7 @@ function createFieldModel() {
   const getClassification = () => classification;
   const getLapPositions = () => lapPositions;
 
-  return { dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
+  return { clock, dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
 }
 
 module.exports = { createFieldModel };

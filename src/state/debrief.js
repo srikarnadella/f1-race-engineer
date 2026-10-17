@@ -56,6 +56,7 @@ const RIVAL_CHOICES = 5; // rivals' best laps offered in lap compare
 // dir: where to save finished sessions (null = keep them in memory only,
 // e.g. the demo replay, tests and capture analysis).
 function createDebrief(fieldModel, { dir = null } = {}) {
+  const clock = fieldModel.clock || (() => Date.now());
   let current = null;
   const history = [];
   if (dir && fs.existsSync(dir)) {
@@ -86,9 +87,9 @@ function createDebrief(fieldModel, { dir = null } = {}) {
 
   function start(generation, session) {
     return {
-      id: `${Date.now().toString(36)}`,
+      id: `${clock().toString(36)}`,
       generation,
-      startedAt: Date.now(),
+      startedAt: clock(),
       sessionType: session ? session.sessionType : null,
       trackId: session ? session.trackId : null,
       totalLaps: session ? session.totalLaps : null,

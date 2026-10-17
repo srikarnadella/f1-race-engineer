@@ -20,13 +20,7 @@ const path = require('path');
 const http = require('http');
 const zlib = require('zlib');
 const { readLog } = require('../src/capture/logFile');
-const { parsePacket } = require('../src/udp/parsePacket');
-const { createFieldModel } = require('../src/state/fieldModel');
-const { createInsightEngine } = require('../src/state/insightEngine');
-const { createRaceAnalysis } = require('../src/state/raceAnalysis');
-const { createDebrief } = require('../src/state/debrief');
-const { createFocus } = require('../src/state/focus');
-const { buildSnapshot } = require('../src/server/snapshot');
+const { createPipeline } = require('../src/pipeline');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'site', 'demo-data');
@@ -46,11 +40,8 @@ const write = (name, data, dir = OUT) => {
 };
 const kb = (n) => `${Math.round(n / 1024)} KB`;
 
-// The engine stamps everything with Date.now(); run it on the recording's clock.
-const realNow = Date.now;
+// The engine runs on the recording's clock.
 const EPOCH = 1_760_000_000_000;
-let clock = EPOCH;
-Date.now = () => clock;
 
 // The cars directly ahead and behind - what the Battle card shows - both have a gap trend.
 function neighboursHavePace(snap) {
@@ -60,11 +51,8 @@ function neighboursHavePace(snap) {
 }
 
 async function replay(file, { onTick, everyMs = TICK_MS }) {
-  const fm = createFieldModel();
-  const ie = createInsightEngine(fm);
-  const ra = createRaceAnalysis(fm);
-  const focus = createFocus();
-  const debrief = createDebrief(fm);
+  let clock = EPOCH;
+  const pipeline = createPipeline({ now: () => clock, source: 'demo' });
   let lastTick = -Infinity;
   let t0 = null;
   const origWarn = console.warn;
@@ -73,22 +61,16 @@ async function replay(file, { onTick, everyMs = TICK_MS }) {
     for await (const { tMs, buf } of readLog(file)) {
       if (t0 == null) t0 = tMs;
       clock = EPOCH + (tMs - t0);
-      let parsed;
-      try {
-        parsed = parsePacket(buf);
-      } catch {
-        continue;
-      }
-      if (parsed.data) fm.dispatch(parsed.header.packetId, parsed.header, parsed.data);
+      pipeline.feed(buf);
       if (tMs - lastTick < everyMs) continue;
       lastTick = tMs;
-      debrief.tick();
-      if (onTick) onTick({ tMs: tMs - t0, fm, ie, ra, focus });
+      const snap = pipeline.tick();
+      if (onTick) onTick({ tMs: tMs - t0, snap });
     }
   } finally {
     console.warn = origWarn;
   }
-  return { fm, ie, ra, debrief };
+  return { debrief: pipeline.debrief };
 }
 
 // Records what the dashboard would have received, twice a second, while
@@ -97,12 +79,11 @@ function sampler(keep) {
   const frames = [];
   let lastSample = -Infinity;
   let tyre = null;
-  const onTick = ({ tMs, fm, ie, ra, focus }) => {
-    const snap = buildSnapshot(fm, ie, ra, focus);
+  const onTick = ({ tMs, snap }) => {
     if (tMs - lastSample < SAMPLE_MS || !snap.player || !keep(snap)) return;
     lastSample = tMs;
     tyre = snap.analysis.tyreModel;
-    const { updatedAtMs, field, ...rest } = snap;
+    const { updatedAtMs, field, debrief, ...rest } = snap; // the Debrief is written once, separately
     const me = field.findIndex((c) => c.isPlayer);
     const near = field.slice(Math.max(0, me - FIELD_EACH_SIDE), me + FIELD_EACH_SIDE + 1);
     frames.push({ t: tMs, s: { ...rest, source: 'demo', capturing: false, field: near } });
@@ -189,7 +170,6 @@ async function main() {
     overtake = null;
   }
   write('api/models.json', { overtake, tyre });
-  Date.now = realNow;
   console.log(`[site] written to ${path.relative(ROOT, OUT)}`);
 }
 

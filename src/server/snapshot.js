@@ -20,7 +20,7 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
   const insights = insightEngine.evaluate(analysis);
 
   if (playerIdx == null) {
-    return { connected: false, updatedAtMs: Date.now(), session: null, player: null, nearby: [], field: [], analysis: null, insights, strategy: null };
+    return { connected: false, updatedAtMs: fieldModel.clock(), session: null, player: null, nearby: [], field: [], analysis: null, insights, strategy: null };
   }
 
   const player = fieldModel.getCar(playerIdx);
@@ -40,8 +40,8 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
   return {
     // Last known state is still sent while stale, so the dashboard can show
     // "paused" over it rather than blanking.
-    connected: lastPacketAtMs != null && Date.now() - lastPacketAtMs < STALE_AFTER_MS,
-    updatedAtMs: Date.now(),
+    connected: lastPacketAtMs != null && fieldModel.clock() - lastPacketAtMs < STALE_AFTER_MS,
+    updatedAtMs: fieldModel.clock(),
     session: fieldModel.getSession() ? session : null,
     // Only what the dashboard or the capture analyzer reads - raw HUD values
     // (temps, RPM, damage...) stay in FieldModel for the models to use.

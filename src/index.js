@@ -5,13 +5,9 @@ const { startUdpListener } = require('./udp/listener');
 const { startReplay } = require('./capture/replay');
 const { createRecorder } = require('./capture/recorder');
 const { createCaptureSession, defaultCaptureDir } = require('./capture/session');
-const { createFieldModel } = require('./state/fieldModel');
-const { createInsightEngine } = require('./state/insightEngine');
-const { createRaceAnalysis } = require('./state/raceAnalysis');
 const { createTrackMemory } = require('./state/trackMemory');
-const { buildSnapshot } = require('./server/snapshot');
-const { createDebrief, RIVAL_ID } = require('./state/debrief');
-const { createFocus } = require('./state/focus');
+const { RIVAL_ID } = require('./state/debrief');
+const { createPipeline } = require('./pipeline');
 const { startServer } = require('./server/httpServer');
 
 const USAGE = `Usage: node src/index.js [options]
@@ -94,14 +90,9 @@ function main() {
 
   // Live and demo share everything from here down - only the packet source
   // differs, which is the whole point of the single parsePacket() path.
-  const fieldModel = createFieldModel();
-  const insightEngine = createInsightEngine(fieldModel);
   // Live races teach the next race at the same track (pit loss, when the AI
   // stops); a demo replay would only teach it the same race again.
   const memory = createTrackMemory(opts.demoFile ? null : path.resolve(__dirname, '..', 'data', 'tracks.json'));
-  const raceAnalysis = createRaceAnalysis(fieldModel, { memory });
-  const focus = createFocus();
-  const onPacket = (packetId, header, data) => fieldModel.dispatch(packetId, header, data);
   const capture = opts.captureDir
     ? createCaptureSession({ dir: opts.captureDir, meta: { version: require('../package.json').version, udpPort: opts.udpPort, node: process.version } })
     : null;
@@ -110,24 +101,18 @@ function main() {
   // connected - pit-loss measurement, wear history and weather memory must
   // keep going while a device sleeps. Clients only ever read the latest
   // result, so a reconnect can't trigger an extra, out-of-step evaluation.
-  // `source` lets the dashboard label a replay as such - the public demo
-  // must never pass itself off as a live session.
-  const source = opts.demoFile ? 'demo' : 'live';
-  // The debrief (lap-by-lap record, kept after the session ends) is larger
-  // and changes once a lap, so it rides along once a second, not 10x.
-  // Live sessions are saved to data/sessions (gitignored) and reloaded on the
-  // next start; a demo replay would only fill it with copies of itself.
-  const debrief = createDebrief(fieldModel, { dir: opts.demoFile ? null : path.resolve(__dirname, '..', 'data', 'sessions') });
-  let tickCount = 0;
-  let debriefView = debrief.view();
-  const build = (withDebrief) => ({ source, capturing: !!capture, ...(withDebrief ? { debrief: debriefView } : {}), ...buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus) });
-  let latest = build(true);
+  // Live sessions' debriefs are saved to data/sessions (gitignored) and
+  // reloaded on the next start; a demo replay would only fill it with copies of itself.
+  const pipeline = createPipeline({
+    memory,
+    debriefDir: opts.demoFile ? null : path.resolve(__dirname, '..', 'data', 'sessions'),
+    source: opts.demoFile ? 'demo' : 'live',
+    capturing: !!capture,
+  });
+  const { fieldModel, debrief, dispatch: onPacket } = pipeline;
   const engineTick = setInterval(() => {
     try {
-      debrief.tick();
-      const withDebrief = ++tickCount % 10 === 0;
-      if (withDebrief) debriefView = debrief.view();
-      latest = build(withDebrief);
+      const latest = pipeline.tick();
       server.broadcast();
       if (capture) capture.logOutputs(latest);
     } catch (err) {
@@ -167,11 +152,12 @@ function main() {
     const b = params.get('b');
     if (pathname === '/api/debrief/compare') return debrief.compare(params.get('session'), lap('a'), b && RIVAL_ID.test(b) ? b : lap('b'));
     if (pathname === '/api/debrief/rivals') return debrief.rivals(params.get('session'));
-    if (pathname === '/api/models') return { ...MODEL_INFO, tyre: latest.analysis ? latest.analysis.tyreModel : null };
+    const { analysis } = pipeline.snapshot();
+    if (pathname === '/api/models') return { ...MODEL_INFO, tyre: analysis ? analysis.tyreModel : null };
     return null;
   }
 
-  const server = startServer({ httpPort: opts.httpPort, getSnapshot: () => latest, onClientMessage, api, tls: opts.tls });
+  const server = startServer({ httpPort: opts.httpPort, getSnapshot: pipeline.snapshot, onClientMessage, api, tls: opts.tls });
 
   let socket = null;
   let recorder = null;
@@ -207,8 +193,7 @@ function main() {
     shuttingDown = true;
     console.log('\n[main] shutting down');
     clearInterval(engineTick);
-    debrief.flush();
-    raceAnalysis.flush();
+    pipeline.flush();
     if (socket) socket.close();
     server.close();
     // Let the capture files finish writing (gzip trailer) before exiting.

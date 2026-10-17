@@ -261,6 +261,7 @@ function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pit
 // evaluating on those same races, so they can't leak into the score).
 // memory: earlier races' measurements by track (state/trackMemory.js); none by default.
 function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTrackMemory() } = {}) {
+  const { clock } = fieldModel;
   const measuredLosses = new Map(); // `${carIndex}:${inLapNum}` -> ms; survives lapHistory rolling over
   const weatherAnalysis = createWeatherAnalysis();
   let seenGeneration = fieldModel.getGeneration();
@@ -681,8 +682,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       const cheapest = toLap(timing.cheapestInLaps);
       const shown = toLap(timing.bestInLaps == null ? 'stay' : timing.bestInLaps);
       if (cheapest === shown) pitNext = { lap: null, since: 0 };
-      else if (pitNext.lap !== cheapest) pitNext = { lap: cheapest, since: Date.now() };
-      else if (Date.now() - pitNext.since >= PICK_SETTLE_MS) timing = pitTimingFor({ ...timingInputs, prefer: timing.cheapestInLaps });
+      else if (pitNext.lap !== cheapest) pitNext = { lap: cheapest, since: clock() };
+      else if (clock() - pitNext.since >= PICK_SETTLE_MS) timing = pitTimingFor({ ...timingInputs, prefer: timing.cheapestInLaps });
       pitPick = toLap(timing.bestInLaps == null ? 'stay' : timing.bestInLaps);
     }
 
