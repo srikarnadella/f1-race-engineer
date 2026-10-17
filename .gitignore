@@ -17,3 +17,5 @@ site/demo-data/
 _site/
 # Private review notes - not part of the repo.
 notes/
+# Coverage output (npm run test:coverage).
+coverage/

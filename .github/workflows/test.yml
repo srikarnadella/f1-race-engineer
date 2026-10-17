@@ -18,4 +18,5 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm test
+      # Fails below the coverage measured when the gate went in (lines 90.7%, branches 86.5%).
+      - run: npm run test:coverage

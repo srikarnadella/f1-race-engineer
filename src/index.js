@@ -213,4 +213,6 @@ function main() {
   process.on('SIGHUP', shutdown);
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { parseCli };

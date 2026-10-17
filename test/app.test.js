@@ -1,0 +1,122 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const { JSDOM } = require('jsdom');
+const { syntheticPackets, replay } = require('./helpers/synthetic');
+
+// The dashboard shell (public/app.js) in jsdom, connected to a fake bridge:
+// the page as a driver uses it - the link, the screens, the keys, auto-switch.
+const PUBLIC = path.join(__dirname, '..', 'public');
+const SCRIPTS = ['widgets.js', 'ask.js', 'app.js'].map((f) => new vm.Script(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), { filename: path.join(PUBLIC, f) }));
+const HTML = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8').replace(/<script[^>]*src=[^>]*><\/script>/g, '');
+
+let snapshots = null;
+function raceSnapshots() {
+  if (!snapshots) {
+    snapshots = [];
+    replay(syntheticPackets(), { onTick: ({ tMs, snap }) => { if (tMs % 500 < 100) snapshots.push(JSON.parse(JSON.stringify(snap))); } });
+  }
+  return snapshots;
+}
+
+function open(t, { storage = {} } = {}) {
+  const dom = new JSDOM(HTML, { runScripts: 'outside-only', url: 'http://192.168.1.5:8080/', pretendToBeVisual: true });
+  const { window } = dom;
+  t.after(() => window.close());
+  for (const [k, v] of Object.entries(storage)) window.localStorage.setItem(k, JSON.stringify(v));
+  const sockets = [];
+  window.WebSocket = class {
+    constructor(url) {
+      this.url = url;
+      sockets.push(this);
+    }
+    close() {
+      if (this.onclose) this.onclose();
+    }
+  };
+  window.fetch = async () => ({ ok: false, json: async () => ({}) });
+  window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+  const errors = [];
+  window.console.error = (...a) => errors.push(a.join(' '));
+  const ctx = dom.getInternalVMContext();
+  for (const s of SCRIPTS) s.runInContext(ctx);
+  const bridge = () => sockets[sockets.length - 1];
+  const send = (snap) => bridge().onmessage({ data: JSON.stringify(snap) });
+  const connect = () => bridge().onopen();
+  const $ = (id) => window.document.getElementById(id);
+  const press = (key) => window.document.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true }));
+  const activeTab = () => window.document.querySelector('.tab.is-active').textContent.trim().replace(/^\d/, ''); // minus its key badge
+  return { window, sockets, bridge, send, connect, $, press, activeTab, errors };
+}
+
+test('app: connects to the bridge it was served from, and says what the link is doing', (t) => {
+  const app = open(t);
+  assert.strictEqual(app.bridge().url, 'ws://192.168.1.5:8080');
+  assert.strictEqual(app.$('link-text').textContent, 'Bridge offline');
+  app.connect();
+  assert.strictEqual(app.$('link-text').textContent, 'No telemetry');
+  app.send(raceSnapshots()[200]);
+  assert.strictEqual(app.$('link-text').textContent, 'Live');
+  app.send({ ...raceSnapshots()[201], source: 'demo' });
+  assert.strictEqual(app.$('link-text').textContent, 'Demo replay', 'a replay never passes as live');
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('app: a dropped connection is retried', async (t) => {
+  const app = open(t);
+  app.connect();
+  app.bridge().close();
+  assert.strictEqual(app.$('link-text').textContent, 'Bridge offline');
+  await new Promise((r) => setTimeout(r, 600)); // first retry after 500 ms
+  assert.strictEqual(app.sockets.length, 2);
+});
+
+test('app: keys 1-6 switch screens, and the choice is remembered', (t) => {
+  const app = open(t);
+  app.connect();
+  app.send(raceSnapshots()[200]);
+  assert.strictEqual(app.activeTab(), 'Drive');
+  const seen = [];
+  for (const key of ['2', '3', '4', '5', '6']) {
+    app.press(key);
+    seen.push(app.activeTab());
+  }
+  assert.deepStrictEqual(seen, ['Battle', 'Strategy', 'Weather', 'Custom', 'Debrief']);
+  assert.strictEqual(JSON.parse(app.window.localStorage.getItem('raceEngineer.screen')), 'debrief');
+  // Every card on every screen rendered without an error.
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('app: a saved screen from an older version still opens somewhere sensible', (t) => {
+  const app = open(t, { storage: { 'raceEngineer.screen': 'pit' } });
+  assert.strictEqual(app.activeTab(), 'Strategy');
+  const gone = open(t, { storage: { 'raceEngineer.screen': 'no-such-screen' } });
+  assert.strictEqual(gone.activeTab(), 'Drive');
+});
+
+test('app: auto-switch follows the race, then a manual pick wins for a while', (t) => {
+  const app = open(t, { storage: { 'raceEngineer.auto': true } });
+  app.connect();
+  const snap = raceSnapshots()[200];
+  app.send({ ...snap, focus: { screen: 'battle', reason: 'SAINZ 0.6s behind' } });
+  assert.strictEqual(app.activeTab(), 'Battle');
+  app.send({ ...snap, focus: { screen: 'drive', reason: null } });
+  assert.strictEqual(app.activeTab(), 'Drive', 'back home once it settles');
+  app.press('3'); // the driver picks Strategy
+  app.send({ ...snap, focus: { screen: 'battle', reason: 'SAINZ 0.6s behind' } });
+  assert.strictEqual(app.activeTab(), 'Strategy', 'a manual pick is not overridden at once');
+  assert.match(app.$('auto-chip-text').textContent, /^Paused \d+s/);
+});
+
+test('app: the whole synthetic race plays through every screen without an error', (t) => {
+  const app = open(t);
+  app.connect();
+  const all = raceSnapshots();
+  for (const key of ['1', '2', '3', '4', '5', '6']) {
+    app.press(key);
+    for (let i = 0; i < all.length; i += 7) app.send(all[i]);
+  }
+  assert.deepStrictEqual(app.errors, []);
+});
