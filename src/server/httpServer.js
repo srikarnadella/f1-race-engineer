@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -102,17 +103,21 @@ function serveStatic(req, res) {
 const MAX_CLIENT_MESSAGE_BYTES = 1024;
 const MAX_CLIENT_MESSAGES_PER_10S = 30;
 
-function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessage = null, api = null }) {
+// tls: { cert, key } (PEM) serves https - browsers only open the microphone
+// for voice questions on a secure page, and a tablet reaches the bridge by its
+// LAN address, which plain http can't make secure.
+function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessage = null, api = null, tls = null }) {
+  const scheme = tls ? 'https' : 'http';
   const pairUrl = () => {
     const ip = pairAddress();
-    return ip ? `http://${ip}:${httpPort}` : null;
+    return ip ? `${scheme}://${ip}:${httpPort}` : null;
   };
   // Pairing (Settings): the LAN address and a QR code of it.
   const pairing = (pathname) => {
     if (pathname === '/api/pair') return { url: pairUrl() };
     return null;
   };
-  const server = http.createServer((req, res) => {
+  const handler = (req, res) => {
     if (req.method === 'GET' && req.url === '/api/qr') {
       const url = pairUrl();
       res.writeHead(url ? 200 : 404, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-cache' });
@@ -122,7 +127,8 @@ function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessag
     } else {
       serveStatic(req, res);
     }
-  });
+  };
+  const server = tls ? https.createServer(tls, handler) : http.createServer(handler);
   const wss = new WebSocketServer({ server });
   // ws re-emits the HTTP server's errors; those are handled on `server` below.
   wss.on('error', () => {});
@@ -173,8 +179,8 @@ function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessag
   });
 
   server.listen(httpPort, () => {
-    const urls = lanAddresses().map((ip) => `http://${ip}:${httpPort}`);
-    console.log(`[server] dashboard: http://localhost:${httpPort}`);
+    const urls = lanAddresses().map((ip) => `${scheme}://${ip}:${httpPort}`);
+    console.log(`[server] dashboard: ${scheme}://localhost:${httpPort}`);
     for (const url of urls) console.log(`[server] on other devices (same Wi-Fi): ${url}`);
     const pair = pairUrl();
     if (pair) {

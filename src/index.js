@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
 const { startUdpListener } = require('./udp/listener');
@@ -24,6 +25,8 @@ const USAGE = `Usage: node src/index.js [options]
   --port <n>            Dashboard HTTP/WebSocket port (default 8080)
   --udp-port <n>        F1 telemetry UDP port (default 20777)
   --udp-host <addr>     Interface to bind UDP on (default 0.0.0.0, so console/LAN senders work too)
+  --https-cert <file>   Serve the dashboard over https with this certificate (PEM), with
+  --https-key <file>    its key - needed for voice questions on a phone or tablet
   -h, --help            Show this help`;
 
 function parseCli(argv) {
@@ -38,6 +41,8 @@ function parseCli(argv) {
       port: { type: 'string', default: '8080' },
       'udp-port': { type: 'string', default: '20777' },
       'udp-host': { type: 'string', default: '0.0.0.0' },
+      'https-cert': { type: 'string' },
+      'https-key': { type: 'string' },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
@@ -51,6 +56,15 @@ function parseCli(argv) {
   const capture = values.capture || !!values['capture-dir'];
   if (values.demo && capture) throw new Error('--capture only applies to live mode, not --demo');
   if (values.record && capture) throw new Error('use either --record or --capture (a capture already records the packets)');
+  if (!values['https-cert'] !== !values['https-key']) throw new Error('--https-cert and --https-key go together');
+  let tls = null;
+  if (values['https-cert']) {
+    try {
+      tls = { cert: fs.readFileSync(path.resolve(values['https-cert'])), key: fs.readFileSync(path.resolve(values['https-key'])) };
+    } catch (err) {
+      throw new Error(`can't read the https certificate or key: ${err.message}`);
+    }
+  }
 
   return {
     help: values.help,
@@ -60,6 +74,7 @@ function parseCli(argv) {
     httpPort,
     udpPort,
     udpHost: values['udp-host'],
+    tls,
     speed: Math.max(0.1, Number(values.speed) || 1),
   };
 }
@@ -155,7 +170,7 @@ function main() {
     return null;
   }
 
-  const server = startServer({ httpPort: opts.httpPort, getSnapshot: () => latest, onClientMessage, api });
+  const server = startServer({ httpPort: opts.httpPort, getSnapshot: () => latest, onClientMessage, api, tls: opts.tls });
 
   let socket = null;
   let recorder = null;
