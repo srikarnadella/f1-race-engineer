@@ -26,9 +26,10 @@ const MIN_WEAR_AGE = 2;
 // Laps from now until the car boxes (0 = at the end of this lap), or null
 // if no stop is expected before the flag. lapsLeft: whole laps left
 // including this one. owesStop: hasn't stopped in a dry race (two
-// compounds are compulsory). wear: the car's most-worn tyre, %; stopWear:
-// the wear cars have been boxing at (null until learned).
-function expectedStopIn({ compound, age, usableLife, owesStop, lapsLeft, stopShare = null, wear = null, stopWear = null }) {
+// compounds are compulsory). wear: the car's most-worn tyre, %; startWear:
+// what it read when the set went on (a used set isn't at 0); stopWear: the
+// wear cars have been boxing at (null until learned).
+function expectedStopIn({ compound, age, usableLife, owesStop, lapsLeft, stopShare = null, wear = null, startWear = 0, stopWear = null }) {
   if (age == null || lapsLeft == null) return null;
   const life = usableLife || DEFAULT_USABLE_LIFE[compound];
   if (!life) return null;
@@ -36,8 +37,9 @@ function expectedStopIn({ compound, age, usableLife, owesStop, lapsLeft, stopSha
   if (owesStop) {
     if (n < 1) return null;
     // Wear per lap is only steady after the first couple of laps on a set.
-    const byWear = stopWear && wear > 0 && age >= MIN_WEAR_AGE;
-    const due = byWear ? Math.round(age + ((stopWear - wear) * age) / wear) : Math.round((stopShare || STOP_SHARE_PRIOR) * life);
+    const worn = wear - (startWear || 0); // this stint's wear
+    const byWear = stopWear && worn > 0 && age >= MIN_WEAR_AGE;
+    const due = byWear ? Math.round(age + ((stopWear - wear) * age) / worn) : Math.round((stopShare || STOP_SHARE_PRIOR) * life);
     // Running long past it: not "this lap" every lap - expect it at the end
     // of the set's rated life, or the last chance (the end of the second-last lap).
     const k = age <= due ? due - age : Math.max(0, life - age) || n - 1;

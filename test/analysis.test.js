@@ -319,6 +319,8 @@ test('rival stops: once the stop wear is known, each car is timed by its own wea
   assert.strictEqual(expectedStopIn({ ...base, age: 10, wear: 40 }), 10);
   // A set 1 lap old has no steady rate yet: the age rule.
   assert.strictEqual(expectedStopIn({ ...base, age: 1, wear: 8 }), 11);
+  // A used set that went on at 12%: 18% at 6 laps is 1% a lap, not 3% - due much later.
+  assert.strictEqual(expectedStopIn({ ...base, age: 6, wear: 18, startWear: 12 }), 18);
 });
 
 const { damageLoss } = require('../src/analysis/damageLoss');

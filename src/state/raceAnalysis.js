@@ -139,7 +139,7 @@ const fittedSet = (car) => (car.tyreSets || []).find((x) => x.fitted) || null;
 
 // When this car is expected to box (laps from now), from its tyres and
 // whether it still owes the compulsory stop. Dry races only.
-function stopInLapsOf(car, session, dry, stopShare, stopWear) {
+function stopInLapsOf(car, session, dry, stopShare, stopWear, startWear) {
   if (!car.lapData || !isRunning(car)) return null;
   // In the pit lane: the stop is happening now (its gap reads as the car ahead's until it rejoins).
   if (car.lapData.pitStatus !== 0) return 0;
@@ -153,6 +153,7 @@ function stopInLapsOf(car, session, dry, stopShare, stopWear) {
     lapsLeft: raceLapsLeft(session, car.lapData),
     stopShare,
     wear: maxWear(car),
+    startWear,
     stopWear,
   });
 }
@@ -275,6 +276,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // Cars whose first stop is already counted: a flashback to before it
   // brings the same stop round again with a new pit-entry time.
   const learnedFrom = new Set();
+  // Each car's wear when its current set went on: carIndex -> { stops, wear }
+  // (the lowest reading in the set's first lap - the damage packet can lag
+  // the tyre change). Unknown (joined mid-stint) counts as a new set.
+  const stintStart = new Map();
   // The player's damage: { firstLap, lap, atM, total, base } - the lap and
   // point of the first hit and of the latest, and the clean laps before it
   // (kept here: a long stint would otherwise roll them out of lap history).
@@ -474,6 +479,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       stopShares.length = 0;
       stopWears.length = 0;
       learnedFrom.clear();
+      stintStart.clear();
       seenPitEntry.clear();
       damageHit = null;
       sawUndamaged = false;
@@ -534,7 +540,17 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       || learned(memory.get(track, `stopWear${c}`))
       || learned(stopWears.map((x) => x.wear));
     const stopWear = Object.fromEntries([...DRY].map((c) => [c, stopWearFor(c)]));
-    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare, car.status ? stopWear[car.status.visualTyreCompound] : null)]));
+    for (const car of ordered) {
+      const wear = maxWear(car);
+      if (wear == null || !car.status || !car.lapData) continue;
+      const stops = car.lapData.numPitStops || 0;
+      const had = stintStart.get(car.carIndex);
+      const young = car.status.tyresAgeLaps <= 1;
+      if (!had || had.stops !== stops) stintStart.set(car.carIndex, { stops, wear: young ? wear : null });
+      else if (young && had.wear != null) had.wear = Math.min(had.wear, wear);
+    }
+    const startWearOf = (car) => (stintStart.get(car.carIndex) || {}).wear || 0;
+    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare, car.status ? stopWear[car.status.visualTyreCompound] : null, startWearOf(car))]));
     const field = ordered.map((car, j) => {
       const pace = cleanPaceMs(car);
       const gap = gapBetweenMs(ordered, myPos, j);
