@@ -94,9 +94,9 @@ function serveStatic(req, res) {
   });
 }
 
-// Pushes the current snapshot to every connected client at a fixed rate
-// (not per-packet) - the game can emit telemetry at 60Hz but a human eye
-// and a tablet's battery don't need more than ~10 updates/sec.
+// Pushes the snapshot to every connected client once per engine tick (10Hz,
+// not per packet) - the game can emit telemetry at 60Hz but a human eye and
+// a tablet's battery don't need more.
 // Dashboard -> bridge messages (e.g. a driver's capture marker). Anyone on
 // the LAN can connect, so input is small, JSON objects only, rate-limited,
 // and the handler decides what's valid.
@@ -106,7 +106,7 @@ const MAX_CLIENT_MESSAGES_PER_10S = 30;
 // tls: { cert, key } (PEM) serves https - browsers only open the microphone
 // for voice questions on a secure page, and a tablet reaches the bridge by its
 // LAN address, which plain http can't make secure.
-function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessage = null, api = null, tls = null }) {
+function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api = null, tls = null }) {
   const scheme = tls ? 'https' : 'http';
   const pairUrl = () => {
     const ip = pairAddress();
@@ -162,13 +162,16 @@ function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessag
     ws.send(JSON.stringify(getSnapshot()));
   });
 
-  const interval = setInterval(() => {
+  // Called by the engine after each tick, so every snapshot goes out once:
+  // a second timer of its own drifted against the engine's, now and then
+  // sending one twice and skipping the next (and with it a debrief).
+  function broadcast() {
     if (wss.clients.size === 0) return;
     const payload = JSON.stringify(getSnapshot());
     for (const client of wss.clients) {
       if (client.readyState === client.OPEN) client.send(payload);
     }
-  }, 1000 / tickHz);
+  }
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
@@ -190,8 +193,8 @@ function startServer({ httpPort = 8080, getSnapshot, tickHz = 10, onClientMessag
   });
 
   return {
+    broadcast,
     close: () => {
-      clearInterval(interval);
       wss.close();
       server.close();
     },

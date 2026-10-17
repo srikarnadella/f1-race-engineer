@@ -128,6 +128,7 @@ function main() {
       const withDebrief = ++tickCount % 10 === 0;
       if (withDebrief) debriefView = debrief.view();
       latest = build(withDebrief);
+      server.broadcast();
       if (capture) capture.logOutputs(latest);
     } catch (err) {
       console.error('[engine] snapshot failed:', err);

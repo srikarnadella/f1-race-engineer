@@ -33,6 +33,7 @@ const PASS_CAP = 0.5;
 const MIN_DEG_CARS = 5;
 const MIN_DEG_LAPS = 25;
 const PRACTICE_TYPES = new Set([1, 2, 3, 4]);
+const GAME_RULES = 'game'; // track-memory key for what holds at every track
 const passLevel = (p) => (p >= 0.25 ? 'high' : p >= 0.1 ? 'medium' : 'low');
 function passChance(attacker, defender) {
   if (!OVERTAKE_MODEL || !attacker || !defender) return null;
@@ -286,6 +287,12 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // distance, or null if it was already on the counter when we joined).
   const trackLimitLog = [];
   let trackLimitsSeen = false;
+  // Whether a stop serves a time penalty is learned, not assumed: a real
+  // F1 26 race kept a 5s penalty through three stops, but those served
+  // stop-gos, so it settles nothing. A normal stop with a penalty on the
+  // books records the answer (a game rule, so not per track) for every
+  // session after. pitVisit: the player's current trip down the pit lane.
+  let pitVisit = null;
   const tyreTemps = createTyreTempTracker();
   // The last trusted wear fit this session: { trackId, compounds }, saved to
   // the track's memory when the session ends - practice laps feed the race plan.
@@ -407,11 +414,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     };
   }
 
-  // The player's penalties and track-limit warnings. Time penalties are
-  // served at the next stop, or added at the flag; either way every option
-  // pays them, so the strategy comparisons leave them out and only the
-  // rejoin (where you'd actually come out) and the gap to the car behind
-  // at the flag include them.
+  // The player's penalties and track-limit warnings. A time penalty is
+  // served at the next stop (it goes into every stop's cost, so rejoin
+  // positions are where you'd really come out), or added at the flag (set
+  // against the gap to the car behind).
   function penaltiesFor({ player, behind, corners }) {
     const l = player.lapData;
     const cc = l.cornerCuttingWarnings || 0;
@@ -425,12 +431,20 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const timeS = l.penalties || 0;
     const driveThroughs = l.numUnservedDriveThroughPens || 0;
     const stopGos = l.numUnservedStopGoPens || 0;
+    if (l.pitStatus !== 0 && !pitVisit) pitVisit = { timeS, stops: l.numPitStops || 0, serving: driveThroughs + stopGos > 0 };
+    if (l.pitStatus === 0 && pitVisit) {
+      if (!pitVisit.serving && pitVisit.timeS > 0 && (l.numPitStops || 0) > pitVisit.stops) memory.add(GAME_RULES, 'penaltyServedAtStop', timeS < pitVisit.timeS ? 1 : 0);
+      pitVisit = null;
+    }
     if (!cc && !timeS && !driveThroughs && !stopGos) return null;
     const last = trackLimitLog[trackLimitLog.length - 1];
     const sameAgain = last && last.corner != null && trackLimitLog.slice(0, -1).some((x) => x && x.corner === last.corner);
-    // shortcut: "served at a stop" = still owes the compulsory stop; a wet
-    // race (no compulsory stop) or a planned second stop reads as "the flag".
-    const servedAt = timeS && !l.numPitStops ? 'stop' : 'flag';
+    // shortcut: "served at a stop" = still owes the compulsory stop, unless a
+    // stop has been seen leaving a penalty in place; a wet race or a planned
+    // second stop reads as "the flag".
+    const rule = memory.get(GAME_RULES, 'penaltyServedAtStop');
+    const stopsServe = rule.length ? rule[rule.length - 1] === 1 : true;
+    const servedAt = timeS && !l.numPitStops && stopsServe ? 'stop' : 'flag';
     const gapMs = behind ? behind.lapData.deltaToCarInFrontInMS : null;
     return {
       timeS,
@@ -465,6 +479,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       sawUndamaged = false;
       trackLimitLog.length = 0;
       trackLimitsSeen = false;
+      pitVisit = null;
       tyreTemps.reset();
     }
     const playerIdx = fieldModel.playerIndex();
@@ -604,8 +619,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
 
     const temps = tyreTemps.update(player, !neutralisedNow && player.lapData.pitStatus === 0, session && session.trackLength);
     const penalties = penaltiesFor({ player, behind: ordered[myPos + 1] || null, corners: fieldModel.getPlayerCorners() });
-    // A time penalty is served at the stop: you come out that much later.
-    const rejoin = predictRejoin(ordered, player, loss.ms + (penalties && penalties.servedAt === 'stop' ? penalties.timeS * 1000 : 0));
+    // A time penalty served at the stop: you come out that much later -
+    // in every stop prediction, so the cards agree.
+    const stopPenaltyMs = penalties && penalties.servedAt === 'stop' ? penalties.timeS * 1000 : 0;
+    const rejoin = predictRejoin(ordered, player, loss.ms + stopPenaltyMs);
     const damage = damageFor({ player, session, tyreModel, myDeg, lapsLeft: raceLapsLeft(session, player.lapData), pitLossMs: loss.ms });
 
     // ATTACK / DEFEND / CLOSE IN / CLEAR.
@@ -629,8 +646,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
         player,
         tyreSets: player.tyreSets,
         rejoin,
-        stopLossMs: loss.ms,
-        normalLossMs: loss.normalMs,
+        stopLossMs: loss.ms + stopPenaltyMs,
+        normalLossMs: loss.normalMs + stopPenaltyMs,
         wetConditions: !!(weather && (weather.trackState === 'raining' || (weather.trackState === 'drying' && weather.playerOnWets))),
       })
       : null;
@@ -640,7 +657,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const lap = player.lapData.currentLapNum;
     const toLap = (k) => (k === 'stay' || k == null ? k : lap + k);
     const wingLossMs = damage && damage.lossPerLapMs > 0 ? Math.round(damage.lossPerLapMs * damage.fixableShare) : 0;
-    const timingInputs = { ordered, player, myPace, myDeg, tyreModel, lapsLeft: lapsLeftNow, pitLossMs: loss.ms, stopIn, wingLossMs };
+    const timingInputs = { ordered, player, myPace, myDeg, tyreModel, lapsLeft: lapsLeftNow, pitLossMs: loss.ms + stopPenaltyMs, stopIn, wingLossMs };
     let timing = !situation && dry && payback && rejoin && myPace != null && lapsLeftNow != null
       ? pitTimingFor({ ...timingInputs, prefer: pitPick === 'stay' ? 'stay' : pitPick != null ? pitPick - lap : null, hold: true })
       : null;

@@ -270,3 +270,26 @@ test('a rival first stop is learned once, even when a flashback brings it round 
     Date.now = realNow;
   }
 });
+
+test('a stop that leaves a time penalty in place teaches that penalties are added at the flag', () => {
+  const { createTrackMemory } = require('../src/state/trackMemory');
+  const memory = createTrackMemory();
+  const race = () => {
+    const fm = createFieldModel();
+    fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318, sessionType: 15 });
+    return { fm, ra: createRaceAnalysis(fm, { memory }) };
+  };
+  let t = 0;
+  const tick = ({ fm, ra }, o) => {
+    fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(8, { [PLAYER]: { penalties: 5, ...o } }) });
+    return ra.compute();
+  };
+  const r1 = race();
+  assert.strictEqual(tick(r1, {}).penalties.servedAt, 'stop'); // the assumption until seen
+  tick(r1, { pitStatus: 1 });
+  tick(r1, { pitStatus: 2, numPitStops: 1 });
+  tick(r1, { pitStatus: 0, numPitStops: 1 }); // out again, still 5s
+  assert.deepStrictEqual(memory.get('game', 'penaltyServedAtStop'), [0]);
+  // The next race: a penalty before the stop is added at the flag.
+  assert.strictEqual(tick(race(), {}).penalties.servedAt, 'flag');
+});
