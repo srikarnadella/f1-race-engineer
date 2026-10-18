@@ -24,10 +24,10 @@ like the same stretch of the last lap) against the store when the car crossed it
 
 | | Mean error | Within 5 points |
 |---|---|---|
-| **Projection** | **7.7 pts** | **51%** |
+| **Projection** | **7.7 pts** | **52%** |
 | Naive: "stays where it is now" | 13.2 pts | 19% |
 
-717 half-laps scored. Points = percentage points of a full 4 MJ store.
+715 half-laps scored. Points = percentage points of a full 4 MJ store.
 
 ## Tyre wear model
 
@@ -38,15 +38,15 @@ grades its own fit), up to that car's own pace level - only the slope is tested.
 
 | Race | Laps | **Model** | Naive |
 |---|---|---|---|
-| Silverstone | 71 | **338 ms** | 334 ms |
-| Suzuka | 70 | **342 ms** | 366 ms |
-| Monaco | 344 | **289 ms** | 464 ms |
-| Montreal | 63 | **192 ms** | 255 ms |
-| Barcelona | 217 | **360 ms** | 434 ms |
-| Barcelona | 385 | **366 ms** | 611 ms |
-| All | 1150 | **329 ms** | 482 ms |
+| Silverstone | 88 | **349 ms** | 347 ms |
+| Suzuka | 88 | **395 ms** | 417 ms |
+| Monaco | 360 | **285 ms** | 467 ms |
+| Montreal | 84 | **285 ms** | 338 ms |
+| Barcelona | 245 | **365 ms** | 425 ms |
+| Barcelona | 399 | **379 ms** | 613 ms |
+| All | 1264 | **342 ms** | 485 ms |
 
-It beats the naive guess on 5 of 6 races; not on Silverstone (71 laps).
+It beats the naive guess on 5 of 6 races; not on Silverstone (88 laps).
 
 ## When rivals stop
 
