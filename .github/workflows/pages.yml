@@ -1,6 +1,6 @@
 # Tests, then builds and publishes the demo website to GitHub Pages:
 # site/index.html at the root, the dashboard (public/) at /demo/ playing a
-# recording the real engine makes here (npm run site), screenshots at /img/.
+# recording the real engine makes here (npm run site), screenshots and photos at /img/.
 name: Demo site
 
 on:
@@ -39,6 +39,7 @@ jobs:
           cp -r public/. _site/demo/
           cp -r site/demo-data _site/demo/demo-data
           cp docs/screenshots/*.png _site/img/
+          cp site/img/* _site/img/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

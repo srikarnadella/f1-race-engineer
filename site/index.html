@@ -14,392 +14,584 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2306080b'/%3E%3Cpath d='M6 22h20M9 16h14M12 10h8' stroke='%232fd877' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+  <script>document.documentElement.classList.add('js')</script>
   <style>
     :root {
-      --bg: #07090c; --panel: #0e1218; --line: #1d252f; --line-2: #2a3542;
+      /* The dashboard's own palette: one dark ground, one ink, colour only for meaning. */
+      --bg: #07090c; --panel: #0e1218; --panel-2: #151b23;
       --text: #f2f5f8; --muted: #9aa6b4; --dim: #7b8796;
       --go: #37e98b; --info: #5ec2ff; --watch: #ffd23f; --act: #ff5a52;
-      --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+      --step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
+      --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+      --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+      --step-head: clamp(2rem, 1.3rem + 3.2vw, 4rem);
+      --step-display: clamp(4.5rem, 2.5rem + 7vw, 9rem);
+      --gutter: clamp(16px, 2.4vw, 40px);
+      --section: clamp(96px, 11vw, 200px);
+      --code: ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* taste-skill-ignore: real code only (pre, code, packet offsets) */
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
-    a { color: inherit; }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
-    h1, h2, h3 { margin: 0; letter-spacing: -0.03em; line-height: 1.08; }
-    h2 { font-size: clamp(1.6rem, 3.2vw, 2.2rem); font-weight: 800; }
-    p { margin: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--step-body)/1.5 "Hanken Grotesk", system-ui, sans-serif; letter-spacing: -0.005em; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+    h1, h2, h3, p, figure, ul, ol { margin: 0; }
+    h1, h2, h3 { font-weight: 500; }
+    h2 { font-size: var(--step-head); line-height: 0.95; letter-spacing: -0.045em; max-width: 18ch; }
+    a { color: inherit; text-decoration: underline; text-decoration-thickness: 0.07em; text-underline-offset: 0.2em; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); transition: text-decoration-color 180ms ease; }
+    strong, b { font-weight: 500; }
+    img { display: block; max-width: 100%; height: auto; }
+    code { font: 0.86em/1 var(--code); padding: 2px 6px; border-radius: 4px; background: var(--panel-2); }
+    button { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--go); outline-offset: 3px; }
     .muted { color: var(--muted); }
-    .kicker { font: 500 0.75rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--go); margin-bottom: 14px; }
+    .wrap { padding-inline: var(--gutter); }
+    .lead { margin-top: 24px; max-width: 46ch; font-size: var(--step-lead); line-height: 1.35; letter-spacing: -0.015em; }
+    .note { font-size: var(--step-small); color: var(--muted); }
+    .button { display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; border: 0; border-radius: 0; background: var(--go); color: #03190c; font-weight: 500; text-decoration: none; cursor: pointer; transition: transform 140ms var(--ease-out), background-color 180ms ease; }
+    .button:active { transform: scale(0.97); }
+    @media (hover: hover) and (pointer: fine) {
+      a:hover { text-decoration-color: currentColor; }
+      .button:hover { background: #6ff2ab; }
+    }
 
-    /* Nav: brand, the two tabs, GitHub */
-    nav { position: sticky; top: 0; z-index: 10; background: rgba(7, 9, 12, 0.82); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
-    nav .wrap { display: flex; align-items: center; gap: 20px; height: 60px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; text-decoration: none; white-space: nowrap; }
-    .brand svg { width: 24px; height: 24px; }
-    .pages { display: flex; gap: 4px; margin-left: auto; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-    .pages button { appearance: none; border: 0; border-radius: 8px; padding: 7px 14px; background: none; color: var(--muted); font: 600 0.92rem/1 Inter, sans-serif; cursor: pointer; white-space: nowrap; }
+    /* The bar: wordmark, the three pages, GitHub. Plain, over the page. */
+    .top { position: absolute; z-index: 5; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 28px; height: 76px; padding-inline: var(--gutter); font-size: var(--step-small); }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+    .brand svg { width: 22px; height: 22px; }
+    .pages { display: flex; gap: 22px; margin-left: auto; }
+    .pages button { appearance: none; border: 0; padding: 8px 0; background: none; color: var(--muted); cursor: pointer; text-decoration: underline 2px transparent; text-underline-offset: 8px; transition: color 180ms ease, text-decoration-color 180ms ease; }
     .pages button:hover { color: var(--text); }
-    .pages button[aria-selected="true"] { background: var(--text); color: var(--bg); }
-    .gh { color: var(--muted); text-decoration: none; font-size: 0.92rem; font-weight: 600; }
-    .gh:hover { color: var(--text); }
-
-    section { padding: 72px 0; }
+    .pages button[aria-selected="true"] { color: var(--text); text-decoration-color: var(--go); }
+    .gh { color: var(--muted); }
     [role="tabpanel"][hidden] { display: none; }
 
-    /* Overview: hero */
-    .hero { padding: 88px 20px 40px; text-align: center; position: relative; overflow: hidden; }
-    .hero::before { content: ""; position: absolute; inset: -30% 0 auto; height: 560px; background: radial-gradient(closest-side, rgba(55, 233, 139, 0.12), transparent 70%); pointer-events: none; }
-    .hero > * { position: relative; }
-    .hero h1 { font-size: clamp(2.5rem, 7vw, 4.4rem); font-weight: 800; }
-    .hero h1 em { font-style: normal; color: var(--go); }
-    .hero .lede { margin: 20px auto 0; max-width: 600px; font-size: clamp(1.05rem, 2vw, 1.2rem); color: var(--muted); }
-    .radio { display: inline-flex; align-items: center; gap: 12px; margin-top: 30px; padding: 10px 16px 10px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--panel); font: 500 0.9rem/1.3 var(--mono); text-align: left; }
-    .radio b { padding: 4px 9px; border-radius: 6px; background: var(--go); color: #03190c; font-weight: 500; letter-spacing: 0.06em; }
-    .radio span { min-width: 0; }
+    /* ===== Overview: the hero. What it is, large; the app's own call board on a green stage. ===== */
+    .hero { position: relative; min-height: max(100svh, 800px); overflow: hidden; }
+    .hero-copy { position: relative; z-index: 1; padding: 150px var(--gutter) 0; }
+    .hero h1 { font-size: clamp(3.25rem, 1.2rem + 4.4vw, 5rem); line-height: 0.95; letter-spacing: -0.05em; }
+    .lines .line { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
+    .lines [data-line] { display: block; }
+    .hero-copy p { margin-top: 28px; max-width: 36ch; }
+    .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin-top: 32px; }
+    .hero-copy .note { max-width: 40ch; margin-top: 28px; }
+    .hero-stage { position: absolute; left: max(37%, 540px); right: 0; top: 42%; bottom: 0; background: var(--go); clip-path: polygon(160px 0, 100% 0, 100% 100%, 0 100%, 0 160px); }
 
-    /* Overview: demo */
-    .demo-tabs { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 40px 0 14px; }
-    .demo-tabs button { appearance: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; background: none; color: var(--muted); font: 500 0.88rem/1.2 Inter, sans-serif; cursor: pointer; }
-    .demo-tabs button:hover { color: var(--text); border-color: var(--line-2); }
-    .demo-tabs button.is-on { color: var(--bg); background: var(--text); border-color: var(--text); }
-    .demo-tabs button.auto.is-on { background: var(--info); border-color: var(--info); }
-    .frame { position: relative; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); background: #030406; aspect-ratio: 4 / 3; box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55); }
+    /* The call board: the app's call card and radio, stepping through a recorded race. */
+    .board { position: absolute; left: 56px; top: 56px; width: min(620px, calc(100% - 56px)); padding: 22px 26px 26px; border-radius: 6px 6px 0 0; background: var(--bg); }
+    .board-top { display: flex; align-items: center; gap: 8px; font-size: var(--step-small); color: var(--muted); }
+    .board-top b { color: var(--text); }
+    .board-top .pos { margin-right: auto; padding-left: 10px; color: var(--text); }
+    .board-ctl button { appearance: none; min-height: 40px; padding: 0 14px; /* taste-skill-ignore: the product's own control, inside data-ui */ border: 1px solid #2a3542; border-radius: 4px; background: var(--panel); font-size: var(--step-small); cursor: pointer; transition: transform 140ms var(--ease-out), background-color 180ms ease; }
+    .board-ctl button:hover { background: var(--panel-2); }
+    .board-ctl button:active { transform: scale(0.97); }
+    .board-callrow { display: flex; align-items: center; gap: 22px; margin-top: 18px; padding: 16px 20px; border-left: 4px solid var(--c, var(--go)); background: var(--panel); }
+    .board-call { font-size: var(--step-head); line-height: 1; letter-spacing: -0.04em; color: var(--c, var(--go)); transition: color 240ms ease; }
+    .board-reason { font-size: var(--step-body); line-height: 1.3; }
+    .board-label { margin-top: 20px; font-size: var(--step-small); color: var(--muted); }
+    .board-log { margin-top: 8px; padding: 0; list-style: none; }
+    .board-log li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 12px 0; color: var(--muted); font-size: var(--step-small); line-height: 1.45; }
+    .board-log li + li { border-top: 1px solid #1d252f; } /* taste-skill-ignore: rows of the app's radio log, inside data-ui */
+    .board-log li:first-child { color: var(--text); font-size: var(--step-body); }
+    .board-log li span { color: var(--muted); font-size: var(--step-small); }
+    .board-swap { transition: opacity 200ms ease; }
+    .board.is-swapping .board-swap { opacity: 0; }
+
+    /* ===== The real app: screen names on the left, the dashboard on its stage. ===== */
+    .show { display: grid; grid-template-columns: 4fr 8fr; gap: var(--gutter); padding: var(--section) var(--gutter) 0; }
+    .show-list { display: flex; flex-direction: column; align-items: flex-start; }
+    .show-list button { appearance: none; border: 0; padding: 4px 0; background: none; color: var(--muted); font-size: var(--step-head); line-height: 1.1; letter-spacing: -0.045em; text-align: left; cursor: pointer; transition: color 180ms ease, transform 140ms var(--ease-out); }
+    .show-list button:hover { color: var(--text); }
+    .show-list button:active { transform: translateX(4px); }
+    .show-list button.is-on { color: var(--text); }
+    .show-list button.auto.is-on { color: var(--info); }
+    .show-copy { margin-top: auto; padding-top: 40px; max-width: 34ch; }
+    .show-copy p + p { margin-top: 10px; }
+    .stage { position: relative; height: 88svh; min-height: 560px; overflow: hidden; background: var(--panel); padding: 72px 0 0 64px; }
+    .frame { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 10px 0 0 0; background: #030406; }
     /* Laid out at tablet size, then scaled to fit: a phone sees the same layout, smaller. */
     .frame iframe { position: absolute; top: 0; left: 0; width: 1180px; height: 885px; border: 0; transform-origin: 0 0; transform: scale(var(--s, 1)); }
-    .caption { text-align: center; color: var(--dim); font-size: 0.92rem; margin-top: 14px; min-height: 1.6em; }
-    .caption a { color: var(--muted); }
 
-    /* Overview: three steps */
-    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 36px; counter-reset: s; }
-    .step { padding: 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
-    .step::before { counter-increment: s; content: counter(s); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: rgba(55, 233, 139, 0.12); color: var(--go); font: 500 0.9rem/1 var(--mono); margin-bottom: 16px; }
-    .step h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
-    .step p { color: var(--muted); font-size: 0.94rem; }
-    code { font: 500 0.86em/1 var(--mono); padding: 2px 6px; border-radius: 5px; background: #161c25; color: var(--text); }
+    /* ===== Monaco, from above: the race the demo replays. ===== */
+    .band { margin-top: var(--section); }
+    .band-img { overflow: hidden; height: min(62svh, 46vw); }
+    .band-img img { width: 100%; height: 112%; object-fit: cover; object-position: 50% 40%; }
+    .band figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 32px; padding: 16px var(--gutter) 0; }
+    .band figcaption p:first-child { max-width: 56ch; }
 
-    /* How it works: the flow chart */
-    .flow { list-style: none; margin: 40px 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; }
-    .stage { position: relative; padding: 0 8px; }
-    .stage .dot { position: relative; height: 44px; display: grid; place-items: center; margin: 0 -8px; /* the line runs through the gutters */ }
-    /* The line through every stage, with a moving pulse: one packet becoming one call. */
-    .stage .dot::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--line-2); }
-    .stage:first-child .dot::before { left: 50%; }
-    .stage:last-child .dot::before { right: 50%; }
-    .stage .dot i { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--panel); border: 1px solid var(--line-2); color: var(--c, var(--go)); }
-    .stage .dot svg { width: 20px; height: 20px; }
-    .stage h3 { margin-top: 16px; font-size: 1rem; font-weight: 600; }
-    .stage p { margin-top: 6px; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
-    .stage .eg { margin-top: 12px; padding: 9px 10px; border-left: 2px solid var(--c, var(--go)); background: var(--panel); border-radius: 0 8px 8px 0; font: 500 0.76rem/1.45 var(--mono); color: var(--text); overflow-wrap: anywhere; }
-    .pulse { position: absolute; z-index: 0; top: 22px; left: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; /* half a 44px dot: the list's margin collapses through the wrapper */ border-radius: 50%; background: var(--go); box-shadow: 0 0 14px var(--go); animation: run 4.5s cubic-bezier(.6, 0, .4, 1) infinite; }
-    @keyframes run { from { left: calc(100% / 12); } to { left: calc(100% - 100% / 12); } }
-    .flow-wrap { position: relative; }
-    /* Each stage opens its deep dive below: the heading's button covers the whole card. */
-    .stage { border-radius: 12px; transition: background 0.15s; }
-    .stage:hover, .stage.is-open { background: rgba(255, 255, 255, 0.03); }
-    .stage-btn { appearance: none; border: 0; padding: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; cursor: pointer; text-align: left; }
-    .stage-btn::after { content: ""; position: absolute; inset: 0; border-radius: 12px; }
+    /* ===== Set-up: three statements; the fragment beside them changes with each. ===== */
+    .setup { padding: var(--section) var(--gutter) 0; }
+    .setup h2 { font-size: var(--step-lead); letter-spacing: -0.02em; line-height: 1.1; }
+    .story { display: grid; grid-template-columns: 5fr 7fr; gap: var(--gutter); }
+    .beat { min-height: 72svh; padding-top: 24px; }
+    .beat h3 { font-size: var(--step-lead); line-height: 1.12; letter-spacing: -0.025em; color: var(--muted); max-width: 18ch; transition: color 300ms ease; }
+    .beat p { margin-top: 14px; max-width: 38ch; color: var(--muted); }
+    .beat.is-on h3, .beat.is-on p { color: var(--text); }
+    .story-stage { position: sticky; top: 14svh; height: min(560px, 72svh); align-self: start; background: var(--panel); overflow: hidden; }
+    .state { position: absolute; inset: 0; display: grid; place-items: center; padding: 40px; opacity: 0; transition: opacity 320ms ease; }
+    .state.is-on { opacity: 1; }
+    .state pre { margin: 0; width: 100%; max-width: 560px; padding: 20px 22px; border-radius: 6px; background: var(--bg); font: 0.82rem/1.7 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .state pre .c { color: var(--muted); }
+    .state pre .ok { color: var(--go); }
+    .settings { width: 100%; max-width: 440px; border-radius: 6px; background: var(--bg); padding: 10px 0; font-size: var(--step-small); }
+    .settings div { display: flex; justify-content: space-between; padding: 12px 20px; }
+    .settings div + div { border-top: 1px solid #1d252f; } /* taste-skill-ignore: inside the data-ui settings fragment */
+    .settings .t { padding: 8px 20px 14px; color: var(--muted); }
+    .settings .sel { background: var(--panel-2); color: var(--text); }
+    .settings .sel b { color: var(--go); }
+    .state img { width: 100%; max-width: 640px; border-radius: 6px; }
+
+    /* ===== How long is your race? The figure is the visitor's own. ===== */
+    .calls { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto 1fr auto; min-height: 88svh; margin-top: var(--section); padding: clamp(48px, 6vw, 96px) var(--gutter); background: var(--panel); column-gap: var(--gutter); }
+    .calls h2 { grid-column: 1 / -1; }
+    .slider { grid-column: 1 / -1; width: min(100%, 400px); margin-top: 28px; padding: 16px 18px; border-radius: 6px; background: var(--bg); }
+    .slider div { display: flex; justify-content: space-between; }
+    .slider output { color: var(--go); }
+    .slider input { width: 100%; margin: 14px 0 4px; accent-color: var(--go); height: 28px; }
+    .figure { align-self: end; margin-top: 64px; font-size: clamp(140px, 19vw, 320px); line-height: 0.8; letter-spacing: -0.05em; }
+    .figure span { display: block; margin-top: 0.3em; font-size: var(--step-lead); line-height: 1.2; letter-spacing: -0.015em; }
+    .working { align-self: end; max-width: 32ch; color: var(--muted); }
+
+    /* ===== Measured, not claimed: a board of filled tiles. ===== */
+    .proof { padding: var(--section) var(--gutter) 0; }
+    .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .tile { position: relative; display: flex; flex-direction: column; aspect-ratio: 3 / 2; padding: 24px; background: var(--panel); overflow: hidden; }
+    .tile-head { grid-column: span 2; aspect-ratio: auto; background: var(--go); color: #03190c; }
+    .tile-head h2 { max-width: 12ch; }
+    .tile-head p { margin-top: auto; padding-top: 24px; max-width: 40ch; }
+    .tile-head a { color: inherit; }
+    .tile b { font-size: var(--step-head); line-height: 1; letter-spacing: -0.045em; color: var(--c, var(--go)); }
+    .tile span { margin-top: 12px; }
+    .tile small { margin-top: auto; padding-top: 12px; font-size: var(--step-small); color: var(--muted); }
+    .tile-img { padding: 0; }
+    .tile-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .tile-img figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 16px 12px; background: linear-gradient(transparent, rgba(3, 4, 6, 0.85)); /* taste-skill-ignore: neutral scrim under a caption on a photo */ font-size: var(--step-small); }
+    .tile-img figcaption a { color: inherit; }
+    .proof .more { margin-top: 24px; }
+
+    /* ===== How it works ===== */
+    .page-top { padding: 160px var(--gutter) 0; }
+    .flow { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 64px; padding: 0; }
+    .stage-i { position: relative; padding: 20px 18px 22px; background: var(--panel); transition: background-color 180ms ease; }
+    .stage-i::before { content: ""; display: block; height: 4px; margin: -20px -18px 18px; background: var(--c, var(--go)); opacity: 0.35; transition: opacity 180ms ease; }
+    .stage-i:hover { background: var(--panel-2); }
+    .stage-i.is-open { background: var(--panel-2); }
+    .stage-i.is-open::before { opacity: 1; }
+    .stage-i h3 { font-size: var(--step-body); }
+    .stage-i p { margin-top: 8px; font-size: var(--step-small); color: var(--muted); line-height: 1.45; }
+    .stage-i .eg { margin-top: 14px; font-size: var(--step-small); line-height: 1.45; color: var(--c, var(--go)); }
+    .stage-btn { appearance: none; border: 0; padding: 0; background: none; text-align: left; cursor: pointer; }
+    .stage-btn::after { content: ""; position: absolute; inset: 0; }
+    .stage-btn:focus-visible { outline: none; }
     .stage-btn:focus-visible::after { outline: 2px solid var(--c, var(--go)); outline-offset: 2px; }
-    .stage.is-open h3 { color: var(--c, var(--go)); }
-    .stage.is-open .dot i { border-color: var(--c, var(--go)); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04); }
-    .hint { margin-top: 18px; color: var(--dim); font-size: 0.88rem; }
-
-    /* The deep dive: one stage at a time, its topics as tabs */
-    .explore { margin-top: 26px; border: 1px solid var(--line-2); border-top: 3px solid var(--c, var(--go)); border-radius: 14px; background: var(--panel); }
+    .hint { margin-top: 18px; }
+    .explore { margin-top: 40px; background: var(--panel); }
+    .page-top .split { align-items: start; }
+    .page-top .split figcaption { margin-top: 10px; }
+    .explore::before { content: ""; display: block; height: 4px; background: var(--c, var(--go)); }
     .ex-stage[hidden], .ex-body[hidden] { display: none; }
-    .ex-head { padding: 22px 24px 0; }
-    .ex-head .kicker { color: var(--c, var(--go)); margin-bottom: 10px; }
-    .ex-head h3 { font-size: 1.35rem; font-weight: 800; }
-    .ex-head p { margin-top: 8px; color: var(--muted); max-width: 760px; }
-    .ex-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 18px 24px 0; border-bottom: 1px solid var(--line); }
-    .ex-tabs button { appearance: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 10px 10px; background: none; color: var(--muted); font: 600 0.9rem/1.2 Inter, sans-serif; cursor: pointer; }
+    .ex-head { padding: 32px 32px 0; }
+    .ex-head h3 { font-size: var(--step-lead); letter-spacing: -0.02em; line-height: 1.15; max-width: 30ch; }
+    .ex-head p { margin-top: 10px; max-width: 64ch; color: var(--muted); }
+    .ex-tabs { display: flex; flex-wrap: wrap; gap: 4px 24px; padding: 24px 32px 0; }
+    .ex-tabs button { appearance: none; border: 0; padding: 8px 0; background: none; color: var(--muted); cursor: pointer; font-size: var(--step-small); text-decoration: underline 3px transparent; text-underline-offset: 10px; transition: color 180ms ease, text-decoration-color 180ms ease; }
     .ex-tabs button:hover { color: var(--text); }
-    .ex-tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--c, var(--go)); }
-    .ex-body { padding: 22px 24px 26px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 26px; }
-    .ex-body > div > p + p, .ex-body > div > p + ul, .ex-body > div > ul + p { margin-top: 12px; }
-    .ex-body p, .ex-body li { color: var(--muted); font-size: 0.94rem; }
-    .ex-body strong { color: var(--text); font-weight: 600; }
-    .ex-body ul, .ex-body ol { margin: 0; padding-left: 20px; }
-    .ex-body li + li { margin-top: 6px; }
-    .ex-body pre { margin: 0; padding: 14px 16px; border-radius: 10px; background: #0a0d12; border: 1px solid var(--line); overflow-x: auto; font: 500 0.78rem/1.6 var(--mono); color: var(--text); white-space: pre; }
-    .ex-body pre .c { color: var(--dim); }
-    .ex-body .kv { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    .ex-body .kv td { padding: 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
-    .ex-body .kv td:first-child { font: 500 0.8rem/1.5 var(--mono); color: var(--text); padding-right: 14px; white-space: nowrap; }
-    .ex-body .kv tr:last-child td { border-bottom: 0; }
-    .ex-src { margin-top: 14px; font-size: 0.85rem; color: var(--dim); }
-    .ex-src a { color: var(--muted); }
-    .ex-num { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-    .ex-num span { padding: 8px 11px; border: 1px solid var(--line-2); border-radius: 8px; font: 500 0.8rem/1.3 var(--mono); color: var(--text); }
-    .ex-num span b { color: var(--c, var(--go)); font-weight: 500; }
-    .legend { margin-top: 28px; color: var(--dim); font-size: 0.88rem; }
+    .ex-tabs button[aria-selected="true"] { color: var(--text); text-decoration-color: var(--c, var(--go)); }
+    .ex-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; padding: 28px 32px 36px; }
+    .ex-body > div > * + * { margin-top: 14px; }
+    .ex-body ul, .ex-body ol { padding-left: 22px; }
+    .ex-body li + li { margin-top: 8px; }
+    .ex-body pre { margin: 0; padding: 16px 18px; border-radius: 6px; background: var(--bg); overflow-x: auto; font: 0.8rem/1.6 var(--code); white-space: pre; }
+    .ex-body pre .c { color: var(--muted); }
+    .kv { width: 100%; border-collapse: collapse; font-size: var(--step-small); }
+    .kv td { padding: 8px 0; border-bottom: 1px solid #1d252f; vertical-align: top; color: var(--muted); }
+    .kv td:first-child { font-family: var(--code); font-size: 0.78rem; color: var(--text); padding-right: 16px; white-space: nowrap; }
+    .kv tr:last-child td { border-bottom: 0; }
+    .ex-src { font-size: var(--step-small); color: var(--muted); }
+    .ex-num { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ex-num span { padding: 9px 12px; background: var(--panel-2); font-size: var(--step-small); }
+    .ex-num b { color: var(--c, var(--go)); }
+    .legend { margin-top: 20px; }
+    .loops { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px var(--gutter); margin-top: var(--section); }
+    .loop-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; margin-bottom: 24px; }
+    .loops h3, .practice h3 { font-size: var(--step-lead); letter-spacing: -0.02em; line-height: 1.15; }
+    .loops p, .practice p { margin-top: 10px; max-width: 52ch; }
+    .chain { margin-top: 14px; color: var(--go); }
+    .chain i { font-style: normal; color: var(--muted); padding: 0 6px; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gutter); margin-top: 56px; }
+    .stat b { display: block; font-size: var(--step-head); line-height: 1; letter-spacing: -0.045em; color: var(--c, var(--go)); }
+    .stat span { display: block; margin-top: 14px; }
+    .stat small { display: block; margin-top: 8px; font-size: var(--step-small); color: var(--muted); }
+    .more { margin-top: 32px; max-width: 70ch; color: var(--muted); font-size: var(--step-small); }
+    .sec { padding: var(--section) var(--gutter) 0; }
 
-    /* How it works: the loops that keep it honest */
-    .loops { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }
-    .loop { padding: 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
-    .loop h3 { font-size: 1.05rem; font-weight: 600; }
-    .loop p { margin-top: 8px; color: var(--muted); font-size: 0.94rem; }
-    .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 16px; font: 500 0.8rem/1 var(--mono); }
-    .chain span { padding: 6px 9px; border: 1px solid var(--line-2); border-radius: 7px; }
-    .chain span.arrow { border: 0; padding: 0; color: var(--dim); }
-
-    /* How it works: measured numbers */
-    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }
-    .stat { padding: 22px; border: 1px solid var(--line); border-radius: 14px; }
-    .stat b { display: block; font: 500 1.9rem/1 var(--mono); letter-spacing: -0.02em; color: var(--c, var(--go)); }
-    .stat span { display: block; margin-top: 10px; font-weight: 600; font-size: 0.95rem; }
-    .stat small { display: block; margin-top: 4px; color: var(--dim); font-size: 0.85rem; }
-    .more { margin-top: 22px; color: var(--dim); font-size: 0.92rem; }
-    .more a { color: var(--muted); }
-
-    /* Engineering: tables, the layer stack, the case study */
-    .lead { margin-top: 14px; max-width: 700px; color: var(--muted); }
-    .tbl-wrap { margin-top: 32px; overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
-    .tbl { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-    .tbl th, .tbl td { padding: 12px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
-    .tbl tr:last-child td { border-bottom: 0; }
-    .tbl th { font: 500 0.72rem/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); background: var(--panel); }
-    .tbl td:first-child { font-weight: 600; }
-    .tbl td.num { font: 500 0.9rem/1.4 var(--mono); white-space: nowrap; }
+    /* ===== Engineering ===== */
+    .shots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 48px; }
+    .shots figure { background: var(--panel); }
+    .shots img { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; object-position: top left; }
+    .shots figcaption { padding: 12px 14px 14px; font-size: var(--step-small); color: var(--muted); }
+    .shots figcaption b { color: var(--text); }
+    .split { display: grid; grid-template-columns: 6fr 6fr; gap: var(--gutter); align-items: end; }
+    .split figure img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+    .split figcaption { margin-top: 10px; }
+    .tbl-wrap { margin-top: 48px; overflow-x: auto; }
+    .tbl { width: 100%; border-collapse: collapse; }
+    .tbl th, .tbl td { padding: 14px 16px 14px 0; text-align: left; vertical-align: top; border-bottom: 1px solid #1d252f; }
+    .tbl th { font-weight: 400; font-size: var(--step-small); color: var(--muted); }
+    .tbl td:first-child { font-weight: 500; }
+    .tbl td.num { white-space: nowrap; }
     .tbl .good { color: var(--go); } .tbl .tie { color: var(--watch); }
-    .tbl small { display: block; color: var(--dim); font-weight: 400; }
-    .layers { display: grid; gap: 8px; margin-top: 32px; }
-    .layer { display: grid; grid-template-columns: 34px 170px minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px 18px; border: 1px solid var(--line); border-left: 3px solid var(--c, var(--line-2)); border-radius: 12px; background: var(--panel); }
-    .layer i { font: 500 0.8rem/1 var(--mono); font-style: normal; color: var(--c, var(--dim)); }
-    .layer b { font: 500 0.9rem/1.3 var(--mono); }
-    .layer span { color: var(--muted); font-size: 0.92rem; }
-    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
-    .fact { padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; }
-    .fact b { display: block; font: 500 1.35rem/1 var(--mono); color: var(--info); }
-    .fact span { display: block; margin-top: 8px; color: var(--muted); font-size: 0.9rem; }
-    .case { counter-reset: c; display: grid; gap: 12px; margin-top: 32px; }
-    .case li { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 150px; gap: 20px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-    .case h3 { font-size: 0.98rem; font-weight: 600; }
-    .case p { margin-top: 6px; color: var(--muted); font-size: 0.9rem; }
-    .case .delta { font: 500 0.95rem/1.4 var(--mono); color: var(--go); align-self: center; }
-    .case ul { margin: 0; padding: 0; }
-    .practice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 32px; }
+    .tbl small { display: block; font-size: var(--step-small); color: var(--muted); font-weight: 400; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gutter); margin-top: 48px; }
+    .fact b { display: block; font-size: var(--step-head); line-height: 1; letter-spacing: -0.045em; color: var(--info); }
+    .fact span { display: block; margin-top: 12px; max-width: 30ch; color: var(--muted); }
+    .practice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px var(--gutter); margin-top: 64px; }
+    .practice .soon h3 { color: var(--info); }
+    .layers { display: grid; gap: 6px; margin-top: 48px; }
+    .layer { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: baseline; padding: 18px 22px; border-left: 4px solid var(--c, var(--muted)); background: var(--panel); }
+    .layer b { font-family: var(--code); font-size: 0.9rem; font-weight: 400; }
+    .layer span { color: var(--muted); }
+    .case { display: grid; gap: 6px; margin-top: 48px; padding: 0; list-style: none; }
+    .case li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 170px; gap: 28px; padding: 22px 24px; background: var(--panel); }
+    .case h3 { font-size: var(--step-body); }
+    .case p { margin-top: 6px; color: var(--muted); }
+    .case .delta { align-self: center; font-size: var(--step-lead); letter-spacing: -0.02em; color: var(--go); }
 
-    footer { padding: 32px 0 48px; border-top: 1px solid var(--line); color: var(--dim); font-size: 0.86rem; }
-    footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
-    footer a { color: var(--muted); }
+    /* ===== The close: one quiet line. ===== */
+    footer { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px 24px; align-items: baseline; margin-top: 30svh; padding: 0 var(--gutter) 30px; font-size: var(--step-small); color: var(--muted); }
+    footer nav { display: flex; gap: 24px; }
+    footer nav a { color: var(--text); }
+    footer .r { text-align: right; }
+    .credits { padding: 0 var(--gutter) 32px; font-size: var(--step-small); color: var(--muted); max-width: 72ch; }
+    .credits a { color: var(--muted); }
+
+    /* ===== Motion: entrances once, transform and opacity only. ===== */
+    @media (prefers-reduced-motion: no-preference) {
+      .js .lines [data-line] { transform: translateY(105%); animation: line-up 900ms var(--ease-out) forwards; animation-delay: calc(var(--i, 0) * 110ms + 150ms); }
+      .js [data-rise] { opacity: 0; transform: translateY(18px); animation: rise 800ms var(--ease-out) forwards; animation-delay: calc(var(--i, 0) * 90ms + 420ms); }
+      .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
+      .js [data-reveal].is-in { opacity: 1; transform: none; }
+      .js .shutter { clip-path: inset(0 0 100% 0); transition: clip-path 1100ms cubic-bezier(0.76, 0, 0.24, 1); }
+      .js .shutter.is-in { clip-path: inset(0); }
+      @supports (animation-timeline: view()) {
+        .drift { animation: drift linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
+      }
+    }
+    @keyframes line-up { to { transform: none; } }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+    @keyframes drift { from { transform: translateY(-6%); } to { transform: translateY(0); } }
 
     @media (max-width: 900px) {
-      /* The chart turns vertical: the line runs down the left. */
-      .flow { grid-template-columns: minmax(0, 1fr); gap: 0; }
-      .stage { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 16px; padding: 0 0 26px; }
-      .stage .dot { grid-row: span 3; height: auto; align-content: start; margin: 0; }
-      .stage .dot::before { left: 50%; right: auto; top: 0; bottom: -26px; width: 2px; height: auto; }
-      .stage:first-child .dot::before { left: 50%; top: 20px; }
-      .stage:last-child .dot::before { display: none; }
-      .stage h3 { margin-top: 8px; }
-      .pulse { display: none; }
-      .steps, .loops, .practice, .facts, .ex-body { grid-template-columns: minmax(0, 1fr); }
-      .layer { grid-template-columns: 28px minmax(0, 1fr); }
-      .layer span { grid-column: 2; }
-      .case li { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .pages { gap: 16px; }
+      .gh { display: none; }
+      .hero { min-height: 0; overflow: visible; }
+      .hero-copy { padding-top: 112px; }
+      .hero h1 { font-size: 10vw; }
+      .hero-stage { position: relative; left: auto; top: auto; margin-top: 40px; height: 560px; overflow: hidden; clip-path: polygon(72px 0, 100% 0, 100% 100%, 0 100%, 0 72px); }
+      .board { left: 16px; top: 40px; width: calc(100% - 16px); }
+      .show { grid-template-columns: minmax(0, 1fr); }
+      .show-list { flex-direction: row; flex-wrap: wrap; gap: 4px 20px; }
+      .show-list button { font-size: var(--step-lead); white-space: nowrap; }
+      .show-copy { order: 2; margin-top: 0; padding-top: 0; }
+      .stage { height: auto; min-height: 0; padding: 16px 0 0 16px; }
+      .story { grid-template-columns: minmax(0, 1fr); gap: 0; }
+      .story-steps, .story-stage { display: contents; }
+      .beat { min-height: 0; padding-top: 48px; }
+      .beat h3, .beat p { color: var(--text); }
+      .state { position: relative; inset: auto; margin-top: 20px; padding: 20px; opacity: 1; background: var(--panel); }
+      .beat[data-state="0"] { order: 1; } .state[data-state="0"] { order: 2; }
+      .beat[data-state="1"] { order: 3; } .state[data-state="1"] { order: 4; }
+      .beat[data-state="2"] { order: 5; } .state[data-state="2"] { order: 6; }
+      .calls { grid-template-columns: minmax(0, 1fr); }
+      .figure { font-size: 30vw; }
+      .working { margin-top: 16px; }
+      .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 6px; }
+      .tile { padding: 16px; aspect-ratio: auto; min-height: 200px; }
+      .tile-img { grid-column: 1 / -1; min-height: 240px; }
+      .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .ex-head, .ex-tabs { padding-inline: 20px; }
+      .ex-body { grid-template-columns: minmax(0, 1fr); padding: 24px 20px 28px; }
+      .loops, .practice, .facts, .stats, .split { grid-template-columns: minmax(0, 1fr); }
+      .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layer { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+      .case li { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+      footer { grid-template-columns: minmax(0, 1fr); margin-top: 20svh; }
+      footer .r { text-align: left; }
     }
     @media (max-width: 560px) {
-      nav .wrap { gap: 12px; }
-      .brand span, .gh { display: none; }
-      .stats { grid-template-columns: minmax(0, 1fr); }
-      .radio { border-radius: 14px; }
+      .brand span { display: none; }
+      .top { gap: 16px; }
+      .pages { gap: 14px; }
+      .flow { grid-template-columns: minmax(0, 1fr); }
+      .tbl thead { display: none; }
+      .tbl tr { display: block; padding: 14px 0; border-bottom: 1px solid #1d252f; }
+      .tbl td { display: block; padding: 4px 0; border: 0; }
+      .tbl td[data-label]:not(:first-child)::before { content: attr(data-label) ": "; color: var(--muted); }
     }
-    @media (prefers-reduced-motion: reduce) { .pulse { animation: none; display: none; } }
   </style>
 </head>
 <body>
-  <nav>
-    <div class="wrap">
-      <a class="brand" href="#overview"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0e1218"/><path d="M6 22h20M9 16h14M12 10h8" stroke="#37e98b" stroke-width="3" stroke-linecap="round"/></svg><span>Race Engineer</span></a>
-      <div class="pages" role="tablist" aria-label="Pages">
-        <button role="tab" id="tab-overview" aria-controls="page-overview" aria-selected="true" data-page="overview" type="button">Overview</button>
-        <button role="tab" id="tab-how" aria-controls="page-how" aria-selected="false" data-page="how" type="button">How it works</button>
-        <button role="tab" id="tab-tech" aria-controls="page-tech" aria-selected="false" data-page="tech" type="button">Engineering</button>
-      </div>
-      <a class="gh" href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>
+  <header class="top">
+    <a class="brand" href="#overview"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0e1218"/><path d="M6 22h20M9 16h14M12 10h8" stroke="#37e98b" stroke-width="3" stroke-linecap="round"/></svg><span>Race Engineer</span></a>
+    <div class="pages" role="tablist" aria-label="Pages">
+      <button role="tab" id="tab-overview" aria-controls="page-overview" aria-selected="true" data-page="overview" type="button">Overview</button>
+      <button role="tab" id="tab-how" aria-controls="page-how" aria-selected="false" data-page="how" type="button">How it works</button>
+      <button role="tab" id="tab-tech" aria-controls="page-tech" aria-selected="false" data-page="tech" type="button">Engineering</button>
     </div>
-  </nav>
+    <a class="gh" href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>
+  </header>
 
   <main>
     <!-- ============ Overview ============ -->
     <div role="tabpanel" id="page-overview" aria-labelledby="tab-overview">
-      <header class="hero wrap">
-        <div class="kicker">For F1 26</div>
-        <h1>A race engineer<br>for <em>your</em> race.</h1>
-        <p class="lede">It reads the game's live telemetry for all 22 cars and tells you one thing at a time: when to box, who to attack, when the rain comes. On a tablet or phone beside you.</p>
-        <div class="radio" aria-label="An example call"><b>BOX</b><span>Tyres at the cliff. Rejoin P9 in clean air.</span></div>
-      </header>
-
-      <section style="padding-top: 0">
-        <div class="wrap">
-          <div class="demo-tabs" role="group" aria-label="Demo screens">
-            <button data-screen="drive" type="button">Drive</button>
-            <button data-screen="battle" type="button">Battle</button>
-            <button data-screen="strategy" type="button">Strategy</button>
-            <button data-screen="weather" type="button">Weather</button>
-            <button data-screen="debrief" type="button">Debrief</button>
-            <button class="auto" id="auto" type="button">Auto-switch</button>
+      <section class="hero">
+        <div class="hero-copy">
+          <h1 class="lines"><span class="line"><span data-line style="--i:0">A race engineer</span></span><span class="line"><span data-line style="--i:1">for F1 26</span></span></h1>
+          <p data-rise style="--i:0">It reads the game's live telemetry for all 22 cars and calls your race one thing at a time: when to box, who to attack, when the rain comes. On a phone or tablet beside your screen. Free and open source.</p>
+          <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Watch a recorded race</a><a href="#setup">Set it up in two minutes</a></div>
+          <p class="note" data-rise style="--i:2">The board on the green replays a real race at Monaco, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 11 to 16.</p>
+        </div>
+        <div class="hero-stage">
+          <div class="board" data-ui id="board" style="--c: var(--go)">
+            <div class="board-top board-ctl">
+              <span>Monaco · lap <b id="b-lap">14</b> of 27</span><span class="pos" id="b-pos">P8</span>
+              <button type="button" id="b-prev" aria-label="Earlier in the race">Earlier</button>
+              <button type="button" id="b-next" aria-label="Later in the race">Later</button>
+            </div>
+            <div class="board-swap" aria-live="polite">
+              <div class="board-callrow"><div class="board-call" id="b-call">PUSH</div><p class="board-reason" id="b-reason">Tyres and fuel OK</p></div>
+              <p class="board-label">Radio, newest first</p>
+              <ol class="board-log" id="b-log">
+                <li><span>Lap 14</span>Attack ALBON - pass chance high into corner 8, battery 75%</li>
+                <li><span>Lap 12</span>Yellow ahead at turn 6 - careful, no overtaking</li>
+                <li><span>Lap 11</span>Rears ~10°C hotter than early in the stint - easy on the throttle out of slow corners</li>
+              </ol>
+            </div>
           </div>
-          <div class="frame"><iframe id="dash" src="demo/?recorded" title="Race Engineer dashboard, replaying a recorded race" allow="microphone; autoplay" loading="lazy"></iframe></div>
-          <p class="caption" id="caption">The real app, replaying a Monaco race recorded in F1 26.</p>
-          <p class="caption" style="margin-top: 0"><a href="demo/?recorded">Open the demo full screen</a></p>
         </div>
       </section>
 
-      <section>
-        <div class="wrap">
-          <div class="kicker">How to use it</div>
-          <h2>Running in two minutes</h2>
-          <div class="steps">
-            <div class="step"><h3>Start it on your PC</h3><p>Install <a href="https://nodejs.org">Node.js</a>, then <code>npm install</code> and <code>npm start</code>. No account, nothing in the cloud.</p></div>
-            <div class="step"><h3>Turn on telemetry</h3><p>In F1 26: Settings → Telemetry → UDP <b>On</b>, port <code>20777</code>, format 2025 or later.</p></div>
-            <div class="step"><h3>Open it beside you</h3><p>Scan the QR code it prints with a tablet or phone on the same Wi-Fi. Then drive; it talks when it matters.</p></div>
+      <section class="show" id="watch" aria-label="The real app, replaying the race">
+        <div class="show-list" role="group" aria-label="Demo screens">
+          <button data-screen="drive" type="button">Drive</button>
+          <button data-screen="battle" type="button">Battle</button>
+          <button data-screen="strategy" type="button">Strategy</button>
+          <button data-screen="weather" type="button">Weather</button>
+          <button data-screen="debrief" type="button">Debrief</button>
+          <button class="auto" id="auto" type="button">Auto-switch</button>
+        </div>
+        <div class="stage" data-reveal><div class="frame"><iframe id="dash" src="demo/?recorded" title="Race Engineer dashboard, replaying a recorded race" allow="microphone; autoplay" loading="lazy"></iframe></div></div>
+        <div class="show-copy">
+          <p id="caption">The real app, replaying the same Monaco race. Pick a screen.</p>
+          <p class="note"><a href="demo/?recorded">Open the demo full screen</a></p>
+        </div>
+      </section>
+
+      <figure class="band">
+        <div class="band-img"><img class="drift" src="img/monaco.jpg" width="1280" height="853" alt="Monaco from above: the harbour, the swimming pool section and the streets the circuit runs through" loading="lazy" decoding="async"></div>
+        <figcaption>
+          <p>The demo race is Monaco: a damaged wing, a fight from P8 to P3, a red flag and a safety car, all in the recorded laps.</p>
+          <p class="note"><a href="https://commons.wikimedia.org/wiki/File:Circuit_de_Monaco,_April_1,_2018_SkySat_(cropped).jpg">"Circuit de Monaco, April 1, 2018 SkySat"</a> by Planet Labs, Inc., <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></p>
+        </figcaption>
+      </figure>
+
+      <section class="setup" id="setup">
+        <h2 data-reveal>Running in two minutes</h2>
+        <div class="story">
+          <div class="story-steps">
+            <div class="beat is-on" data-state="0"><h3>Start it on your PC.</h3><p>Install <a href="https://nodejs.org">Node.js</a>, download the code from <a href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>, then run <code>npm install</code> and <code>npm start</code> in its folder. No account, nothing in the cloud.</p></div>
+            <div class="beat" data-state="1"><h3>Then turn on telemetry in F1 26.</h3><p>Settings → Telemetry → UDP <b>On</b>, port <code>20777</code>, format 2025 or later.</p></div>
+            <div class="beat" data-state="2"><h3>Open it beside you, and drive.</h3><p>Scan the QR code it prints with a tablet or phone on the same Wi-Fi. It talks when it matters.</p></div>
+          </div>
+          <div class="story-stage">
+            <div class="state is-on" data-state="0"><pre data-ui><span class="c">$</span> npm start
+[server] dashboard: http://localhost:8080
+[server] on other devices (same Wi-Fi): http://192.168.1.23:8080
+[udp] listening for F1 telemetry on 0.0.0.0:20777
+[server] scan to open http://192.168.1.23:8080 on a phone or tablet (same Wi-Fi):
+<span class="ok">▄▄▄▄▄▄▄ ▄ ▄▄  ▄▄▄▄▄▄▄
+█ ▄▄▄ █ ▀█▄█▀ █ ▄▄▄ █
+█ ███ █ ▄ ▀▀▄ █ ███ █
+█▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█</span></pre></div>
+            <div class="state" data-state="1" aria-hidden="true">
+              <div class="settings" data-ui>
+                <p class="t">Telemetry settings</p>
+                <div class="sel"><span>UDP Telemetry</span><b>On</b></div>
+                <div><span>UDP Broadcast Mode</span><span>Off</span></div>
+                <div><span>UDP IP Address</span><span>127.0.0.1</span></div>
+                <div><span>UDP Port</span><span>20777</span></div>
+                <div><span>UDP Send Rate</span><span>60Hz</span></div>
+                <div><span>UDP Format</span><span>2025</span></div>
+              </div>
+            </div>
+            <div class="state" data-state="2" aria-hidden="true"><img src="img/drive.png" width="1180" height="885" alt="The Drive screen: the call, the cars either side and what's coming" loading="lazy" decoding="async"></div>
           </div>
         </div>
+      </section>
+
+      <section class="calls" aria-labelledby="calls-h">
+        <h2 id="calls-h" data-reveal>How long is your race?</h2>
+        <div class="slider" data-ui data-reveal style="--i:1">
+          <div><label for="mins">Race length</label><output id="mins-out" for="mins">40 min</output></div>
+          <input id="mins" type="range" min="10" max="120" step="5" value="40">
+        </div>
+        <p class="figure" data-reveal style="--i:2"><output id="n-calls" for="mins">48</output><span>radio calls spoken</span></p>
+        <p class="working" data-reveal style="--i:3">Key calls only: 1.2 a minute, measured by replaying a 40-minute race in a pack through the voice. With every card read out, 4.5 a minute.</p>
+      </section>
+
+      <section class="proof" aria-labelledby="proof-h">
+        <div class="tiles">
+          <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>Seven recorded races. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
+          <div class="tile" data-reveal style="--i:1"><b>2.5</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 4.3. Nearly all of it a pessimistic bias, next to fix.</small></div>
+          <div class="tile" data-reveal style="--i:2"><b>7.7</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 13.2 points off.</small></div>
+          <div class="tile" data-reveal style="--i:1"><b>5 / 6</b><span>races where the tyre model beats "no wear"</span><small>It doesn't yet at Silverstone, one race of the six.</small></div>
+          <div class="tile" data-reveal style="--i:2; --c: var(--watch)"><b>0.85</b><span>AUC, will the car behind pass in 10 s</span><small>Ties the gap-only baseline, so it's marked experimental</small></div>
+          <figure class="tile tile-img" data-reveal style="--i:3"><img src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower, with the pit building behind" loading="lazy" decoding="async"><figcaption>Suzuka, one of the recorded races. <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Photo</a>: Tokumeigakarinoaoshima, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></figcaption></figure>
+          <figure class="tile tile-img" data-reveal style="--i:4"><img src="img/pit-wall.jpg" width="1400" height="933" alt="A team's pit-wall stand beside the track at Suzuka, 2009" loading="lazy" decoding="async"><figcaption>A real pit wall, Suzuka 2009: the job, done by people. <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">Photo</a>: Morio, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a></figcaption></figure>
+        </div>
+        <p class="more"><a href="#tech">How each is measured</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">What's next</a></p>
       </section>
     </div>
 
     <!-- ============ How it works ============ -->
     <div role="tabpanel" id="page-how" aria-labelledby="tab-how" hidden>
-      <section>
-        <div class="wrap">
-          <div class="kicker">How it works</div>
-          <h2>From a packet to a call, in under a millisecond</h2>
-          <p class="muted" style="margin-top: 14px; max-width: 640px">Six steps, run ten times a second. Follow one call through them: the car behind closing in.</p>
-
-          <div class="flow-wrap">
-            <ol class="flow">
-              <li class="stage" style="--c: var(--muted)">
-                <div class="dot"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="4"/><path d="M7 12h3M8.5 10.5v3M15 11h.01M18 13h.01"/></svg></i></div>
-                <h3><button class="stage-btn" type="button" data-stage="game" aria-expanded="false" aria-controls="ex-game">The game</button></h3>
-                <p>F1 26 sends telemetry over your network, up to 60 times a second.</p>
-                <div class="eg">Lap Data packet<br>1,399 bytes · 24 car slots</div>
-              </li>
-              <li class="stage" style="--c: var(--info)">
-                <div class="dot"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2"/></svg></i></div>
-                <h3><button class="stage-btn" type="button" data-stage="decode" aria-expanded="false" aria-controls="ex-decode">Decode</button></h3>
-                <p>16 binary packet types, read byte by byte. Corrupt ones are dropped.</p>
-                <div class="eg">car 7 · P8<br>gap ahead 612 ms</div>
-              </li>
-              <li class="stage" style="--c: var(--info)">
-                <div class="dot"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="17" r="2"/><circle cx="12" cy="7" r="2"/><circle cx="19" cy="14" r="2"/><path d="M6.5 15.5 10.5 8.5M13.7 8.2l3.7 4.5"/></svg></i></div>
-                <h3><button class="stage-btn" type="button" data-stage="field" aria-expanded="false" aria-controls="ex-field">Track the field</button></h3>
-                <p>Every car's laps, gaps and tyres, on game time. A flashback rewinds it.</p>
-                <div class="eg">SAINZ 0.6 s behind<br>closing 0.3 s / lap</div>
-              </li>
-              <li class="stage" style="--c: var(--watch)">
-                <div class="dot"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M6 16l4-5 3 3 5-7"/></svg></i></div>
-                <h3><button class="stage-btn" type="button" data-stage="analyse" aria-expanded="false" aria-controls="ex-analyse">Analyse</button></h3>
-                <p>Measures pit loss, fits tyre wear, simulates every stop, scores the chance of a pass.</p>
-                <div class="eg">pass chance 41%<br>likely into turn 1</div>
-              </li>
-              <li class="stage" style="--c: var(--act)">
-                <div class="dot"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg></i></div>
-                <h3><button class="stage-btn" type="button" data-stage="decide" aria-expanded="false" aria-controls="ex-decide">Decide</button></h3>
-                <p>Rules turn it into one call and a radio line. The most urgent one wins.</p>
-                <div class="eg">DEFEND<br>watch turn 1</div>
-              </li>
-              <li class="stage" style="--c: var(--go)">
-                <div class="dot"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M10 18h4"/></svg></i></div>
-                <h3><button class="stage-btn" type="button" data-stage="screen" aria-expanded="false" aria-controls="ex-screen">Your screen</button></h3>
-                <p>Sent to any browser on your Wi-Fi, 10 times a second, and read out loud.</p>
-                <div class="eg">"Sainz 0.6 behind,<br>defend turn 1."</div>
-              </li>
-            </ol>
-            <span class="pulse" aria-hidden="true"></span>
+      <section class="page-top">
+        <div class="split">
+          <div>
+            <h2>From a packet to a call</h2>
+            <p class="lead">Under a millisecond, six steps, run ten times a second. Follow one call through them: the car behind closing in.</p>
+            <a class="button" style="margin-top: 32px" href="#watch">Watch a recorded race</a>
           </div>
-          <p class="hint">Click any step to open how it works: the mechanism, the data, the numbers from real races, and the code.</p>
+          <figure data-reveal>
+            <img src="img/battle.png" width="1180" height="885" alt="The Battle screen: the cars either side, the gaps and the chance of a pass" loading="lazy" decoding="async">
+            <figcaption class="note">Where that call ends up: the Battle screen, from the recorded Monaco race.</figcaption>
+          </figure>
+        </div>
 
-          <div class="explore" id="explore" style="--c: var(--muted)">
+        <ol class="flow">
+          <li class="stage-i" data-reveal style="--c: var(--muted); --i:0">
+            <h3><button class="stage-btn" type="button" data-stage="game" aria-expanded="false" aria-controls="ex-game">The game</button></h3>
+            <p>F1 26 sends telemetry over your network, up to 60 times a second.</p>
+            <p class="eg">Lap Data packet<br>1,399 bytes · 24 car slots</p>
+          </li>
+          <li class="stage-i" data-reveal style="--c: var(--info); --i:1">
+            <h3><button class="stage-btn" type="button" data-stage="decode" aria-expanded="false" aria-controls="ex-decode">Decode</button></h3>
+            <p>16 binary packet types, read byte by byte. Corrupt ones are dropped.</p>
+            <p class="eg">car 7 · P8<br>gap ahead 612 ms</p>
+          </li>
+          <li class="stage-i" data-reveal style="--c: var(--info); --i:2">
+            <h3><button class="stage-btn" type="button" data-stage="field" aria-expanded="false" aria-controls="ex-field">Track the field</button></h3>
+            <p>Every car's laps, gaps and tyres, on game time. A flashback rewinds it.</p>
+            <p class="eg">SAINZ 0.6 s behind<br>closing 0.3 s / lap</p>
+          </li>
+          <li class="stage-i" data-reveal style="--c: var(--watch); --i:3">
+            <h3><button class="stage-btn" type="button" data-stage="analyse" aria-expanded="false" aria-controls="ex-analyse">Analyse</button></h3>
+            <p>Measures pit loss, fits tyre wear, simulates every stop, scores the chance of a pass.</p>
+            <p class="eg">pass chance 41%<br>likely into turn 1</p>
+          </li>
+          <li class="stage-i" data-reveal style="--c: var(--act); --i:4">
+            <h3><button class="stage-btn" type="button" data-stage="decide" aria-expanded="false" aria-controls="ex-decide">Decide</button></h3>
+            <p>Rules turn it into one call and a radio line. The most urgent one wins.</p>
+            <p class="eg">DEFEND<br>watch turn 1</p>
+          </li>
+          <li class="stage-i" data-reveal style="--c: var(--go); --i:5">
+            <h3><button class="stage-btn" type="button" data-stage="screen" aria-expanded="false" aria-controls="ex-screen">Your screen</button></h3>
+            <p>Sent to any browser on your Wi-Fi, 10 times a second, and read out loud.</p>
+            <p class="eg">"Sainz 0.6 behind,<br>defend turn 1."</p>
+          </li>
+        </ol>
+        <p class="hint note">Choose any step to open how it works: the mechanism, the data, the numbers from real races, and the code.</p>
 
-            <!-- 1. The game -->
-            <div class="ex-stage" id="ex-game" data-color="var(--muted)" hidden>
-              <div class="ex-head"><div class="kicker">Step 1 · The game</div><h3>F1 26 broadcasts; the bridge listens</h3><p>The game pushes binary UDP datagrams at a fixed rate. Nothing is requested and nothing is acknowledged: a lost packet is simply gone, so everything downstream has to cope with gaps.</p></div>
-              <div class="ex-tabs" role="tablist" aria-label="The game: topics">
-                <button role="tab" type="button" data-sub="transport">Transport</button>
-                <button role="tab" type="button" data-sub="header">The 29-byte header</button>
-                <button role="tab" type="button" data-sub="stream">What arrives</button>
-                <button role="tab" type="button" data-sub="quirks">What real data taught us</button>
+        <div class="explore" id="explore" style="--c: var(--muted)">
+
+          <!-- The game -->
+          <div class="ex-stage" id="ex-game" data-color="var(--muted)" hidden>
+            <div class="ex-head"><h3>F1 26 broadcasts; the bridge listens</h3><p>The game pushes binary UDP datagrams at a fixed rate. Nothing is requested and nothing is acknowledged: a lost packet is simply gone, so everything downstream has to cope with gaps.</p></div>
+            <div class="ex-tabs" role="tablist" aria-label="The game: topics">
+              <button role="tab" type="button" data-sub="transport">Transport</button>
+              <button role="tab" type="button" data-sub="header">The 29-byte header</button>
+              <button role="tab" type="button" data-sub="stream">What arrives</button>
+              <button role="tab" type="button" data-sub="quirks">What real data taught us</button>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="transport">
+              <div>
+                <p>Telemetry goes to <strong>UDP port 20777</strong>, at the send rate chosen in the game's settings (20, 30 or 60 Hz), as packet format 2025 or 2026. Each packet type has its own rate: positions and telemetry at the send rate, session data a couple of times a second, events only when something happens.</p>
+                <p><strong>Why a bridge process?</strong> A browser can't open a raw UDP socket, and iOS restricts UDP listening for apps. So a small Node.js process beside the game takes the stream, does all the work, and serves the result to any browser on the network over a WebSocket. A phone or tablet only needs a browser, and the public demo can run the same dashboard from a file.</p>
+                <p>On a console or a second PC, the game is pointed at the bridge PC's LAN address; on the same PC it's localhost.</p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="transport">
-                <div>
-                  <p>Telemetry goes to <strong>UDP port 20777</strong>, at the send rate chosen in the game's settings (20, 30 or 60 Hz), as packet format 2025 or 2026. Each packet type has its own rate: positions and telemetry at the send rate, session data a couple of times a second, events only when something happens.</p>
-                  <p><strong>Why a bridge process?</strong> A browser can't open a raw UDP socket, and iOS restricts UDP listening for apps. So a small Node.js process beside the game takes the stream, does all the work, and serves the result to any browser on the network over a WebSocket. A phone or tablet only needs a browser, and the public demo can run the same dashboard from a file.</p>
-                  <p>On a console or a second PC, the game is pointed at the bridge PC's LAN address; on the same PC it's localhost.</p>
-                </div>
-                <div>
-                  <pre><span class="c">// src/udp/listener.js</span>
+              <div>
+                <pre><span class="c">// src/udp/listener.js</span>
 socket.on('message', (msg) => {
   if (onRawPacket) onRawPacket(msg); <span class="c">// recording</span>
   onPacket(parsePacket(msg));        <span class="c">// the pipeline</span>
 });
 socket.bind(20777);</pre>
-                  <div class="ex-num"><span><b>~300</b> packets / s</span><span><b>0.0%</b> lost over localhost</span><span><b>2</b> runtime deps</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/listener.js">udp/listener.js</a></p>
-                </div>
+                <div class="ex-num"><span><b>~300</b> packets / s</span><span><b>0.0%</b> lost over localhost</span><span><b>3</b> runtime deps</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/listener.js">udp/listener.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="header" hidden>
-                <div>
-                  <p>Every packet starts with the same 29 little-endian bytes, unchanged from F1 23 to F1 26. Byte 6 says which of the 16 packet types follows. Three fields do most of the work downstream:</p>
-                  <ul>
-                    <li><strong>sessionUID</strong>: a new session resets the field model, so a qualifying lap never leaks into the race.</li>
-                    <li><strong>sessionTime</strong>: game time. Gaps and closing rates are measured on it, not on the PC's clock, and when it runs backwards a flashback happened.</li>
-                    <li><strong>overallFrameIdentifier</strong>: unlike frameIdentifier it never rewinds, so a jump in it is a lost packet. That's how feed loss is measured.</li>
-                  </ul>
-                </div>
-                <div>
-                  <table class="kv">
-                    <tr><td>0  u16</td><td>packetFormat (2026)</td></tr>
-                    <tr><td>2  u8 ×3</td><td>gameYear, major, minor version</td></tr>
-                    <tr><td>5  u8</td><td>packetVersion</td></tr>
-                    <tr><td>6  u8</td><td><strong>packetId</strong> - picks the parser</td></tr>
-                    <tr><td>7  u64</td><td><strong>sessionUID</strong></td></tr>
-                    <tr><td>15 f32</td><td><strong>sessionTime</strong>, seconds</td></tr>
-                    <tr><td>19 u32</td><td>frameIdentifier</td></tr>
-                    <tr><td>23 u32</td><td><strong>overallFrameIdentifier</strong></td></tr>
-                    <tr><td>27 u8</td><td>playerCarIndex</td></tr>
-                    <tr><td>28 u8</td><td>secondaryPlayerCarIndex</td></tr>
-                  </table>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/parsers/header.js">udp/parsers/header.js</a></p>
-                </div>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="header" hidden>
+              <div>
+                <p>Every packet starts with the same 29 little-endian bytes, unchanged from F1 23 to F1 26. Byte 6 says which of the 16 packet types follows. Three fields do most of the work downstream:</p>
+                <ul>
+                  <li><strong>sessionUID</strong>: a new session resets the field model, so a qualifying lap never leaks into the race. A UID of 0, which the game sends at the chequered flag, belongs to the current session.</li>
+                  <li><strong>sessionTime</strong>: game time. Gaps and closing rates are measured on it, not on the PC's clock, and when it runs backwards a flashback happened.</li>
+                  <li><strong>overallFrameIdentifier</strong>: unlike frameIdentifier it never rewinds, so a jump in it is a lost packet. That's how feed loss is measured.</li>
+                </ul>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="stream" hidden>
-                <div>
-                  <p>Lap Data is the spine: position, gap to the car ahead and to the leader, lap distance, pit status and penalties <strong>for every car</strong>. Because the game already sends the whole field, gaps, closing rates and undercut threats cost nothing extra to compute.</p>
-                  <p>Offline, Car Telemetry and Car Damage also carry every car's speed, pedals and tyre wear, not just yours. That's what lets the tool trace a rival's best lap and time each AI car's next stop from its own wear.</p>
-                  <p>Format 2026 has <strong>24 car slots</strong> in every per-car array (22 before), confirmed by dividing real packet lengths by the old struct sizes.</p>
-                </div>
-                <div>
-                  <table class="kv">
-                    <tr><td>Lap Data</td><td>1,399 B · 48/s</td></tr>
-                    <tr><td>Car Status</td><td>1,445 B · 48/s</td></tr>
-                    <tr><td>Car Telemetry</td><td>1,448 B · 48/s</td></tr>
-                    <tr><td>Car Telemetry 2</td><td>269 B · 48/s (2026 aero, Overtake mode)</td></tr>
-                    <tr><td>Motion Ex</td><td>273 B · 48/s (your wheel slip)</td></tr>
-                    <tr><td>Tyre Sets</td><td>231 B · 18/s</td></tr>
-                    <tr><td>Session History</td><td>1,460 B · 17/s</td></tr>
-                    <tr><td>Car Damage</td><td>1,133 B · 9/s</td></tr>
-                    <tr><td>Session</td><td>926 B · 1.8/s</td></tr>
-                    <tr><td>Event</td><td>45 B · on change</td></tr>
-                  </table>
-                  <p class="ex-src">Measured on a 44-minute Barcelona race by <code>npm run analyze</code>.</p>
-                </div>
+              <div>
+                <table class="kv">
+                  <tr><td>0  u16</td><td>packetFormat (2026)</td></tr>
+                  <tr><td>2  u8 ×3</td><td>gameYear, major, minor version</td></tr>
+                  <tr><td>5  u8</td><td>packetVersion</td></tr>
+                  <tr><td>6  u8</td><td><strong>packetId</strong> - picks the parser</td></tr>
+                  <tr><td>7  u64</td><td><strong>sessionUID</strong></td></tr>
+                  <tr><td>15 f32</td><td><strong>sessionTime</strong>, seconds</td></tr>
+                  <tr><td>19 u32</td><td>frameIdentifier</td></tr>
+                  <tr><td>23 u32</td><td><strong>overallFrameIdentifier</strong></td></tr>
+                  <tr><td>27 u8</td><td>playerCarIndex</td></tr>
+                  <tr><td>28 u8</td><td>secondaryPlayerCarIndex</td></tr>
+                </table>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/parsers/header.js">udp/parsers/header.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="quirks" hidden>
-                <div>
-                  <p>The published spec is for F1 25. Every assumption was checked against recorded F1 26 races, and several were wrong:</p>
-                  <ul>
-                    <li><strong>A field inserted mid-struct.</strong> Car Status grew from 55 to 59 bytes with <code>ersHarvestLimitPerLap</code> placed <em>before</em> ersDeployedThisLap, not at the end. Found from a 6.2 MJ value at that offset on a stationary car.</li>
-                    <li><strong>Forecast times.</strong> The weather slots count minutes from now, not from the session start: 100% of 299 checks against 48%.</li>
-                    <li><strong>Fuel.</strong> <code>fuelRemainingLaps</code> is the MFD surplus over the race distance, not laps of fuel, worked out from the real burn rate.</li>
-                    <li><strong>Gap to leader reads 0</strong> while a car is in the pit lane, so a naive rejoin model counted every car mid-stop as leading the race (8 places off).</li>
-                    <li><strong>Penalty types changed meaning.</strong> Type 16 ("Retired") arrived for a driver still racing; type 6 ("Disqualified") for one who then set the fastest lap. Neither reaches the radio.</li>
-                  </ul>
-                </div>
-                <div>
-                  <pre><span class="c">// npm run analyze, on every capture</span>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="stream" hidden>
+              <div>
+                <p>Lap Data is the spine: position, gap to the car ahead and to the leader, lap distance, pit status and penalties <strong>for every car</strong>. Because the game already sends the whole field, gaps, closing rates and undercut threats cost nothing extra to compute.</p>
+                <p>Offline, Car Telemetry and Car Damage also carry every car's speed, pedals and tyre wear, not just yours. That's what lets the tool trace a rival's best lap and time each AI car's next stop from its own wear.</p>
+                <p>Format 2026 has <strong>24 car slots</strong> in every per-car array (22 before), confirmed by dividing real packet lengths by the old struct sizes.</p>
+              </div>
+              <div>
+                <table class="kv">
+                  <tr><td>Lap Data</td><td>1,399 B · 48/s</td></tr>
+                  <tr><td>Car Status</td><td>1,445 B · 48/s</td></tr>
+                  <tr><td>Car Telemetry</td><td>1,448 B · 48/s</td></tr>
+                  <tr><td>Car Telemetry 2</td><td>269 B · 48/s (2026 aero, Overtake mode)</td></tr>
+                  <tr><td>Motion Ex</td><td>273 B · 48/s (your wheel slip)</td></tr>
+                  <tr><td>Tyre Sets</td><td>231 B · 18/s</td></tr>
+                  <tr><td>Session History</td><td>1,460 B · 17/s</td></tr>
+                  <tr><td>Car Damage</td><td>1,133 B · 9/s</td></tr>
+                  <tr><td>Session</td><td>926 B · 1.8/s</td></tr>
+                  <tr><td>Event</td><td>45 B · on change</td></tr>
+                </table>
+                <p class="ex-src">Measured on a 44-minute Barcelona race by <code>npm run analyze</code>.</p>
+              </div>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="quirks" hidden>
+              <div>
+                <p>The published spec is for F1 25. Every assumption was checked against recorded F1 26 races, and several were wrong:</p>
+                <ul>
+                  <li><strong>A field inserted mid-struct.</strong> Car Status grew from 55 to 59 bytes with <code>ersHarvestLimitPerLap</code> placed <em>before</em> ersDeployedThisLap, not at the end. Found from a 6.2 MJ value at that offset on a stationary car.</li>
+                  <li><strong>Forecast times.</strong> The weather slots count minutes from now, not from the session start: 100% of 299 checks against 48%.</li>
+                  <li><strong>Fuel.</strong> <code>fuelRemainingLaps</code> is the MFD surplus over the race distance, not laps of fuel, worked out from the real burn rate.</li>
+                  <li><strong>Gap to leader reads 0</strong> while a car is in the pit lane, so a naive rejoin model counted every car mid-stop as leading the race (8 places off).</li>
+                  <li><strong>Penalty types changed meaning.</strong> Type 16 ("Retired") arrived for a driver still racing; type 6 ("Disqualified") for one who then set the fastest lap. Neither reaches the radio.</li>
+                  <li><strong>Session UID 0 at the flag.</strong> Every car's Session History arrives with a session ID of 0 as the race ends. Read as a new session, it wiped each car's final lap and the official result.</li>
+                </ul>
+              </div>
+              <div>
+                <pre><span class="c">// npm run analyze, on every capture</span>
 OK  CarStatus packet  1445 bytes (2026 layout: 1445)
 OK  fuelRemainingLaps meaning
     reads as the MFD surplus (median error
@@ -408,44 +600,44 @@ OK  Forecast timeOffset meaning
     "minutes from now" matches 100%
     vs "from session start" 45%
 OK  ERS store maximum  4.00 MJ</pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/capture/analyze.js">capture/analyze.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/parsers/carStatus.js">parsers/carStatus.js</a></p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/capture/analyze.js">capture/analyze.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/parsers/carStatus.js">parsers/carStatus.js</a></p>
               </div>
             </div>
+          </div>
 
-            <!-- 2. Decode -->
-            <div class="ex-stage" id="ex-decode" data-color="var(--info)" hidden>
-              <div class="ex-head"><div class="kicker">Step 2 · Decode</div><h3>Bytes into plain objects, defensively</h3><p>One function reads every packet, live or recorded. It has to survive a game update changing a struct, a packet cut short, and garbage on the LAN.</p></div>
-              <div class="ex-tabs" role="tablist" aria-label="Decode: topics">
-                <button role="tab" type="button" data-sub="dispatch">One entry point</button>
-                <button role="tab" type="button" data-sub="stride">Stride from length</button>
-                <button role="tab" type="button" data-sub="corrupt">Corrupt packets</button>
-                <button role="tab" type="button" data-sub="pinned">Pinned on real packets</button>
+          <!-- Decode -->
+          <div class="ex-stage" id="ex-decode" data-color="var(--info)" hidden>
+            <div class="ex-head"><h3>Bytes into plain objects, defensively</h3><p>One function reads every packet, live or recorded. It has to survive a game update changing a struct, a packet cut short, and garbage on the LAN.</p></div>
+            <div class="ex-tabs" role="tablist" aria-label="Decode: topics">
+              <button role="tab" type="button" data-sub="dispatch">One entry point</button>
+              <button role="tab" type="button" data-sub="stride">Stride from length</button>
+              <button role="tab" type="button" data-sub="corrupt">Corrupt packets</button>
+              <button role="tab" type="button" data-sub="pinned">Pinned on real packets</button>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="dispatch">
+              <div>
+                <p><code>parsePacket()</code> reads the header, looks the packet id up in a table of 14 parsers, and returns <code>{ header, data }</code>. Motion, lobby and time-trial packets aren't needed and return <code>data: null</code>.</p>
+                <p>The <strong>same function</strong> is fed by the live UDP socket, by the recorded-file replayer, by the capture analyzer, by the dataset builder and by the tests. That's why the public demo can't drift from the real tool: it <em>is</em> the real tool, fed from a file.</p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="dispatch">
-                <div>
-                  <p><code>parsePacket()</code> reads the header, looks the packet id up in a table of 14 parsers, and returns <code>{ header, data }</code>. Motion, lobby and time-trial packets aren't needed and return <code>data: null</code>.</p>
-                  <p>The <strong>same function</strong> is fed by the live UDP socket, by the recorded-file replayer, by the capture analyzer, by the dataset builder and by the tests. That's why the public demo can't drift from the real tool: it <em>is</em> the real tool, fed from a file.</p>
-                </div>
-                <div>
-                  <pre>function parsePacket(buf) {
+              <div>
+                <pre>function parsePacket(buf) {
   const header = parseHeader(buf);
   const parse = PARSERS[header.packetId];
   if (!parse) return { header, data: null };
   <span class="c">// 24 slots from format 2026, 22 before</span>
   return { header, data: parse(buf, carSlotsFor(header)) };
 }</pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/parsePacket.js">udp/parsePacket.js</a></p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/parsePacket.js">udp/parsePacket.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="stride" hidden>
-                <div>
-                  <p>Per-car structs are packed back to back. Rather than trusting a hard-coded size, each parser works out the <strong>stride</strong> from the packet's length, reads the fields it knows, and jumps to the next car.</p>
-                  <p>When F1 26 grew Car Status by 4 bytes, the parser kept reading its known prefix and picked the new field up by stride. A layout it can't explain logs one warning for that packet type, never garbage and never a crash.</p>
-                  <p>Packet length alone can't give the number of car slots: F1 25's 1,320-byte telemetry array divides evenly by both 22 and 24. So the slot count comes from the header's packet format, and the stride from the length.</p>
-                </div>
-                <div>
-                  <pre>const carsBytes = buf.length - HEADER_LENGTH;
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="stride" hidden>
+              <div>
+                <p>Per-car structs are packed back to back. Rather than trusting a hard-coded size, each parser works out the <strong>stride</strong> from the packet's length, reads the fields it knows, and jumps to the next car.</p>
+                <p>When F1 26 grew Car Status by 4 bytes, the parser kept reading its known prefix and picked the new field up by stride. A layout it can't explain logs one warning for that packet type, never garbage and never a crash.</p>
+                <p>Packet length alone can't give the number of car slots: F1 25's 1,320-byte telemetry array divides evenly by both 22 and 24. So the slot count comes from the header's packet format, and the stride from the length.</p>
+              </div>
+              <div>
+                <pre>const carsBytes = buf.length - HEADER_LENGTH;
 const stride = Math.floor(carsBytes / numCars);
 if (carsBytes % numCars !== 0 || stride &lt; 55) {
   console.warn(`[carStatus] packet size mismatch: ${buf.length} bytes`);
@@ -453,60 +645,60 @@ if (carsBytes % numCars !== 0 || stride &lt; 55) {
 <span class="c">// F1 25: 55 bytes, F1 26: 59 bytes</span>
 ersHarvestLimitPerLap: stride >= 59 ? r.f32() : null,
 r.offset = start + stride; <span class="c">// skip what we don't know</span></pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/parsers/carStatus.js">parsers/carStatus.js</a></p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/parsers/carStatus.js">parsers/carStatus.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="corrupt" hidden>
-                <div>
-                  <p>The bridge listens on the local network and trusts nothing it hears. A sequential little-endian reader throws a <code>RangeError</code> on a short read, and on any <strong>non-finite float</strong>: the game never sends NaN or Infinity (none in 2.26 million captured packets), so one means the packet is corrupt. The pipeline drops it and carries on.</p>
-                  <p>A fuzz test sends seeded random, truncated and bit-flipped packets through the whole pipeline mid-race and checks that no exception escapes, every snapshot is valid JSON with finite numbers, and a clean session played afterwards gives the same result as without the fuzz.</p>
-                  <p>It found a real bug before any user did: a NaN tyre-wear float stuck in the wear history, and the wear rate read "null" for the rest of the stint.</p>
-                </div>
-                <div>
-                  <pre>f32() {
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="corrupt" hidden>
+              <div>
+                <p>The bridge listens on the local network and trusts nothing it hears. A sequential little-endian reader throws a <code>RangeError</code> on a short read, and on any <strong>non-finite float</strong>: the game never sends NaN or Infinity (none in 2.26 million captured packets), so one means the packet is corrupt. The pipeline drops it and carries on.</p>
+                <p>A fuzz test sends seeded random, truncated and bit-flipped packets through the whole pipeline mid-race and checks that no exception escapes, every snapshot is valid JSON with finite numbers, and a clean session played afterwards gives the same result as without the fuzz.</p>
+                <p>It found a real bug before any user did: a NaN tyre-wear float stuck in the wear history, and the wear rate read "null" for the rest of the stint.</p>
+              </div>
+              <div>
+                <pre>f32() {
   const v = this.buf.readFloatLE(this.offset);
   this.offset += 4;
   if (!Number.isFinite(v))
     throw new RangeError(`non-finite float at byte ${this.offset - 4}`);
   return v;
 }</pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/bufferReader.js">udp/bufferReader.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/test/fuzz.test.js">test/fuzz.test.js</a></p>
-                </div>
-              </div>
-              <div class="ex-body" role="tabpanel" data-sub="pinned" hidden>
-                <div>
-                  <p>Real packets captured from F1 26 are stored as hex in the test fixtures, and every parser is tested on them: the 24-slot arrays, the inserted ERS field, the 2026 Car Telemetry 2 packet, the Participants layout.</p>
-                  <p>For each new capture, the analyzer checks every packet type's size against the expected layout and reports how many packets it saw and how fast. A game patch that changes a layout shows up there first.</p>
-                </div>
-                <div>
-                  <div class="ex-num"><span><b>14</b> packet parsers</span><span><b>16</b> types checked per capture</span><span><b>2.26M</b> real packets, 0 non-finite</span></div>
-                  <p class="ex-src">Fixtures: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/test/fixtures/f1-26-packets.json">test/fixtures/f1-26-packets.json</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/test/f1-26.test.js">test/f1-26.test.js</a></p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/udp/bufferReader.js">udp/bufferReader.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/test/fuzz.test.js">test/fuzz.test.js</a></p>
               </div>
             </div>
-
-            <!-- 3. Track the field -->
-            <div class="ex-stage" id="ex-field" data-color="var(--info)" hidden>
-              <div class="ex-head"><div class="kicker">Step 3 · Track the field</div><h3>One model of every car, on game time</h3><p>The field model files each packet under its car and keeps the history the analysis needs. It holds facts only; no opinions, no calls.</p></div>
-              <div class="ex-tabs" role="tablist" aria-label="Track the field: topics">
-                <button role="tab" type="button" data-sub="percar">What's kept per car</button>
-                <button role="tab" type="button" data-sub="time">Game time</button>
-                <button role="tab" type="button" data-sub="flashback">Flashbacks</button>
-                <button role="tab" type="button" data-sub="memory">Memory and feed health</button>
+            <div class="ex-body" role="tabpanel" data-sub="pinned" hidden>
+              <div>
+                <p>Real packets captured from F1 26 are stored as hex in the test fixtures, and every parser is tested on them: the 24-slot arrays, the inserted ERS field, the 2026 Car Telemetry 2 packet, the Participants layout.</p>
+                <p>For each new capture, the analyzer checks every packet type's size against the expected layout and reports how many packets it saw and how fast. A game patch that changes a layout shows up there first.</p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="percar">
-                <div>
-                  <p>For each of the 22-24 cars, the latest of every packet, plus:</p>
-                  <ul>
-                    <li><strong>Lap history</strong>, the last 12 laps: time, tyre compound and age, fuel, and two flags - did the lap touch the pit lane, did any of it run under a safety car. Those flags are exactly what's needed to measure what a pit stop costs and to keep slow laps out of pace figures.</li>
-                    <li><strong>Gap samples</strong> to the car ahead, once a second of game time, two minutes deep: the closing rate per lap.</li>
-                    <li><strong>Battery</strong> at each crossing of the line, and in 20 slices of the last lap: how this car spends its energy, lap after lap.</li>
-                    <li><strong>25 mini-sectors</strong> per lap, timed from lap distance: where a car is quicker, and what damage costs.</li>
-                    <li><strong>Lap traces</strong>: speed, throttle and brake against distance, for the debrief's lap comparison.</li>
-                  </ul>
-                </div>
-                <div>
-                  <pre>car = {
+              <div>
+                <div class="ex-num"><span><b>14</b> packet parsers</span><span><b>16</b> types checked per capture</span><span><b>2.26M</b> real packets, 0 non-finite</span></div>
+                <p class="ex-src">Fixtures: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/test/fixtures/f1-26-packets.json">test/fixtures/f1-26-packets.json</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/test/f1-26.test.js">test/f1-26.test.js</a></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Track the field -->
+          <div class="ex-stage" id="ex-field" data-color="var(--info)" hidden>
+            <div class="ex-head"><h3>One model of every car, on game time</h3><p>The field model files each packet under its car and keeps the history the analysis needs. It holds facts only; no opinions, no calls.</p></div>
+            <div class="ex-tabs" role="tablist" aria-label="Track the field: topics">
+              <button role="tab" type="button" data-sub="percar">What's kept per car</button>
+              <button role="tab" type="button" data-sub="time">Game time</button>
+              <button role="tab" type="button" data-sub="flashback">Flashbacks</button>
+              <button role="tab" type="button" data-sub="memory">Memory and feed health</button>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="percar">
+              <div>
+                <p>For each of the 22-24 cars, the latest of every packet, plus:</p>
+                <ul>
+                  <li><strong>Lap history</strong>, the last 12 laps: time, tyre compound and age, fuel, and two flags - did the lap touch the pit lane, did any of it run under a safety car. Those flags are exactly what's needed to measure what a pit stop costs and to keep slow laps out of pace figures.</li>
+                  <li><strong>Gap samples</strong> to the car ahead, once a second of game time, two minutes deep: the closing rate per lap.</li>
+                  <li><strong>Battery</strong> at each crossing of the line, and in 20 slices of the last lap: how this car spends its energy, lap after lap.</li>
+                  <li><strong>25 mini-sectors</strong> per lap, timed from lap distance: where a car is quicker, and what damage costs.</li>
+                  <li><strong>Lap traces</strong>: speed, throttle and brake against distance, for the debrief's lap comparison.</li>
+                </ul>
+              </div>
+              <div>
+                <pre>car = {
   lapData, status, telemetry, damage, tyreSets,
   lapHistory: [ { lapNum: 14, lapMs: 77574,
                   pit: false, neutralised: false,
@@ -515,32 +707,32 @@ r.offset = start + stride; <span class="c">// skip what we don't know</span></pr
   ersHistory: [ { lapNum: 14, energyJ: 1.9e6 } ],
   miniSectors: [ { lapNum: 14, splits: [3104, ...] } ],
 }</pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/fieldModel.js">state/fieldModel.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/lapTrace.js">state/lapTrace.js</a></p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/fieldModel.js">state/fieldModel.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/lapTrace.js">state/lapTrace.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="time" hidden>
-                <div>
-                  <p>There are two clocks, and they're kept apart. <strong>Game time</strong> (the header's sessionTime) measures the race: gap samples are taken every second of it, so a closing rate means the same at 20 Hz or 60 Hz, and pausing the game doesn't skew it.</p>
-                  <p><strong>The engine's clock</strong> (card expiries, settle timers) is injected into the pipeline rather than read from <code>Date.now()</code>. Live it's the wall clock; in a replay it's the recording's own clock. So a replay at 8× gives exactly the same calls as one at 1×, and that's a test.</p>
-                </div>
-                <div>
-                  <pre><span class="c">// one pipeline, any clock</span>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="time" hidden>
+              <div>
+                <p>There are two clocks, and they're kept apart. <strong>Game time</strong> (the header's sessionTime) measures the race: gap samples are taken every second of it, so a closing rate means the same at 20 Hz or 60 Hz, and pausing the game doesn't skew it.</p>
+                <p><strong>The engine's clock</strong> (card expiries, settle timers) is injected into the pipeline rather than read from <code>Date.now()</code>. Live it's the wall clock; in a replay it's the recording's own clock. So a replay at 8× gives exactly the same calls as one at 1×, and that's a test.</p>
+              </div>
+              <div>
+                <pre><span class="c">// one pipeline, any clock</span>
 const pipeline = createPipeline({
   now: () => replayClockMs,   <span class="c">// or Date.now live</span>
 });
 pipeline.feed(buf);   <span class="c">// every packet</span>
 pipeline.tick();      <span class="c">// every 100 ms -> snapshot</span></pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/pipeline.js">pipeline.js</a> · test: two replays at different speeds give identical calls</p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/pipeline.js">pipeline.js</a> · test: two replays at different speeds give identical calls</p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="flashback" hidden>
-                <div>
-                  <p>A flashback rewinds the race a few seconds. If the model just kept appending, it would record laps that never happened: one real Monaco race with 20 flashbacks produced laps 3, 4, 3, 4... and polluted the pace, tyre-wear and pit-loss figures.</p>
-                  <p>Two signals give it away: <strong>sessionTime runs backwards</strong>, or <strong>the lap counter drops</strong>. Either way, everything recorded after that point is removed: laps, battery history, mini-sectors, passes. The lap rewound into keeps the flags it already had.</p>
-                  <p>The datasets do the same: a lap taken back by a flashback is taken back from <code>laps.csv</code>, and so are the calls made on it.</p>
-                </div>
-                <div>
-                  <pre>if (header.sessionTime &lt; sessionTime - 0.5) {
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="flashback" hidden>
+              <div>
+                <p>A flashback rewinds the race a few seconds. If the model just kept appending, it would record laps that never happened: one real Monaco race with 20 flashbacks produced laps 3, 4, 3, 4... and polluted the pace, tyre-wear and pit-loss figures.</p>
+                <p>Two signals give it away: <strong>sessionTime runs backwards</strong>, or <strong>the lap counter drops</strong>. Either way, everything recorded after that point is removed: laps, battery history, mini-sectors, passes. The lap rewound into keeps the flags it already had.</p>
+                <p>The datasets do the same: a lap taken back by a flashback is taken back from <code>laps.csv</code>, and so are the calls made on it.</p>
+              </div>
+              <div>
+                <pre>if (header.sessionTime &lt; sessionTime - 0.5) {
   <span class="c">// game time went backwards: undo later passes</span>
 }
 if (c.currentLapNum &lt; prevLapNum) {
@@ -549,78 +741,78 @@ if (c.currentLapNum &lt; prevLapNum) {
   car.ersHistory = car.ersHistory.filter(...);
   car.miniSectors = car.miniSectors.filter(...);
 }</pre>
-                  <div class="ex-num"><span><b>31</b> flashbacks in one Barcelona race</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/fieldModel.js">state/fieldModel.js</a></p>
-                </div>
+                <div class="ex-num"><span><b>31</b> flashbacks in one Barcelona race</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/fieldModel.js">state/fieldModel.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="memory" hidden>
-                <div>
-                  <p><strong>Track memory.</strong> What a race measured at a track - the pit loss, the tyre age share and wear the AI boxed at, each compound's wear rate from practice - goes into a small JSON file. The next race there starts from those numbers instead of a generic guess. Replays and tests use no memory, so they stay reproducible.</p>
-                  <p><strong>Feed health.</strong> Car Telemetry's frame counter steps by 1 between packets at 60 Hz and by 3 at 20 Hz. A step of twice the usual is one packet lost, and a pause isn't. Loss over the last 10 seconds shows on the link chip ("Live · 8% lost") from 2%, and nothing extra when the feed is fine.</p>
-                </div>
-                <div>
-                  <pre><span class="c">// data/tracks.json - local, not committed (example values)</span>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="memory" hidden>
+              <div>
+                <p><strong>Track memory.</strong> What a race measured at a track - the pit loss, the tyre age share and wear the AI boxed at, each compound's wear rate from practice - goes into a small JSON file. The next race there starts from those numbers instead of a generic guess. Replays and tests use no memory, so they stay reproducible.</p>
+                <p><strong>Feed health.</strong> Car Telemetry's frame counter steps by 1 between packets at 60 Hz and by 3 at 20 Hz. A step of twice the usual is one packet lost, and a pause isn't. Loss over the last 10 seconds shows on the link chip ("Live · 8% lost") from 2%, and nothing extra when the feed is fine.</p>
+              </div>
+              <div>
+                <pre><span class="c">// data/tracks.json - local, not committed (example values)</span>
 { "4": { "pitLossMs": [21140, 20890],
          "stopShare": [0.58, 0.61],
          "deg17": [112, 98] } }</pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/trackMemory.js">state/trackMemory.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/feedHealth.js">state/feedHealth.js</a></p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/trackMemory.js">state/trackMemory.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/state/feedHealth.js">state/feedHealth.js</a></p>
               </div>
             </div>
+          </div>
 
-            <!-- 4. Analyse -->
-            <div class="ex-stage" id="ex-analyse" data-color="var(--watch)" hidden>
-              <div class="ex-head"><div class="kicker">Step 4 · Analyse</div><h3>The numbers a strategist would work out</h3><p>Every 100 ms the engine runs a set of pure functions over the field. Each is scored on real races against the guess it has to beat.</p></div>
-              <div class="ex-tabs" role="tablist" aria-label="Analyse: topics">
-                <button role="tab" type="button" data-sub="pitloss">Pace and pit loss</button>
-                <button role="tab" type="button" data-sub="tyres">Tyre model</button>
-                <button role="tab" type="button" data-sub="strategy">Stop timing and the race plan</button>
-                <button role="tab" type="button" data-sub="fight">The fight</button>
-                <button role="tab" type="button" data-sub="damage">Damage and weather</button>
+          <!-- Analyse -->
+          <div class="ex-stage" id="ex-analyse" data-color="var(--watch)" hidden>
+            <div class="ex-head"><h3>The numbers a strategist would work out</h3><p>Every 100 ms the engine runs a set of pure functions over the field. Each is scored on real races against the guess it has to beat.</p></div>
+            <div class="ex-tabs" role="tablist" aria-label="Analyse: topics">
+              <button role="tab" type="button" data-sub="pitloss">Pace and pit loss</button>
+              <button role="tab" type="button" data-sub="tyres">Tyre model</button>
+              <button role="tab" type="button" data-sub="strategy">Stop timing and the race plan</button>
+              <button role="tab" type="button" data-sub="fight">The fight</button>
+              <button role="tab" type="button" data-sub="damage">Damage and weather</button>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="pitloss">
+              <div>
+                <p><strong>Clean pace</strong> is the mean of a car's last 3 clean laps: not a pit lap, not under a safety car, not lap 1, and not more than 7% slower than its own typical lap (a spin or traffic).</p>
+                <p><strong>Pit loss is measured, not assumed.</strong> Whenever any car makes a green-flag stop, its in-lap plus out-lap minus two clean laps is what the stop cost. Readings between 8 and 45 s are kept, and the median is used. Before any stop, it falls back to earlier races at this track, then a per-track estimate, then 22 s. Under a safety car a stop costs about 55% of that, under a VSC 65%.</p>
+                <p><strong>Rejoin</strong>: add the pit loss to your time behind the leader and see where that slots in. Scored on 24 real stops it's 2.5 places off against 4.3 for "you keep your place" - but nearly all of the 2.5 is one direction, too pessimistic, and that's the next thing to fix.</p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="pitloss">
-                <div>
-                  <p><strong>Clean pace</strong> is the mean of a car's last 3 clean laps: not a pit lap, not under a safety car, not lap 1, and not more than 7% slower than its own typical lap (a spin or traffic).</p>
-                  <p><strong>Pit loss is measured, not assumed.</strong> Whenever any car makes a green-flag stop, its in-lap plus out-lap minus two clean laps is what the stop cost. Readings between 8 and 45 s are kept, and the median is used. Before any stop, it falls back to earlier races at this track, then a per-track estimate, then 22 s. Under a safety car a stop costs about 55% of that, under a VSC 65%.</p>
-                  <p><strong>Rejoin</strong>: add the pit loss to your time behind the leader and see where that slots in. Scored on 24 real stops it's 2.5 places off against 4.3 for "you keep your place" - but nearly all of the 2.5 is one direction, too pessimistic, and that's the next thing to fix.</p>
-                </div>
-                <div>
-                  <pre>loss = inLap.lapMs + outLap.lapMs
+              <div>
+                <pre>loss = inLap.lapMs + outLap.lapMs
      - 2 * avg(cleanLaps.slice(-3))
 if (loss >= 8000 &amp;&amp; loss &lt;= 45000) samples.push(loss)
 pitLossMs = median(samples)       <span class="c">// measured</span>
          ?? median(trackMemory)  <span class="c">// earlier races</span>
          ?? TRACK_ESTIMATE ?? 22000
 if (safetyCar) pitLossMs *= 0.55  <span class="c">// VSC 0.65</span></pre>
-                  <div class="ex-num"><span>rejoin <b>2.5</b> vs 4.3 places</span><span>bias <b>-2.5</b> places</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/raceAnalysis.js">engine/raceAnalysis.js</a></p>
-                </div>
+                <div class="ex-num"><span>rejoin <b>2.5</b> vs 4.3 places</span><span>bias <b>-2.5</b> places</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/raceAnalysis.js">engine/raceAnalysis.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="tyres" hidden>
-                <div>
-                  <p>Tyre wear is learned live from <strong>the whole field</strong>, 22 cars' laps rather than just yours, so the estimate firms up within a few laps instead of waiting for your own stint.</p>
-                  <p>Each car is compared only with itself (its laps minus its own average), so fast and slow cars share one wear slope per compound. Fuel and tyre age both rise one per lap until someone stops, so lap times alone can't separate them: the fuel effect is fixed from physics, the measured burn per lap × ~0.03 s per kg. Laps far off a car's own trend are trimmed with a robust (MAD) filter.</p>
-                  <p>Each wear rate carries a <strong>90% range</strong> from a bootstrap that resamples cars, not laps - cars are the independent units. On synthetic fields the range holds the true rate about 90% of the time. The fit runs once per completed lap (~10 ms), not every tick.</p>
-                </div>
-                <div>
-                  <pre>lapTime = carBase + deg × tyreAge
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="tyres" hidden>
+              <div>
+                <p>Tyre wear is learned live from <strong>the whole field</strong>, 22 cars' laps rather than just yours, so the estimate firms up within a few laps instead of waiting for your own stint.</p>
+                <p>Each car is compared only with itself (its laps minus its own average), so fast and slow cars share one wear slope per compound. Fuel and tyre age both rise one per lap until someone stops, so lap times alone can't separate them: the fuel effect is fixed from physics, the measured burn per lap × ~0.03 s per kg. Laps far off a car's own trend are trimmed with a median-based (MAD) filter.</p>
+                <p>Each wear rate carries a <strong>90% range</strong> from a bootstrap that resamples cars, not laps - cars are the independent units. On synthetic fields the range holds the true rate about 90% of the time. The fit runs once per completed lap (~10 ms), not every tick.</p>
+              </div>
+              <div>
+                <pre>lapTime = carBase + deg × tyreAge
         - fuelEffect × lapNumber + noise
 
 <span class="c">// held out: each car predicted from the others</span>
 model     329 ms per lap
 no wear   482 ms per lap   <span class="c">(1,150 laps, 6 races)</span></pre>
-                  <div class="ex-num"><span>beats "no wear" on <b>5 / 6</b> races</span><span><b>100</b> bootstrap resamples</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/ml/tyreModel.js">ml/tyreModel.js</a> · scored in CI on <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/datasets/laps.csv">datasets/laps.csv</a></p>
-                </div>
+                <div class="ex-num"><span>beats "no wear" on <b>5 / 6</b> races</span><span><b>100</b> bootstrap resamples</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/ml/tyreModel.js">ml/tyreModel.js</a> · scored in CI on <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/datasets/laps.csv">datasets/laps.csv</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="strategy" hidden>
-                <div>
-                  <p><strong>Pit timing</strong> races every possible stop lap, from now to the flag, lap by lap, against the cars around you. Your laps slow by the fitted wear rate per lap of tyre age; a fresh set starts quicker by the game's own estimate. Rivals keep their clean pace and stop when they're expected to, so a car about to box no longer counts as one you'd rejoin behind for good. Places lost at the rejoin carry a track-position cost: a faster car still has to get past. Under 1,000 small sums a lap.</p>
-                  <p><strong>When rivals stop</strong>: the AI's stop is a strategy, not a wear limit - at Monaco every car on mediums boxed at 12 laps on sets rated for 19-20. So each car is expected at a share of its set's rated life (60% as a prior), or by its own wear rate once the race has shown the wear the AI boxes at.</p>
-                  <p><strong>The race plan</strong> before the start: one stop or two, on which tyres. Each plan's total time is linear in the wear rates, so the search runs once (5,800 plans pruned to 500 shapes) and then <strong>1,000 races</strong> with the wear rates and pit loss drawn as widely as they're uncertain take a few milliseconds. The card says "wins 87% of 1,000 simulated races".</p>
-                </div>
-                <div>
-                  <pre><span class="c">// one simulated race</span>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="strategy" hidden>
+              <div>
+                <p><strong>Pit timing</strong> races every possible stop lap, from now to the flag, lap by lap, against the cars around you. Your laps slow by the fitted wear rate per lap of tyre age; a fresh set starts quicker by the game's own estimate. Rivals keep their clean pace and stop when they're expected to, so a car about to box no longer counts as one you'd rejoin behind for good. Places lost at the rejoin carry a track-position cost: a faster car still has to get past. Under 1,000 small sums a lap.</p>
+                <p><strong>When rivals stop</strong>: the AI's stop is a strategy, not a wear limit - at Monaco every car on mediums boxed at 12 laps on sets rated for 19-20. So each car is expected at a share of its set's rated life (60% as a prior), or by its own wear rate once the race has shown the wear the AI boxes at.</p>
+                <p><strong>The race plan</strong> before the start: one stop or two, on which tyres. Each plan's total time is linear in the wear rates, so the search runs once (5,800 plans pruned to 500 shapes) and then <strong>1,000 races</strong> with the wear rates and pit loss drawn as widely as they're uncertain take a few milliseconds. The card says "wins 87% of 1,000 simulated races".</p>
+              </div>
+              <div>
+                <pre><span class="c">// one simulated race</span>
 for each plan:
   total = Σ stints (setPace × laps
                    + deg[compound] × Σ tyreAge)
@@ -628,148 +820,148 @@ for each plan:
 <span class="c">// deg ~ its 90% range, pitLoss ~ its spread</span>
 winner = argmin(total)
 odds   = wins / 1000</pre>
-                  <div class="ex-num"><span><b>1,000</b> races in a few ms</span><span>rival stops <b>1.22</b> vs 1.24 laps</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/pitTiming.js">pitTiming.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/racePlan.js">racePlan.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/rivalStops.js">rivalStops.js</a></p>
-                </div>
+                <div class="ex-num"><span><b>1,000</b> races in a few ms</span><span>rival stops <b>1.22</b> vs 1.24 laps</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/pitTiming.js">pitTiming.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/racePlan.js">racePlan.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/rivalStops.js">rivalStops.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="fight" hidden>
-                <div>
-                  <p><strong>Will the car behind pass in the next 10 s?</strong> A logistic regression written from scratch - standardised features, an L2 penalty, class-weighted gradient descent - over the gap (log scale), the closing rate, the clean-pace difference, tyre age and compound, the battery difference and 2026 Overtake mode. It's trained on recorded races, labelled from the game's own overtake events, and scored on races it never saw. Held-out AUC 0.851 against 0.854 for the gap alone: it ties, so the app marks it experimental.</p>
-                  <p><strong>Battery at the line</strong>: drivers spend on the same straights every lap, so the rest of this lap is copied from the same stretch of the last one. 7.7 points off against 13.2 for "it stays where it is".</p>
-                  <p><strong>Where they'll attack</strong>: your braking zones, scored by where passes actually happen at this track, with the places <em>you've</em> been passed this session weighted twice.</p>
-                </div>
-                <div>
-                  <pre>p(pass) = σ(w · [log gap, closing, Δpace,
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="fight" hidden>
+              <div>
+                <p><strong>Will the car behind pass in the next 10 s?</strong> A logistic regression written from scratch - standardised features, an L2 penalty, class-weighted gradient descent - over the gap (log scale), the closing rate, the clean-pace difference, tyre age and compound, the battery difference and 2026 Overtake mode. It's trained on recorded races, labelled from the game's own overtake events, and scored on races it never saw. Held-out AUC 0.851 against 0.854 for the gap alone: it ties, so the app marks it experimental.</p>
+                <p><strong>Battery at the line</strong>: drivers spend on the same straights every lap, so the rest of this lap is copied from the same stretch of the last one. 7.7 points off against 13.2 for "it stays where it is".</p>
+                <p><strong>Where they'll attack</strong>: your braking zones, scored by where passes actually happen at this track, with the places <em>you've</em> been passed this session weighted twice.</p>
+              </div>
+              <div>
+                <pre>p(pass) = σ(w · [log gap, closing, Δpace,
                  Δtyre age, compound,
                  Δbattery, overtakeMode] + b)
 
 battery@line = now + (lastLap@line - lastLap@here)</pre>
-                  <div class="ex-num"><span>AUC <b>0.851</b> vs 0.854</span><span>battery <b>7.7</b> vs 13.2 pts</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/ml/logistic.js">ml/logistic.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/batteryProjection.js">batteryProjection.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/attackForecast.js">attackForecast.js</a></p>
-                </div>
+                <div class="ex-num"><span>AUC <b>0.851</b> vs 0.854</span><span>battery <b>7.7</b> vs 13.2 pts</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/ml/logistic.js">ml/logistic.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/batteryProjection.js">batteryProjection.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/attackForecast.js">attackForecast.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="damage" hidden>
-                <div>
-                  <p><strong>What damage costs</strong> is measured from your own mini-sectors: clean laps since the hit against clean laps before it, slice by slice, less what fuel burn and tyre wear alone would have changed. The slices say <em>where</em> the time goes (a front wing loses it in corners). Before a full lap has passed, the slices already run give an early figure, scaled up. A slice over three times its clean time is a crawl back to the pits, not pace, and is left out.</p>
-                  <p><strong>Weather</strong>: the forecast slots become "rain in ~4 laps". Once it's wet or drying, the crossover is read from the field: are the cars already on the other tyre lapping faster? The game sends no track-wetness figure, so the field's lap times are the evidence.</p>
-                </div>
-                <div>
-                  <pre>loss/lap = Σ_k (median(damaged[k]) - median(clean[k]))
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="damage" hidden>
+              <div>
+                <p><strong>What damage costs</strong> is measured from your own mini-sectors: clean laps since the hit against clean laps before it, slice by slice, less what fuel burn and tyre wear alone would have changed. The slices say <em>where</em> the time goes (a front wing loses it in corners). Before a full lap has passed, the slices already run give an early figure, scaled up. A slice over three times its clean time is a crawl back to the pits, not pace, and is left out.</p>
+                <p><strong>Weather</strong>: the forecast slots become "rain in ~4 laps". Once it's wet or drying, the crossover is read from the field: are the cars already on the other tyre lapping faster? The game sends no track-wetness figure, so the field's lap times are the evidence.</p>
+              </div>
+              <div>
+                <pre>loss/lap = Σ_k (median(damaged[k]) - median(clean[k]))
          - drift(fuel, tyres)
 worth a stop if  loss/lap × lapsLeft
                > pitLoss + noseChange</pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/damageLoss.js">damageLoss.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/weather.js">engine/weather.js</a></p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/damageLoss.js">damageLoss.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/weather.js">engine/weather.js</a></p>
               </div>
             </div>
+          </div>
 
-            <!-- 5. Decide -->
-            <div class="ex-stage" id="ex-decide" data-color="var(--act)" hidden>
-              <div class="ex-head"><div class="kicker">Step 5 · Decide</div><h3>From numbers to one call and a radio line</h3><p>The decision layer turns the analysis into what the driver hears - and it has to be calm about it: a call that flaps is worse than no call.</p></div>
-              <div class="ex-tabs" role="tablist" aria-label="Decide: topics">
-                <button role="tab" type="button" data-sub="call">The headline call</button>
-                <button role="tab" type="button" data-sub="cards">Radio cards</button>
-                <button role="tab" type="button" data-sub="focus">Which screen</button>
-                <button role="tab" type="button" data-sub="audit">The calls audit</button>
+          <!-- Decide -->
+          <div class="ex-stage" id="ex-decide" data-color="var(--act)" hidden>
+            <div class="ex-head"><h3>From numbers to one call and a radio line</h3><p>The decision layer turns the analysis into what the driver hears - and it has to be calm about it: a call that flaps is worse than no call.</p></div>
+            <div class="ex-tabs" role="tablist" aria-label="Decide: topics">
+              <button role="tab" type="button" data-sub="call">The headline call</button>
+              <button role="tab" type="button" data-sub="cards">Radio cards</button>
+              <button role="tab" type="button" data-sub="focus">Which screen</button>
+              <button role="tab" type="button" data-sub="audit">The calls audit</button>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="call">
+              <div>
+                <p>One call is always on screen: PUSH, HOLD, BOX or PIT (and PREP in qualifying). It's a pure function of the numbers the radio cards use, so the two can never disagree. The first rule that applies wins, in this order:</p>
+                <ol>
+                  <li>In the pit lane → PIT</li>
+                  <li>A penalty to serve (not under a safety car) → BOX</li>
+                  <li>The wrong tyre for the weather → BOX</li>
+                  <li>Damage worth a stop → BOX</li>
+                  <li>A cheap stop under a safety car or VSC → BOX</li>
+                  <li>Tyres at the cliff → BOX (or HOLD if 2 laps are left)</li>
+                  <li>The pit window: this lap, by a clear margin → BOX</li>
+                  <li>Red flag, safety car or VSC → HOLD</li>
+                  <li>Fuel short, tyres near the cliff, fuel tight → HOLD</li>
+                  <li>An undercut on, rain coming, or all fine → PUSH</li>
+                </ol>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="call">
-                <div>
-                  <p>One call is always on screen: PUSH, HOLD, BOX or PIT (and PREP in qualifying). It's a pure function of the numbers the radio cards use, so the two can never disagree. The first rule that applies wins, in this order:</p>
-                  <ol>
-                    <li>In the pit lane → PIT</li>
-                    <li>A penalty to serve (not under a safety car) → BOX</li>
-                    <li>The wrong tyre for the weather → BOX</li>
-                    <li>Damage worth a stop → BOX</li>
-                    <li>A cheap stop under a safety car or VSC → BOX</li>
-                    <li>Tyres at the cliff → BOX (or HOLD if 2 laps are left)</li>
-                    <li>The pit window: this lap, by a clear margin → BOX</li>
-                    <li>Red flag, safety car or VSC → HOLD</li>
-                    <li>Fuel short, tyres near the cliff, fuel tight → HOLD</li>
-                    <li>An undercut on, rain coming, or all fine → PUSH</li>
-                  </ol>
-                </div>
-                <div>
-                  <p>Each call carries a <strong>kind</strong> (why it was made), and the calm kinds - push, manage tyres, an undercut on offer - have to hold <strong>5 s</strong> before they replace each other. BOX, PIT and a safety car come at once.</p>
-                  <pre>{ action: 'BOX', kind: 'cheap-stop',
+              <div>
+                <p>Each call carries a <strong>kind</strong> (why it was made), and the calm kinds - push, manage tyres, an undercut on offer - have to hold <strong>5 s</strong> before they replace each other. BOX, PIT and a safety car come at once.</p>
+                <pre>{ action: 'BOX', kind: 'cheap-stop',
   reason: 'Safety car: a stop costs ~11s, not ~21s' }</pre>
-                  <div class="ex-num"><span>undercut flips <b>7 → 2</b> after the settle</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/calls.js">engine/calls.js</a></p>
-                </div>
+                <div class="ex-num"><span>undercut flips <b>7 → 2</b> after the settle</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/calls.js">engine/calls.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="cards" hidden>
-                <div>
-                  <p>Everything else is a radio card with an id, a severity (info, advisory, critical), a category and an expiry. The rules that keep them calm:</p>
-                  <ul>
-                    <li><strong>Settled</strong>: who-and-where calls ("Defend from HADJAR") must hold for 5 s before they're said - in a train of cars the car ahead changes every few seconds.</li>
-                    <li><strong>Held text</strong>: when only the numbers change ("0.4s" → "0.3s"), the text holds for 5 s. Radio text must not tick.</li>
-                    <li><strong>One voice per topic</strong>: the battle call takes over the defend card instead of adding a second one.</li>
-                    <li><strong>Critical is rare</strong>: only what the driver can't see from the cockpit (a safety car, a red flag) interrupts the screen.</li>
-                    <li>Only penalties whose meaning is certain reach the radio.</li>
-                  </ul>
-                </div>
-                <div>
-                  <pre>upsert('under-attack', {
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="cards" hidden>
+              <div>
+                <p>Everything else is a radio card with an id, a severity (info, advisory, critical), a category and an expiry. The rules that keep them calm:</p>
+                <ul>
+                  <li><strong>Settled</strong>: who-and-where calls ("Defend from HADJAR") must hold for 5 s before they're said - in a train of cars the car ahead changes every few seconds.</li>
+                  <li><strong>Held text</strong>: when only the numbers change ("0.4s" → "0.3s"), the text holds for 5 s. Radio text must not tick.</li>
+                  <li><strong>One voice per topic</strong>: the battle call takes over the defend card instead of adding a second one.</li>
+                  <li><strong>Critical is rare</strong>: only what the driver can't see from the cockpit (a safety car, a red flag) interrupts the screen.</li>
+                  <li>Only penalties whose meaning is certain reach the radio.</li>
+                </ul>
+              </div>
+              <div>
+                <pre>upsert('under-attack', {
   severity: 'advisory',
   category: 'pace',
   message: 'Defend from HADJAR - watch into corner 11',
   expiresAtMs: now + 4000,
 })</pre>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/insightEngine.js">engine/insightEngine.js</a> (sections marked <code>// --- topic ---</code>)</p>
-                </div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/insightEngine.js">engine/insightEngine.js</a> (sections marked <code>// --- topic ---</code>)</p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="focus" hidden>
-                <div>
-                  <p>With auto-switch on, the screen follows the race. It's decided on the server, not in the browser, so every device agrees and a replay always switches the same way.</p>
-                  <ol>
-                    <li>Session over → Debrief</li>
-                    <li>Safety car, VSC, red flag or a pit call → Strategy</li>
-                    <li>Weather on its way → Weather</li>
-                    <li>A fight either side → Battle</li>
-                    <li>Otherwise → Drive</li>
-                  </ol>
-                </div>
-                <div>
-                  <p>A new screen holds for at least <strong>8 s</strong>, and the reason has to be gone for <strong>5 s</strong> before it goes back to Drive, so a gap hovering at one second doesn't flap the screen. The top bar says why it switched.</p>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/focus.js">engine/focus.js</a></p>
-                </div>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="focus" hidden>
+              <div>
+                <p>With auto-switch on, the screen follows the race. It's decided on the server, not in the browser, so every device agrees and a replay always switches the same way.</p>
+                <ol>
+                  <li>Session over → Debrief</li>
+                  <li>Safety car, VSC, red flag or a pit call → Strategy</li>
+                  <li>Weather on its way → Weather</li>
+                  <li>A fight either side → Battle</li>
+                  <li>Otherwise → Drive</li>
+                </ol>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="audit" hidden>
-                <div>
-                  <p>After the race, every call is graded by the one thing it claims, against the laps that followed:</p>
-                  <ul>
-                    <li><strong>PUSH</strong> claims the tyres hold: wrong if two green laps in a row fall 1.5 s off the pace before.</li>
-                    <li><strong>HOLD, manage tyres</strong> claims the cliff is near: right if a lap falls off within 3 laps.</li>
-                    <li><strong>BOX for damage</strong> claims the loss to the flag beats a stop.</li>
-                    <li><strong>BOX under a safety car</strong> claims the stop is cheaper than one under green - measured against the cars that didn't stop on those laps.</li>
-                  </ul>
-                  <p>Following the rules (a penalty, the pit lane) isn't graded.</p>
-                </div>
-                <div>
-                  <pre>lap  1 PUSH ok        right   7 green laps, none fell away
+              <div>
+                <p>A new screen holds for at least <strong>8 s</strong>, and the reason has to be gone for <strong>5 s</strong> before it goes back to Drive, so a gap hovering at one second doesn't flap the screen. The top bar says why it switched.</p>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/focus.js">engine/focus.js</a></p>
+              </div>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="audit" hidden>
+              <div>
+                <p>After the race, every call is graded by the one thing it claims, against the laps that followed:</p>
+                <ul>
+                  <li><strong>PUSH</strong> claims the tyres hold: wrong if two green laps in a row fall 1.5 s off the pace before.</li>
+                  <li><strong>HOLD, manage tyres</strong> claims the cliff is near: right if a lap falls off within 3 laps.</li>
+                  <li><strong>BOX for damage</strong> claims the loss to the flag beats a stop.</li>
+                  <li><strong>BOX under a safety car</strong> claims the stop is cheaper than one under green - measured against the cars that didn't stop on those laps.</li>
+                </ul>
+                <p>Following the rules (a penalty, the pit lane) isn't graded.</p>
+              </div>
+              <div>
+                <pre>lap  1 PUSH ok        right   7 green laps, none fell away
 lap  8 PUSH undercut  right   1 green lap, none fell away
 lap 11 PUSH ok        right   3 green laps, none fell away
 lap 15 PUSH ok        right   8 green laps, none fell away</pre>
-                  <div class="ex-num"><span><b>13</b> right</span><span><b>0</b> wrong</span><span><b>20</b> can't be judged</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/callsAudit.js">analysis/callsAudit.js</a> · data: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/datasets/calls.csv">datasets/calls.csv</a></p>
-                </div>
+                <div class="ex-num"><span><b>13</b> right</span><span><b>0</b> wrong</span><span><b>20</b> can't be judged</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/callsAudit.js">analysis/callsAudit.js</a> · data: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/datasets/calls.csv">datasets/calls.csv</a></p>
               </div>
             </div>
+          </div>
 
-            <!-- 6. Your screen -->
-            <div class="ex-stage" id="ex-screen" data-color="var(--go)" hidden>
-              <div class="ex-head"><div class="kicker">Step 6 · Your screen</div><h3>One snapshot, ten times a second</h3><p>Everything the dashboard shows travels in one JSON object. The browser formats it and reads the calls aloud; it never decides anything.</p></div>
-              <div class="ex-tabs" role="tablist" aria-label="Your screen: topics">
-                <button role="tab" type="button" data-sub="snapshot">The snapshot</button>
-                <button role="tab" type="button" data-sub="dashboard">The dashboard</button>
-                <button role="tab" type="button" data-sub="voice">Voice</button>
+          <!-- Your screen -->
+          <div class="ex-stage" id="ex-screen" data-color="var(--go)" hidden>
+            <div class="ex-head"><h3>One snapshot, ten times a second</h3><p>Everything the dashboard shows travels in one JSON object. The browser formats it and reads the calls aloud; it never decides anything.</p></div>
+            <div class="ex-tabs" role="tablist" aria-label="Your screen: topics">
+              <button role="tab" type="button" data-sub="snapshot">The snapshot</button>
+              <button role="tab" type="button" data-sub="dashboard">The dashboard</button>
+              <button role="tab" type="button" data-sub="voice">Voice</button>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="snapshot">
+              <div>
+                <p><code>buildSnapshot()</code> flattens the field, the analysis and the calls into one object: the entire contract between the bridge and the browser. It's pushed over a WebSocket at a <strong>fixed 10 Hz</strong>, whatever rate the game sends, which caps CPU on the PC and battery on the tablet. The bigger debrief rides along on every 10th tick, once a second.</p>
+                <p>A contract test records every field each widget reads and checks it exists in a real snapshot. A renamed field used to blank a card silently; now 5 of 5 planted renames fail a test.</p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="snapshot">
-                <div>
-                  <p><code>buildSnapshot()</code> flattens the field, the analysis and the calls into one object: the entire contract between the bridge and the browser. It's pushed over a WebSocket at a <strong>fixed 10 Hz</strong>, whatever rate the game sends, which caps CPU on the PC and battery on the tablet. The bigger debrief rides along on every 10th tick, once a second.</p>
-                  <p>A contract test records every field each widget reads and checks it exists in a real snapshot. A renamed field used to blank a card silently; now 5 of 5 planted renames fail a test.</p>
-                </div>
-                <div>
-                  <pre>{ connected: true, source: 'live',
+              <div>
+                <pre>{ connected: true, source: 'live',
   player: { position: 8, lap: 14, ... },
   nearby: [ { position: 7, gapToPlayerMs: -1100 } ],
   strategy: { call: { action: 'PUSH', kind: 'ok',
@@ -777,222 +969,227 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
   insights: [ { id, severity, message } ],
   analysis: { pitLoss, rejoin, racePlan, ... },
   feed: { rateHz: 51, lossPct: 0 }, focus: 'battle' }</pre>
-                  <div class="ex-num"><span><b>~0.5 ms</b> CPU per tick</span><span><b>&lt; 48 KB</b> per snapshot</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/server/snapshot.js">server/snapshot.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/server/httpServer.js">httpServer.js</a></p>
-                </div>
+                <div class="ex-num"><span><b>~0.5 ms</b> CPU per tick</span><span><b>&lt; 48 KB</b> per snapshot</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/server/snapshot.js">server/snapshot.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/server/httpServer.js">httpServer.js</a></p>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="dashboard" hidden>
-                <div>
-                  <p>Plain HTML, CSS and JavaScript with no build step. Six screens - Drive, Battle, Strategy, Weather, Debrief, Models - built from widgets that only turn the snapshot into text and colour.</p>
-                  <ul>
-                    <li>Made to be read in a glance at speed: a tiered type scale, colour only for meaning (green go, amber watch, red act), numbers that scale with the screen.</li>
-                    <li>Every text colour is at least 4.5:1 on its background, every control is named for a screen reader, and a new call is announced through a live region, not only drawn.</li>
-                    <li>Every widget and screen is tested in jsdom.</li>
-                  </ul>
-                </div>
-                <div>
-                  <p>The same dashboard runs on this page: the demo above replays a real Monaco race through the real engine.</p>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/tree/main/public">public/</a> · design notes: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/ux.md">docs/ux.md</a></p>
-                </div>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="dashboard" hidden>
+              <div>
+                <p>Plain HTML, CSS and JavaScript with no build step. Six screens - Drive, Battle, Strategy, Weather, Debrief, Models - built from widgets that only turn the snapshot into text and colour.</p>
+                <ul>
+                  <li>Made to be read in a glance at speed: a tiered type scale, colour only for meaning (green go, amber watch, red act), numbers that scale with the screen.</li>
+                  <li>Every text colour is at least 4.5:1 on its background, every control is named for a screen reader, and a new call is announced through a live region, not only drawn.</li>
+                  <li>Every widget and screen is tested in jsdom.</li>
+                </ul>
               </div>
-              <div class="ex-body" role="tabpanel" data-sub="voice" hidden>
-                <div>
-                  <p>The browser's own speech synthesis reads the calls: no server work, no install. Two modes: <strong>key calls</strong> (advisory and critical cards, and changes of PUSH / HOLD / BOX) and <strong>all calls</strong>.</p>
-                  <ul>
-                    <li>A card is spoken when it's new or gets more serious - not when its wording or numbers change.</li>
-                    <li>A card that drops off and comes back within 45 s isn't news again.</li>
-                    <li>ERS advice is spoken only when the mode changes.</li>
-                    <li>"P8" is read as "P 8", "0.5s" as "0.5 seconds".</li>
-                  </ul>
-                </div>
-                <div>
-                  <p>Measured on a 40-minute race in a pack - by replaying it and simulating the voice:</p>
-                  <div class="ex-num"><span>key calls <b>1.2</b> / min</span><span>all calls <b>4.5</b> / min</span></div>
-                  <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/public/app.js">public/app.js</a> (voiceInsights)</p>
-                </div>
+              <div>
+                <p>The same dashboard runs on this site: the Overview replays a real Monaco race through the real engine.</p>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/tree/main/public">public/</a> · design notes: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/ux.md">docs/ux.md</a></p>
+              </div>
+            </div>
+            <div class="ex-body" role="tabpanel" data-sub="voice" hidden>
+              <div>
+                <p>The browser's own speech synthesis reads the calls: no server work, no install. Two modes: <strong>key calls</strong> (advisory and critical cards, and changes of PUSH / HOLD / BOX) and <strong>all calls</strong>.</p>
+                <ul>
+                  <li>A card is spoken when it's new or gets more serious - not when its wording or numbers change.</li>
+                  <li>A card that drops off and comes back within 45 s isn't news again.</li>
+                  <li>ERS advice is spoken only when the mode changes.</li>
+                  <li>"P8" is read as "P 8", "0.5s" as "0.5 seconds".</li>
+                </ul>
+              </div>
+              <div>
+                <p>Measured on a 40-minute race in a pack - by replaying it and simulating the voice:</p>
+                <div class="ex-num"><span>key calls <b>1.2</b> / min</span><span>all calls <b>4.5</b> / min</span></div>
+                <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/public/app.js">public/app.js</a> (voiceInsights)</p>
               </div>
             </div>
           </div>
-          <p class="legend">Everything runs on your PC. The example numbers are illustrative; the steps are the real ones (<a class="muted" href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/how-it-works.md">one call traced through the code</a>).</p>
+        </div>
+        <p class="legend note">Everything runs on your PC. The example numbers are illustrative; the steps are the real ones (<a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/how-it-works.md">one call traced through the code</a>).</p>
 
-          <div class="loops">
-            <div class="loop">
-              <h3>It learns your tracks</h3>
-              <p>A race remembers what it measured, so the next race at the same track starts from real numbers instead of a guess.</p>
-              <div class="chain"><span>race</span><span class="arrow">→</span><span>pit loss · tyre wear · when the AI boxed</span><span class="arrow">→</span><span>next race here</span></div>
-            </div>
-            <div class="loop">
-              <h3>Every model is checked</h3>
-              <p>Recorded races are replayed through the same engine, and each prediction is scored against what then happened, next to the obvious guess.</p>
-              <div class="chain"><span>record</span><span class="arrow">→</span><span>replay</span><span class="arrow">→</span><span>score vs. reality</span><span class="arrow">→</span><span>keep or cut</span></div>
-            </div>
+        <div class="loops">
+          <div data-reveal>
+            <img class="loop-img" src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower" loading="lazy" decoding="async">
+            <h3>It learns your tracks</h3>
+            <p>A race remembers what it measured, so the next race at the same track starts from real numbers instead of a guess.</p>
+            <p class="chain">race<i>→</i>pit loss, tyre wear, when the AI boxed<i>→</i>next race here</p>
+          </div>
+          <div data-reveal style="--i:1">
+            <img class="loop-img" src="img/debrief.png" width="1180" height="885" alt="The Debrief screen: the race lap by lap" loading="lazy" decoding="async">
+            <h3>Every model is checked</h3>
+            <p>Recorded races are replayed through the same engine, and each prediction is scored against what then happened, next to the obvious guess.</p>
+            <p class="chain">record<i>→</i>replay<i>→</i>score against reality<i>→</i>keep or cut</p>
           </div>
         </div>
       </section>
 
-      <section style="padding-top: 0">
-        <div class="wrap">
-          <div class="kicker">Measured, not claimed</div>
-          <h2>How good the predictions are</h2>
-          <div class="stats">
-            <div class="stat"><b>2.5</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 4.3. Nearly all of it a pessimistic bias, next to fix.</small></div>
-            <div class="stat"><b>7.7</b><span>points off, a rival's battery at the line</span><small>"It stays where it is": 13.2</small></div>
-            <div class="stat"><b>5 / 6</b><span>races where the tyre model beats "no wear"</span><small>Not yet at Silverstone</small></div>
-            <div class="stat" style="--c: var(--watch)"><b>0.85</b><span>AUC, will the car behind pass in 10 s</span><small>Ties the gap-only baseline, so it's marked experimental</small></div>
-          </div>
-          <p class="more">Small samples so far: seven recorded races. <a href="#tech">How each is measured</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">What's next</a></p>
+      <figure class="band">
+        <div class="band-img"><img class="drift" src="img/monaco.jpg" width="1280" height="853" alt="Monaco from above: the harbour and the streets the circuit runs through" loading="lazy" decoding="async"></div>
+        <figcaption>
+          <p>Every number below comes from recorded races like this one at Monaco, replayed through the engine.</p>
+          <p class="note"><a href="https://commons.wikimedia.org/wiki/File:Circuit_de_Monaco,_April_1,_2018_SkySat_(cropped).jpg">"Circuit de Monaco, April 1, 2018 SkySat"</a> by Planet Labs, Inc., <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></p>
+        </figcaption>
+      </figure>
+
+      <section class="sec">
+        <h2 data-reveal>How good the predictions are</h2>
+        <div class="stats">
+          <div class="stat" data-reveal><b>2.5</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 4.3. Nearly all of it a pessimistic bias, next to fix.</small></div>
+          <div class="stat" data-reveal style="--i:1"><b>7.7</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 13.2 points off.</small></div>
+          <div class="stat" data-reveal style="--i:2"><b>5 / 6</b><span>races where the tyre model beats "no wear"</span><small>It doesn't yet at Silverstone, one race of the six.</small></div>
+          <div class="stat" data-reveal style="--i:3; --c: var(--watch)"><b>0.85</b><span>AUC, will the car behind pass in 10 s</span><small>Ties the gap-only baseline, so it's marked experimental</small></div>
         </div>
+        <p class="more">Small samples so far: seven recorded races. <a href="#tech">How each is measured</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">What's next</a></p>
       </section>
     </div>
 
     <!-- ============ Engineering ============ -->
     <div role="tabpanel" id="page-tech" aria-labelledby="tab-tech" hidden>
-      <section>
-        <div class="wrap">
-          <div class="kicker">The job</div>
-          <h2>What a race engineer has to answer</h2>
-          <p class="lead">A driver can't read a spreadsheet at 300 km/h. The engineer's job is to turn the whole field's data into a few answers, at the moment they matter. These are the questions the tool answers, and what each needs from the game.</p>
-          <div class="tbl-wrap">
-            <table class="tbl">
-              <thead><tr><th>The question</th><th>What it takes from the data</th><th>The answer on screen</th></tr></thead>
-              <tbody>
-                <tr><td>When do I box, and where do I come out?</td><td>Every car's tyre wear and lap times; what a stop costs here, measured from the field's own stops</td><td>The stop lap, the rejoin position, the one- or two-stop plan raced 1,000 times</td></tr>
-                <tr><td>Who's coming, and where will they try?</td><td>Gaps for all 22 cars sampled on game time; each car's battery; where passes happen at this track</td><td>DEFEND or ATTACK, the chance of a pass, the corner to watch</td></tr>
-                <tr><td>Is this damage worth a stop?</td><td>25 mini-sectors per lap, before and after the hit</td><td>Seconds lost per lap, against the cost of a new nose</td></tr>
-                <tr><td>When does the rain come, and when do I switch?</td><td>The forecast slots; lap times of the cars already on the other tyre</td><td>Rain in laps, not minutes; the crossover lap</td></tr>
-                <tr><td>Do fuel and battery last to the flag?</td><td>Fuel surplus; the battery at every crossing of the line</td><td>Save, deploy, or harvest - and by how much</td></tr>
-                <tr><td>Was that call right?</td><td>Every call made, then the laps that followed</td><td>The calls audit: each call graded after the race</td></tr>
-              </tbody>
-            </table>
+      <section class="page-top">
+        <div class="split">
+          <div>
+            <h2>What an engineer answers</h2>
+            <p class="lead">A driver can't read a spreadsheet at 300 km/h. The engineer's job is to turn the whole field's data into a few answers, at the moment they matter.</p>
+            <a class="button" style="margin-top: 32px" href="https://github.com/srikarnadella/f1-race-engineer">Read the source</a>
           </div>
+          <figure data-reveal>
+            <img src="img/pit-wall.jpg" width="1400" height="933" alt="A team's pit-wall stand beside the track at Suzuka, 2009" loading="lazy" decoding="async">
+            <figcaption class="note">Where the job is usually done: a pit wall at Suzuka, 2009. <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">Photo</a>: Morio, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a></figcaption>
+          </figure>
+        </div>
+        <div class="tbl-wrap" data-reveal>
+          <table class="tbl">
+            <thead><tr><th>The question</th><th>What it takes from the data</th><th>The answer on screen</th></tr></thead>
+            <tbody>
+              <tr><td>When do I box, and where do I come out?</td><td>Every car's tyre wear and lap times; what a stop costs here, measured from the field's own stops</td><td>The stop lap, the rejoin position, the one- or two-stop plan raced 1,000 times</td></tr>
+              <tr><td>Who's coming, and where will they try?</td><td>Gaps for all 22 cars sampled on game time; each car's battery; where passes happen at this track</td><td>DEFEND or ATTACK, the chance of a pass, the corner to watch</td></tr>
+              <tr><td>Is this damage worth a stop?</td><td>25 mini-sectors per lap, before and after the hit</td><td>Seconds lost per lap, against the cost of a new nose</td></tr>
+              <tr><td>When does the rain come, and when do I switch?</td><td>The forecast slots; lap times of the cars already on the other tyre</td><td>Rain in laps, not minutes; the crossover lap</td></tr>
+              <tr><td>Do fuel and battery last to the flag?</td><td>Fuel surplus; the battery at every crossing of the line</td><td>Save, deploy, or harvest - and by how much</td></tr>
+              <tr><td>Was that call right?</td><td>Every call made, then the laps that followed</td><td>The calls audit: each call graded after the race</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="shots">
+          <figure data-reveal><img src="img/battle.png" width="1180" height="885" alt="The Battle screen" loading="lazy" decoding="async"><figcaption><b>Battle.</b> Attack or defend, the chance of a pass, and who has the battery.</figcaption></figure>
+          <figure data-reveal style="--i:1"><img src="img/strategy.png" width="1180" height="885" alt="The Strategy screen" loading="lazy" decoding="async"><figcaption><b>Strategy.</b> Which lap to box on, every option raced to the flag.</figcaption></figure>
+          <figure data-reveal style="--i:2"><img src="img/weather.png" width="1180" height="885" alt="The Weather screen" loading="lazy" decoding="async"><figcaption><b>Weather.</b> The forecast in laps, not minutes.</figcaption></figure>
+          <figure data-reveal style="--i:3"><img src="img/debrief.png" width="1180" height="885" alt="The Debrief screen" loading="lazy" decoding="async"><figcaption><b>Debrief.</b> After the flag, the whole race lap by lap.</figcaption></figure>
         </div>
       </section>
 
-      <section style="padding-top: 0">
-        <div class="wrap">
-          <div class="kicker">The data layer</div>
-          <h2>How the data arrives, and what happens to it</h2>
-          <p class="lead">F1 26 broadcasts binary UDP packets to port 20777: 16 kinds, each with the same 29-byte header. Nothing is requested; the game sends and the bridge listens. These are the rates and sizes from a real 44-minute race at Barcelona.</p>
-          <div class="facts">
-            <div class="fact"><b>819,321</b><span>packets in 44 minutes, about 300 a second</span></div>
-            <div class="fact"><b>0.0%</b><span>lost, measured from the telemetry frame counter</span></div>
-            <div class="fact"><b>31</b><span>flashbacks in that race, each rewinding the model instead of recording fake laps</span></div>
-          </div>
-          <div class="tbl-wrap">
-            <table class="tbl">
-              <thead><tr><th>Packet</th><th>Size</th><th>Rate</th><th>What it's used for</th></tr></thead>
-              <tbody>
-                <tr><td>Lap Data</td><td class="num">1,399 B</td><td class="num">48 /s</td><td>Position, gaps, lap distance and pit status for every car - the spine of the field model</td></tr>
-                <tr><td>Car Status</td><td class="num">1,445 B</td><td class="num">48 /s</td><td>Tyre compound and age, fuel, the ERS store for every car</td></tr>
-                <tr><td>Car Telemetry (+ 2026 extension)</td><td class="num">1,448 B</td><td class="num">48 /s</td><td>Speed, throttle, brake - offline, for every car, so rivals' laps can be traced; active aero and Overtake mode</td></tr>
-                <tr><td>Motion Ex</td><td class="num">273 B</td><td class="num">48 /s</td><td>Your wheel slip: lock-ups, wheelspin, understeer per corner</td></tr>
-                <tr><td>Tyre Sets</td><td class="num">231 B</td><td class="num">18 /s</td><td>Each set's rated life and pace difference, for the stop plan</td></tr>
-                <tr><td>Session History</td><td class="num">1,460 B</td><td class="num">17 /s</td><td>Lap and sector times</td></tr>
-                <tr><td>Car Damage</td><td class="num">1,133 B</td><td class="num">9 /s</td><td>Tyre wear for every car, wing and floor damage</td></tr>
-                <tr><td>Session</td><td class="num">926 B</td><td class="num">1.8 /s</td><td>Track, laps, safety car, weather forecast</td></tr>
-                <tr><td>Event</td><td class="num">45 B</td><td class="num">on change</td><td>Safety car, penalties, overtakes, flashbacks, retirements</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="practice">
-            <div class="loop"><h3>Decode defensively</h3><p>Each parser takes the per-car struct size from the packet's length, not a constant: F1 26 inserted fields mid-struct, and a layout change costs one warning, not a crash. A non-finite float marks the packet corrupt. Random, truncated and bit-flipped packets are fuzzed through the whole pipeline in the tests.</p></div>
-            <div class="loop"><h3>Model the field on game time</h3><p>Every car is kept: its last packets, 12 laps of history with pit and safety-car laps flagged, gaps sampled once a second of <em>game</em> time - so a closing rate means the same at 20 Hz or 60 Hz, and a pause doesn't skew it.</p></div>
-            <div class="loop"><h3>Record everything, replay exactly</h3><p>A capture saves every packet with its arrival time (<code>.f1log.gz</code>, ~300 MB a race). Replays run the same pipeline on the recording's clock, so a bug seen on Saturday can be reproduced, fixed and tested on Sunday, call for call.</p></div>
-            <div class="loop"><h3>Datasets from the raw stream</h3><p>Captures stay local; small datasets built from them are committed: one row per race, per car per lap (1,751 laps), and every call made. CI scores the models on them.</p></div>
-            <div class="loop"><h3>Every session in SQL</h3><p>Each session is also kept as related SQLite tables: session, car, lap, stint, events, the engineer's calls and radio, weather and lap traces. The live bridge adds each session as it ends; <code>npm run db</code> fills it from the captures. Building it found that the game marks its own flag-time packets with a session ID of 0, which had been wiping every car's final lap and the official result. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/race-store.md">The schema</a></p></div>
-            <div class="loop"><h3>Coming soon: ask the race</h3><p>Questions in plain words over that store: "what happened on lap 12?", "where did I lose time to Norris?". A language model answers by querying the tables, so every answer comes from the recorded race, not from memory.</p></div>
-          </div>
+      <section class="sec">
+        <h2 data-reveal>How the data arrives</h2>
+        <p class="lead">F1 26 broadcasts binary UDP packets to port 20777: 16 kinds, each with the same 29-byte header. Nothing is requested; the game sends and the bridge listens. These are the rates and sizes from a real 44-minute race at Barcelona.</p>
+        <div class="facts">
+          <div class="fact" data-reveal><b>819,321</b><span>packets in 44 minutes, about 300 a second</span></div>
+          <div class="fact" data-reveal style="--i:1"><b>0.0%</b><span>lost, measured from the telemetry frame counter</span></div>
+          <div class="fact" data-reveal style="--i:2"><b>31</b><span>flashbacks in that race, each rewinding the model instead of recording fake laps</span></div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Packet</th><th>Size</th><th>Rate</th><th>What it's used for</th></tr></thead>
+            <tbody>
+              <tr><td>Lap Data</td><td class="num">1,399 B</td><td class="num">48 /s</td><td>Position, gaps, lap distance and pit status for every car - the spine of the field model</td></tr>
+              <tr><td>Car Status</td><td class="num">1,445 B</td><td class="num">48 /s</td><td>Tyre compound and age, fuel, the ERS store for every car</td></tr>
+              <tr><td>Car Telemetry (+ 2026 extension)</td><td class="num">1,448 B</td><td class="num">48 /s</td><td>Speed, throttle, brake - offline, for every car, so rivals' laps can be traced; active aero and Overtake mode</td></tr>
+              <tr><td>Motion Ex</td><td class="num">273 B</td><td class="num">48 /s</td><td>Your wheel slip: lock-ups, wheelspin, understeer per corner</td></tr>
+              <tr><td>Tyre Sets</td><td class="num">231 B</td><td class="num">18 /s</td><td>Each set's rated life and pace difference, for the stop plan</td></tr>
+              <tr><td>Session History</td><td class="num">1,460 B</td><td class="num">17 /s</td><td>Lap and sector times</td></tr>
+              <tr><td>Car Damage</td><td class="num">1,133 B</td><td class="num">9 /s</td><td>Tyre wear for every car, wing and floor damage</td></tr>
+              <tr><td>Session</td><td class="num">926 B</td><td class="num">1.8 /s</td><td>Track, laps, safety car, weather forecast</td></tr>
+              <tr><td>Event</td><td class="num">45 B</td><td class="num">on change</td><td>Safety car, penalties, overtakes, collisions, speed traps, flashbacks, retirements</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="practice">
+          <div data-reveal><h3>Decode defensively</h3><p>Each parser takes the per-car struct size from the packet's length, not a constant: F1 26 inserted fields mid-struct, and a layout change costs one warning, not a crash. A non-finite float marks the packet corrupt. Random, truncated and bit-flipped packets are fuzzed through the whole pipeline in the tests.</p></div>
+          <div data-reveal style="--i:1"><h3>Model the field on game time</h3><p>Every car is kept: its last packets, 12 laps of history with pit and safety-car laps flagged, gaps sampled once a second of <em>game</em> time - so a closing rate means the same at 20 Hz or 60 Hz, and a pause doesn't skew it.</p></div>
+          <div data-reveal><h3>Record everything, replay exactly</h3><p>A capture saves every packet with its arrival time (<code>.f1log.gz</code>, ~300 MB a race). Replays run the same pipeline on the recording's clock, so a bug seen on Saturday can be reproduced, fixed and tested on Sunday, call for call.</p></div>
+          <div data-reveal style="--i:1"><h3>Datasets from the raw stream</h3><p>Captures stay local; small datasets built from them are committed: one row per race, per car per lap (1,751 laps), and every call made. CI scores the models on them.</p></div>
+          <div data-reveal><h3>Every session in SQL</h3><p>Each session is also kept as related SQLite tables: session, car, lap, stint, events, the engineer's calls and radio, weather and lap traces. The live bridge adds each session as it ends; <code>npm run db</code> fills it from the captures. Building it found that the game marks its own flag-time packets with a session ID of 0, which had been wiping every car's final lap and the official result. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/race-store.md">The schema</a></p></div>
+          <div class="soon" data-reveal style="--i:1"><h3>Coming soon: ask the race</h3><p>Questions in plain words over that store: "what happened on lap 12?", "where did I lose time to Norris?". A language model answers by querying the tables, so every answer comes from the recorded race, not from memory.</p></div>
         </div>
       </section>
 
-      <section style="padding-top: 0">
-        <div class="wrap">
-          <div class="kicker">Architecture</div>
-          <h2>Five layers, wired once</h2>
-          <p class="lead">Each layer only reads from the one above it. The live bridge, the replayer, the capture analyzer, the dataset builder and every test run the same <code>createPipeline()</code>, so none of them can drift from what the driver sees.</p>
-          <div class="layers">
-            <div class="layer" style="--c: var(--muted)"><i>1</i><b>udp/</b><span>Ingest: the socket and one parser per packet id. Bytes in, plain objects out.</span></div>
-            <div class="layer" style="--c: var(--info)"><i>2</i><b>state/</b><span>The field: every car, updated packet by packet, rewound by flashbacks. Facts only.</span></div>
-            <div class="layer" style="--c: var(--info)"><i>3</i><b>analysis/ · ml/</b><span>Numbers: pure functions for pit timing, the race plan, rival stops, damage cost, tyre wear, overtake odds.</span></div>
-            <div class="layer" style="--c: var(--watch)"><i>4</i><b>engine/</b><span>Decisions: runs the analysis every 100 ms and turns it into the call (PUSH / HOLD / BOX) and radio cards that settle before they're said.</span></div>
-            <div class="layer" style="--c: var(--go)"><i>5</i><b>server/</b><span>Out: one JSON snapshot, pushed over a WebSocket at a fixed 10 Hz. The browser formats; it never decides.</span></div>
-          </div>
-          <div class="facts">
-            <div class="fact"><b>~0.5 ms</b><span>CPU per engine tick, for 22 cars</span></div>
-            <div class="fact"><b>&lt; 48 KB</b><span>per snapshot, sent 10 times a second</span></div>
-            <div class="fact"><b>2</b><span>runtime dependencies; no build step, no database, no cloud</span></div>
-          </div>
+      <section class="sec">
+        <h2 data-reveal>Five layers, wired once</h2>
+        <p class="lead">Each layer only reads from the one above it. The live bridge, the replayer, the capture analyzer, the dataset builder and every test run the same <code>createPipeline()</code>, so none of them can drift from what the driver sees.</p>
+        <div class="layers">
+          <div class="layer" data-reveal style="--c: var(--muted)"><b>udp/</b><span>Ingest: the socket and one parser per packet id. Bytes in, plain objects out.</span></div>
+          <div class="layer" data-reveal style="--i:1; --c: var(--info)"><b>state/</b><span>The field: every car, updated packet by packet, rewound by flashbacks. Facts only.</span></div>
+          <div class="layer" data-reveal style="--i:2; --c: var(--info)"><b>analysis/ · ml/</b><span>Numbers: pure functions for pit timing, the race plan, rival stops, damage cost, tyre wear, overtake odds.</span></div>
+          <div class="layer" data-reveal style="--i:3; --c: var(--watch)"><b>engine/</b><span>Decisions: runs the analysis every 100 ms and turns it into the call (PUSH / HOLD / BOX) and radio cards that settle before they're said.</span></div>
+          <div class="layer" data-reveal style="--i:4; --c: var(--go)"><b>server/</b><span>Out: one JSON snapshot, pushed over a WebSocket at a fixed 10 Hz. The browser formats; it never decides.</span></div>
+        </div>
+        <div class="facts">
+          <div class="fact" data-reveal><b>~0.5 ms</b><span>CPU per engine tick, for 22 cars</span></div>
+          <div class="fact" data-reveal style="--i:1"><b>&lt; 48 KB</b><span>per snapshot, sent 10 times a second</span></div>
+          <div class="fact" data-reveal style="--i:2"><b>3</b><span>runtime dependencies; no build step, no cloud</span></div>
         </div>
       </section>
 
-      <section style="padding-top: 0">
-        <div class="wrap">
-          <div class="kicker">Models</div>
-          <h2>Every model against the obvious guess</h2>
-          <p class="lead">Each prediction is replayed against what then happened in recorded races, next to the guess it has to beat. Where a model doesn't win, the app says so.</p>
-          <div class="tbl-wrap">
-            <table class="tbl">
-              <thead><tr><th>Prediction</th><th>Model</th><th>Obvious guess</th><th>Verdict</th></tr></thead>
-              <tbody>
-                <tr><td>Tyre wear, each car predicted from the others<small>1,150 laps, 6 races</small></td><td class="num">329 ms</td><td class="num">482 ms <small>no wear</small></td><td class="good">Beats it on 5 of 6 races</td></tr>
-                <tr><td>Rejoin position if you box now<small>24 green-flag stops</small></td><td class="num">2.5 places</td><td class="num">4.3 <small>keep your place</small></td><td class="tie">Beats it, but biased: 2.5 places too pessimistic on average - next to fix</td></tr>
-                <tr><td>A rival's battery at the line<small>717 half-laps</small></td><td class="num">7.7 pts</td><td class="num">13.2 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
-                <tr><td>Will the car behind pass in 10 s<small>held-out AUC</small></td><td class="num">0.851</td><td class="num">0.854 <small>gap only</small></td><td class="tie">Ties - marked experimental</td></tr>
-                <tr><td>When an AI car stops<small>23 green-flag stops</small></td><td class="num">1.22 laps</td><td class="num">1.24 <small>fixed share of tyre life</small></td><td class="tie">No real gain yet</td></tr>
-                <tr><td>The corner they'll attack<small>33 passes</small></td><td class="num">6 / 33</td><td class="num">7 / 33 <small>busiest corner</small></td><td class="tie">Not yet - worded as a "likely spot"</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="more">Tyre wear and rival stops are scored in CI on every push: a change that makes either worse fails the build. Wear rates carry a 90% range from a car-level bootstrap, and the stop plan is raced 1,000 times across that range.</p>
+      <section class="sec">
+        <h2 data-reveal>Every model against the obvious guess</h2>
+        <p class="lead">Each prediction is replayed against what then happened in recorded races, next to the guess it has to beat. Where a model doesn't win, the app says so.</p>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Prediction</th><th>Model</th><th>Obvious guess</th><th>Verdict</th></tr></thead>
+            <tbody>
+              <tr><td>Tyre wear, each car predicted from the others<small>1,150 laps, 6 races</small></td><td class="num">329 ms</td><td class="num">482 ms <small>no wear</small></td><td class="good">Beats it on 5 of 6 races</td></tr>
+              <tr><td>Rejoin position if you box now<small>24 green-flag stops</small></td><td class="num">2.5 places</td><td class="num">4.3 <small>keep your place</small></td><td class="tie">Beats it, but biased: 2.5 places too pessimistic on average - next to fix</td></tr>
+              <tr><td>A rival's battery at the line<small>717 half-laps</small></td><td class="num">7.7 pts</td><td class="num">13.2 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
+              <tr><td>Will the car behind pass in 10 s<small>held-out AUC</small></td><td class="num">0.851</td><td class="num">0.854 <small>gap only</small></td><td class="tie">Ties - marked experimental</td></tr>
+              <tr><td>When an AI car stops<small>23 green-flag stops</small></td><td class="num">1.22 laps</td><td class="num">1.24 <small>fixed share of tyre life</small></td><td class="tie">No real gain yet</td></tr>
+              <tr><td>The corner they'll attack<small>33 passes</small></td><td class="num">6 / 33</td><td class="num">7 / 33 <small>busiest corner</small></td><td class="tie">Not yet - worded as a "likely spot"</td></tr>
+            </tbody>
+          </table>
         </div>
+        <p class="more">Tyre wear and rival stops are scored in CI on every push: a change that makes either worse fails the build. Wear rates carry a 90% range from a car-level bootstrap, and the stop plan is raced 1,000 times across that range.</p>
       </section>
 
-      <section style="padding-top: 0">
-        <div class="wrap">
-          <div class="kicker">Case study</div>
-          <h2>One race, six fixes</h2>
-          <p class="lead">Barcelona, 23 laps, recorded on 17 October. The capture was replayed through the engine, every call graded against the laps that followed, and each problem became a failing test before it became a fix.</p>
-          <ul class="case">
-            <li><div><h3>The call flickered</h3><p>"Undercut on" and "Tyres and fuel OK" swapped 7 times in 3.5 minutes as the gap hovered at the threshold.</p></div><div><h3>Fix</h3><p>A calm call has to hold 5 s before it replaces another. BOX, PIT and a safety car still come at once.</p></div><div class="delta">7 → 2 calls</div></li>
-            <li><div><h3>An undercut from P8 "rejoins P21"</h3><p>The rule checked for clean air but never whether you'd come out ahead of the car you were undercutting.</p></div><div><h3>Fix</h3><p>Only when fresh tyres gain more before they stop than the gap to them; it says by how much.</p></div><div class="delta">gain &gt; gap</div></li>
-            <li><div><h3>ERS advice every 10-20 s</h3><p>The 2026 battery swings 20%+ inside a lap, so "Boost" and "battery low, save it" took turns.</p></div><div><h3>Fix</h3><p>Judged on the battery at the line, not the swing within the lap.</p></div><div class="delta">74 → 46 a race</div></li>
-            <li><div><h3>"You gain 5.46 s" into turn 1</h3><p>The pit lane runs over that stretch, and a pit lap was in the averaged mini-sectors.</p></div><div><h3>Fix</h3><p>Pit and safety-car laps left out; the median, not the mean.</p></div><div class="delta">5.46 s → 0</div></li>
-            <li><div><h3>Two defend calls taking turns</h3><p>The battle call and the older "right behind you" card spoke separately: 45 of 55 key radio calls.</p></div><div><h3>Fix</h3><p>One defend card; the battle call speaks on it.</p></div><div class="delta">1.4 → 1.2 /min</div></li>
-            <li><div><h3>"Disqualified" in qualifying</h3><p>The game sent penalty type 6 to a driver who went on to set the fastest lap - its meaning changed in F1 26.</p></div><div><h3>Fix</h3><p>Kept off the radio, like type 16 before it. Only penalties whose meaning is certain are said.</p></div><div class="delta">off the radio</div></li>
-          </ul>
-        </div>
+      <section class="sec">
+        <h2 data-reveal>One race, six fixes</h2>
+        <p class="lead">Barcelona, 23 laps, recorded on 17 October. The capture was replayed through the engine, every call graded against the laps that followed, and each problem became a failing test before it became a fix.</p>
+        <ul class="case">
+          <li data-reveal><div><h3>The call flickered</h3><p>"Undercut on" and "Tyres and fuel OK" swapped 7 times in 3.5 minutes as the gap hovered at the threshold.</p></div><div><h3>Fix</h3><p>A calm call has to hold 5 s before it replaces another. BOX, PIT and a safety car still come at once.</p></div><div class="delta">7 → 2 calls</div></li>
+          <li data-reveal><div><h3>An undercut from P8 "rejoins P21"</h3><p>The rule checked for clean air but never whether you'd come out ahead of the car you were undercutting.</p></div><div><h3>Fix</h3><p>Only when fresh tyres gain more before they stop than the gap to them; it says by how much.</p></div><div class="delta">gain &gt; gap</div></li>
+          <li data-reveal><div><h3>ERS advice every 10-20 s</h3><p>The 2026 battery swings 20%+ inside a lap, so "Boost" and "battery low, save it" took turns.</p></div><div><h3>Fix</h3><p>Judged on the battery at the line, not the swing within the lap.</p></div><div class="delta">74 → 46 a race</div></li>
+          <li data-reveal><div><h3>"You gain 5.46 s" into turn 1</h3><p>The pit lane runs over that stretch, and a pit lap was in the averaged mini-sectors.</p></div><div><h3>Fix</h3><p>Pit and safety-car laps left out; the median, not the mean.</p></div><div class="delta">5.46 s → 0</div></li>
+          <li data-reveal><div><h3>Two defend calls taking turns</h3><p>The battle call and the older "right behind you" card spoke separately: 45 of 55 key radio calls.</p></div><div><h3>Fix</h3><p>One defend card; the battle call speaks on it.</p></div><div class="delta">1.4 → 1.2 /min</div></li>
+          <li data-reveal><div><h3>"Disqualified" in qualifying</h3><p>The game sent penalty type 6 to a driver who went on to set the fastest lap - its meaning changed in F1 26.</p></div><div><h3>Fix</h3><p>Kept off the radio, like type 16 before it. Only penalties whose meaning is certain are said.</p></div><div class="delta">off the radio</div></li>
+        </ul>
       </section>
 
-      <section style="padding-top: 0">
-        <div class="wrap">
-          <div class="kicker">How it's built</div>
-          <h2>Tests that find bugs, not tests that agree with the code</h2>
-          <div class="practice">
-            <div class="loop"><h3>Test first, from the intended behaviour</h3><p>Over 250 tests. Each new rule's test is written from what it should do and seen to fail before the code exists; assertions are never edited to pass. Known weaknesses stay in the suite as <code>todo</code> tests.</p></div>
-            <div class="loop"><h3>Mutation-checked</h3><p>A test only counts once it fails on a planted bug. In the fixes above, 9 of 13 planted bugs were caught at first; each survivor got a test, and all 13 are caught now.</p></div>
-            <div class="loop"><h3>Gates in CI</h3><p>Coverage can't drop below 88% of lines; the model backtests can't get worse; a tick-time budget and a contract test that tracks every snapshot field a widget reads.</p></div>
-            <div class="loop"><h3>Real packets, real races</h3><p>Parsers are pinned on packets captured from F1 26; scenario tests replay a scripted race and check each call follows its cause - and never comes before it.</p></div>
-          </div>
-          <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/README.md">Source map</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/how-it-works.md">One call traced through the code</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md#what-the-tests-found">What the tests found</a></p>
+      <section class="sec">
+        <h2 data-reveal>Tests that find bugs</h2>
+        <p class="lead">Not tests that agree with the code.</p>
+        <div class="practice">
+          <div data-reveal><h3>Test first, from the intended behaviour</h3><p>Over 260 tests. Each new rule's test is written from what it should do and seen to fail before the code exists; assertions are never edited to pass. Known weaknesses stay in the suite as <code>todo</code> tests.</p></div>
+          <div data-reveal style="--i:1"><h3>Mutation-checked</h3><p>A test only counts once it fails on a planted bug. In the fixes above, 9 of 13 planted bugs were caught at first; each survivor got a test, and all 13 are caught now.</p></div>
+          <div data-reveal><h3>Gates in CI</h3><p>Coverage can't drop below 88% of lines; the model backtests can't get worse; a tick-time budget and a contract test that tracks every snapshot field a widget reads.</p></div>
+          <div data-reveal style="--i:1"><h3>Real packets, real races</h3><p>Parsers are pinned on packets captured from F1 26; scenario tests replay a scripted race and check each call follows its cause - and never comes before it.</p></div>
         </div>
+        <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/README.md">Source map</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/how-it-works.md">One call traced through the code</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md#what-the-tests-found">What the tests found</a></p>
       </section>
     </div>
   </main>
 
   <footer>
-    <div class="wrap">
-      <span>Built by Srikar Nadella · <a href="https://github.com/srikarnadella/f1-race-engineer">Source (MIT)</a></span>
-      <span>Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts.</span>
-    </div>
+    <span>F1 26 Race Engineer, built by Srikar Nadella</span>
+    <nav aria-label="Project"><a href="https://github.com/srikarnadella/f1-race-engineer">Source (MIT)</a><a href="demo/?recorded">Demo</a><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">Roadmap</a></nav>
+    <span class="r">Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts.</span>
   </footer>
+  <p class="credits">Photographs from Wikimedia Commons, shown as the world around the project, not as its own: <a href="https://commons.wikimedia.org/wiki/File:Circuit_de_Monaco,_April_1,_2018_SkySat_(cropped).jpg">Monaco</a> by Planet Labs, Inc. (CC BY-SA 4.0); <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Suzuka</a> by Tokumeigakarinoaoshima (CC BY-SA 4.0); <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">the pit wall</a> by Morio (CC BY-SA 3.0). Resized only.</p>
 
   <script>
     (function () {
-      // ---- Pages: Overview / How it works, kept in the URL hash ----
+      // ---- Pages: Overview / How it works / Engineering, kept in the URL hash ----
       // Panels are "page-<name>" so the hash never matches an id: no jump past the heading on load.
       const tabs = [...document.querySelectorAll('.pages [role="tab"]')];
+      const isPage = (p) => !!document.getElementById(`page-${p}`);
       function show(page, focus) {
-        if (!document.getElementById(`page-${page}`)) page = 'overview';
+        if (!isPage(page)) page = 'overview';
         tabs.forEach((t) => {
           const on = t.dataset.page === page;
           t.setAttribute('aria-selected', on);
@@ -1013,7 +1210,54 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
       });
       document.querySelector('.brand').addEventListener('click', (e) => { e.preventDefault(); history.replaceState(null, '', '#overview'); show('overview'); window.scrollTo(0, 0); });
 
-      // ---- Demo: the buttons drive the embedded dashboard (same origin) and follow it back ----
+      // ---- The call board: the real calls and radio lines from the recorded Monaco race ----
+      // Each one as recorded: the lap, position and call at the moment the radio line first came (null: no new line).
+      const MOMENTS = [
+        { lap: 11, pos: 1, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Damage: front-left wing 11% - measuring what it costs' },
+        { lap: 11, pos: 1, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Rears ~10°C hotter than early in the stint - easy on the throttle out of slow corners' },
+        { lap: 12, pos: 1, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Yellow ahead at turn 6 - careful, no overtaking' },
+        { lap: 13, pos: 1, action: 'PIT', reason: 'In the pit lane', radio: null },
+        { lap: 14, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack ALBON - pass chance high into corner 8, battery 75%' },
+        { lap: 14, pos: 7, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'ALBON is right behind you - defend, watch corner 1' },
+        { lap: 14, pos: 7, action: 'HOLD', reason: 'Red flag - race stopped', radio: 'Red flag: best is box: medium - keep P7, lasts to the flag, 0.7s/lap faster. Or stay out: keep the position, tyres reach the flag' },
+        { lap: 16, pos: 5, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack RUSSELL - LECLERC close behind - make it stick into corner 1' },
+        { lap: 16, pos: 4, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from RUSSELL - cover first, VERSTAPPEN is within reach after - watch into corner 1' },
+        { lap: 16, pos: 3, action: 'HOLD', reason: 'Safety car - hold position, keep the delta positive', radio: 'Safety car: best is stay out - keep the position, tyres reach the flag. Or box: soft: rejoin P17, lasts to the flag, 0.8s/lap faster' },
+        { lap: 16, pos: 3, action: 'HOLD', reason: 'Safety car - hold position, keep the delta positive', radio: 'Tyres ~10°C under racing temperature - get heat in before the restart' },
+      ];
+      const COLOUR = { PUSH: 'var(--go)', HOLD: 'var(--watch)', BOX: 'var(--act)', PIT: 'var(--info)' };
+      const board = document.getElementById('board');
+      const $b = (id) => document.getElementById(id);
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let at = 4;
+      let autoplay = !reduce;
+      function paint() {
+        const m = MOMENTS[at];
+        board.style.setProperty('--c', COLOUR[m.action]);
+        $b('b-lap').textContent = m.lap;
+        $b('b-pos').textContent = `P${m.pos}`;
+        $b('b-call').textContent = m.action;
+        $b('b-reason').textContent = m.reason;
+        $b('b-log').replaceChildren(...MOMENTS.slice(0, at + 1).filter((x) => x.radio).slice(-3).reverse().map((x) => {
+          const li = document.createElement('li');
+          const lap = document.createElement('span');
+          lap.textContent = `Lap ${x.lap}`;
+          li.append(lap, x.radio);
+          return li;
+        }));
+      }
+      function step(d) {
+        at = (at + d + MOMENTS.length) % MOMENTS.length;
+        if (reduce) return paint();
+        board.classList.add('is-swapping');
+        setTimeout(() => { paint(); board.classList.remove('is-swapping'); }, 200);
+      }
+      $b('b-prev').addEventListener('click', () => { autoplay = false; step(-1); });
+      $b('b-next').addEventListener('click', () => { autoplay = false; step(1); });
+      setInterval(() => { if (autoplay && !document.hidden && !document.getElementById('page-overview').hidden) step(1); }, 5000);
+      paint();
+
+      // ---- The demo: the screen names drive the embedded dashboard (same origin) and follow it back ----
       const CAPTION = {
         drive: "Drive: the one screen to leave up. The call, the fight either side, what's coming.",
         battle: 'Battle: attack or defend, the chance of a pass, and who has the battery.',
@@ -1024,7 +1268,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
       const frame = document.getElementById('dash');
       const box = frame.parentElement;
       const caption = document.getElementById('caption');
-      const screenBtns = [...document.querySelectorAll('.demo-tabs [data-screen]')];
+      const screenBtns = [...document.querySelectorAll('.show-list [data-screen]')];
       const auto = document.getElementById('auto');
       let autoOn = false;
       function fit() { if (box.clientWidth) box.style.setProperty('--s', box.clientWidth / 1180); }
@@ -1039,6 +1283,41 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         auto.classList.toggle('is-on', autoOn);
         caption.textContent = autoOn ? 'Auto-switch: the race picks the screen, and the top bar says why.' : CAPTION[e.data.id] || '';
       });
+
+      // ---- Set-up: the statement in the middle of the screen sets the fragment's state ----
+      const beats = [...document.querySelectorAll('.beat')];
+      const states = [...document.querySelectorAll('.state')];
+      function setState(n) {
+        beats.forEach((b) => b.classList.toggle('is-on', b.dataset.state === n));
+        const pinned = matchMedia('(min-width: 901px)').matches; // on a phone every fragment shows, in order
+        states.forEach((s) => { const on = s.dataset.state === n; s.classList.toggle('is-on', on); s.setAttribute('aria-hidden', pinned && !on); });
+      }
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) setState(e.target.dataset.state); }), { rootMargin: '-45% 0px -45% 0px' });
+        beats.forEach((b) => io.observe(b));
+      }
+
+      // ---- Tables: each cell carries its column's name, for the stacked phone layout ----
+      document.querySelectorAll('.tbl').forEach((t) => {
+        const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent);
+        t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => td.setAttribute('data-label', heads[i] || '')));
+      });
+
+      // ---- How long is your race: key calls measured at 1.2 a minute ----
+      const mins = document.getElementById('mins');
+      function calls() {
+        document.getElementById('mins-out').textContent = `${mins.value} min`;
+        document.getElementById('n-calls').textContent = Math.round(mins.value * 1.2);
+      }
+      mins.addEventListener('input', calls);
+      calls();
+
+      // ---- Entrances: once, as each part comes into view ----
+      const targets = [...document.querySelectorAll('[data-reveal]')];
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -10% 0px', threshold: 0.1 });
+        targets.forEach((el) => io.observe(el));
+      } else targets.forEach((el) => el.classList.add('is-in'));
 
       // ---- How it works: each step opens its deep dive; its topics are tabs ----
       const explore = document.getElementById('explore');
@@ -1057,14 +1336,14 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         stageBtns.forEach((b) => {
           const on = b.dataset.stage === id;
           b.setAttribute('aria-expanded', on);
-          b.closest('.stage').classList.toggle('is-open', on);
+          b.closest('.stage-i').classList.toggle('is-open', on);
           document.getElementById(`ex-${b.dataset.stage}`).hidden = !on;
         });
         explore.style.setProperty('--c', document.getElementById(`ex-${id}`).dataset.color);
       }
       stageBtns.forEach((b) => b.addEventListener('click', () => {
         openStage(b.dataset.stage);
-        if (explore.getBoundingClientRect().top > window.innerHeight * 0.7) explore.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (explore.getBoundingClientRect().top > window.innerHeight * 0.7) explore.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
       }));
       document.querySelectorAll('.ex-stage').forEach((stage) => {
         const topics = [...stage.querySelectorAll('.ex-tabs [role="tab"]')];
@@ -1085,9 +1364,16 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
       });
       openStage('game');
 
-      // In-page links between the pages ("#tech") change the hash; follow them.
-      window.addEventListener('hashchange', () => { show(location.hash.slice(1) || 'overview'); window.scrollTo(0, 0); });
-      show(location.hash.slice(1) || 'overview');
+      // A page hash ("#tech") switches page; any other hash ("#watch") is a place on the Overview.
+      function route() {
+        const h = location.hash.slice(1);
+        if (isPage(h) || !h) { show(h || 'overview'); window.scrollTo(0, 0); return; }
+        show('overview');
+        const el = document.getElementById(h);
+        if (el) el.scrollIntoView();
+      }
+      window.addEventListener('hashchange', route);
+      route();
     })();
   </script>
 </body>
