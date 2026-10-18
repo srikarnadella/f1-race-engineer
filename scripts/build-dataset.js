@@ -2,6 +2,7 @@
 // Builds the committed datasets from the raw captures (which stay local):
 //   datasets/races.csv  one row per race session: the catalog of what was recorded
 //   datasets/laps.csv   one row per car per completed lap, every race
+//   datasets/calls.csv  the strategy calls each race made, for the calls audit
 // Each capture is replayed through the real pipeline on its own clock.
 //
 //   npm run dataset [-- capture-folder ...]   (default: every folder in captures/)
@@ -10,13 +11,15 @@ const path = require('path');
 const { readLog } = require('../src/capture/logFile');
 const { parseHeader } = require('../src/udp/parsers/header');
 const { createPipeline } = require('../src/pipeline');
-const { createLapRecorder, toCsv } = require('../src/data/laps');
+const { createLapRecorder, createCallRecorder, toCsv, CALL_SCHEMA } = require('../src/data/laps');
 const { captureFiles } = require('../src/data/captures');
 const { RACE_SESSION_TYPES } = require('../src/state/race');
+const { mean } = require('../src/lib/stats');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'datasets');
 const SYNC_EVERY_MS = 1000;
+const TICK_EVERY_MS = 100; // the engine ticks at 10 Hz live
 const MIN_LAPS = 3; // fewer is an aborted start, not a race
 
 const RACE_COLUMNS = ['raceId', 'capture', 'track', 'sessionType', 'totalLaps', 'lapsRun', 'cars', 'laps', 'stops', 'neutralisedLaps', 'durationMin', 'feedRateHz', 'feedLossPct'];
@@ -28,13 +31,14 @@ async function buildCapture(file) {
   let pipeline = null;
   let race = null;
   let lastSync = -Infinity;
+  let lastTick = -Infinity;
   let uid = null;
   const finish = () => {
     if (!race) return;
     race.rec.sync();
     const rows = race.rec.rows();
     const lapsRun = Math.max(0, ...rows.filter((r) => r.isPlayer).map((r) => r.lapNum));
-    if (lapsRun >= MIN_LAPS) races.push({ ...race, rows, lapsRun });
+    if (lapsRun >= MIN_LAPS) races.push({ ...race, rows, calls: race.calls.rows(), lapsRun });
     race = null;
   };
   console.warn = () => {}; // odd packets are the analyzer's business, not this one's
@@ -54,7 +58,11 @@ async function buildCapture(file) {
     pipeline.feed(buf);
     const session = pipeline.fieldModel.getSession();
     if (!race && session && RACE_SESSION_TYPES.has(session.sessionType)) {
-      race = { raceId: `${capture}#${races.length + 1}`, capture, session, rec: createLapRecorder(pipeline.fieldModel, { raceId: `${capture}#${races.length + 1}` }), firstT: tMs, feed: [] };
+      race = { raceId: `${capture}#${races.length + 1}`, capture, session, rec: createLapRecorder(pipeline.fieldModel, { raceId: `${capture}#${races.length + 1}` }), calls: createCallRecorder(pipeline.fieldModel, { raceId: `${capture}#${races.length + 1}` }), firstT: tMs, feed: [] };
+    }
+    if (race && tMs - lastTick >= TICK_EVERY_MS) {
+      lastTick = tMs;
+      race.calls.sync(pipeline.tick());
     }
     if (!race || tMs - lastSync < SYNC_EVERY_MS) continue;
     lastSync = tMs;
@@ -67,7 +75,6 @@ async function buildCapture(file) {
   return races;
 }
 
-const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
 function raceRow(r) {
   const byCar = new Map();
@@ -101,6 +108,7 @@ async function main() {
   fs.writeFileSync(path.join(OUT, 'races.csv'), [RACE_COLUMNS.join(','), ...raceRows.map((r) => RACE_COLUMNS.map((c) => r[c]).join(','))].join('\n') + '\n');
   const laps = races.flatMap((r) => r.rows);
   fs.writeFileSync(path.join(OUT, 'laps.csv'), toCsv(laps));
+  fs.writeFileSync(path.join(OUT, 'calls.csv'), toCsv(races.flatMap((r) => r.calls), CALL_SCHEMA));
   log(`\n${races.length} races, ${laps.length} laps -> ${path.relative(ROOT, OUT)}/`);
 }
 

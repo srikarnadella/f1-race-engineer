@@ -1,3 +1,4 @@
+// Packet ids from byte 6 of the 29-byte header (F1 25/26 UDP spec).
 module.exports = {
   MOTION: 0,
   SESSION: 1,

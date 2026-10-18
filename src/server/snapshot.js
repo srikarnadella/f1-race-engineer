@@ -1,4 +1,4 @@
-const { nameOf } = require('../state/raceAnalysis');
+const { nameOf } = require('../engine/raceAnalysis');
 
 // Flattens FieldModel + InsightEngine + RaceAnalysis into the one JSON
 // object the dashboard renders. The dashboard never diffs or remembers
@@ -11,7 +11,7 @@ const NEARBY_EACH_SIDE = 2;
 
 // `raceAnalysis` keeps per-session memory (measured pit losses), so it is a
 // required, long-lived instance rather than something built per call.
-// `focus` (optional, from state/focus.js) picks the screen for auto-switch.
+// `focus` (optional, from engine/focus.js) picks the screen for auto-switch.
 function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
   const playerIdx = fieldModel.playerIndex();
   // Analysis first: some radio calls (undercut window, cheap stop under a

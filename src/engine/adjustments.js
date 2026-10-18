@@ -109,7 +109,10 @@ function batteryTrend(ersHistory) {
   return null;
 }
 
-function ersSuggestion({ pct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, neutralised, lapNum, regs2026 }) {
+// linePct: the battery at the last crossing of the line. "Enough to attack /
+// defend" is judged on it: the 2026 store swings 20%+ inside a lap, and the
+// live figure flipped Boost <-> save every 10-20 s in a real race.
+function ersSuggestion({ pct, linePct = pct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, neutralised, lapNum, regs2026 }) {
   const top = (regs2026 ? ERS_MODE_2026 : ERS_MODE)[OVERTAKE];
   const s = (action, why, radio) => ({ id: 'ers', kind: 'ers', action, where: 'Straights', why, radio });
   // Nearest 5%: the exact figure is on the widget; the call shouldn't churn.
@@ -124,16 +127,16 @@ function ersSuggestion({ pct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, ne
     return s(`ERS: ${top}`, `Last lap - empty it, ${battery}`, `Last lap - empty the battery, ${top} mode, ${battery}`);
   }
   if (gapBehindMs != null && gapBehindMs < DEFEND_GAP_MS && (gapAheadMs == null || gapBehindMs < gapAheadMs)) {
-    if (pct >= DEFEND_MIN_PCT && mode !== OVERTAKE) {
+    if (linePct >= DEFEND_MIN_PCT && mode !== OVERTAKE) {
       return s(`ERS: ${top}`, `Defend - car ${(gapBehindMs / 1000).toFixed(1)}s behind, ${battery}`, `Defend - ${top} on the straights`);
     }
-    if (pct < DEFEND_MIN_PCT) return s('Save for the straight', `Defend, but ${battery}`, `Battery low, ${battery} - save it for the main straight to defend`);
+    if (linePct < DEFEND_MIN_PCT) return s('Save for the straight', `Defend, but ${battery}`, `Battery low, ${battery} - save it for the main straight to defend`);
   }
   if (gapAheadMs != null && gapAheadMs < ATTACK_GAP_MS) {
-    if (pct >= ATTACK_MIN_PCT && mode !== OVERTAKE) {
+    if (linePct >= ATTACK_MIN_PCT && mode !== OVERTAKE) {
       return s(`ERS: ${top}`, `Attack - ${(gapAheadMs / 1000).toFixed(1)}s to the car ahead, ${battery}`, `Attack - ${top} on the straights`);
     }
-    if (pct < ATTACK_MIN_PCT) return s('ERS: Medium', `Harvest a lap, then attack - ${battery}`, `${battery} - harvest this lap in Medium, attack on the next`);
+    if (linePct < ATTACK_MIN_PCT) return s('ERS: Medium', `Harvest a lap, then attack - ${battery}`, `${battery} - harvest this lap in Medium, attack on the next`);
   }
   if (trend != null && trend <= DRAIN_ALERT_PCT_PER_LAP) {
     const lapsOfBattery = Math.floor(pct / -trend);
@@ -158,12 +161,14 @@ function computeAdjustments({ player, issues, gapAheadMs, gapBehindMs, lapsLeft,
   const diff = player.setup ? player.setup.onThrottle : null;
   const pct = st && Number.isFinite(st.ersStoreEnergy) ? Math.max(0, Math.min(100, (st.ersStoreEnergy / ERS_MAX_J) * 100)) : null;
   const trend = batteryTrend(player.ersHistory || []);
+  const lastLine = (player.ersHistory || []).at(-1);
+  const linePct = lastLine && Number.isFinite(lastLine.energyJ) ? Math.max(0, Math.min(100, (lastLine.energyJ / ERS_MAX_J) * 100)) : pct;
   const mode = st ? st.ersDeployMode : null;
 
   const suggestions = [];
   if (pct != null) {
     const regs2026 = !!(player.telemetry2 && player.telemetry2.regulations2026);
-    const ers = ersSuggestion({ pct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, neutralised, lapNum, regs2026 });
+    const ers = ersSuggestion({ pct, linePct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, neutralised, lapNum, regs2026 });
     if (ers) suggestions.push(ers);
   }
   suggestions.push(...balanceSuggestions(issues, brakeBias, diff).sort((a, b) => b.laps - a.laps));

@@ -1,3 +1,5 @@
+// Layer 1, ingest: the UDP socket the game sends to (port 20777). Each
+// datagram is handed on raw (for recording) and parsed (for the pipeline).
 const dgram = require('dgram');
 const { parsePacket } = require('./parsePacket');
 

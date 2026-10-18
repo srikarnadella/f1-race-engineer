@@ -8,7 +8,7 @@
 // plain 10 s average reads hot after every slow corner and cold on every
 // straight (tried on four races: 17 false calls in one).
 
-const { median } = require('../state/race');
+const { median } = require('../lib/stats');
 
 const BINS = 25; // stretches of the lap
 const WINDOW_TICKS = 100; // ~10 s at the 10 Hz engine tick

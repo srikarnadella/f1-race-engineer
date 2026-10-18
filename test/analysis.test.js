@@ -419,3 +419,39 @@ test('race plan: one stop or two from the sets, the pit loss and the wear', () =
   // Never one compound only, never a set past its life: 30 laps on two softs can't be done.
   assert.strictEqual(racePlan({ totalLaps: 40, pitLossMs: 20000, sets: [set(0, 16, 15, 0), set(1, 16, 15, 0)] }), null);
 });
+
+test('attack forecast: a pit lap or one bad lap in the recent splits is not pace (5.46s "gained" into corner 1 at Barcelona)', () => {
+  const corners = [{ corner: 1, startM: 700 }, { corner: 2, startM: 2800 }];
+  const even = Array(25).fill(3700);
+  // The pit lane runs over the last sectors and the line: +20 s there on the pit lap.
+  const pitLap = even.map((v, k) => (k >= 23 ? v + 10000 : v));
+  const offLap = even.map((v, k) => (k === 24 ? v + 6000 : v)); // a spin, no pit flag
+  const attacker = { miniSectors: [3, 4, 5].map((lapNum) => ({ lapNum, splits: even })), lapHistory: [] };
+  const withPit = { miniSectors: [{ lapNum: 3, splits: even }, { lapNum: 4, splits: pitLap }, { lapNum: 5, splits: even }], lapHistory: [{ lapNum: 4, pit: true }] };
+  const withOff = { miniSectors: [{ lapNum: 3, splits: even }, { lapNum: 4, splits: offLap }, { lapNum: 5, splits: even }], lapHistory: [] };
+  for (const defender of [withPit, withOff]) {
+    const f = forecastAttack({ attacker, defender, corners, trackLength: 5800, gapS: 0.6, closingSPerLap: 0, passesAtM: [800], role: 'attack' });
+    const c1 = f.candidates.find((c) => c.corner === 1);
+    assert.ok(Math.abs(c1.gainS) < 0.05, `gain into corner 1 ${c1.gainS}s`);
+  }
+});
+
+test('attack forecast: an in-lap and out-lap in a row (two of the last three laps) are left out too', () => {
+  const corners = [{ corner: 1, startM: 700 }, { corner: 2, startM: 2800 }];
+  const even = Array(25).fill(3700);
+  const pitLap = even.map((v, k) => (k >= 23 || k <= 1 ? v + 8000 : v));
+  const attacker = { miniSectors: [2, 3, 4, 5].map((lapNum) => ({ lapNum, splits: even })), lapHistory: [] };
+  const defender = { miniSectors: [{ lapNum: 2, splits: even }, { lapNum: 3, splits: even }, { lapNum: 4, splits: pitLap }, { lapNum: 5, splits: pitLap }], lapHistory: [{ lapNum: 4, pit: true }, { lapNum: 5, pit: true }] };
+  const f = forecastAttack({ attacker, defender, corners, trackLength: 5800, gapS: 0.6, closingSPerLap: 0, passesAtM: [800], role: 'attack' });
+  assert.ok(Math.abs(f.candidates.find((c) => c.corner === 1).gainS) < 0.05);
+});
+
+test('damage loss: a crawl back to the pits is not a racing lap ("~142.0s a lap" in a real qualifying)', () => {
+  const lap = (extra = {}) => Array.from({ length: 25 }, (_, k) => 3000 + (extra[k] || 0));
+  const base = { baseline: [lap(), lap(), lap()], corners: [], trackLength: 5000, pitLossMs: 20000, fixable: true };
+  const crawl = Array.from({ length: 25 }, (_, k) => (k >= 10 && k < 18 ? 30000 : null));
+  assert.strictEqual(damageLoss({ ...base, damaged: [], partial: { splits: crawl, fromSector: 10 } }).lossPerLapMs, null);
+  // A crawled lap among real damaged laps is left out; the real ones still measure.
+  const r = damageLoss({ ...base, damaged: [lap({ 5: 200, 6: 200 }), lap({ 12: 40000 })], lapsLeft: 10 });
+  assert.strictEqual(r.lossPerLapMs, 400);
+});

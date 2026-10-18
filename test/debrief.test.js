@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { createDebrief } = require('../src/state/debrief');
+const { createDebrief } = require('../src/engine/debrief');
 
 // Just the FieldModel surface the debrief reads: the player (car 0) and one
 // rival, a finished race, and the official result.

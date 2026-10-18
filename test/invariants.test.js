@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { rng, gauss, int } = require('./helpers/rng');
-const { predictRejoin } = require('../src/state/raceAnalysis');
+const { predictRejoin } = require('../src/engine/raceAnalysis');
 const { expectedStopIn } = require('../src/analysis/rivalStops');
 const { fitDegradation, stopPayback, holdOutScore } = require('../src/ml/tyreModel');
 const { auc, evaluate } = require('../src/ml/logistic');

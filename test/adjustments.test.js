@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const enc = require('../src/sim/encoders');
 const { parsePacket } = require('../src/udp/parsePacket');
 const { createCarBalanceTracker } = require('../src/state/carBalance');
-const { computeAdjustments, batteryTrend } = require('../src/state/adjustments');
+const { computeAdjustments, batteryTrend } = require('../src/engine/adjustments');
 
 const H = { sessionUID: 1n, sessionTime: 1, frameIdentifier: 1, playerCarIndex: 0 };
 
@@ -127,4 +127,14 @@ test('balance suggestions: which way to move bias and diff, and by how much', ()
   // Front locking everywhere: move the base bias once instead of per corner.
   const all = sugg([issue(1, 'frontLock'), issue(2, 'frontLock'), issue(5, 'frontLock')]);
   assert.deepStrictEqual(all.map((s) => s.action), ['Base bias 56 → 55%']);
+});
+
+test('ERS: low battery is judged at the line, not on the swing inside a lap (Boost <-> save every 10-20 s at Barcelona)', () => {
+  // 2026: the store drains on every straight and refills in the corners.
+  const atLine = (pct) => [{ lapNum: 10, energyJ: (pct / 100) * 4e6 }];
+  const midLapDip = ers({ player: player(15, { history: atLine(50) }), gapBehindMs: 600 });
+  assert.match(midLapDip.why, /^Defend/, 'started the lap at 50%: a dip on a straight is not a flat battery');
+  const lowAtLine = ers({ player: player(30, { history: atLine(15) }), gapBehindMs: 600 });
+  assert.match(lowAtLine.radio, /^Battery low/, 'started the lap at 15%');
+  assert.strictEqual(ers({ player: player(60, { history: atLine(15) }), gapAheadMs: 800 }).action, 'ERS: Medium', 'attack waits for a charge, judged at the line too');
 });

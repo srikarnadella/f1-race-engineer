@@ -20,7 +20,7 @@ const path = require('path');
 const { readLog } = require('../src/capture/logFile');
 const { parsePacket } = require('../src/udp/parsePacket');
 const { createFieldModel } = require('../src/state/fieldModel');
-const { createRaceAnalysis, predictRejoin, PIT_LOSS_ESTIMATE_MS } = require('../src/state/raceAnalysis');
+const { createRaceAnalysis, predictRejoin, PIT_LOSS_ESTIMATE_MS } = require('../src/engine/raceAnalysis');
 const { projectBattery, ERS_MAX_J } = require('../src/analysis/batteryProjection');
 const { fromCsv } = require('../src/data/laps');
 const { scoreTyreModel, scoreRivalStops } = require('../src/data/backtest');
@@ -117,7 +117,7 @@ async function score(file, out) {
       const car = fm.getCar(e.carIndex);
       if (!car.lapData || car.lapData.pitStatus !== 0) continue;
       const actual = car.lapData.carPosition;
-      out.rejoin.push({ err: Math.abs(e.p.position - actual), fixed: Math.abs(e.p.fixedPosition - actual), keep: Math.abs(e.p.keepPosition - actual) });
+      out.rejoin.push({ signed: e.p.position - actual, err: Math.abs(e.p.position - actual), fixed: Math.abs(e.p.fixedPosition - actual), keep: Math.abs(e.p.keepPosition - actual) });
     }
   }
   return races;
@@ -198,7 +198,7 @@ out; that is compared with its position 25 s after the stop. Green-flag stops on
 | Same model, fixed per-track pit loss | ${pctWithin(r, 'fixed', 0)}% | ${pctWithin(r, 'fixed', 1)}% | ${mean(r, 'fixed') != null ? mean(r, 'fixed').toFixed(2) : '-'} places |
 | Naive: "you keep your position" | ${pctWithin(r, 'keep', 0)}% | ${pctWithin(r, 'keep', 1)}% | ${mean(r, 'keep') != null ? mean(r, 'keep').toFixed(2) : '-'} places |
 
-${r.length} stops scored${r.length < 20 ? " - a small sample: the races recorded so far had few green-flag stops (most stops in them came under a red flag, which is excluded), so read these as a sanity check rather than a benchmark" : ""}.
+${r.length} stops scored${r.length ? `; on average the model puts the car ${Math.abs(mean(r, 'signed')).toFixed(2)} places too far ${mean(r, 'signed') > 0 ? 'back (pessimistic)' : 'forward (optimistic)'}` : ''}${r.length < 20 ? " - a small sample: the races recorded so far had few green-flag stops (most stops in them came under a red flag, which is excluded), so read these as a sanity check rather than a benchmark" : ""}.
 
 ## Projected battery at the line
 

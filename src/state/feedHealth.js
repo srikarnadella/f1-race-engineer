@@ -4,7 +4,7 @@
 // moves 1 frame between packets at 60 Hz, 3 at 20 Hz. A step of twice the
 // usual is one packet lost. Over localhost no real race lost one; over
 // Wi-Fi from a console it can.
-const { median } = require('./race');
+const { median } = require('../lib/stats');
 
 const WINDOW_MS = 10000;
 // No packet for this long is the game paused or in a menu, not loss: start over.

@@ -9,13 +9,15 @@
 // Before a full lap since the hit, the slices already run after it give an
 // early figure, scaled up to a whole lap.
 
-const { median } = require('../state/race');
+const { median } = require('../lib/stats');
 
 const MINI_SECTORS = 25;
 // Fewer slices than this since the hit is too little of a lap to scale up.
 const MIN_PARTIAL_SECTORS = 5;
 // A slice must lose at least this to be named as where the time goes.
 const WHERE_MIN_MS = 40;
+// A slice over this many times its clean time is a crawl to the pits or a stop, not racing pace.
+const CRAWL_FACTOR = 3;
 // Extra stationary time to fit a new nose, on top of the pit loss.
 // shortcut: one figure from the F1 games' pit stop; measure it from a capture with a wing change.
 const WING_CHANGE_MS = 6000;
@@ -36,6 +38,8 @@ function damageLoss({ baseline, damaged, partial = null, driftMs = 0, corners = 
   if (!baseline.length) return null;
   const base = sectorMedians(baseline);
   if (base.some((v) => v == null)) return null;
+  const racing = (splits) => splits.every((v, k) => !(v > CRAWL_FACTOR * base[k]));
+  damaged = damaged.filter(racing);
   let diffs;
   let basis;
   if (damaged.length) {
@@ -44,7 +48,7 @@ function damageLoss({ baseline, damaged, partial = null, driftMs = 0, corners = 
     basis = 'laps';
   } else if (partial) {
     const covered = partial.splits.map((v, k) => (k >= partial.fromSector && v > 0 ? k : -1)).filter((k) => k >= 0);
-    if (covered.length < MIN_PARTIAL_SECTORS) return { lossPerLapMs: null, basis: 'measuring', lapsMeasured: 0, where: [] };
+    if (covered.length < MIN_PARTIAL_SECTORS || !racing(partial.splits)) return { lossPerLapMs: null, basis: 'measuring', lapsMeasured: 0, where: [] };
     const scale = base.reduce((a, b) => a + b, 0) / covered.reduce((a, k) => a + base[k], 0);
     diffs = base.map((_, k) => (covered.includes(k) ? (partial.splits[k] - base[k]) * scale : 0));
     basis = 'partial';

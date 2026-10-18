@@ -3,8 +3,8 @@ const assert = require('node:assert');
 const PACKET_IDS = require('../src/udp/packetIds');
 const { qualifying, cutPosition } = require('../src/analysis/qualifying');
 const { createFieldModel } = require('../src/state/fieldModel');
-const { createInsightEngine } = require('../src/state/insightEngine');
-const { createRaceAnalysis } = require('../src/state/raceAnalysis');
+const { createInsightEngine } = require('../src/engine/insightEngine');
+const { createRaceAnalysis } = require('../src/engine/raceAnalysis');
 const { ask } = require('../public/ask');
 
 // 20 cars: car i's best is 75.000 + i x 0.1s; the player (car 19) has 76.500.

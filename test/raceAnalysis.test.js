@@ -2,8 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 const PACKET_IDS = require('../src/udp/packetIds');
 const { createFieldModel } = require('../src/state/fieldModel');
-const { createInsightEngine } = require('../src/state/insightEngine');
-const { createRaceAnalysis, predictRejoin } = require('../src/state/raceAnalysis');
+const { createInsightEngine } = require('../src/engine/insightEngine');
+const { createRaceAnalysis, predictRejoin } = require('../src/engine/raceAnalysis');
 
 const PLAYER = 2;
 const header = (sessionTime) => ({ sessionUID: 1n, sessionTime, playerCarIndex: PLAYER });

@@ -1,6 +1,13 @@
+// Layer 4, decisions: turns the field (state/) and the numbers worked out
+// from it (raceAnalysis.js) into what the driver hears - radio cards, each
+// with an id, a severity and an expiry, settled before it's said - and the
+// headline call (calls.js). evaluate() runs every tick; its sections, in
+// order, are marked "// --- <topic> ---".
 const { computeAdjustments } = require('./adjustments');
-const { isRacing, raceLapsLeft } = require('./race');
+const { isRacing, raceLapsLeft } = require('../state/race');
 const { planText } = require('../analysis/racePlan');
+const { qualiCall, raceCall, standing, CALM_CALLS } = require('./calls');
+const { laps } = require('../lib/format');
 
 const SEVERITY = { INFO: 'info', ADVISORY: 'advisory', CRITICAL: 'critical' };
 const CATEGORY = { PACE: 'pace', STRATEGY: 'strategy', HEALTH: 'health', FLAG: 'flag', CAR: 'car' };
@@ -21,7 +28,7 @@ const CLOSING_MAX_MS_PER_LAP = 5000;
 const ERS_SETTLE_MS = 5000;
 const SETTLE_MS = 5000;
 // Drive-through, stop-go, time penalty, warning, disqualified.
-const RADIO_PENALTY_TYPES = new Set([0, 1, 4, 5, 6]);
+const RADIO_PENALTY_TYPES = new Set([0, 1, 4, 5]); // not 6 ("Disqualified"): sent in F1 26 to a driver who raced on
 const PENALTY_WARNING = 5;
 const TEXT_HOLD_MS = 5000;
 const numbersOut = (text) => String(text).replace(/[0-9]+([.:][0-9]+)?/g, '#');
@@ -64,39 +71,6 @@ const DAMAGE_ADVISORY_MS = 500;
 // A front wing this broken is worth a stop before it's even measured.
 const WING_HEAVY_PCT = 50;
 const DAMAGE_STAGES = ['damage:measuring', 'damage:cost'];
-
-const laps = (n) => `${n} lap${n === 1 ? '' : 's'}`;
-const clock = (s) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.round(s)) % 60).padStart(2, '0')}`;
-const thousandths = (ms) => (Math.abs(ms) / 1000).toFixed(3);
-
-// Qualifying / practice: where you stand, in words.
-function standing(q) {
-  if (q.position == null) return 'no time yet';
-  if (q.cut && q.cut.marginMs != null) return `P${q.position}, ${thousandths(q.cut.marginMs)} ${q.cut.marginMs < 0 ? 'clear of the cut' : `short of P${q.cut.position}`}`;
-  return q.position === 1 ? 'P1 - fastest' : `P${q.position}, ${thousandths(q.gapToPoleMs)} off P1`;
-}
-
-// The call outside a race: PREP on the out lap, PUSH on a timed lap, BOX on
-// the in lap - with what matters for each.
-function qualiCall(q) {
-  if (q.status === 'flying') {
-    if (q.lapInvalid) return { action: 'HOLD', reason: "Lap deleted - track limits, it won't count" };
-    const p = q.projected;
-    if (!p) return { action: 'PUSH', reason: q.bestMs ? `Push lap - ${standing(q)}` : 'First timed lap - get a time on the board' };
-    return { action: 'PUSH', reason: `On for P${p.position} - ${thousandths(p.lapMs - q.bestMs)} ${p.improves ? 'up on' : 'down on'} your best` };
-  }
-  if (q.timeLeftS === 0) return { action: 'HOLD', reason: `Session over - ${standing(q)}` };
-  if (q.status === 'garage') {
-    if (q.timeLeftS == null) return { action: 'PIT', reason: `In the garage - ${standing(q)}` };
-    const runs = q.runs === 0 ? 'no time for another run' : q.runs === 1 ? 'time for one more run' : `time for ${q.runs} runs`;
-    return { action: 'PIT', reason: `${clock(q.timeLeftS)} left, ${runs} - ${standing(q)}` };
-  }
-  if (q.status === 'in') return { action: 'BOX', reason: `In lap - ${standing(q)}` };
-  const tl = q.toLine;
-  if (tl && !tl.makesIt) return { action: 'HOLD', reason: `The flag falls before you reach the line - ${standing(q)}` };
-  if (!tl) return { action: 'PREP', reason: `Out lap - ${standing(q)}` };
-  return { action: 'PREP', reason: `Out lap - push lap starts in ${clock(tl.startsInS)}${tl.spareS != null ? `, ${clock(tl.spareS)} to spare` : ''}` };
-}
 
 const EVENT_CARD_MS = 8000;
 const NEUTRALISED_NAME = { 1: 'Safety car', 2: 'VSC' };
@@ -272,35 +246,16 @@ function createInsightEngine(fieldModel) {
   let trackLimitsSaid = 0; // the player's track-limit warnings already on the radio
   let startSaid = false;
 
-  // The headline call for the strategy tier, derived from the same numbers
-  // the insight rules use so the call and the radio messages never disagree.
-  function strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }) {
-    if (inPits) return { action: 'PIT', reason: 'In the pit lane' };
-    // Not served in time = disqualified. Not servable under a safety car or red flag.
-    if (penaltyBox && !neutralised) return { action: 'BOX', reason: penaltyBox };
-    // The wrong tyre for the conditions costs more per lap than anything else.
-    if (weatherBox) return { action: 'BOX', reason: weatherBox };
-    if (damageBox) return { action: 'BOX', reason: damageBox };
-    if (cheapStop) return { action: 'BOX', reason: cheapStop };
-    if (lapsToCliff != null && lapsToCliff <= 1) {
-      if (lapsLeft != null && lapsLeft <= 2) return { action: 'HOLD', reason: 'Tyres gone but too late to stop - bring it home' };
-      // Stopping for new slicks just before the rain wastes a stop.
-      return rainSoonLaps != null
-        ? { action: 'BOX', reason: `Tyres at the cliff - rain within ~${laps(Math.max(1, Math.round(rainSoonLaps)))}, think inters` }
-        : { action: 'BOX', reason: 'Tyres at the cliff - box this lap' };
-    }
-    if (pitWindow) return { action: 'BOX', reason: pitWindow };
-    // No racing under yellow, so "push" would be wrong whatever the tyres say.
-    if (neutralised === 'Red flag') return { action: 'HOLD', reason: 'Red flag - race stopped' };
-    if (neutralised) return { action: 'HOLD', reason: `${neutralised} - hold position, keep the delta positive` };
-    if (fuelMarginLaps != null && fuelMarginLaps < 0) return { action: 'HOLD', reason: `Fuel short - save ~${fuelSavePct || 1}% a lap, lift and coast` };
-    if (lapsToCliff != null && lapsToCliff <= 3) return { action: 'HOLD', reason: `Manage tyres - ~${laps(Math.round(lapsToCliff))} to the cliff` };
-    if (fuelMarginLaps != null && fuelMarginLaps < 0.3) return { action: 'HOLD', reason: 'Fuel tight - save where you can' };
-    // An undercut is an option, not an order - but the call must not read as
-    // "nothing to think about" while the radio is offering one.
-    if (undercutOn) return { action: 'PUSH', reason: `Or box now - undercut on ${undercutOn} is on` };
-    if (rainInLaps != null) return { action: 'PUSH', reason: `Rain within ~${laps(Math.max(1, Math.round(rainInLaps)))} - don't stop for slicks` };
-    return { action: 'PUSH', reason: 'Tyres and fuel OK' };
+  // A calm call (push, manage, an undercut on offer) has to hold SETTLE_MS
+  // before it replaces another calm one: a real race flipped "undercut on" <->
+  // "Tyres and fuel OK" 7 times in 3.5 minutes as the gap hovered. Anything
+  // else (BOX, PIT, a safety car) is said at once.
+  let shownCall = null;
+  function steadyCall(c) {
+    if (shownCall && CALM_CALLS.has(c.kind) && CALM_CALLS.has(shownCall.kind) && c.kind !== shownCall.kind && !settled('call', c.kind)) return shownCall;
+    settleState.delete('call');
+    shownCall = c;
+    return c;
   }
 
   // `analysis` is RaceAnalysis.compute()'s result (rejoin + pit loss), when
@@ -320,6 +275,7 @@ function createInsightEngine(fieldModel) {
       qualiSeen = false;
       trackLimitsSaid = 0;
       startSaid = false;
+      shownCall = null;
     }
     pruneExpired();
     strategy = null;
@@ -429,8 +385,14 @@ function createInsightEngine(fieldModel) {
     // Not on lap 1: the whole field is nose to tail, and one real start
     // named eleven different "right behind you" cars in under a minute.
     const pastLap1 = player.lapData.currentLapNum > 1;
+    // The battle call's DEFEND speaks on this same card (below), so the
+    // driver hears one defend call, not two that take turns - 45 of 55 key
+    // calls in a real race were the pair. While it holds the card, it owns it.
+    const bc = analysis && analysis.battle && analysis.battle.call;
+    const prevDefend = activeInsights.get('under-attack');
+    const battleDefending = !!(bc && bc.mode === 'DEFEND' && prevDefend && prevDefend.battle);
     if (!(racing && greenRacing && pastLap1)) expire('under-attack');
-    if (racing && greenRacing && pastLap1 && gapBehindNow > 0) {
+    if (racing && greenRacing && pastLap1 && gapBehindNow > 0 && !battleDefending) {
       if (gapBehindNow < 1000) {
         // The overtake model (trained on recorded races) says how likely a
         // pass actually is; "likely" escalates the call even outside 0.5s.
@@ -485,19 +447,21 @@ function createInsightEngine(fieldModel) {
     // --- ATTACK / DEFEND: the one battle call (analysis/battleCall.js) ---
     // Settled like the other who-and-where calls, and the single voice of
     // the battle: when it's active, the older separate "defend" and "best
-    // chance" calls stand down so nothing is said twice.
-    const bc = analysis && analysis.battle && analysis.battle.call;
+    // chance" calls stand down so nothing is said twice. DEFEND takes over
+    // the defend card ('under-attack') rather than adding one.
     battleShown = null;
     if (racing && greenRacing && bc && (bc.mode === 'ATTACK' || bc.mode === 'DEFEND' || bc.mode === 'CLOSE IN')
       && settled('battle-call', `${bc.mode}:${bc.target}`)) {
       battleShown = bc;
       const text = bc.mode === 'ATTACK' ? `Attack ${bc.target} - ${bc.reason}` : bc.mode === 'DEFEND' ? `Defend from ${bc.target} - ${bc.reason}` : `Close in on ${bc.target} - ${bc.reason}`;
-      upsert('battle-call', { severity: bc.mode === 'CLOSE IN' ? SEVERITY.INFO : SEVERITY.ADVISORY, category: CATEGORY.PACE, message: text, expiresAtMs: clock() + 4000 });
+      const id = bc.mode === 'DEFEND' ? 'under-attack' : 'battle-call';
+      expire(id === 'under-attack' ? 'battle-call' : 'under-attack');
+      upsert(id, { severity: bc.mode === 'CLOSE IN' ? SEVERITY.INFO : SEVERITY.ADVISORY, category: CATEGORY.PACE, message: text, expiresAtMs: clock() + 4000, battle: true });
     } else if (!bc || bc.mode === 'CLEAR' || bc.mode === 'HOLD' || !(racing && greenRacing)) {
       expire('battle-call');
+      if (prevDefend && prevDefend.battle) expire('under-attack');
     }
-    if (activeInsights.has('battle-call')) {
-      expire('under-attack');
+    if (activeInsights.has('battle-call') || battleDefending || (battleShown && battleShown.mode === 'DEFEND')) {
       expire('attack-chance');
     }
     if (bc && (bc.mode === 'CLEAR' || bc.mode === 'HOLD')) battleShown = bc;
@@ -527,7 +491,7 @@ function createInsightEngine(fieldModel) {
       expire('attack-warning');
     }
     const afc = analysis && analysis.battle && analysis.battle.attackForecast;
-    if (racing && greenRacing && ahead && afc && afc.where && afc.when.laps <= 2 && !activeInsights.has('battle-call')
+    if (racing && greenRacing && ahead && afc && afc.where && afc.when.laps <= 2 && !activeInsights.has('battle-call') && !(activeInsights.get('under-attack') || {}).battle
       && settled('attack-chance', `${ahead.carIndex}:${afc.where.corner}`)) {
       const gain = afc.candidates && afc.candidates[0] && afc.candidates[0].gainS >= 0.02 ? ` - you gain ${afc.candidates[0].gainS.toFixed(2)}s on the run to it` : '';
       upsert('attack-chance', {
@@ -566,7 +530,8 @@ function createInsightEngine(fieldModel) {
     // --- Undercut window on the car ahead ---
     // The HUD shows the gap; it doesn't say whether stopping now would jump
     // the car. Close behind it, on tyres at least as old, rejoining in clean
-    // air with enough race left: that's the classic undercut.
+    // air with enough race left - and fresh tyres gaining more in the laps
+    // before they stop than the gap to them: that's the classic undercut.
     const rejoin = analysis && analysis.rejoin;
     const theirAge = ahead && ahead.status ? ahead.status.tyresAgeLaps : null;
     const gapAheadNow = player.lapData.deltaToCarInFrontInMS;
@@ -574,11 +539,14 @@ function createInsightEngine(fieldModel) {
     const aheadRow = rowOf(ahead);
     const behindRow = rowOf(behind);
     const theyStopIn = aheadRow ? aheadRow.stopInLaps : null;
+    const myDegMs = analysis && analysis.tyreModel && analysis.tyreModel.mine ? analysis.tyreModel.mine.degMsPerLap : null;
+    const undercutGainMs = myDegMs > 0 && theyStopIn != null ? myDegMs * (theirAge ?? myTyreAge) * Math.max(1, theyStopIn) : 0;
     const undercutOn = racing && greenRacing && onTrack(ahead) && rejoin && !rejoin.inTraffic
       && gapAheadNow > 0 && gapAheadNow <= UNDERCUT_GAP_MS
       && myTyreAge >= STOP_WORTH_IT_TYRE_AGE && (theirAge == null || theirAge >= myTyreAge - 2)
       && theyStopIn != null && theyStopIn <= UNDERCUT_THEY_STOP_WITHIN
-      && (lapsLeft == null || lapsLeft >= UNDERCUT_MIN_LAPS_LEFT);
+      && (lapsLeft == null || lapsLeft >= UNDERCUT_MIN_LAPS_LEFT)
+      && undercutGainMs > gapAheadNow;
     let undercutTarget = null;
     if (undercutOn) {
       const name = ahead.participant ? ahead.participant.name : `P${ahead.lapData.carPosition}`;
@@ -586,7 +554,7 @@ function createInsightEngine(fieldModel) {
       upsert('undercut-window', {
         severity: SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
-        message: `Undercut on ${name} is on - they're due in ${theyStopIn <= 1 ? 'this lap or next' : `~${laps(theyStopIn)}`}: box now, rejoin P${rejoin.position} in clean air`,
+        message: `Undercut on ${name} is on - they're due in ${theyStopIn <= 1 ? 'this lap or next' : `~${laps(theyStopIn)}`}: box now, ~${((undercutGainMs - gapAheadNow) / 1000).toFixed(1)}s ahead after their stop`,
         expiresAtMs: clock() + 5000,
       });
     } else {
@@ -946,7 +914,7 @@ function createInsightEngine(fieldModel) {
       fuelSavePct,
       tyreLapsToCliff: lapsToCliff == null ? null : Math.max(0, lapsToCliff),
       tyreWearRatePerLap: wear ? wear.ratePerLap : null,
-      call: q ? qualiCall(q) : strategyCall({ lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }),
+      call: q ? qualiCall(q) : steadyCall(raceCall({ lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox })),
     };
 
     // Most severe first, then newest - insights[0] is the dashboard's banner,

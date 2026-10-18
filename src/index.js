@@ -1,3 +1,6 @@
+// The command line: live (UDP from the game), --demo (replay a recording),
+// --record / --capture (save the session). Wires the UDP listener or the
+// replayer into the one pipeline (pipeline.js) and serves the dashboard.
 const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
@@ -6,7 +9,7 @@ const { startReplay } = require('./capture/replay');
 const { createRecorder } = require('./capture/recorder');
 const { createCaptureSession, defaultCaptureDir } = require('./capture/session');
 const { createTrackMemory } = require('./state/trackMemory');
-const { RIVAL_ID } = require('./state/debrief');
+const { RIVAL_ID } = require('./engine/debrief');
 const { createPipeline } = require('./pipeline');
 const { startServer } = require('./server/httpServer');
 

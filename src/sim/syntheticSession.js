@@ -1,4 +1,4 @@
-﻿const enc = require('./encoders');
+const enc = require('./encoders');
 
 // A scripted, physically-plausible race stint used as the demo session
 // until a real F1 26 capture is committed (PROJECT_SPEC Epic C). It is NOT

@@ -11,6 +11,8 @@
 // When: from the closing rate - "now" once inside attack range, otherwise
 // the laps until the gap is down to it.
 
+const { median } = require('../lib/stats');
+
 const ATTACK_RANGE_S = 1.0;
 const MIN_CLOSING_S_PER_LAP = 0.05;
 const APPROACH_M = 800; // how far back from a corner its run-up is counted, at most
@@ -19,12 +21,15 @@ const HOT_AFTER_M = 450; //   far before / after the brake point (passes complet
 const RECENT_LAPS = 3;
 const GAIN_WEIGHT = Number(process.env.F1RE_GAIN_WEIGHT || 0.2);
 
-// Average mini-sector splits over a car's last few complete laps.
+// Median mini-sector splits over a car's last few racing laps. Pit and
+// neutralised laps are left out, and the median drops one bad lap: the pit
+// lane on the run to corner 1 read as a 5.46 s "gain" in a real race.
 function recentSplits(car) {
-  const laps = (car.miniSectors || []).slice(-RECENT_LAPS);
+  const skip = new Set((car.lapHistory || []).filter((l) => l.pit || l.neutralised).map((l) => l.lapNum));
+  const laps = (car.miniSectors || []).filter((l) => !skip.has(l.lapNum)).slice(-RECENT_LAPS);
   if (!laps.length) return null;
   const n = laps[0].splits.length;
-  return Array.from({ length: n }, (_, k) => laps.reduce((a, l) => a + l.splits[k], 0) / laps.length);
+  return Array.from({ length: n }, (_, k) => median(laps.map((l) => l.splits[k])));
 }
 
 // Seconds the attacker gains over [fromM, toM] (wrapping the line if needed).

@@ -3,7 +3,7 @@
 // committed). Laps are recorded as they complete - the field model keeps only
 // the last 12 - and taken back when a flashback undoes them. No driver
 // names: the player's could be a gamertag.
-const { TRACKS } = require('../state/debrief');
+const { TRACKS } = require('../udp/gameIds');
 
 // [column, type]: n = number, b = boolean (0/1), s = string. Empty = unknown.
 const SCHEMA = [
@@ -13,6 +13,8 @@ const SCHEMA = [
   ['position', 'n'], ['gapToLeaderMs', 'n'], ['numPitStops', 'n'], ['wearMax', 'n'], ['usableLife', 'n'],
 ];
 const LAP_COLUMNS = SCHEMA.map(([c]) => c);
+// calls.csv: the strategy calls each race made, for the calls audit.
+const CALL_SCHEMA = [['raceId', 's'], ['lapNum', 'n'], ['action', 's'], ['kind', 's']];
 const round1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
 
 function createLapRecorder(fieldModel, { raceId }) {
@@ -65,19 +67,40 @@ function createLapRecorder(fieldModel, { raceId }) {
   return { sync, rows };
 }
 
-const cell = (v) => (v == null ? '' : typeof v === 'boolean' ? (v ? '1' : '0') : String(v));
-function toCsv(rows) {
-  return [LAP_COLUMNS.join(','), ...rows.map((r) => LAP_COLUMNS.map((c) => cell(r[c])).join(','))].join('\n') + '\n';
+// One row each time the race call changes (its action or kind - not its
+// numbers ticking along), on the player's lap at the time. A flashback takes
+// back the calls made on the laps it undid, as it does the laps.
+function createCallRecorder(fieldModel, { raceId }) {
+  const rows = [];
+  function sync(snap) {
+    const p = fieldModel.playerIndex();
+    const car = p == null ? null : fieldModel.getCar(p);
+    if (!car || !car.lapData) return;
+    const lapNum = car.lapData.currentLapNum;
+    while (rows.length && rows[rows.length - 1].lapNum > lapNum) rows.pop();
+    const c = snap.strategy && snap.strategy.call;
+    if (!c || !c.kind) return; // qualifying calls carry no kind
+    const last = rows[rows.length - 1];
+    if (last && last.action === c.action && last.kind === c.kind) return;
+    rows.push({ raceId, lapNum, action: c.action, kind: c.kind });
+  }
+  return { sync, rows: () => rows };
 }
 
-function fromCsv(text) {
+const cell = (v) => (v == null ? '' : typeof v === 'boolean' ? (v ? '1' : '0') : String(v));
+function toCsv(rows, schema = SCHEMA) {
+  const cols = schema.map(([c]) => c);
+  return [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n') + '\n';
+}
+
+function fromCsv(text, schema = SCHEMA) {
   const [head, ...lines] = text.trim().split(/\r?\n/);
   const cols = head.split(',');
-  const type = Object.fromEntries(SCHEMA);
+  const type = Object.fromEntries(schema);
   return lines.map((line) => Object.fromEntries(line.split(',').map((v, i) => {
     const t = type[cols[i]];
     return [cols[i], v === '' ? null : t === 'n' ? Number(v) : t === 'b' ? v === '1' : v];
   })));
 }
 
-module.exports = { createLapRecorder, toCsv, fromCsv, LAP_COLUMNS };
+module.exports = { createLapRecorder, createCallRecorder, toCsv, fromCsv, LAP_COLUMNS, CALL_SCHEMA };

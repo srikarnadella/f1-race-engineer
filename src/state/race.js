@@ -21,20 +21,4 @@ function raceLapsLeft(session, lapData) {
   return session.totalLaps - (lapData.currentLapNum - 1) - done;
 }
 
-function median(xs) {
-  if (!xs.length) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = s.length >> 1;
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
-
-// A lap this much slower than the car's own typical lap is a spin, a crash,
-// or a safety-car lap the flags missed - not pace. The tyre model and the
-// pace figures both drop them.
-const SLOW_LAP_FACTOR = 1.07;
-function withoutSlowLaps(laps) {
-  const typical = median(laps.map((l) => l.lapMs));
-  return typical == null ? laps : laps.filter((l) => l.lapMs <= typical * SLOW_LAP_FACTOR);
-}
-
-module.exports = { RACE_SESSION_TYPES, isRacing, raceLapsLeft, median, withoutSlowLaps };
+module.exports = { RACE_SESSION_TYPES, isRacing, raceLapsLeft };

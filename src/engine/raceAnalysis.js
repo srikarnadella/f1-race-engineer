@@ -4,8 +4,10 @@
 // they boxed now. Recomputed on every snapshot tick from FieldModel.
 
 const { createWeatherAnalysis } = require('./weather');
-const { raceLapsLeft, median, withoutSlowLaps, RACE_SESSION_TYPES } = require('./race');
-const { createTrackMemory } = require('./trackMemory');
+const { raceLapsLeft, RACE_SESSION_TYPES } = require('../state/race');
+const { withoutSlowLaps } = require('../lib/laps');
+const { median } = require('../lib/stats');
+const { createTrackMemory } = require('../state/trackMemory');
 const { fitDegradation, stopPayback } = require('../ml/tyreModel');
 const { pairFeatures, toVector } = require('../ml/overtakeFeatures');
 const { predict } = require('../ml/logistic');

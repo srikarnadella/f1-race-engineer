@@ -2,8 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 const PACKET_IDS = require('../src/udp/packetIds');
 const { createFieldModel } = require('../src/state/fieldModel');
-const { createInsightEngine } = require('../src/state/insightEngine');
-const { createRaceAnalysis } = require('../src/state/raceAnalysis');
+const { createInsightEngine } = require('../src/engine/insightEngine');
+const { createRaceAnalysis } = require('../src/engine/raceAnalysis');
 const { buildSnapshot } = require('../src/server/snapshot');
 
 const PLAYER = 2;
@@ -109,6 +109,8 @@ test('events name the driver: one fastest-lap card, and only the player\'s penal
   fm.dispatch(PACKET_IDS.EVENT, header(1.4), { code: 'PENA', name: 'Warning', penaltyType: 5, vehicleIdx: PLAYER, lapNum: 3 });
   // Type 16 ("Retired" in F1 25) arrived mid-race for a player still racing in F1 26 - kept off the radio.
   fm.dispatch(PACKET_IDS.EVENT, header(1.5), { code: 'PENA', name: 'Retired', penaltyType: 16, vehicleIdx: PLAYER, lapNum: 4 });
+  // Type 6 ("Disqualified" in F1 25) arrived in a real F1 26 qualifying; the driver went on to set the fastest lap.
+  fm.dispatch(PACKET_IDS.EVENT, header(1.6), { code: 'PENA', name: 'Disqualified', penaltyType: 6, vehicleIdx: PLAYER, lapNum: 4 });
   const msgs = ie.evaluate().filter((i) => i.category === 'flag').map((i) => i.message);
   assert.deepStrictEqual(msgs.sort(), ['Fastest lap: B 1:31.088', 'Warning for you, lap 3']);
 });
@@ -142,7 +144,7 @@ test('a red flag is a stoppage: HOLD, no defend or ERS advice, laps flagged', ()
   fm.dispatch(PACKET_IDS.EVENT, header(1.1), { code: 'RDFL', name: 'Red Flag' });
   const insights = ie.evaluate();
   assert.ok(!insights.some((i) => i.id === 'under-attack'));
-  assert.deepStrictEqual(ie.getStrategy().call, { action: 'HOLD', reason: 'Red flag - race stopped' });
+  assert.deepStrictEqual(ie.getStrategy().call, { action: 'HOLD', kind: 'red-flag', reason: 'Red flag - race stopped' });
   fm.dispatch(PACKET_IDS.EVENT, header(2), { code: 'LGOT', name: 'Lights Out' });
   ie.evaluate();
   assert.notStrictEqual(ie.getStrategy().call.reason, 'Red flag - race stopped');
@@ -305,11 +307,11 @@ test('under a safety car: no defend calls, HOLD instead of PUSH, and a cheap-sto
   raceWithTyres(fm2, { safetyCarStatus: 1, myAge: 2 });
   fm2.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars() });
   ie2.evaluate();
-  assert.deepStrictEqual(ie2.getStrategy().call, { action: 'HOLD', reason: 'Safety car - hold position, keep the delta positive' });
+  assert.deepStrictEqual(ie2.getStrategy().call, { action: 'HOLD', kind: 'neutralised', reason: 'Safety car - hold position, keep the delta positive' });
 });
 
 test('undercut window on the car ahead needs a close gap, old tyres, clean air - and the car ahead due to stop', () => {
-  const analysis = (inTraffic, theyStopIn) => ({ rejoin: { position: 4, positionsLost: 1, inTraffic, ahead: null, behind: null }, field: [{ carIndex: 1, stopInLaps: theyStopIn }] });
+  const analysis = (inTraffic, theyStopIn) => ({ rejoin: { position: 4, positionsLost: 1, inTraffic, ahead: null, behind: null }, field: [{ carIndex: 1, stopInLaps: theyStopIn }], tyreModel: { mine: { compound: 17, degMsPerLap: 100 } } });
   const run = (opts, gapAhead, inTraffic = false, theyStopIn = 2) => {
     const fm = createFieldModel();
     const ie = createInsightEngine(fm);
@@ -317,7 +319,7 @@ test('undercut window on the car ahead needs a close gap, old tyres, clean air -
     fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: gapAhead } }) });
     return ie.evaluate(analysis(inTraffic, theyStopIn)).find((i) => i.id === 'undercut-window');
   };
-  assert.match(run({}, 1200).message, /Undercut on P2 is on - they're due in ~2 laps: box now, rejoin P4 in clean air/);
+  assert.match(run({}, 1200).message, /Undercut on P2 is on - they're due in ~2 laps: box now, ~1\.2s ahead after their stop/);
   assert.ok(!run({}, 1200, false, null), 'the car ahead has no stop left to make');
   assert.ok(!run({}, 1200, false, 6), 'the car ahead is not stopping for a while');
   assert.ok(!run({}, 2500), 'too far back to jump the car');
@@ -382,4 +384,99 @@ test('a card whose numbers tick keeps its text for a few seconds; a new word sho
   } finally {
     Date.now = realNow;
   }
+});
+
+// Barcelona, 17 Oct: the call flipped "undercut on" <-> "Tyres and fuel OK" 7
+// times in 3.5 minutes, and the undercut said "rejoin P21 in clean air" from P8.
+const undercutAnalysis = ({ deg = 100, theyStopIn = 2 } = {}) => ({
+  rejoin: { position: 21, positionsLost: 13, inTraffic: false, ahead: null, behind: null },
+  field: [{ carIndex: 1, stopInLaps: theyStopIn }],
+  tyreModel: deg == null ? null : { mine: { compound: 17, degMsPerLap: deg } },
+});
+
+test('undercut: only when fresh tyres gain more before they stop than the gap to them', () => {
+  const run = (gapAhead, a) => {
+    const fm = createFieldModel();
+    const ie = createInsightEngine(fm);
+    raceWithTyres(fm);
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: gapAhead } }) });
+    return ie.evaluate(a).find((i) => i.id === 'undercut-window');
+  };
+  // 100 ms/lap on 12-lap-old tyres: 1.2 s a lap for the 2 laps until they stop = 2.4 s > 1.2 s.
+  const on = run(1200, undercutAnalysis());
+  assert.match(on.message, /^Undercut on P2 is on - they're due in ~2 laps: box now, ~1\.2s ahead after their stop$/);
+  assert.doesNotMatch(on.message, /clean air|rejoin P21/, 'everyone yet to stop passes you for a while - that is the undercut, not news');
+  assert.ok(!run(1200, undercutAnalysis({ deg: 40 })), '0.48 s a lap x 2 laps = 0.96 s: not enough to jump a 1.2 s gap');
+  assert.ok(!run(1200, undercutAnalysis({ deg: null })), 'no tyre model yet: no evidence the undercut works');
+});
+
+test('the call: a calm call has to hold 5 s before it replaces another calm one; urgent calls come at once', () => {
+  let t = 0;
+  const fm = createFieldModel({ clock: () => t });
+  const ie = createInsightEngine(fm);
+  raceWithTyres(fm);
+  const at = (ms, gapAhead, { sc = 0 } = {}) => {
+    t = ms;
+    if (sc) fm.dispatch(PACKET_IDS.SESSION, header(ms / 1000), { sessionType: 15, totalLaps: 30, trackLength: 5000, trackId: 17, safetyCarStatus: sc });
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(ms / 1000), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: gapAhead } }) });
+    ie.evaluate(undercutAnalysis());
+    return ie.getStrategy().call.kind;
+  };
+  assert.strictEqual(at(0, 2500), 'ok');
+  assert.strictEqual(at(1000, 1200), 'ok', 'the undercut has to hold first');
+  assert.strictEqual(at(6500, 1200), 'undercut');
+  assert.strictEqual(at(7000, 2500), 'undercut', 'a 1-2 s dip out of the window does not flip it back');
+  assert.strictEqual(at(8000, 1200), 'undercut');
+  assert.strictEqual(at(9000, 2500), 'undercut');
+  assert.strictEqual(at(14500, 2500), 'ok', 'out of the window for 5 s: it is over');
+  assert.strictEqual(at(15000, 2500, { sc: 1 }), 'cheap-stop', 'a safety car (a cheap stop on 10-lap-old tyres) is said at once');
+});
+
+test('defending: one card for the car behind - the battle call speaks on it, not on a second one', () => {
+  let t = 0;
+  const fm = createFieldModel({ clock: () => t });
+  const ie = createInsightEngine(fm);
+  raceWithTyres(fm);
+  const battle = { battle: { call: { mode: 'DEFEND', target: 'HADJAR', reason: 'watch into corner 11' } } };
+  const at = (ms) => {
+    t = ms;
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(ms / 1000), { cars: lapCars({ 3: { deltaToCarInFrontInMS: 400 } }) });
+    return ie.evaluate(battle).filter((i) => /defend/i.test(i.message) || i.id === 'battle-call');
+  };
+  for (const ms of [0, 3000, 6000, 9000]) {
+    const cards = at(ms);
+    assert.deepStrictEqual(cards.map((c) => c.id), ['under-attack'], `at ${ms} ms: ${cards.map((c) => c.message)}`);
+  }
+  assert.match(at(12000)[0].message, /^Defend from HADJAR - watch into corner 11/, 'the settled battle call replaces the text');
+});
+
+test('the call: a calm call that drops out has to hold 5 s again from the start', () => {
+  let t = 0;
+  const fm = createFieldModel({ clock: () => t });
+  const ie = createInsightEngine(fm);
+  raceWithTyres(fm);
+  const at = (ms, gapAhead) => {
+    t = ms;
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(ms / 1000), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: gapAhead } }) });
+    ie.evaluate(undercutAnalysis());
+    return ie.getStrategy().call.kind;
+  };
+  at(0, 2500);
+  at(1000, 1200);
+  at(2000, 2500); // gone again
+  assert.strictEqual(at(6500, 1200), 'ok', 'back for a moment - not 5 s since it first showed');
+});
+
+test('defending: the battle call on the defend card holds its text while only the numbers change', () => {
+  let t = 0;
+  const fm = createFieldModel({ clock: () => t });
+  const ie = createInsightEngine(fm);
+  raceWithTyres(fm);
+  const at = (ms, reason) => {
+    t = ms;
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(ms / 1000), { cars: lapCars({ 3: { deltaToCarInFrontInMS: 400 } }) });
+    return ie.evaluate({ battle: { call: { mode: 'DEFEND', target: 'HADJAR', reason } } }).find((i) => i.id === 'under-attack').message;
+  };
+  for (const ms of [0, 3000, 6000]) at(ms, '0.4s behind');
+  assert.strictEqual(at(7000, '0.3s behind'), 'Defend from HADJAR - 0.4s behind', 'radio text must not tick');
 });

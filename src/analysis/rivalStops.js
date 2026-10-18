@@ -13,7 +13,7 @@
 // stops - each car is timed by its own wear rate instead: a car eating its
 // tyres is due sooner than its age says.
 
-const { median } = require('../state/race');
+const { median } = require('../lib/stats');
 
 // shortcut: one prior share for every compound and track (from one race);
 // this race's own stops replace it as soon as two have been seen.

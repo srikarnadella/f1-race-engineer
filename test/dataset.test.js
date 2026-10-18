@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { createLapRecorder, toCsv, fromCsv, LAP_COLUMNS } = require('../src/data/laps');
+const { createLapRecorder, createCallRecorder, toCsv, fromCsv, LAP_COLUMNS, CALL_SCHEMA } = require('../src/data/laps');
+const { auditCalls } = require('../src/analysis/callsAudit');
 const { syntheticPackets, replay } = require('./helpers/synthetic');
 
 // The lap dataset: one row per car per completed lap, recorded as laps
@@ -20,6 +21,7 @@ function fakeField() {
   return {
     cars,
     orderedByPosition: () => cars,
+    getCar: (i) => cars[i],
     getSession: () => ({ trackId: 5, sessionType: 15, totalLaps: 30, safetyCarStatus: 0 }),
     playerIndex: () => 0,
     complete(carIndex, lapNum, lapMs, extra = {}) {
@@ -113,4 +115,62 @@ test('laps: the synthetic race through the real pipeline gives one row per car p
   assert.ok(rows.every((r) => r.lapMs > 60000 && r.lapMs < 120000), 'lap times are lap times');
   const ham = rows.filter((r) => r.carIndex === 5);
   assert.ok(ham.some((r) => r.pit), 'HAMILTON pits on lap 15/16');
+});
+
+// The calls a race made (for the calls audit): one row each time the call
+// changes, on the player's lap at the time.
+const snapWith = (action, kind, reason = '') => ({ strategy: { call: { action, kind, reason } } });
+
+test('calls: a row when the call changes, not when its numbers tick; qualifying calls skipped', () => {
+  const fm = fakeField();
+  const rec = createCallRecorder(fm, { raceId: 'r1' });
+  rec.sync(snapWith('PUSH', 'ok'));
+  rec.sync(snapWith('PUSH', 'ok'));
+  rec.sync(snapWith('PUSH', 'undercut'));
+  fm.complete(0, 1, 90000);
+  rec.sync(snapWith('BOX', 'cheap-stop', 'Safety car: a stop costs ~9s, not ~20s'));
+  rec.sync(snapWith('BOX', 'cheap-stop', 'Safety car: a stop costs ~8s, not ~20s'));
+  rec.sync({ strategy: { call: { action: 'PUSH', reason: 'On for P3' } } }); // qualifying: no kind
+  rec.sync({ strategy: null });
+  assert.deepStrictEqual(rec.rows(), [
+    { raceId: 'r1', lapNum: 1, action: 'PUSH', kind: 'ok' },
+    { raceId: 'r1', lapNum: 1, action: 'PUSH', kind: 'undercut' },
+    { raceId: 'r1', lapNum: 2, action: 'BOX', kind: 'cheap-stop' },
+  ]);
+});
+
+test('calls: a flashback takes back the calls made on the laps it undid', () => {
+  const fm = fakeField();
+  const rec = createCallRecorder(fm, { raceId: 'r1' });
+  rec.sync(snapWith('PUSH', 'ok'));
+  for (let lap = 1; lap <= 3; lap++) fm.complete(0, lap, 90000);
+  rec.sync(snapWith('BOX', 'damage'));
+  fm.cars[0].lapData.currentLapNum = 2; // back to lap 2
+  rec.sync(snapWith('PUSH', 'ok'));
+  assert.deepStrictEqual(rec.rows().map((r) => [r.lapNum, r.kind]), [[1, 'ok']], 'the BOX on lap 4 never happened; PUSH is still the call');
+});
+
+test('calls: CSV round trip', () => {
+  const rows = [{ raceId: 'r1', lapNum: 3, action: 'BOX', kind: 'cheap-stop' }];
+  assert.deepStrictEqual(fromCsv(toCsv(rows, CALL_SCHEMA), CALL_SCHEMA), rows);
+});
+
+test('calls: every race call in the synthetic race has a kind the audit grades or names as a rule', () => {
+  let laps = null;
+  let calls = null;
+  replay(syntheticPackets(), {
+    onTick: ({ tMs, snap, pipeline }) => {
+      if (!laps) {
+        laps = createLapRecorder(pipeline.fieldModel, { raceId: 'synthetic' });
+        calls = createCallRecorder(pipeline.fieldModel, { raceId: 'synthetic' });
+      }
+      calls.sync(snap);
+      if (tMs % 1000 < 100) laps.sync();
+    },
+  });
+  laps.sync();
+  const audit = auditCalls(calls.rows(), laps.rows());
+  assert.ok(audit.calls.length >= 3, JSON.stringify(audit.calls));
+  for (const c of audit.calls) assert.notStrictEqual(c.why, 'No test for this call yet', `${c.action} ${c.kind} on lap ${c.lapNum}`);
+  assert.ok(audit.summary.right + audit.summary.wrong >= 1, JSON.stringify(audit.summary));
 });

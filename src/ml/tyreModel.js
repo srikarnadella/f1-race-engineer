@@ -11,7 +11,8 @@
 // Laps far off a car's own trend (traffic, a mistake) are trimmed with a
 // robust MAD filter before the final fit.
 
-const { withoutSlowLaps, median } = require('../state/race');
+const { withoutSlowLaps } = require('../lib/laps');
+const { median } = require('../lib/stats');
 
 const FUEL_MS_PER_KG = 30;
 const MIN_LAPS_PER_CAR = 3;

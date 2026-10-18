@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { createFocus, wanted, HOLD_MS, RELEASE_MS } = require('../src/state/focus');
+const { createFocus, wanted, HOLD_MS, RELEASE_MS } = require('../src/engine/focus');
 
 const battle = { strategy: { call: { action: 'PUSH', reason: 'Tyres and fuel OK' }, battle: { mode: 'DEFEND', target: 'NORRIS' } } };
 const calm = { strategy: { call: { action: 'PUSH', reason: 'Tyres and fuel OK' }, battle: { mode: 'CLEAR' } } };

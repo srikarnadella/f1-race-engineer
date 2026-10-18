@@ -1,3 +1,8 @@
+// Layer 2, state: everything the game has said about every car, kept up to
+// date packet by packet - latest packets, a lap history (pit and safety-car
+// laps flagged), gaps sampled on game time, battery per lap, mini-sectors and
+// lap traces. Flashbacks rewind it. Holds no opinions: analysis and calls
+// live in engine/.
 const PACKET_IDS = require('../udp/packetIds');
 const { createLapDeltaTracker } = require('./lapDelta');
 const { createCarBalanceTracker } = require('./carBalance');

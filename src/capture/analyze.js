@@ -5,6 +5,8 @@ const { parseHeader } = require('../udp/parsers/header');
 const { parsePacket, PARSED_PACKETS } = require('../udp/parsePacket');
 const { createPipeline } = require('../pipeline');
 const { THRESHOLDS } = require('../state/carBalance');
+const { RACE_SESSION_TYPES } = require('../state/race');
+const { median } = require('../lib/stats');
 const { readLog } = require('./logFile');
 const { PACKET_NAMES } = require('./session');
 
@@ -28,7 +30,6 @@ const F1_26_SIZES = {
 };
 const REFERENCE_SIZES = { 2025: F1_25_SIZES, 2026: F1_26_SIZES };
 const TICK_MS = 100;
-const RACE_TYPES = new Set([15, 16, 17]);
 const MAX_SAMPLES = 400000;
 const TIMELINE_LIMIT = 1500; // a 25-lap race with its practice and qualifying fits
 const MARKER_WINDOW_MS = 8000;
@@ -60,12 +61,6 @@ function percentiles(xs, ps) {
   return out;
 }
 const share = (xs, pred) => (xs.length ? +(xs.filter(pred).length / xs.length).toFixed(4) : null);
-const median = (xs) => {
-  if (!xs.length) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = s.length >> 1;
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
 const push = (arr, v) => {
   if (Number.isFinite(v) && arr.length < MAX_SAMPLES) arr.push(v);
 };
@@ -133,7 +128,7 @@ async function analyzeCapture(target) {
   };
   function scorePass(header, data) {
     const s = fm.getSession();
-    if (!s || !RACE_TYPES.has(s.sessionType) || data.overtakenIdx !== header.playerCarIndex) return;
+    if (!s || !RACE_SESSION_TYPES.has(s.sessionType) || data.overtakenIdx !== header.playerCarIndex) return;
     const att = fm.getCar(data.overtakerIdx).lapData;
     const me = fm.getCar(header.playerCarIndex).telemetry;
     const corners = fm.getPlayerCorners();
@@ -337,7 +332,7 @@ async function analyzeCapture(target) {
           safetyCar: session ? session.safetyCarStatus : null,
           balanceIssues: fm.getPlayerBalanceIssues().map((i) => `${i.type}@C${i.corner}x${i.laps}`).join(' ') || '',
         });
-        if (session && RACE_TYPES.has(session.sessionType) && pl.fuelInTank != null) {
+        if (session && RACE_SESSION_TYPES.has(session.sessionType) && pl.fuelInTank != null) {
           fuelAtLine.push({ lap: pl.currentLapNum, fuelKg: pl.fuelInTank, frl: pl.fuelRemainingLaps, lapsLeft: session.totalLaps - pl.currentLapNum + 1, pit: !!pl.pitStatus });
         }
       }

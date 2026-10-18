@@ -5,7 +5,7 @@
 // is read from the field's lap times, because the game sends no track
 // wetness figure.
 
-const { median } = require('./race');
+const { median } = require('../lib/stats');
 
 const WET_FROM = 3; // weather >= light rain
 const WET_COMPOUNDS = new Set([7, 8]); // visual: inter, wet

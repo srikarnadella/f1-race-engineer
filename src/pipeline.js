@@ -1,10 +1,10 @@
 const { parsePacket } = require('./udp/parsePacket');
 const { createFieldModel } = require('./state/fieldModel');
-const { createInsightEngine } = require('./state/insightEngine');
-const { createRaceAnalysis } = require('./state/raceAnalysis');
+const { createInsightEngine } = require('./engine/insightEngine');
+const { createRaceAnalysis } = require('./engine/raceAnalysis');
 const { createTrackMemory } = require('./state/trackMemory');
-const { createDebrief } = require('./state/debrief');
-const { createFocus } = require('./state/focus');
+const { createDebrief } = require('./engine/debrief');
+const { createFocus } = require('./engine/focus');
 const { buildSnapshot } = require('./server/snapshot');
 
 // The engine, wired once: packets in, the dashboard snapshot out. The live

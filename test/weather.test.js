@@ -4,8 +4,8 @@ const PACKET_IDS = require('../src/udp/packetIds');
 const enc = require('../src/sim/encoders');
 const { parsePacket } = require('../src/udp/parsePacket');
 const { createFieldModel } = require('../src/state/fieldModel');
-const { createInsightEngine } = require('../src/state/insightEngine');
-const { createRaceAnalysis } = require('../src/state/raceAnalysis');
+const { createInsightEngine } = require('../src/engine/insightEngine');
+const { createRaceAnalysis } = require('../src/engine/raceAnalysis');
 
 const PLAYER = 2;
 const header = (sessionTime) => ({ sessionUID: 1n, sessionTime, playerCarIndex: PLAYER });
@@ -114,7 +114,7 @@ test('tyres at the cliff with rain imminent: box, but think inters', () => {
   assert.match(ie.getStrategy().call.reason, /Tyres at the cliff - rain within ~\d laps?, think inters/);
 });
 
-const { crossoverPace, switchGainMs } = require('../src/state/weather');
+const { crossoverPace, switchGainMs } = require('../src/engine/weather');
 
 test('crossover: a car that just switched is compared with itself, before and after', () => {
   const lap = (lapNum, lapMs, compound, pit = false) => ({ lapNum, lapMs, compound, pit, neutralised: false });
