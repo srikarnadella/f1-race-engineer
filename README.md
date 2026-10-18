@@ -1,6 +1,6 @@
-# F1 26 Race Engineer
+# Undercut
 
-A live race-engineer dashboard for **F1 26**, driven by the game's UDP telemetry and viewed on a
+A live race engineer for **F1 26**. It is a dashboard driven by the game's UDP telemetry and viewed on a
 second screen: a tablet by the wheel, a phone, a laptop or a second monitor. Any browser on your network.
 
 It doesn't just mirror numbers. It watches **the whole field** and calls what matters right now:
@@ -280,8 +280,8 @@ Two models, both trained on real F1 26 data and both written from scratch (no ML
   training data. It drives the pass / threat chips and "pass likely" calls.
 - **Projected battery.** Where each car's ERS store will be when it reaches the line: the rest of this lap is
   assumed to go like the same stretch of the last one (drivers spend on the same straights every lap). Scored on
-  real races: 7.4 points mean error against 9.9 for "it stays where it is"; extrapolating by distance was worse
-  than both, which is why it isn't done.
+  real races (715 half-laps): 7.7 points mean error against 13.2 for "it stays where it is"; extrapolating by
+  distance was worse than both, which is why it isn't done.
 - **Tyre degradation, learned live from the whole field.** Each car's clean laps against its own average,
   fuel-corrected with the measured burn rate, robust to traffic laps, so the estimate firms up in a few laps
   instead of waiting for your own stint. It feeds the cliff projection and pit timing.
@@ -293,9 +293,9 @@ Two models, both trained on real F1 26 data and both written from scratch (no ML
   map learned from recorded races), with the chaser's mini-sector gain as a tie-breaker. Flashback-undone
   passes and passes on a stopped car are excluded. Spoken once ("Leclerc is right behind you – defend,
   watch corner 3") and shown on the Drive screen. **Scored honestly** on every capture by `npm run analyze`
-  (each real pass on you vs the forecast just before it): on three races, 5 of 20 passes came at the forecast
-  corner, against 5 for the track's busiest passing corner and 2.7 for a random one. It beats chance but only ties
-  the simpler rule so far, so the dashboard words it as a "likely spot". Passes on straights (no braking zone
+  (each real pass on you vs the forecast just before it): on four races, 6 of 33 passes came at the forecast
+  corner, against 7 for the track's busiest passing corner and 4.5 for a random one. It beats chance but not yet
+  the simpler rule, so the dashboard words it as a "likely spot". Passes on straights (no braking zone
   nearby) can't be caught yet.
 
 ## Measured accuracy
@@ -305,7 +305,7 @@ each next to the obvious guess. From [docs/accuracy.md](docs/accuracy.md):
 
 | Prediction | Model | Naive baseline |
 |---|---|---|
-| Tyre wear per lap, each car predicted from the others (1,150 laps) | 329 ms off | 482 ms ("no wear") |
+| Tyre wear per lap, each car predicted from the others (1,264 laps) | 342 ms off | 485 ms ("no wear") |
 | Rejoin position if you box now (24 green-flag stops, all cars) | 2.54 places off | 4.33 ("you keep your place") |
 | Battery at the line, from half a lap out | 7.7 points off | 13.2 ("it stays where it is") |
 | When an AI car stops (23 green-flag stops) | 1.22 laps off | 1.24 (fixed share of tyre life) |
@@ -395,7 +395,7 @@ Each layer only reads from the layers before it, and all of it is wired once in
 ## Development
 
 ```bash
-npm test                 # 250+ tests (node:test): parsers on real F1 26 packets, fuzzing, model properties,
+npm test                 # 260+ tests (node:test): parsers on real F1 26 packets, fuzzing, model properties,
                          # race scenarios, the calls audit, every dashboard widget and screen in jsdom, a tick budget
 npm run test:coverage    # the same with a coverage gate (CI: fails below 88% of lines in src/ and public/)
 npm run demo:regenerate  # rebuild the synthetic demo session after changing src/sim/
@@ -410,17 +410,25 @@ npm run site -- --race captures/<folder>   # put a real race on the demo site (l
 node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay a real race, 8x
 ```
 
-Node 18.3+ and two small runtime dependencies (`ws` for the WebSocket, `qrcode-terminal` for the pairing
-QR code); `jsdom` and `c8` for tests only. No build step. The work plan is a dependency graph in
+Node 18.3+ and three runtime dependencies (`ws` for the WebSocket, `qrcode-terminal` for the pairing
+QR code, `better-sqlite3` for the race store); `jsdom` and `c8` for tests only. No build step. The work plan is a dependency graph in
 [docs/roadmap.md](docs/roadmap.md): each node ships with the test that defines it as done.
 
-## Coming soon: ask the race
+## Coming soon
 
-Every session is now kept in a local SQL store ([docs/race-store.md](docs/race-store.md)): laps, sectors,
-stints, events (who passed whom, penalties, safety cars), the engineer's calls and radio, weather and lap
-traces. Next on top of it: questions in plain words ("what happened on lap 12?", "where did I lose time to
-Norris?"), answered by a language model that queries those tables, so every answer comes from the
-recorded race.
+What's being built next (the same list as the website's Next steps page; the full plan is in
+[docs/roadmap.md](docs/roadmap.md)):
+
+- **Ask the race** *(in progress)*: ask about a race in plain words ("What happened on lap 12?", "Where did I
+  lose time to Norris?") and get an answer built from the recorded data. Every session is already stored as
+  tables ([docs/race-store.md](docs/race-store.md)); a language model will query them and show which laps and
+  events it used.
+- **Confidence on every call** *(in progress)*: the pit-stop pick already says when it depends on tyre wear
+  ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.
+- **The calls audit in the Debrief** *(next)*: every call graded against what happened after it, on screen
+  after the race.
+- **A sharper rejoin prediction** *(next)*: "if you box now, you come out P9" is 2.5 places off on average,
+  nearly all of it too pessimistic. Fixing that bias.
 
 ## Project status
 

@@ -3,327 +3,357 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>F1 26 Race Engineer</title>
+  <title>Undercut: a race engineer for F1 26</title>
   <meta name="description" content="A live race engineer for F1 26. It reads the game's telemetry for every car and tells you what to do next, on any screen. Try it in your browser.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="F1 26 Race Engineer">
+  <meta property="og:title" content="Undercut: a race engineer for F1 26">
   <meta property="og:description" content="Live telemetry for all 22 cars, turned into one call you can act on mid-corner. Try the demo: a real race, replayed in your browser.">
   <meta property="og:image" content="https://srikarnadella.github.io/f1-race-engineer/img/strategy.png">
   <meta property="og:url" content="https://srikarnadella.github.io/f1-race-engineer/">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2306080b'/%3E%3Cpath d='M6 22h20M9 16h14M12 10h8' stroke='%232fd877' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2306080b'/%3E%3Cpath d='M6 22h20M9 16h14M12 10h8' stroke='%23f2554a' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <script>document.documentElement.classList.add('js')</script>
+  <noscript><style>[role="tabpanel"][hidden] { display: block !important; } .pages { display: none; }</style></noscript>
   <style>
     :root {
-      /* The dashboard's own palette: one dark ground, one ink, colour only for meaning. */
-      --bg: #07090c; --panel: #0e1218; --panel-2: #151b23;
-      --text: #f2f5f8; --muted: #9aa6b4; --dim: #7b8796;
-      --go: #37e98b; --info: #5ec2ff; --watch: #ffd23f; --act: #ff5a52;
-      --step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
-      --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
-      --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
-      --step-head: clamp(2rem, 1.3rem + 3.2vw, 4rem);
-      --step-display: clamp(4.5rem, 2.5rem + 7vw, 9rem);
-      --gutter: clamp(16px, 2.4vw, 40px);
-      --section: clamp(96px, 11vw, 200px);
-      --code: ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* taste-skill-ignore: real code only (pre, code, packet offsets) */
+      /* Tactical telemetry: a dead CRT, white phosphor, one hazard red. The call colours
+         (go / info / watch / act) belong to the app and appear only inside its fragments. */
+      --bg: #0a0a0a; --panel: #121212; --panel-2: #1a1a1a; --line: #2e2e2e;
+      --text: #eaeaea; --muted: #a3a3a3; --dim: #8c8c8c;
+      --red: #f2554a;
+      --go: #4af626; --info: #5ec2ff; --watch: #ffd23f; --act: #f2554a;
+      --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+      --sans: "Archivo", system-ui, sans-serif;
+      --mega: clamp(2.1rem, 7.4vw, 11rem);
+      --head: clamp(2.4rem, 1rem + 5vw, 6rem);
+      --body: clamp(1.0625rem, 1rem + 0.2vw, 1.1875rem);
+      --micro: 0.875rem;
+      --gutter: clamp(16px, 2vw, 28px);
       --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-      --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; border-radius: 0 !important; }
     html { -webkit-text-size-adjust: 100%; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--step-body)/1.5 "Hanken Grotesk", system-ui, sans-serif; letter-spacing: -0.005em; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
-    h1, h2, h3, p, figure, ul, ol { margin: 0; }
-    h1, h2, h3 { font-weight: 500; }
-    h2 { font-size: var(--step-head); line-height: 0.95; letter-spacing: -0.045em; max-width: 18ch; }
-    a { color: inherit; text-decoration: underline; text-decoration-thickness: 0.07em; text-underline-offset: 0.2em; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); transition: text-decoration-color 180ms ease; }
-    strong, b { font-weight: 500; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--body)/1.5 var(--sans); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+    h1, h2, h3, p, figure, ul, ol, dl, dd { margin: 0; }
+    h1, h2 { font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; line-height: 1.02; }
+    h2 { font-size: var(--head); }
+    h3 { font-weight: 800; }
+    a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+    a:hover { color: var(--red); }
+    strong, b { font-weight: 700; }
     img { display: block; max-width: 100%; height: auto; }
-    code { font: 0.86em/1 var(--code); padding: 2px 6px; border-radius: 4px; background: var(--panel-2); }
+    code { font: 0.86em/1 var(--mono); padding: 1px 5px; background: var(--panel-2); }
     button { font: inherit; color: inherit; }
-    :focus-visible { outline: 2px solid var(--go); outline-offset: 3px; }
+    :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
     .muted { color: var(--muted); }
-    .wrap { padding-inline: var(--gutter); }
-    .lead { margin-top: 24px; max-width: 46ch; font-size: var(--step-lead); line-height: 1.35; letter-spacing: -0.015em; }
-    .note { font-size: var(--step-small); color: var(--muted); }
-    .button { display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; border: 0; border-radius: 0; background: var(--go); color: #03190c; font-weight: 500; text-decoration: none; cursor: pointer; transition: transform 140ms var(--ease-out), background-color 180ms ease; }
-    .button:active { transform: scale(0.97); }
-    @media (hover: hover) and (pointer: fine) {
-      a:hover { text-decoration-color: currentColor; }
-      .button:hover { background: #6ff2ab; }
-    }
+    .note, .micro { font: 500 var(--micro)/1.45 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .lead { margin-top: 24px; max-width: 52ch; font-size: clamp(1.15rem, 1rem + 0.6vw, 1.45rem); line-height: 1.35; }
+    .button { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 22px; border: 2px solid var(--red); background: var(--red); color: #0a0a0a; font: 700 0.9rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: background-color 120ms linear, color 120ms linear; }
+    .button::after { content: ">>>"; }
+    .button:hover { background: transparent; color: var(--red); }
+    .button:active { transform: translate(2px, 2px); }
+    .hero-actions > a:not(.button) { font: 700 0.9rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
 
-    /* The bar: wordmark, the three pages, GitHub. Plain, over the page. */
-    .top { position: absolute; z-index: 5; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 28px; height: 76px; padding-inline: var(--gutter); font-size: var(--step-small); }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 500; text-decoration: none; white-space: nowrap; }
-    .brand svg { width: 22px; height: 22px; }
-    .pages { display: flex; gap: 22px; margin-left: auto; }
-    .pages button { appearance: none; border: 0; padding: 8px 0; background: none; color: var(--muted); cursor: pointer; text-decoration: underline 2px transparent; text-underline-offset: 8px; transition: color 180ms ease, text-decoration-color 180ms ease; }
+    /* ===== Top bar: a terminal header ===== */
+    .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 24px; height: 52px; padding-inline: var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .brand svg { width: 18px; height: 18px; }
+    .brand span::before { content: "[ "; color: var(--red); }
+    .brand span::after { content: " ] F1 26"; color: var(--muted); }
+    .pages { display: flex; margin-left: auto; height: 100%; }
+    .pages button { appearance: none; height: 100%; padding: 0 16px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--muted); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
     .pages button:hover { color: var(--text); }
-    .pages button[aria-selected="true"] { color: var(--text); text-decoration-color: var(--go); }
-    .gh { color: var(--muted); }
+    .pages button[aria-selected="true"] { background: var(--text); color: var(--bg); }
+    .gh { align-self: stretch; display: flex; align-items: center; padding-left: 16px; border-left: 1px solid var(--line); color: var(--muted); text-decoration: none; }
     [role="tabpanel"][hidden] { display: none; }
 
-    /* ===== Overview: the hero. What it is, large, over Eau Rouge; the app's call board beside it. ===== */
-    .hero { position: relative; display: flex; align-items: flex-end; min-height: max(100svh, 760px); overflow: hidden; }
-    .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% 40%; }
-    .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(7, 9, 12, 0.75), transparent 180px), linear-gradient(90deg, rgba(7, 9, 12, 0.94) 0%, rgba(7, 9, 12, 0.8) 42%, rgba(7, 9, 12, 0.35) 100%), linear-gradient(transparent 55%, var(--bg)); } /* taste-skill-ignore: neutral scrim under the hero text on the photo */
-    .hero-inner { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: 40px var(--gutter); align-items: end; width: 100%; padding: 140px var(--gutter) 64px; }
-    .hero h1 { font-size: clamp(3.25rem, 1.2rem + 4.4vw, 5rem); line-height: 0.95; letter-spacing: -0.05em; }
-    .lines .line { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.08em; }
-    .lines [data-line] { display: block; }
-    .hero-copy p { margin-top: 28px; max-width: 40ch; }
-    .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin-top: 32px; }
-    .hero-copy .note { max-width: 44ch; margin-top: 28px; font-size: var(--step-body); color: #c3ccd6; }
-    .hero-credit { position: absolute; z-index: 1; right: var(--gutter); bottom: 18px; font-size: var(--step-small); color: #c3ccd6; }
-    .hero-credit a { color: inherit; }
+    /* A section code bar: [ 01 // LIVE DEMO ] ...... a real fact at the right. */
+    .bar { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 10px var(--gutter); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font: 500 var(--micro)/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+    .bar span:first-child { color: var(--red); }
+    .bar span:last-child { color: var(--muted); }
 
-    /* The call board: the app's call card and radio, stepping through a recorded race. */
-    .board { justify-self: end; width: min(600px, 100%); padding: 22px 26px 26px; border-radius: 6px; background: var(--bg); }
-    .board-top { display: flex; align-items: center; gap: 8px; font-size: var(--step-small); color: var(--muted); }
+    /* ===== Hero ===== */
+    .hero { border-bottom: 1px solid var(--line); }
+    .hero h1 { padding: clamp(40px, 6vw, 96px) var(--gutter) clamp(28px, 3vw, 48px); font-size: var(--mega); }
+    .lines .line { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.04em; }
+    .lines [data-line] { display: block; }
+    .hero h1 .tagline { margin-top: 0.2em; font-size: 0.42em; line-height: 1.1; color: var(--muted); }
+        .hero-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+    .hero-grid > * { background: var(--bg); }
+    .hero-copy { padding: 32px var(--gutter) 40px; }
+    .hero-copy p:first-child { max-width: 42ch; font-size: clamp(1.15rem, 1rem + 0.5vw, 1.4rem); line-height: 1.38; }
+    .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; margin-top: 32px; }
+    .hero-copy .note { max-width: 46ch; margin-top: 32px; font: 400 0.98rem/1.5 var(--sans); letter-spacing: 0; text-transform: none; }
+    .hero-visual { position: relative; min-height: 640px; overflow: hidden; }
+    .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; filter: brightness(0.92); }
+    .hero-credit { position: absolute; left: var(--gutter); top: 12px; z-index: 1; font: 500 var(--micro)/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); background: var(--bg); padding: 4px 6px; }
+    .hero-credit a { color: inherit; }
+    .spec { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+    .spec div { padding: 18px var(--gutter) 20px; background: var(--bg); }
+    .spec dt { font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .spec div p { margin-top: 8px; color: var(--muted); font-size: 0.95rem; }
+    .spec dd { margin-top: 10px; font: 900 clamp(1.8rem, 1rem + 2.4vw, 3.2rem)/1 var(--sans); letter-spacing: -0.01em; text-transform: uppercase; }
+
+    /* The call board: the app's own call card and radio, at work. */
+    .board { position: absolute; z-index: 1; right: var(--gutter); bottom: 48px; width: min(470px, calc(100% - 2 * var(--gutter))); background: rgba(10, 10, 10, 0.92); border: 1px solid var(--line); }
+    .board-top { display: flex; align-items: center; gap: 0; border-bottom: 1px solid var(--line); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .board-top > span:first-child { padding: 0 14px; }
     .board-top b { color: var(--text); }
-    .board-top .pos { margin-right: auto; padding-left: 10px; color: var(--text); }
-    .board-ctl button { appearance: none; min-height: 40px; padding: 0 14px; /* taste-skill-ignore: the product's own control, inside data-ui */ border: 1px solid #2a3542; border-radius: 4px; background: var(--panel); font-size: var(--step-small); cursor: pointer; transition: transform 140ms var(--ease-out), background-color 180ms ease; }
-    .board-ctl button:hover { background: var(--panel-2); }
-    .board-ctl button:active { transform: scale(0.97); }
-    .board-callrow { display: flex; align-items: center; gap: 22px; margin-top: 18px; padding: 16px 20px; border-left: 4px solid var(--c, var(--go)); background: var(--panel); }
-    .board-call { font-size: var(--step-head); line-height: 1; letter-spacing: -0.04em; color: var(--c, var(--go)); transition: color 240ms ease; }
-    .board-reason { font-size: var(--step-body); line-height: 1.3; }
-    .board-label { margin-top: 20px; font-size: var(--step-small); color: var(--muted); }
-    .board-log { margin-top: 8px; padding: 0; list-style: none; }
-    .board-log li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; padding: 12px 0; color: var(--muted); font-size: var(--step-body); line-height: 1.4; }
-    .board-log li + li { border-top: 1px solid #1d252f; } /* taste-skill-ignore: rows of the app's radio log, inside data-ui */
+    .board-top .pos { margin-right: auto; color: var(--text); }
+    .board-ctl button { appearance: none; height: 44px; padding: 0 16px; border: 0; border-left: 1px solid var(--line); background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--text); cursor: pointer; }
+    .board-ctl button:hover { background: var(--text); color: var(--bg); }
+    .board-callrow { display: flex; align-items: baseline; gap: 20px; padding: 18px 16px 16px; border-bottom: 1px solid var(--line); }
+    .board-call { font: 900 clamp(2.6rem, 1.8rem + 2.4vw, 4rem)/1 var(--sans); letter-spacing: -0.01em; color: var(--c, var(--go)); }
+    .board-reason { font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+    .board-label { padding: 12px 16px 0; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .board-log { margin: 0; padding: 0 16px 6px; list-style: none; }
+    .board-log li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 12px 0; color: var(--muted); line-height: 1.4; }
+    .board-log li + li { border-top: 1px dashed var(--line); }
     .board-log li:first-child { color: var(--text); }
-    .board-log li span { color: var(--muted); font-size: var(--step-small); }
-    .board-swap { transition: opacity 200ms ease; }
+    .board-log li span { font: 500 var(--micro)/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--red); }
+    .board-swap { transition: opacity 150ms linear; }
     .board.is-swapping .board-swap { opacity: 0; }
 
-    /* ===== The real app: screen names on the left, the dashboard on its stage. ===== */
-    .show { display: grid; grid-template-columns: 4fr 8fr; gap: var(--gutter); padding: var(--section) var(--gutter) 0; }
-    .show-list { display: flex; flex-direction: column; align-items: flex-start; }
-    .show-list button { appearance: none; border: 0; padding: 4px 0; background: none; color: var(--muted); font-size: var(--step-head); line-height: 1.1; letter-spacing: -0.045em; text-align: left; cursor: pointer; transition: color 180ms ease, transform 140ms var(--ease-out); }
+    /* ===== The live demo ===== */
+    .show { display: grid; grid-template-columns: 4fr 8fr; grid-template-rows: auto 1fr auto; margin-top: 96px; border-bottom: 1px solid var(--line); }
+    .show-list { display: flex; flex-direction: column; align-items: stretch; border-right: 1px solid var(--line); }
+    .show-list button { appearance: none; flex: 1 1 auto; display: flex; justify-content: space-between; align-items: baseline; padding: 14px var(--gutter); border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--muted); font: 900 clamp(1.6rem, 1rem + 1.8vw, 3rem)/1 var(--sans); letter-spacing: -0.01em; text-transform: uppercase; text-align: left; cursor: pointer; }
+    .show-list button::after { content: "///"; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; color: var(--line); }
     .show-list button:hover { color: var(--text); }
-    .show-list button:active { transform: translateX(4px); }
-    .show-list button.is-on { color: var(--text); }
-    .show-list button.auto.is-on { color: var(--info); }
-    .show-copy { margin-top: auto; padding-top: 40px; max-width: 34ch; }
-    .show-copy .button { margin-top: 24px; }
-    .button-big { min-height: 60px; padding: 0 28px; font-size: var(--step-lead); }
-    .stage { position: relative; height: 88svh; min-height: 560px; overflow: hidden; background: var(--panel); padding: 72px 0 0 64px; }
-    .frame { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 10px 0 0 0; background: #030406; }
-    /* Laid out at tablet size, then scaled to fit: a phone sees the same layout, smaller. */
+    .show-list button.is-on { background: var(--text); color: var(--bg); }
+    .show-list button.is-on::after { content: "ON"; color: var(--red); }
+    .show-list button.auto.is-on { background: var(--text); color: var(--bg); }
+    .stage { grid-row: span 2; padding: 24px var(--gutter); background: var(--panel); }
+    .frame { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: #030303; border: 1px solid var(--line); }
     .frame iframe { position: absolute; top: 0; left: 0; width: 1180px; height: 885px; border: 0; transform-origin: 0 0; transform: scale(var(--s, 1)); }
+    .show-copy { padding: 24px var(--gutter) 32px; border-right: 1px solid var(--line); }
+    .show-copy p { max-width: 34ch; }
+    .show-copy .button { margin-top: 24px; }
+    .phone-shot { display: none; }
+    .button-big { min-height: 64px; padding: 0 26px; font-size: 1.05rem; }
 
-    /* ===== Set-up: three statements; the fragment beside them changes with each. ===== */
-    .setup { padding: var(--section) var(--gutter) 0; }
-    .setup h2 { font-size: var(--step-lead); letter-spacing: -0.02em; line-height: 1.1; }
-    .story { display: grid; grid-template-columns: 5fr 7fr; gap: var(--gutter); }
-    .beat { min-height: 72svh; padding-top: 24px; }
-    .beat h3 { font-size: var(--step-lead); line-height: 1.12; letter-spacing: -0.025em; color: var(--muted); max-width: 18ch; transition: color 300ms ease; }
-    .beat p { margin-top: 14px; max-width: 38ch; color: var(--muted); }
-    .beat.is-on h3, .beat.is-on p { color: var(--text); }
-    .story-stage { position: sticky; top: 14svh; height: min(560px, 72svh); align-self: start; background: var(--panel); overflow: hidden; }
-    .state { position: absolute; inset: 0; display: grid; place-items: center; padding: 40px; opacity: 0; transition: opacity 320ms ease; }
-    .state.is-on { opacity: 1; }
-    .state pre { margin: 0; width: 100%; max-width: 560px; padding: 20px 22px; border-radius: 6px; background: var(--bg); font: 0.82rem/1.7 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; }
+    /* ===== Set-up: three units side by side, each with its fragment ===== */
+    .setup { margin-top: 96px; }
+    .setup h2 { padding: 32px var(--gutter) 28px; }
+    .story { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .story-steps, .story-stage { display: contents; }
+    .beat, .state { background: var(--bg); }
+    .beat { padding: 24px var(--gutter) 28px; }
+    .beat[data-state="0"] { order: 1; } .beat[data-state="1"] { order: 2; } .beat[data-state="2"] { order: 3; }
+    .state[data-state="0"] { order: 4; } .state[data-state="1"] { order: 5; } .state[data-state="2"] { order: 6; }
+    .beat::before { display: block; margin-bottom: 18px; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; color: var(--red); }
+    .beat[data-state="0"]::before { content: "[ STEP 1 / PC ]"; }
+    .beat[data-state="1"]::before { content: "[ STEP 2 / GAME ]"; }
+    .beat[data-state="2"]::before { content: "[ STEP 3 / TABLET ]"; }
+    .beat h3 { font-size: clamp(1.4rem, 1rem + 1vw, 2rem); line-height: 1.15; text-transform: uppercase; letter-spacing: -0.005em; }
+    .beat p { margin-top: 14px; }
+    .state { display: grid; place-items: center; padding: 20px var(--gutter); background: var(--panel); }
+    .state pre { margin: 0; width: 100%; padding: 16px; background: var(--bg); border: 1px solid var(--line); font: var(--micro)/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
     .state pre .c { color: var(--muted); }
     .state pre .ok { color: var(--go); }
-    .settings { width: 100%; max-width: 440px; border-radius: 6px; background: var(--bg); padding: 10px 0; font-size: var(--step-small); }
-    .settings div { display: flex; justify-content: space-between; padding: 12px 20px; }
-    .settings div + div { border-top: 1px solid #1d252f; } /* taste-skill-ignore: inside the data-ui settings fragment */
-    .settings .t { padding: 8px 20px 14px; color: var(--muted); }
-    .settings .sel { background: var(--panel-2); color: var(--text); }
-    .settings .sel b { color: var(--go); }
-    .state img { width: 100%; max-width: 640px; border-radius: 6px; }
+    .settings { width: 100%; background: var(--bg); border: 1px solid var(--line); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+    .settings div { display: flex; justify-content: space-between; padding: 12px 14px; }
+    .settings div + div { border-top: 1px solid var(--line); }
+    .settings .t { padding: 12px 14px; color: var(--muted); border-bottom: 1px solid var(--line); }
+    .settings .sel { background: var(--text); color: var(--bg); }
+    .state img { width: 100%; border: 1px solid var(--line); }
 
-    /* ===== Measured, not claimed: a board of filled tiles. ===== */
-    .proof { padding: var(--section) var(--gutter) 0; }
-    .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-    .tile { position: relative; display: flex; flex-direction: column; aspect-ratio: 3 / 2; padding: 24px; background: var(--panel); overflow: hidden; }
-    .tile-head { grid-column: span 2; aspect-ratio: auto; background: var(--go); color: #03190c; }
-    .tile-head h2 { max-width: 12ch; }
-    .tile-head p { margin-top: auto; padding-top: 24px; max-width: 40ch; }
+    /* ===== Measured, not claimed ===== */
+    .proof { margin-top: 96px; }
+    .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+    .tile { position: relative; display: flex; flex-direction: column; min-height: 280px; padding: 22px var(--gutter); background: var(--bg); overflow: hidden; }
+    .tile-head { grid-column: span 2; background: var(--text); color: var(--bg); }
+    .tile-head h2 { font-size: clamp(2.2rem, 1rem + 3.4vw, 4.6rem); }
+    .tile-head p { margin-top: auto; padding-top: 24px; max-width: 44ch; font-weight: 500; }
     .tile-head a { color: inherit; }
-    .tile b { font-size: var(--step-head); line-height: 1; letter-spacing: -0.045em; color: var(--c, var(--go)); }
-    .tile span { margin-top: 12px; }
-    .tile small { margin-top: auto; padding-top: 12px; font-size: var(--step-small); color: var(--muted); }
+    .tile-head a:hover { color: var(--red); }
+    .tile b { font: 900 clamp(3rem, 1.6rem + 3.6vw, 5.6rem)/1 var(--sans); letter-spacing: -0.01em; }
+    .tile span { margin-top: 14px; font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+    .tile small { margin-top: auto; padding-top: 14px; color: var(--muted); font-size: 0.95rem; }
     .tile-img { padding: 0; }
     .tile-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-    .tile-img figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 16px 12px; background: linear-gradient(transparent, rgba(3, 4, 6, 0.85)); /* taste-skill-ignore: neutral scrim under a caption on a photo */ font-size: var(--step-small); }
+    .tile-img figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px; background: var(--bg); font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
     .tile-img figcaption a { color: inherit; }
-    .proof .more { margin-top: 24px; }
+    .proof .more { padding: 16px var(--gutter); }
 
     /* ===== How it works ===== */
-    .page-top { padding: 160px var(--gutter) 0; }
-    .flow { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 64px; padding: 0; }
-    .stage-i { position: relative; padding: 20px 18px 22px; background: var(--panel); transition: background-color 180ms ease; }
-    .stage-i::before { content: ""; display: block; height: 4px; margin: -20px -18px 18px; background: var(--c, var(--go)); opacity: 0.35; transition: opacity 180ms ease; }
-    .stage-i:hover { background: var(--panel-2); }
-    .stage-i.is-open { background: var(--panel-2); }
-    .stage-i.is-open::before { opacity: 1; }
-    .stage-i h3 { font-size: var(--step-body); }
-    .stage-i p { margin-top: 8px; font-size: var(--step-small); color: var(--muted); line-height: 1.45; }
-    .stage-i .eg { margin-top: 14px; font-size: var(--step-small); line-height: 1.45; color: var(--c, var(--go)); }
-    .stage-btn { appearance: none; border: 0; padding: 0; background: none; text-align: left; cursor: pointer; }
+    .page-top { padding-top: 0; }
+    .page-top .split, .sec > h2, .sec > .lead { padding-inline: var(--gutter); }
+    .split { display: grid; grid-template-columns: 6fr 6fr; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+    .split > * { background: var(--bg); padding: 40px var(--gutter); }
+    .page-top .split { padding-inline: 0; }
+    .split h1, .split h2 { font-size: clamp(2.2rem, 1rem + 3.4vw, 4.4rem); }
+    .split figure img { width: 100%; border: 1px solid var(--line); }
+    .split figure figcaption { margin-top: 10px; }
+    .flow { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; background: var(--line); border-bottom: 1px solid var(--line); counter-reset: st; }
+    .stage-i { position: relative; padding: 20px 16px 22px; background: var(--bg); counter-increment: st; }
+    .stage-i::before { content: "[ 0" counter(st) " ]"; display: block; margin-bottom: 14px; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; color: var(--muted); }
+    .stage-i:hover { background: var(--panel); }
+    .stage-i.is-open { background: var(--text); color: var(--bg); }
+    .stage-i.is-open::before, .stage-i.is-open p { color: var(--bg); }
+    .stage-i h3 { font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0; }
+    .stage-i p { margin-top: 8px; font-size: 0.95rem; line-height: 1.4; color: var(--muted); }
+    .stage-i .eg { margin-top: 14px; font: 500 var(--micro)/1.5 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--red); }
+    .stage-i.is-open .eg { color: var(--bg); }
+    .stage-btn { appearance: none; border: 0; padding: 0; background: none; text-align: left; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; }
     .stage-btn::after { content: ""; position: absolute; inset: 0; }
     .stage-btn:focus-visible { outline: none; }
-    .stage-btn:focus-visible::after { outline: 2px solid var(--c, var(--go)); outline-offset: 2px; }
-    .hint { margin-top: 18px; }
-    .explore { margin-top: 40px; background: var(--panel); }
-    .page-top .split { align-items: start; }
-    .page-top .split figcaption { margin-top: 10px; }
-    .explore::before { content: ""; display: block; height: 4px; background: var(--c, var(--go)); }
+    .stage-btn:focus-visible::after { outline: 2px solid var(--red); outline-offset: -4px; }
+    .hint { padding: 14px var(--gutter); border-bottom: 1px solid var(--line); }
+    .explore { margin: 40px var(--gutter) 0; border: 1px solid var(--line); }
     .ex-stage[hidden], .ex-body[hidden] { display: none; }
-    .ex-head { padding: 32px 32px 0; }
-    .ex-head h3 { font-size: var(--step-lead); letter-spacing: -0.02em; line-height: 1.15; max-width: 30ch; }
-    .ex-head p { margin-top: 10px; max-width: 64ch; color: var(--muted); }
-    .ex-tabs { display: flex; flex-wrap: wrap; gap: 4px 24px; padding: 24px 32px 0; }
-    .ex-tabs button { appearance: none; border: 0; padding: 8px 0; background: none; color: var(--muted); cursor: pointer; font-size: var(--step-small); text-decoration: underline 3px transparent; text-underline-offset: 10px; transition: color 180ms ease, text-decoration-color 180ms ease; }
+    .ex-head { padding: 28px 28px 0; }
+    .ex-head h3 { font-size: clamp(1.5rem, 1rem + 1.4vw, 2.4rem); line-height: 1.12; text-transform: uppercase; letter-spacing: -0.005em; max-width: 26ch; }
+    .ex-head p { margin-top: 12px; max-width: 64ch; color: var(--muted); }
+    .ex-tabs { display: flex; flex-wrap: wrap; margin-top: 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .ex-tabs button { appearance: none; padding: 12px 16px; border: 0; border-right: 1px solid var(--line); background: none; color: var(--muted); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
     .ex-tabs button:hover { color: var(--text); }
-    .ex-tabs button[aria-selected="true"] { color: var(--text); text-decoration-color: var(--c, var(--go)); }
-    .ex-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; padding: 28px 32px 36px; }
+    .ex-tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); }
+    .ex-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; padding: 28px; }
     .ex-body > div > * + * { margin-top: 14px; }
     .ex-body ul, .ex-body ol { padding-left: 22px; }
     .ex-body li + li { margin-top: 8px; }
-    .ex-body pre { margin: 0; padding: 16px 18px; border-radius: 6px; background: var(--bg); overflow-x: auto; font: 0.8rem/1.6 var(--code); white-space: pre; }
+    .ex-body pre { margin: 0; padding: 16px 18px; background: var(--panel); border: 1px solid var(--line); overflow-x: auto; font: var(--micro)/1.6 var(--mono); white-space: pre; }
     .ex-body pre .c { color: var(--muted); }
-    .kv { width: 100%; border-collapse: collapse; font-size: var(--step-small); }
-    .kv td { padding: 8px 0; border-bottom: 1px solid #1d252f; vertical-align: top; color: var(--muted); }
-    .kv td:first-child { font-family: var(--code); font-size: 0.78rem; color: var(--text); padding-right: 16px; white-space: nowrap; }
-    .kv tr:last-child td { border-bottom: 0; }
-    .ex-src { font-size: var(--step-small); color: var(--muted); }
-    .ex-num { display: flex; flex-wrap: wrap; gap: 8px; }
-    .ex-num span { padding: 9px 12px; background: var(--panel-2); font-size: var(--step-small); }
-    .ex-num b { color: var(--c, var(--go)); }
-    .legend { margin-top: 20px; }
-    .loops { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px var(--gutter); margin-top: var(--section); }
-    .loop-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; margin-bottom: 24px; }
-    .loops h3, .practice h3 { font-size: var(--step-lead); letter-spacing: -0.02em; line-height: 1.15; }
-    .loops p, .practice p { margin-top: 10px; max-width: 52ch; }
-    .chain { margin-top: 14px; color: var(--go); }
+    .kv { width: 100%; border-collapse: collapse; border: 1px solid var(--line); font-size: 0.92rem; }
+    .kv td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+    .kv td:first-child { font: 500 var(--micro)/1.6 var(--mono); color: var(--text); white-space: nowrap; border-right: 1px solid var(--line); }
+    .ex-src { font: 500 var(--micro)/1.5 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    .ex-num { display: flex; flex-wrap: wrap; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .ex-num span { flex: 1 1 auto; padding: 10px 12px; background: var(--bg); font: 500 var(--micro)/1.3 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+    .ex-num b { color: var(--red); }
+    .legend { padding: 14px var(--gutter) 0; }
+    .loops { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 96px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .loops > div, .practice > div { padding: 28px var(--gutter) 32px; background: var(--bg); }
+    .loop-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; margin-bottom: 22px; border: 1px solid var(--line); }
+    .loops h3, .practice h3 { font-size: clamp(1.3rem, 1rem + 0.8vw, 1.8rem); line-height: 1.15; text-transform: uppercase; letter-spacing: 0; }
+    .loops p, .practice p { margin-top: 12px; max-width: 54ch; }
+    .chain { font: 500 var(--micro)/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--red); }
     .chain i { font-style: normal; color: var(--muted); padding: 0 6px; }
-    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gutter); margin-top: 56px; }
-    .stat b { display: block; font-size: var(--step-head); line-height: 1; letter-spacing: -0.045em; color: var(--c, var(--go)); }
-    .stat span { display: block; margin-top: 14px; }
-    .stat small { display: block; margin-top: 8px; font-size: var(--step-small); color: var(--muted); }
-    .more { margin-top: 32px; max-width: 70ch; color: var(--muted); font-size: var(--step-small); }
-    .sec { padding: var(--section) var(--gutter) 0; }
+    .more { color: var(--muted); font: 500 var(--micro)/1.6 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
 
     /* ===== Engineering ===== */
-    .shots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 48px; }
-    .shots figure { background: var(--panel); }
+    .sec { margin-top: 96px; border-top: 1px solid var(--line); counter-increment: sec; }
+    #page-tech { counter-reset: sec 1; }
+    .sec > h2 { padding-top: 32px; }
+    .sec > h2::before { content: "[ 0" counter(sec) " // ENGINEERING ]"; display: block; margin-bottom: 20px; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; color: var(--red); }
+    .sec > .lead { margin-bottom: 0; }
+    .sec > .more { padding: 16px var(--gutter) 0; }
+    .shots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .shots figure { background: var(--bg); }
     .shots img { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; object-position: top left; }
-    .shots figcaption { padding: 12px 14px 14px; font-size: var(--step-small); color: var(--muted); }
-    .shots figcaption b { color: var(--text); }
-    .split { display: grid; grid-template-columns: 6fr 6fr; gap: var(--gutter); align-items: end; }
-    .split figure img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
-    .split figcaption { margin-top: 10px; }
-    .tbl-wrap { margin-top: 48px; overflow-x: auto; }
+    .shots figcaption { padding: 12px var(--gutter) 16px; font-size: 0.95rem; color: var(--muted); }
+    .shots figcaption b { display: block; margin-bottom: 4px; font: 700 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); }
+    .tbl-wrap { margin-top: 32px; overflow-x: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .tbl { width: 100%; border-collapse: collapse; }
-    .tbl th, .tbl td { padding: 14px 16px 14px 0; text-align: left; vertical-align: top; border-bottom: 1px solid #1d252f; }
-    .tbl th { font-weight: 400; font-size: var(--step-small); color: var(--muted); }
-    .tbl td:first-child { font-weight: 500; }
-    .tbl td.num { white-space: nowrap; }
+    .tbl th, .tbl td { padding: 14px var(--gutter); text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); }
+    .tbl th:last-child, .tbl td:last-child { border-right: 0; }
+    .tbl tr:last-child td { border-bottom: 0; }
+    .tbl th { font: 500 var(--micro)/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--panel); }
+    .tbl td:first-child { font-weight: 700; }
+    .tbl td.num { font: 500 0.9rem/1.4 var(--mono); white-space: nowrap; }
     .tbl .good { color: var(--go); } .tbl .tie { color: var(--watch); }
-    .tbl small { display: block; font-size: var(--step-small); color: var(--muted); font-weight: 400; }
-    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gutter); margin-top: 48px; }
-    .fact b { display: block; font-size: var(--step-head); line-height: 1; letter-spacing: -0.045em; color: var(--info); }
-    .fact span { display: block; margin-top: 12px; max-width: 30ch; color: var(--muted); }
-    .practice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px var(--gutter); margin-top: 64px; }
-    .practice .soon h3 { color: var(--info); }
-    .layers { display: grid; gap: 6px; margin-top: 48px; }
-    .layer { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: baseline; padding: 18px 22px; border-left: 4px solid var(--c, var(--muted)); background: var(--panel); }
-    .layer b { font-family: var(--code); font-size: 0.9rem; font-weight: 400; }
+    .tbl small { display: block; font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 32px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .fact { padding: 24px var(--gutter); background: var(--bg); }
+    .fact b { display: block; font: 900 clamp(2.4rem, 1.4rem + 2.6vw, 4.4rem)/1 var(--sans); letter-spacing: -0.01em; }
+    .fact span { display: block; margin-top: 12px; font: 500 var(--micro)/1.5 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .practice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 32px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .practice .soon { background: var(--panel); }
+    .practice .soon h3 { color: var(--red); }
+    .soon-page > h1, .soon-page > .lead, .soon-page > .more { padding-inline: var(--gutter); }
+    .soon-page > h1 { padding-top: 40px; font-size: var(--head); }
+    .soon-list { margin: 40px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+    .soon-list li { display: grid; grid-template-columns: 150px minmax(0, 18ch) minmax(0, 60ch); gap: 12px 32px; align-items: baseline; padding: 24px var(--gutter); border-bottom: 1px solid var(--line); }
+    .soon-list h3 { font-size: clamp(1.2rem, 1rem + 0.6vw, 1.6rem); line-height: 1.15; text-transform: uppercase; }
+    .soon-list p { color: var(--muted); }
+    .tag { font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
+    .soon-page > .more { padding-top: 16px; }
+    .layers { display: grid; gap: 1px; margin-top: 32px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .layer { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: baseline; padding: 18px var(--gutter); background: var(--bg); }
+    .layer b { font: 700 0.95rem/1 var(--mono); color: var(--red); }
     .layer span { color: var(--muted); }
-    .case { display: grid; gap: 6px; margin-top: 48px; padding: 0; list-style: none; }
-    .case li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 170px; gap: 28px; padding: 22px 24px; background: var(--panel); }
-    .case h3 { font-size: var(--step-body); }
+    .case { display: grid; gap: 1px; margin: 32px 0 0; padding: 0; list-style: none; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .case li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 190px; gap: 28px; padding: 22px var(--gutter); background: var(--bg); }
+    .case h3 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0; }
     .case p { margin-top: 6px; color: var(--muted); }
-    .case .delta { align-self: center; font-size: var(--step-lead); letter-spacing: -0.02em; color: var(--go); }
+    .case .delta { align-self: center; font: 900 clamp(1.3rem, 1rem + 0.8vw, 1.9rem)/1 var(--sans); letter-spacing: -0.005em; text-transform: uppercase; color: var(--red); }
 
-    /* ===== The close: one quiet line. ===== */
-    footer { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px 24px; align-items: baseline; margin-top: 30svh; padding: 0 var(--gutter) 30px; font-size: var(--step-small); color: var(--muted); }
-    footer nav { display: flex; gap: 24px; }
+    /* ===== Close: the name at full width, then one line ===== */
+    .wordmark { margin-top: 140px; padding: 0 var(--gutter); border-top: 1px solid var(--line); font: 800 15vw/1 var(--sans); letter-spacing: -0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+    footer { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px 24px; align-items: baseline; padding: 18px var(--gutter); border-top: 1px solid var(--line); font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    footer nav { display: flex; gap: 20px; }
     footer nav a { color: var(--text); }
     footer .r { text-align: right; }
-    .credits { padding: 0 var(--gutter) 32px; font-size: var(--step-small); color: var(--muted); max-width: 72ch; }
+    .credits { padding: 0 var(--gutter) 28px; max-width: 110ch; font: 500 var(--micro)/1.6 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
     .credits a { color: var(--muted); }
 
-    /* ===== Motion: entrances once, transform and opacity only. ===== */
+    /* ===== Motion: mechanical, short ===== */
     @media (prefers-reduced-motion: no-preference) {
-      .js .lines [data-line] { transform: translateY(105%); animation: line-up 900ms var(--ease-out) forwards; animation-delay: calc(var(--i, 0) * 110ms + 150ms); }
-      .js [data-rise] { opacity: 0; transform: translateY(18px); animation: rise 800ms var(--ease-out) forwards; animation-delay: calc(var(--i, 0) * 90ms + 420ms); }
-      .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
+      .js .lines [data-line] { transform: translateY(102%); animation: line-slide 600ms var(--ease-out) forwards; animation-delay: calc(var(--i, 0) * 120ms + 100ms); }
+      .js [data-rise] { opacity: 0; animation: blink-in 420ms steps(3, end) forwards; animation-delay: calc(var(--i, 0) * 120ms + 500ms); }
+      .js [data-reveal] { opacity: 0; transform: translateY(16px); transition: opacity 400ms linear, transform 500ms var(--ease-out); transition-delay: calc(var(--i, 0) * 70ms); }
       .js [data-reveal].is-in { opacity: 1; transform: none; }
-      .js .shutter { clip-path: inset(0 0 100% 0); transition: clip-path 1100ms cubic-bezier(0.76, 0, 0.24, 1); }
-      .js .shutter.is-in { clip-path: inset(0); }
-      @supports (animation-timeline: view()) {
-        .drift { animation: drift linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
-      }
     }
-    @keyframes line-up { to { transform: none; } }
-    @keyframes rise { to { opacity: 1; transform: none; } }
-    @keyframes drift { from { transform: translateY(-6%); } to { transform: translateY(0); } }
+    @keyframes line-slide { to { transform: none; } }
+    @keyframes blink-in { to { opacity: 1; } }
 
     @media (max-width: 900px) {
-      .pages { gap: 16px; }
+      .top { gap: 12px; }
+      .brand span::after { content: ""; }
       .gh { display: none; }
-      .hero { min-height: 0; }
-      .hero-bg { height: 560px; object-position: 62% 50%; }
-      .hero::after { background: linear-gradient(rgba(7, 9, 12, 0.55), rgba(7, 9, 12, 0.88) 300px, var(--bg) 560px); } /* taste-skill-ignore: neutral scrim under the hero text on the photo */
-      .hero-inner { grid-template-columns: minmax(0, 1fr); padding: 112px var(--gutter) 24px; }
-      .hero h1 { font-size: 10vw; }
-      .hero { flex-direction: column; align-items: stretch; }
-      .hero-credit { position: relative; order: 2; right: auto; bottom: auto; padding: 0 var(--gutter) 8px; }
-      .board { justify-self: stretch; }
+      .pages button { padding: 0 10px; }
+      .hero-grid { grid-template-columns: minmax(0, 1fr); }
+      .hero-visual { min-height: 0; padding: 220px var(--gutter) 24px; }
+      .board { position: relative; right: auto; top: auto; width: 100%; }
+      .spec { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .show { grid-template-columns: minmax(0, 1fr); }
-      .show-list { flex-direction: row; flex-wrap: wrap; gap: 4px 20px; }
-      .show-list button { font-size: var(--step-lead); white-space: nowrap; }
-      .show-copy { order: 2; margin-top: 0; padding-top: 0; }
-      .stage { height: auto; min-height: 0; padding: 16px 0 0 16px; }
-      .story { grid-template-columns: minmax(0, 1fr); gap: 0; }
-      .story-steps, .story-stage { display: contents; }
-      .beat { min-height: 0; padding-top: 48px; }
-      .beat h3, .beat p { color: var(--text); }
-      .state { position: relative; inset: auto; margin-top: 20px; padding: 20px; opacity: 1; background: var(--panel); }
+      .show-list, .stage { display: none; }
+      .phone-shot { display: block; margin-bottom: 18px; border: 1px solid var(--line); }
+      .show-copy { border-right: 0; }
+      .story { grid-template-columns: minmax(0, 1fr); }
       .beat[data-state="0"] { order: 1; } .state[data-state="0"] { order: 2; }
       .beat[data-state="1"] { order: 3; } .state[data-state="1"] { order: 4; }
       .beat[data-state="2"] { order: 5; } .state[data-state="2"] { order: 6; }
-      .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 6px; }
-      .tile { padding: 16px; aspect-ratio: auto; min-height: 200px; }
-      .tile-img { grid-column: 1 / -1; min-height: 240px; }
+      .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tile { min-height: 220px; }
+      .tile-img { grid-column: 1 / -1; min-height: 260px; }
       .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .ex-head, .ex-tabs { padding-inline: 20px; }
-      .ex-body { grid-template-columns: minmax(0, 1fr); padding: 24px 20px 28px; }
-      .loops, .practice, .facts, .stats, .split { grid-template-columns: minmax(0, 1fr); }
+      .explore { margin-inline: 0; border-inline: 0; }
+      .ex-head { padding: 22px var(--gutter) 0; }
+      .ex-body { grid-template-columns: minmax(0, 1fr); padding: 22px var(--gutter) 28px; }
+      .split, .loops, .practice, .facts { grid-template-columns: minmax(0, 1fr); }
       .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .layer { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-      .case li { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-      footer { grid-template-columns: minmax(0, 1fr); margin-top: 20svh; }
+      .case li, .soon-list li { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+      footer { grid-template-columns: minmax(0, 1fr); }
       footer .r { text-align: left; }
     }
     @media (max-width: 560px) {
-      .brand span { display: none; }
-      .top { gap: 16px; }
-      .pages { gap: 14px; }
+      .brand { display: none; }
+      .top { padding-inline: 0; }
+      .pages { margin-left: 0; width: 100%; }
+      .pages button { flex: 1 1 auto; padding: 0 4px; font-size: 0.8125rem; letter-spacing: 0; white-space: nowrap; }
+      .pages button:first-child { border-left: 0; }
       .flow { grid-template-columns: minmax(0, 1fr); }
       .tbl thead { display: none; }
-      .tbl tr { display: block; padding: 14px 0; border-bottom: 1px solid #1d252f; }
-      .tbl td { display: block; padding: 4px 0; border: 0; }
-      .tbl td[data-label]:not(:first-child)::before { content: attr(data-label) ": "; color: var(--muted); }
+      .tbl tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); }
+      .tbl td { display: block; padding: 4px var(--gutter); border: 0; }
+      .tbl td[data-label]:not(:first-child)::before { content: attr(data-label) ": "; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
     }
   </style>
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="#overview"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0e1218"/><path d="M6 22h20M9 16h14M12 10h8" stroke="#37e98b" stroke-width="3" stroke-linecap="round"/></svg><span>Race Engineer</span></a>
+    <a class="brand" href="#overview"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0e1218"/><path d="M6 22h20M9 16h14M12 10h8" stroke="#f2554a" stroke-width="3" stroke-linecap="round"/></svg><span>Undercut</span></a>
     <div class="pages" role="tablist" aria-label="Pages">
       <button role="tab" id="tab-overview" aria-controls="page-overview" aria-selected="true" data-page="overview" type="button">Overview</button>
       <button role="tab" id="tab-how" aria-controls="page-how" aria-selected="false" data-page="how" type="button">How it works</button>
       <button role="tab" id="tab-tech" aria-controls="page-tech" aria-selected="false" data-page="tech" type="button">Engineering</button>
+      <button role="tab" id="tab-next" aria-controls="page-next" aria-selected="false" data-page="next" type="button">Next steps</button>
     </div>
     <a class="gh" href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>
   </header>
@@ -332,35 +362,44 @@
     <!-- ============ Overview ============ -->
     <div role="tabpanel" id="page-overview" aria-labelledby="tab-overview">
       <section class="hero">
-        <img class="hero-bg" src="img/eau-rouge.jpg" width="1600" height="901" alt="Eau Rouge and Raidillon at Spa-Francorchamps: the track dropping into the corner and climbing the hill" fetchpriority="high" decoding="async">
-        <p class="hero-credit">Eau Rouge, Spa. <a href="https://commons.wikimedia.org/wiki/File:Kurve_Eau_Rouge-Raidillon.jpg">Photo</a>: Cutkiller2018, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></p>
-        <div class="hero-inner">
+        <h1 class="lines"><span class="line"><span data-line style="--i:0">Undercut</span></span><span class="line tagline"><span data-line style="--i:1">A race engineer for F1 26</span></span></h1>
+        <div class="hero-grid">
           <div class="hero-copy">
-            <h1 class="lines"><span class="line"><span data-line style="--i:0">A race engineer</span></span><span class="line"><span data-line style="--i:1">for F1 26</span></span></h1>
-            <p data-rise style="--i:0">It reads the game's live telemetry for all 22 cars and calls your race one thing at a time: when to box, who to attack, when the rain comes. On a phone or tablet beside your screen. Free and open source.</p>
-            <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Demo</a><a href="#setup">Set it up in two minutes</a></div>
+            <p data-rise style="--i:0">It reads the game's live telemetry while you drive and calls your race one thing at a time: when to box, who to attack, when the rain comes. On a phone or tablet beside your screen. Free and open source.</p>
+            <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Demo</a><a href="#setup">Set it up</a></div>
             <p class="note" data-rise style="--i:2">The board replays a real race at Monaco, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 11 to 16.</p>
           </div>
-          <div class="board" data-ui id="board" style="--c: var(--go)">
-            <div class="board-top board-ctl">
-              <span>Monaco · lap <b id="b-lap">14</b> of 27</span><span class="pos" id="b-pos">P8</span>
-              <button type="button" id="b-prev" aria-label="Earlier in the race">Earlier</button>
-              <button type="button" id="b-next" aria-label="Later in the race">Later</button>
+          <div class="hero-visual">
+            <img class="hero-bg" src="img/eau-rouge.jpg" width="1600" height="901" alt="Eau Rouge and Raidillon at Spa-Francorchamps: the track dropping into the corner and climbing the hill" fetchpriority="high" decoding="async">
+            <div class="board" data-ui id="board" style="--c: var(--go)">
+              <div class="board-top board-ctl">
+                <span>Monaco · lap <b id="b-lap">14</b> of 27</span><span class="pos" id="b-pos">P8</span>
+                <button type="button" id="b-prev" aria-label="Earlier in the race">Earlier</button>
+                <button type="button" id="b-next" aria-label="Later in the race">Later</button>
+              </div>
+              <div class="board-swap" id="b-swap" aria-live="off">
+                <div class="board-callrow"><div class="board-call" id="b-call">PUSH</div><p class="board-reason" id="b-reason">Tyres and fuel OK</p></div>
+                <p class="board-label">Radio, newest first</p>
+                <ol class="board-log" id="b-log">
+                  <li><span>Lap 14</span>Attack ALBON - pass chance high into corner 8, battery 75%</li>
+                  <li><span>Lap 12</span>Yellow ahead at turn 6 - careful, no overtaking</li>
+                  <li><span>Lap 11</span>Rears ~10°C hotter than early in the stint - easy on the throttle out of slow corners</li>
+                </ol>
+              </div>
             </div>
-            <div class="board-swap" aria-live="polite">
-              <div class="board-callrow"><div class="board-call" id="b-call">PUSH</div><p class="board-reason" id="b-reason">Tyres and fuel OK</p></div>
-              <p class="board-label">Radio, newest first</p>
-              <ol class="board-log" id="b-log">
-                <li><span>Lap 14</span>Attack ALBON - pass chance high into corner 8, battery 75%</li>
-                <li><span>Lap 12</span>Yellow ahead at turn 6 - careful, no overtaking</li>
-                <li><span>Lap 11</span>Rears ~10°C hotter than early in the stint - easy on the throttle out of slow corners</li>
-              </ol>
-            </div>
+            <p class="hero-credit">Eau Rouge, Spa. <a href="https://commons.wikimedia.org/wiki/File:Kurve_Eau_Rouge-Raidillon.jpg">Photo</a>: Cutkiller2018, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></p>
           </div>
         </div>
+        <dl class="spec">
+          <div><dt>Game</dt><dd>F1 26</dd><p>On PC or console</p></div>
+          <div><dt>Runs on</dt><dd>Your PC</dd><p>Nothing in the cloud, no account</p></div>
+          <div><dt>Watch on</dt><dd>Any screen</dd><p>Phone, tablet or browser on your Wi-Fi</p></div>
+          <div><dt>Cost</dt><dd>Free</dd><p>Open source, MIT licence</p></div>
+        </dl>
       </section>
 
       <section class="show" id="watch" aria-label="The real app, replaying the race">
+        <div class="bar"><span>[ 01 // LIVE DEMO ]</span><span>REPLAY · MONACO · LAPS 11-16 OF 27 · F1 26</span></div>
         <div class="show-list" role="group" aria-label="Demo screens">
           <button data-screen="drive" type="button">Drive</button>
           <button data-screen="battle" type="button">Battle</button>
@@ -369,15 +408,17 @@
           <button data-screen="debrief" type="button">Debrief</button>
           <button class="auto" id="auto" type="button">Auto-switch</button>
         </div>
-        <div class="stage" data-reveal><div class="frame"><iframe id="dash" src="demo/?recorded" title="Race Engineer dashboard, replaying a recorded race" allow="microphone; autoplay" loading="lazy"></iframe></div></div>
+        <div class="stage" data-reveal><div class="frame"><iframe id="dash" src="demo/?recorded" title="Undercut dashboard, replaying a recorded race" allow="microphone; autoplay" loading="lazy"></iframe></div></div>
         <div class="show-copy">
-          <p id="caption">The real app, replaying the same Monaco race. Pick a screen.</p>
+          <a class="phone-shot" href="demo/?recorded"><img src="img/drive.png" width="1180" height="885" alt="The Drive screen of the dashboard, from the recorded Monaco race" loading="lazy" decoding="async"></a>
+          <p id="caption">The real app, replaying the same Monaco race.</p>
           <a class="button button-big" href="demo/?recorded">Open the demo full screen</a>
         </div>
       </section>
 
       <section class="setup" id="setup">
-        <h2 data-reveal>Running in two minutes</h2>
+        <div class="bar"><span>[ 02 // SET-UP ]</span><span>NODE.JS · ANY BROWSER ON YOUR WI-FI</span></div>
+        <h2>Running in two minutes</h2>
         <div class="story">
           <div class="story-steps">
             <div class="beat is-on" data-state="0"><h3>Start it on your PC.</h3><p>Install <a href="https://nodejs.org">Node.js</a>, download the code from <a href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>, then run <code>npm install</code> and <code>npm start</code> in its folder. No account, nothing in the cloud.</p></div>
@@ -394,7 +435,7 @@
 █ ▄▄▄ █ ▀█▄█▀ █ ▄▄▄ █
 █ ███ █ ▄ ▀▀▄ █ ███ █
 █▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█</span></pre></div>
-            <div class="state" data-state="1" aria-hidden="true">
+            <div class="state" data-state="1">
               <div class="settings" data-ui>
                 <p class="t">Telemetry settings</p>
                 <div class="sel"><span>UDP Telemetry</span><b>On</b></div>
@@ -405,14 +446,15 @@
                 <div><span>UDP Format</span><span>2025</span></div>
               </div>
             </div>
-            <div class="state" data-state="2" aria-hidden="true"><img src="img/drive.png" width="1180" height="885" alt="The Drive screen: the call, the cars either side and what's coming" loading="lazy" decoding="async"></div>
+            <div class="state" data-state="2"><img src="img/drive.png" width="1180" height="885" alt="The Drive screen: the call, the cars either side and what's coming" loading="lazy" decoding="async"></div>
           </div>
         </div>
       </section>
 
       <section class="proof" aria-labelledby="proof-h">
+        <div class="bar"><span>[ 03 // MEASURED ]</span><span>SIX RECORDED RACES · EACH AGAINST THE OBVIOUS GUESS</span></div>
         <div class="tiles">
-          <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>Seven recorded races. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
+          <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>Six recorded races. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
           <div class="tile" data-reveal style="--i:1"><b>2.5</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 4.3. Nearly all of it a pessimistic bias, next to fix.</small></div>
           <div class="tile" data-reveal style="--i:2"><b>7.7</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 13.2 points off.</small></div>
           <div class="tile" data-reveal style="--i:1"><b>5 / 6</b><span>races where the tyre model beats "no wear"</span><small>It doesn't yet at Silverstone, one race of the six.</small></div>
@@ -427,9 +469,10 @@
     <!-- ============ How it works ============ -->
     <div role="tabpanel" id="page-how" aria-labelledby="tab-how" hidden>
       <section class="page-top">
+        <div class="bar"><span>[ 01 // HOW IT WORKS ]</span><span>SIX STEPS · TEN TIMES A SECOND · UNDER A MILLISECOND</span></div>
         <div class="split">
           <div>
-            <h2>From a packet to a call</h2>
+            <h1>From a packet to a call</h1>
             <p class="lead">Under a millisecond, six steps, run ten times a second. Follow one call through them: the car behind closing in.</p>
             <a class="button" style="margin-top: 32px" href="#watch">Demo</a>
           </div>
@@ -998,9 +1041,10 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
     <!-- ============ Engineering ============ -->
     <div role="tabpanel" id="page-tech" aria-labelledby="tab-tech" hidden>
       <section class="page-top">
+        <div class="bar"><span>[ 01 // ENGINEERING ]</span><span>THE QUESTIONS · THE DATA · THE MODELS</span></div>
         <div class="split">
           <div>
-            <h2>What an engineer answers</h2>
+            <h1>Questions it answers</h1>
             <p class="lead">A driver can't read a spreadsheet at 300 km/h. The engineer's job is to turn the whole field's data into a few answers, at the moment they matter.</p>
             <a class="button" style="margin-top: 32px" href="https://github.com/srikarnadella/f1-race-engineer">Read the source</a>
           </div>
@@ -1060,7 +1104,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
           <div data-reveal><h3>Record everything, replay exactly</h3><p>A capture saves every packet with its arrival time (<code>.f1log.gz</code>, ~300 MB a race). Replays run the same pipeline on the recording's clock, so a bug seen on Saturday can be reproduced, fixed and tested on Sunday, call for call.</p></div>
           <div data-reveal style="--i:1"><h3>Datasets from the raw stream</h3><p>Captures stay local; small datasets built from them are committed: one row per race, per car per lap (1,751 laps), and every call made. CI scores the models on them.</p></div>
           <div data-reveal><h3>Every session in SQL</h3><p>Each session is also kept as related SQLite tables: session, car, lap, stint, events, the engineer's calls and radio, weather and lap traces. The live bridge adds each session as it ends; <code>npm run db</code> fills it from the captures. Building it found that the game marks its own flag-time packets with a session ID of 0, which had been wiping every car's final lap and the official result. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/race-store.md">The schema</a></p></div>
-          <div class="soon" data-reveal style="--i:1"><h3>Coming soon: ask the race</h3><p>Questions in plain words over that store: "what happened on lap 12?", "where did I lose time to Norris?". A language model answers by querying the tables, so every answer comes from the recorded race, not from memory.</p></div>
+          <div class="soon" data-reveal style="--i:1"><h3>Coming soon: ask the race</h3><p>Questions in plain words over that store: "what happened on lap 12?", "where did I lose time to Norris?". A language model answers by querying the tables, so every answer comes from the recorded race, not from memory. <a href="#next">More in Next steps</a></p></div>
         </div>
       </section>
 
@@ -1082,7 +1126,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
       </section>
 
       <section class="sec">
-        <h2 data-reveal>Every model against the obvious guess</h2>
+        <h2 data-reveal>Models vs. the obvious guess</h2>
         <p class="lead">Each prediction is replayed against what then happened in recorded races, next to the guess it has to beat. Where a model doesn't win, the app says so.</p>
         <div class="tbl-wrap">
           <table class="tbl">
@@ -1125,10 +1169,26 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/README.md">Source map</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/how-it-works.md">One call traced through the code</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md#what-the-tests-found">What the tests found</a></p>
       </section>
     </div>
+    <!-- ============ Next steps ============ -->
+    <div role="tabpanel" id="page-next" aria-labelledby="tab-next" hidden>
+      <section class="page-top soon-page">
+        <div class="bar"><span>[ 01 // NEXT STEPS ]</span><span>WHAT'S BEING BUILT</span></div>
+        <h1>Coming soon</h1>
+        <p class="lead">What's being built next.</p>
+        <ul class="soon-list">
+          <li data-reveal><span class="tag">In progress</span><h3>Ask the race</h3><p>Ask about a race in plain words ("What happened on lap 12?", "Where did I lose time to Norris?") and get an answer built from the recorded data. Every session is already stored as tables; a language model will query them and show which laps and events it used.</p></li>
+          <li data-reveal style="--i:1"><span class="tag">In progress</span><h3>Confidence on every call</h3><p>The pit-stop pick already says when it depends on tyre wear ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.</p></li>
+          <li data-reveal style="--i:2"><span class="tag">Next</span><h3>The calls audit in the Debrief</h3><p>Every call graded against what happened after it, on screen after the race.</p></li>
+          <li data-reveal style="--i:3"><span class="tag">Next</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9" is 2.5 places off on average, nearly all of it too pessimistic. Fixing that bias.</p></li>
+        </ul>
+        <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">The full roadmap</a></p>
+      </section>
+    </div>
   </main>
 
+  <p class="wordmark" aria-hidden="true">Undercut</p>
   <footer>
-    <span>F1 26 Race Engineer, built by Srikar Nadella</span>
+    <span>Undercut, built by Srikar Nadella</span>
     <nav aria-label="Project"><a href="https://github.com/srikarnadella/f1-race-engineer">Source (MIT)</a><a href="demo/?recorded">Demo</a><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">Roadmap</a></nav>
     <span class="r">Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts.</span>
   </footer>
@@ -1204,8 +1264,9 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         board.classList.add('is-swapping');
         setTimeout(() => { paint(); board.classList.remove('is-swapping'); }, 200);
       }
-      $b('b-prev').addEventListener('click', () => { autoplay = false; step(-1); });
-      $b('b-next').addEventListener('click', () => { autoplay = false; step(1); });
+      const speak = () => $b('b-swap').setAttribute('aria-live', 'polite'); // announced on a press only, never on autoplay
+      $b('b-prev').addEventListener('click', () => { autoplay = false; speak(); step(-1); });
+      $b('b-next').addEventListener('click', () => { autoplay = false; speak(); step(1); });
       setInterval(() => { if (autoplay && !document.hidden && !document.getElementById('page-overview').hidden) step(1); }, 5000);
       paint();
 
@@ -1241,7 +1302,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
       const states = [...document.querySelectorAll('.state')];
       function setState(n) {
         beats.forEach((b) => b.classList.toggle('is-on', b.dataset.state === n));
-        const pinned = matchMedia('(min-width: 901px)').matches; // on a phone every fragment shows, in order
+        const pinned = false; // every fragment shows, in the grid
         states.forEach((s) => { const on = s.dataset.state === n; s.classList.toggle('is-on', on); s.setAttribute('aria-hidden', pinned && !on); });
       }
       if ('IntersectionObserver' in window) {

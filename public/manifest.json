@@ -1,6 +1,6 @@
 {
-  "name": "F1 26 Race Engineer",
-  "short_name": "Race Engineer",
+  "name": "Undercut: a race engineer for F1 26",
+  "short_name": "Undercut",
   "description": "Live race-engineer dashboard for F1 26 telemetry",
   "start_url": "/",
   "display": "fullscreen",
