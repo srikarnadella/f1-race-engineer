@@ -39,6 +39,18 @@ flag is kept. Values other than `lapMs` are as the car crossed the line. Empty =
 | wearMax | the most-worn tyre, % |
 | usableLife | the fitted set's rated life in laps (Tyre Sets packet) |
 
+## calls.csv - the strategy calls each race made
+
+One row each time the PUSH/HOLD/BOX/PIT call changed (its action or kind, not its live numbers), on
+the player's lap at the time. A flashback takes back the calls made on the laps it undid. Graded
+against the laps by `src/analysis/callsAudit.js`; `npm run backtest` prints the audit.
+
+| Column | |
+|---|---|
+| raceId, lapNum | as in laps.csv |
+| action | PUSH, HOLD, BOX or PIT |
+| kind | why: `ok`, `undercut`, `rain`, `tyres`, `cliff`, `damage`, `cheap-stop`, `penalty`, `weather`, `window`, `fuel-short`, `fuel-tight`, `neutralised`, `red-flag`, `too-late`, `pit` |
+
 ## scores.json
 
 The line CI holds: each model's error on these laps (lower is better), and the size of the dataset

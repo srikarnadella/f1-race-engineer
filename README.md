@@ -17,7 +17,7 @@ down to 0.3 laps*.
 
 **Every prediction is scored against what really happened** in recorded races, next to a naive
 baseline ([accuracy](docs/accuracy.md)), and the app says so where a model doesn't beat it yet.
-How it works, end to end: [docs/how-it-works.md](docs/how-it-works.md). Why the screens look the
+How it works, end to end: [docs/how-it-works.md](docs/how-it-works.md); where everything lives in the code: [src/README.md](src/README.md). Why the screens look the
 way they do: [docs/ux.md](docs/ux.md).
 
 ## Try it in 30 seconds (no game needed)
@@ -105,6 +105,10 @@ Afterwards, `npm run analyze` (newest capture) or `npm run analyze -- captures/<
 - **Your marks:** each one with the call, radio and adjustments on screen at that moment, plus the last 3s of
   speed, pedals, steering and wheel slip.
 - **Timeline:** every call the current code makes when it replays the session, for comparison with `outputs.jsonl`.
+
+Then `npm run dataset` adds the capture's races to the committed datasets (`datasets/races.csv`, `laps.csv`,
+`calls.csv`), and `npm run backtest` scores the models on them and grades every call made (the calls audit). If a
+score changed only because the data grew, `npm run backtest -- --update` saves the new line CI holds.
 
 Recommended game settings for a capture: UDP send rate **60Hz** (calibration needs it), format **2025** or later.
 A full race is a few hundred MB. Replay any capture into the dashboard with
@@ -301,13 +305,21 @@ each next to the obvious guess. From [docs/accuracy.md](docs/accuracy.md):
 
 | Prediction | Model | Naive baseline |
 |---|---|---|
-| Rejoin position if you box now (green-flag stops, all cars) | 1.33 places off | 4.33 ("you keep your place") |
-| Battery at the line, from half a lap out | 7.4 points off | 9.9 ("it stays where it is") |
+| Tyre wear per lap, each car predicted from the others (1,150 laps) | 329 ms off | 482 ms ("no wear") |
+| Rejoin position if you box now (24 green-flag stops, all cars) | 2.54 places off | 4.33 ("you keep your place") |
+| Battery at the line, from half a lap out | 7.7 points off | 13.2 ("it stays where it is") |
+| When an AI car stops (23 green-flag stops) | 1.22 laps off | 1.24 (fixed share of tyre life) |
 | Overtake within 10 s (held-out AUC) | 0.851 | 0.854 (gap only) |
-| Attack corner | 5 of 20 | 5 of 20 (busiest corner) |
+| Attack corner | 6 of 33 | 7 of 33 (busiest corner) |
 
-The rejoin sample is small (3 green-flag stops in the races recorded so far). The harness also caught two
-real bugs in the rejoin model, written up in [how it works](docs/how-it-works.md#3-judgement-rules-two-small-models-and-honesty-about-both).
+Three of the six beat the obvious guess; three don't yet, and the app says so. The rejoin model's error is
+nearly all one bias: it puts the car 2.5 places too far back on average (roadmap M5). The harness also caught
+two real bugs in the rejoin model, written up in [how it works](docs/how-it-works.md#3-judgement-rules-two-small-models-and-honesty-about-both).
+
+**Calls audit.** After each race, every PUSH / HOLD / BOX call is graded by the one thing it claims, against
+the laps that followed: PUSH says the tyres hold, BOX for damage says the loss to the flag beats a stop, BOX
+under a safety car says the stop is cheaper than one under green. On the recorded races: 13 right, 0 wrong,
+20 that the laps can't judge (mostly a call replaced within its lap by a safety car or flashback).
 
 ## Post-race analysis
 
@@ -326,16 +338,21 @@ real bugs in the rejoin model, written up in [how it works](docs/how-it-works.md
 
 ```mermaid
 flowchart LR
-    GAME["F1 26 (UDP :20777)"] --> LISTEN["UDP listener"]
-    FILE[".f1log replay"] --> PARSE
-    LISTEN --> PARSE["parsePacket()<br/>one parser per packet ID"]
-    LISTEN -.raw capture.-> REC["Recorder (.f1log)"]
-    PARSE --> FIELD["FieldModel<br/>every car on track"]
-    FIELD --> INSIGHT["InsightEngine<br/>rules → radio calls + strategy"]
-    FIELD --> SNAP["Snapshot"]
-    INSIGHT --> SNAP
-    SNAP -->|"WebSocket, fixed 10Hz"| DASH["Dashboard (any browser)"]
+    GAME["F1 26 (UDP :20777)"] --> UDP
+    FILE[".f1log.gz replay"] --> UDP
+    UDP["1 · udp/<br/>one parser per packet id"] --> STATE["2 · state/<br/>every car, flashbacks rewind it"]
+    UDP -.raw capture.-> REC["capture/ (.f1log.gz)"]
+    STATE --> ANALYSIS["3 · analysis/ + ml/<br/>pure functions: pit timing, wear, odds"]
+    ANALYSIS --> ENGINE["4 · engine/<br/>the call + radio cards, settled"]
+    STATE --> ENGINE
+    ENGINE --> SERVER["5 · server/<br/>one snapshot"]
+    SERVER -->|"WebSocket, fixed 10Hz"| DASH["Dashboard (any browser)"]
+    REC --> DATA["data/<br/>datasets + backtests in CI"]
 ```
+
+Each layer only reads from the layers before it, and all of it is wired once in
+[`src/pipeline.js`](src/pipeline.js), which the live bridge, the replayer, the dataset builder and the tests share.
+[src/README.md](src/README.md) maps every folder and says where to look for a given symptom.
 
 - **A bridge process, not a native app.** iOS restricts raw UDP/multicast listening. A small Node
   process next to the game takes the UDP stream and serves derived state over WebSocket, so any
@@ -358,13 +375,15 @@ flowchart LR
 - **Real-time streaming architecture:** ingest at up to 60Hz, fixed-rate fan-out, staleness
   detection, reconnecting clients.
 - **A reactive rules engine:** time-normalised trend detection (closing rate per lap, tyre-wear
-  slope, fuel against the race distance left), latched events, de-duplicated insight lifecycles
-  (`src/state/`).
+  slope, fuel against the race distance left), latched events, de-duplicated insight lifecycles, and calls
+  that settle before they change (`src/engine/`).
 - **A data capture and replay pipeline:** record raw packets, replay them with wall-clock-accurate
-  timing, and a synthetic session generator that writes the game's binary format (`src/capture/`, `src/sim/`).
+  timing, a synthetic session generator that writes the game's binary format (`src/capture/`, `src/sim/`), and
+  committed lap- and call-level datasets built from the raw captures (`src/data/`, `datasets/`).
 - **Measuring instead of claiming:** every prediction is replayed against real races and scored next to
   a naive baseline (`scripts/accuracy.js`, held-out evaluation for the ML); the harness found two bugs in the
-  rejoin model, and the app says plainly where a model doesn't beat the simple rule yet.
+  rejoin model, and the app says plainly where a model doesn't beat the simple rule yet. CI fails a change that
+  makes the tyre model or rival-stop timing worse on the real races, and every call is graded after the race.
 - **Tests that find bugs, not tests that agree with the code:** malformed-packet fuzzing of the LAN-facing
   UDP port, property tests of the models over seeded random cases, scenario tests that check each call
   follows its cause, and a dashboard contract test that records every field a widget reads. Each was
@@ -376,12 +395,15 @@ flowchart LR
 ## Development
 
 ```bash
-npm test                 # ~180 tests (node:test): parsers on real F1 26 packets, fuzzing, model properties,
-                         # race scenarios, every dashboard widget and screen in jsdom, a tick-time budget
+npm test                 # 250+ tests (node:test): parsers on real F1 26 packets, fuzzing, model properties,
+                         # race scenarios, the calls audit, every dashboard widget and screen in jsdom, a tick budget
 npm run test:coverage    # the same with a coverage gate (CI: fails below 88% of lines in src/ and public/)
 npm run demo:regenerate  # rebuild the synthetic demo session after changing src/sim/
 npm run train:overtake   # retrain + re-evaluate the overtake model from captures/
 npm run accuracy         # score the predictions on captures/, writes docs/accuracy.md
+npm run analyze          # validate the newest capture, replay it, write report.md beside it
+npm run dataset          # rebuild datasets/ (races, laps, calls) from captures/
+npm run backtest         # score the models on datasets/ and print the calls audit (CI holds the line)
 npm run site             # build the demo website data; npm run site -- --serve to preview it
 npm run site -- --race captures/<folder>   # put a real race on the demo site (laps 11-16 live)
 node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay a real race, 8x
@@ -400,15 +422,16 @@ changes reaching the feed, forecast slots counted in minutes from now (a race wh
 299 checks, against 48% for "from the session start"), every car's speed / throttle / brake and tyre wear
 offline, flags per car and per marshal zone. Still open:
 
-- More races for the models: the overtake model ties the gap-only baseline, the attack forecast ties the
-  busiest-corner rule, and only 3 green-flag stops have scored the rejoin model.
+- More races for the models: the overtake model ties the gap-only baseline, and the attack forecast trails the
+  busiest-corner rule. The rejoin model beats its baseline on 24 stops but is biased pessimistic (roadmap M5).
 - Scoring pit timing: it needs races where the same stop was made on different laps.
 - Damage cost on a full lap: in the races recorded so far every hit was undone by a flashback within a
-  few corners, so the measurement is tested on constructed laps only. The extra time a nose change adds
+  few corners, so the measurement is tested on constructed laps only (a crawl back to the pits is now left out,
+  after one read "142 s a lap" in qualifying). The extra time a nose change adds
   to a stop (6 s) is a first guess.
-- The rival-stop share (60% of rated tyre life) and the 36% stop wear come from one race's three green-flag
-  AI stops; more races will tell whether they hold across tracks and compounds (the memory per track
-  learns them as you race).
+- When AI cars stop: on 23 green-flag stops, learning from the stops already made in a race (1.22 laps off)
+  is no better than the fixed prior of 60% of rated tyre life (1.24); the early stops a race sees bias it
+  (a `todo` test).
 - Online races are untested: human drivers don't stop like the AI, and other cars' telemetry may be withheld.
 - Tyre-temperature calls: the 8 °C / 12 °C thresholds are picked from four races' spreads, not from tyre data.
 - The race plan looks at one and two stops inside each set's rated life; a full-distance race can need three.

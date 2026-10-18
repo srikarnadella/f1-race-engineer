@@ -33,14 +33,15 @@ flowchart LR
     M2[M2 Overtake model calibration]:::done
     M3[M3 Lap-time model with uncertainty]
     M4[M4 Backtest gate per model]:::done
+    M5[M5 Rejoin bias]:::next
   end
   subgraph A[Analysis and decisions]
     A1[A1 Monte Carlo strategy]:::done
-    A2[A2 Calls audit: was the call right?]:::next
+    A2[A2 Calls audit: was the call right?]:::done
     A3[A3 Confidence on every call]:::part
   end
   subgraph U[User experience]
-    U1[U1 Calls audit screen]
+    U1[U1 Calls audit screen]:::next
     U2[U2 Uncertainty bands]
     U3[U3 Feed health badge]:::done
     U4[U4 Accessibility pass]:::done
@@ -56,6 +57,7 @@ flowchart LR
   D3 --> M1 & M2
   M1 --> M3 --> A1
   D1 & T4 --> M4 --> A2 --> U1
+  M4 --> M5
   M1 & M2 --> A3 --> U2
   A1 --> U2
 ```
@@ -118,6 +120,9 @@ Each line: what it is, why it matters, and the acceptance test.
   are in [ml-overtake-model.md](ml-overtake-model.md). It is well calibrated (20-40% predicted,
   33% observed) but doesn't beat the gap-only baseline yet.
 - **M3 Lap-time model.** Fuel + tyre age + traffic, with residual spread, feeding A1.
+- **M5 Rejoin bias.** With 24 green-flag stops scored (3 before), the rejoin model is 2.54 places off
+  and 2.46 of that is one direction: it puts the car too far back. *Test:* signed mean error under half
+  a place on the recorded stops, without the absolute error getting worse.
 - **M4 Backtest gate.** Every model scored per race in CI against its baseline; a change that makes
   a model worse than it was fails the build. *Done for the lap-level models:* the tyre model and
   rival-stop timing are scored on the committed dataset in CI against `datasets/scores.json`.
@@ -131,7 +136,14 @@ Each line: what it is, why it matters, and the acceptance test.
   1,000 simulated races". Each plan's total is linear in the wear rates, so the search runs once and
   1,000 races take a few ms (5,800 plans pruned to 500 shapes). All three recorded races were short
   enough that one stop wins 100%; the tests cover the coin-flip case.
-- **A2 Calls audit.** After the race, each BOX/PUSH/HOLD call graded against what then happened.
+- **A2 Calls audit.** *Done:* each call is graded after the race by the one thing it claims, against
+  the laps ([datasets/calls.csv](../datasets/calls.csv), `src/analysis/callsAudit.js`). PUSH: the tyres
+  hold (no two green laps in a row 1.5 s off the pace before). Manage tyres: the cliff comes within 3
+  laps. BOX for damage: the loss to the flag beats a stop. BOX under a safety car: the stop cost less
+  than a green one (both measured against the cars that didn't stop). Following the rules isn't
+  graded. On the 6 recorded races: 13 right, 0 wrong, 20 can't be judged (mostly a call replaced
+  within its lap by a safety car or flashback). Weather, pit-window and fuel calls aren't graded yet;
+  nor is whether an offered undercut would have worked.
 - **A3 Confidence on calls.** Every call carries how sure it is, from M1/M2 intervals. *Partly
   done:* the pit-timing pick is re-run at both ends of the wear range; when it moves, the card says
   "Lap 14–22, depending on tyre wear" (and nothing when it holds). On the recordings it moves a
@@ -159,10 +171,20 @@ Each of these was a failing test before it was a fix; none was found by reading 
 | D4 budget | The tick-time budget failed in full test runs (p99 11 ms) even before any change: other test files run in parallel. | The mean is now CPU time, which contention can't inflate; a planted 3 ms stall still fails it. |
 | D1 catalog | The first lap dataset dropped every car's last lap: at the flag the lap counter doesn't move on. Seen as "4 of 5 laps" in the catalog. | Kept once the car has finished; a test for it. |
 | D3 dataset | The tyre backtest in accuracy.md had scored only each race's last 12 laps (all the field model keeps). | Scored on every lap from the dataset: the model still beats "no wear" on 4 of 5 races (311 vs 417 ms a lap). |
-| M4 backtest | Learning when the AI stops from the stops seen so far is biased early: the first stops a race sees are the early ones. In a field whose stops spread out it does worse than the prior (2.2 vs 1.5 laps off). | Not fixed (the real races hold only 3 green-flag stops to judge a fix on); a `todo` test. |
+| M4 backtest | Learning when the AI stops from the stops seen so far is biased early: the first stops a race sees are the early ones. In a field whose stops spread out it does worse than the prior (2.2 vs 1.5 laps off). | Not fixed; a `todo` test. With 23 green-flag AI stops now recorded (20 from one Barcelona race), learning scores 1.22 laps off against the prior's 1.24: no real gain yet. |
+| A2 audit (Barcelona, 17 Oct) | The call flipped "undercut on" <-> "Tyres and fuel OK" 7 times in 3.5 minutes as the gap hovered. | A calm call holds 5 s before replacing another calm one (BOX, PIT, safety car: at once). 7 undercut calls -> 2. |
+| A2 audit | The undercut said "box now, rejoin P21 in clean air" from P8, with no check that you'd come out ahead. | On only when fresh tyres gain more before they stop than the gap; says by how much. |
+| A2 audit | ERS flipped Boost <-> "battery low, save it" every 10-20 s: the 2026 store swings 20%+ inside a lap. | Judged on the battery at the line. ERS radio 74 -> 46 a race. |
+| A2 audit | "You gain 5.46s on the run to" corner 1: the pit lane runs over that stretch, and a pit lap was in the averaged splits. | Pit and neutralised laps left out; median, not mean. |
+| A2 audit | Two defend cards took turns (battle call and under-attack): 45 of 55 key radio calls. | The battle call's DEFEND speaks on the one defend card. Key calls 1.4 -> 1.2 a minute. |
+| A2 audit | The audit graded a PUSH wrong for laps slowed by wing damage. | Slow laps after a damage call on the same set can't judge the tyres. |
 | T6 contract | (Mutation check) 5 of 5 snapshot field renames now fail a test; before, all 5 passed silently. | - |
 
 Mutation checks - a test only counts once it fails on a planted bug:
+
+- A2 fixes: 9 of 13 planted bugs caught at first; the 4 survivors (a pit-lap filter the median hid,
+  attack judged on the live battery, a settle that never reset, the defend text ticking) each got a
+  test, and are caught now.
 
 - Model invariants: 6 of 8 planted bugs caught; the 2 survivors (a looser outlier trim, a break-even
   stop counted as worth it) each got the missing test, and are caught now.

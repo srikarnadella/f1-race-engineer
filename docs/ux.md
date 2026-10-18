@@ -36,7 +36,7 @@ same cards into two or one columns.
 Off by default (Settings), because a screen that moves on its own is a surprise until you've asked
 for it. When on:
 
-- **The bridge decides, the browser obeys.** `src/state/focus.js` picks the screen from the same
+- **The bridge decides, the browser obeys.** `src/engine/focus.js` picks the screen from the same
   calls the radio uses, in priority order: session over → Debrief; safety car, VSC, red flag or a
   pit call → Strategy; rain within ~5 laps, a drying track or a tyre crossover → Weather; ATTACK,
   DEFEND or CLOSE IN → Battle; otherwise your screen. Every device agrees, a replay always switches

@@ -38,7 +38,7 @@ from it.
 
 ## 3. Judgement: rules, two small models, and honesty about both
 
-Ten times a second, [`raceAnalysis.compute()`](../src/state/raceAnalysis.js) works out the fight
+Ten times a second, [`raceAnalysis.compute()`](../src/engine/raceAnalysis.js) works out the fight
 either side:
 
 | Question | How | Where |
@@ -49,9 +49,13 @@ either side:
 | Who has the battery? | Last lap's battery profile, projected to the line | [`batteryProjection.js`](../src/analysis/batteryProjection.js) |
 
 [`battleCall()`](../src/analysis/battleCall.js) turns those into ATTACK / DEFEND / CLOSE IN / CLEAR,
-and the [`InsightEngine`](../src/state/insightEngine.js) turns *changes* into radio calls: each has an
+and the [`InsightEngine`](../src/engine/insightEngine.js) turns *changes* into radio calls: each has an
 id, a severity and an expiry, is settled for a few seconds before it's said (so a gap hovering at 1.0 s
-doesn't flap the call), and is only spoken again if it escalates.
+doesn't flap the call), and is only spoken again if it escalates. The headline PUSH / HOLD / BOX call
+comes from [`calls.js`](../src/engine/calls.js), pure functions of the same numbers, and carries a `kind`
+(why it was made). Advice-level calls have to hold 5 s before they replace each other; BOX, PIT and a
+safety car come at once. After the race, [`callsAudit.js`](../src/analysis/callsAudit.js) grades each
+call against the laps that followed.
 
 Every prediction is scored against a naive baseline on real races by `npm run accuracy`
 ([results](accuracy.md)). That harness earned its place:
@@ -76,7 +80,7 @@ Every prediction is scored against a naive baseline on real races by `npm run ac
 [`buildSnapshot()`](../src/server/snapshot.js) flattens all of it into one JSON object, the entire
 contract with the browser, and [`httpServer.js`](../src/server/httpServer.js) pushes it over a
 WebSocket at a fixed 10 Hz whatever the game's rate, which caps CPU on the PC and battery on the device showing it.
-The snapshot also carries `focus`, from [`focus.js`](../src/state/focus.js): which screen matters
+The snapshot also carries `focus`, from [`focus.js`](../src/engine/focus.js): which screen matters
 right now (Battle, because of the DEFEND call), with hold times so it doesn't flap.
 
 ## 5. The dashboard formats, it never decides
