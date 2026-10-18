@@ -244,3 +244,17 @@ test('evaluate: Brier and log loss reward the truth; the calibration buckets hol
   assert.strictEqual(truth.calibration.reduce((a, b) => a + b.n, 0), y.length);
   assert.strictEqual(evaluate([1, 0], [1, 0]).calibration.reduce((a, b) => a + b.n, 0), 2, 'a score of exactly 1 is in a bucket');
 });
+
+test('tyre model: the fit and its range do not depend on the running order', () => {
+  // Cars are passed in track order, which changes with every overtake; the
+  // laps haven't changed, so neither may the slope or its 90% range.
+  // Short, noisy stints: a wide range, so a resample that depends on the order shows.
+  const r = rng(13);
+  for (let c = 0; c < 5; c++) {
+    const field = syntheticField(r, { degMs: 90, laps: 8, noiseMs: 500 });
+    const inOrder = fitDegradation(field, 1.6, { bootstrap: 100 });
+    const shuffled = fitDegradation([...field].reverse(), 1.6, { bootstrap: 100 });
+    assert.ok(inOrder.compounds[17].ciMs, `case ${c}: no range to compare`);
+    assert.deepStrictEqual(shuffled, inOrder, `case ${c}`);
+  }
+});

@@ -6,6 +6,7 @@ const { createTrackMemory } = require('./state/trackMemory');
 const { createDebrief } = require('./engine/debrief');
 const { createFocus } = require('./engine/focus');
 const { buildSnapshot } = require('./server/snapshot');
+const { createSessionRecorder } = require('./data/sessionRecorder');
 
 // The engine, wired once: packets in, the dashboard snapshot out. The live
 // bridge, the capture analyzer, the demo builder and the tests all run this,
@@ -13,12 +14,23 @@ const { buildSnapshot } = require('./server/snapshot');
 // `now` is the engine's clock: the wall clock live, the recording's in a replay.
 // `source` lets the dashboard label a replay - the public demo must never
 // pass itself off as a live session.
-function createPipeline({ now = () => Date.now(), memory = createTrackMemory(), debriefDir = null, source = 'live', capturing = false } = {}) {
+// `store` (data/store.js) keeps every session in the race database; `captureName` is where it came from.
+function createPipeline({ now = () => Date.now(), memory = createTrackMemory(), debriefDir = null, source = 'live', capturing = false, store = null, captureName = null } = {}) {
   const fieldModel = createFieldModel({ clock: now });
   const insightEngine = createInsightEngine(fieldModel);
   const raceAnalysis = createRaceAnalysis(fieldModel, { memory });
   const focus = createFocus(now);
   const debrief = createDebrief(fieldModel, { dir: debriefDir });
+  const recorder = store && createSessionRecorder(fieldModel, {
+    debrief,
+    write: (s) => {
+      try {
+        store.writeSession({ ...s, capture: captureName });
+      } catch (err) {
+        console.error(`[store] couldn't save the session: ${err.message}`);
+      }
+    },
+  });
 
   const dispatch = (packetId, header, data) => fieldModel.dispatch(packetId, header, data);
 
@@ -45,12 +57,14 @@ function createPipeline({ now = () => Date.now(), memory = createTrackMemory(), 
     const withDebrief = ++tickCount % 10 === 0;
     if (withDebrief) debriefView = debrief.view();
     latest = build(withDebrief);
+    if (recorder) recorder.sync(latest);
     return latest;
   }
 
   function flush() {
     debrief.flush();
     raceAnalysis.flush();
+    if (recorder) recorder.flush();
   }
 
   return { feed, dispatch, tick, snapshot: () => latest, flush, fieldModel, insightEngine, raceAnalysis, focus, debrief };

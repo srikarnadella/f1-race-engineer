@@ -87,6 +87,12 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
   }
 
   function handlePacket(packetId, header) {
+    // UID 0 is no session: the game sends every car's Session History with it
+    // at the flag (same game time), and events with it in the menus.
+    if (!header.sessionUID) {
+      lastPacketAtMs = clock();
+      return;
+    }
     if (sessionUID !== null && header.sessionUID !== sessionUID) reset();
     // A flashback rewinds game time: passes after the new time never
     // happened (on a real race they repeated and skewed the pass map).
@@ -245,7 +251,9 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       }
       miniSectors.update(i, car, c, session && session.trackLength);
       car.lapData = c;
-      car.lapFlags.set(c.currentLapNum, { pit: !!car.lapTouchedPit, neutralised: !!car.lapNeutralised });
+      // Set only on a change: this runs for every car on every Lap Data packet.
+      const flags = car.lapFlags.get(c.currentLapNum);
+      if (!flags || flags.pit !== !!car.lapTouchedPit || flags.neutralised !== !!car.lapNeutralised) car.lapFlags.set(c.currentLapNum, { pit: !!car.lapTouchedPit, neutralised: !!car.lapNeutralised });
       if (car.lapFlags.size > LAP_HISTORY_SIZE) car.lapFlags.delete(car.lapFlags.keys().next().value);
     });
   }
@@ -299,7 +307,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
     if (data.code === 'RDFL') redFlag = true;
     else if (data.code === 'LGOT' || data.code === 'SSTA') redFlag = false;
     // seq: two events can share a millisecond, so consumers track this instead.
-    recentEvents.push({ ...data, atMs: clock(), seq: ++eventSeq });
+    recentEvents.push({ ...data, atMs: clock(), sessionTime, seq: ++eventSeq });
     if (recentEvents.length > 30) recentEvents.shift();
     // Where on the lap each pass happened - the "where do they attack"
     // forecast learns this track's passing spots from it. Lap 1 is skipped:
@@ -414,9 +422,10 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
   }
 
   const getClassification = () => classification;
+  const getSessionUID = () => sessionUID;
   const getLapPositions = () => lapPositions;
 
-  return { clock, getFeedHealth: feed.view, dispatch, reset, getCar, getClassification, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
+  return { clock, getFeedHealth: feed.view, dispatch, reset, getCar, getClassification, getSessionUID, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
 }
 
 module.exports = { createFieldModel };

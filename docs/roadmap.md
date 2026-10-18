@@ -26,7 +26,8 @@ flowchart LR
     D2[D2 Feed health: loss, rate, lag]:::done
     D3[D3 Lap-level dataset export]:::done
     D4[D4 Tick budget test]:::done
-    D5[D5 Session store pruning]
+    D5[D5 Session store pruning]:::done
+    D6[D6 Race store: SQL tables per session]:::done
   end
   subgraph M[Machine learning]
     M1[M1 Pooled tyre model with intervals]:::done
@@ -107,7 +108,13 @@ Each line: what it is, why it matters, and the acceptance test.
   races, no driver names, schema in [datasets/README.md](../datasets/README.md). Laps are recorded
   as they complete (the field model keeps only 12), taken back on a flashback, the flag lap kept.
 - **D4 Tick budget.** *Test:* a full synthetic race keeps the mean engine tick under 2 ms.
-- **D5 Session store pruning.** Keep the newest 50 debriefs on disk.
+- **D5 Session store pruning.** *Done.* The newest 50 debriefs are kept on disk; older ones are
+  deleted when a session is saved. *Test:* 55 old files plus a new session leave the newest 50.
+- **D6 Race store.** *Done:* every session as related SQLite tables (session, car, lap, stint,
+  trace_point, event, engineer_call, radio_message, weather_sample) in `data/race.db`, filled live
+  and by `npm run db`. Schema and examples in [race-store.md](race-store.md); the base for asking
+  questions about a race in plain words. *Tests:* a replayed race stores the same laps as
+  `laps.csv`, keys hold, a second write replaces, a flashback takes back what it undid.
 
 ### Machine learning
 
@@ -171,6 +178,7 @@ Each of these was a failing test before it was a fix; none was found by reading 
 | D4 budget | The tick-time budget failed in full test runs (p99 11 ms) even before any change: other test files run in parallel. | The mean is now CPU time, which contention can't inflate; a planted 3 ms stall still fails it. |
 | D1 catalog | The first lap dataset dropped every car's last lap: at the flag the lap counter doesn't move on. Seen as "4 of 5 laps" in the catalog. | Kept once the car has finished; a test for it. |
 | D3 dataset | The tyre backtest in accuracy.md had scored only each race's last 12 laps (all the field model keeps). | Scored on every lap from the dataset: the model still beats "no wear" on 4 of 5 races (311 vs 417 ms a lap). |
+| D6 race store | At the flag the game sends Session History with session UID 0. The field model reset on it, losing every car's final lap and the official result (no saved debrief had one; laps.csv was 120 laps short). | UID 0 belongs to the current session. Tyre backtest re-scored on the recovered laps: 342 ms (was 329 on fewer laps). |
 | M4 backtest | Learning when the AI stops from the stops seen so far is biased early: the first stops a race sees are the early ones. In a field whose stops spread out it does worse than the prior (2.2 vs 1.5 laps off). | Not fixed; a `todo` test. With 23 green-flag AI stops now recorded (20 from one Barcelona race), learning scores 1.22 laps off against the prior's 1.24: no real gain yet. |
 | A2 audit (Barcelona, 17 Oct) | The call flipped "undercut on" <-> "Tyres and fuel OK" 7 times in 3.5 minutes as the gap hovered. | A calm call holds 5 s before replacing another calm one (BOX, PIT, safety car: at once). 7 undercut calls -> 2. |
 | A2 audit | The undercut said "box now, rejoin P21 in clean air" from P8, with no check that you'd come out ahead. | On only when fresh tyres gain more before they stop than the gap; says by how much. |

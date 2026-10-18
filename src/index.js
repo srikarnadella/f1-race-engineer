@@ -11,6 +11,7 @@ const { createCaptureSession, defaultCaptureDir } = require('./capture/session')
 const { createTrackMemory } = require('./state/trackMemory');
 const { RIVAL_ID } = require('./engine/debrief');
 const { createPipeline } = require('./pipeline');
+const { openStore } = require('./data/store');
 const { startServer } = require('./server/httpServer');
 
 const USAGE = `Usage: node src/index.js [options]
@@ -99,6 +100,17 @@ function main() {
   const capture = opts.captureDir
     ? createCaptureSession({ dir: opts.captureDir, meta: { version: require('../package.json').version, udpPort: opts.udpPort, node: process.version } })
     : null;
+  // Every live session also goes to the race store (data/race.db, see data/store.js).
+  // Without it the bridge still runs: the dashboard doesn't need it.
+  let store = null;
+  if (!opts.demoFile) {
+    try {
+      fs.mkdirSync(path.resolve(__dirname, '..', 'data'), { recursive: true });
+      store = openStore(path.resolve(__dirname, '..', 'data', 'race.db'));
+    } catch (err) {
+      console.error(`[store] race database unavailable, sessions won't be stored: ${err.message}`);
+    }
+  }
 
   // The engine runs on its own 10Hz tick, whether or not a dashboard is
   // connected - pit-loss measurement, wear history and weather memory must
@@ -111,6 +123,8 @@ function main() {
     debriefDir: opts.demoFile ? null : path.resolve(__dirname, '..', 'data', 'sessions'),
     source: opts.demoFile ? 'demo' : 'live',
     capturing: !!capture,
+    store,
+    captureName: capture ? path.basename(capture.dir) : null,
   });
   const { fieldModel, debrief, dispatch: onPacket } = pipeline;
   const engineTick = setInterval(() => {
@@ -197,6 +211,7 @@ function main() {
     console.log('\n[main] shutting down');
     clearInterval(engineTick);
     pipeline.flush();
+    if (store) store.close();
     if (socket) socket.close();
     server.close();
     // Let the capture files finish writing (gzip trailer) before exiting.

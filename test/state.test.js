@@ -49,6 +49,23 @@ test('a new sessionUID resets per-car history', () => {
   assert.strictEqual(fm.getGeneration(), gen + 1);
 });
 
+// Seen on real F1 26 races: at the chequered flag the game sends every car's
+// Session History with a session UID of 0 (same game time, same player), then
+// carries on under the race's UID. Read as a new session, it wiped the field
+// there - the final lap and the official result never reached the debrief.
+test('a packet with session UID 0 is part of the current session, not a new one', () => {
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(1, 7n), { cars: lapCars() });
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(2, 7n), { cars: lapCars({ [PLAYER]: { currentLapNum: 11 } }) });
+  const gen = fm.getGeneration();
+  fm.dispatch(PACKET_IDS.SESSION_HISTORY, header(2, 0n), { carIdx: PLAYER, laps: [{ lapMs: 90000, s1: 30000, s2: 30000, s3: 30000, valid: true }] });
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(2.1, 7n), { cars: lapCars({ [PLAYER]: { currentLapNum: 11 } }) });
+  assert.strictEqual(fm.getGeneration(), gen);
+  assert.strictEqual(fm.getCar(PLAYER).lapHistory.length, 1);
+  assert.strictEqual(fm.getCar(PLAYER).sessionHistory.laps.length, 1);
+  assert.strictEqual(fm.getSessionUID(), 7n);
+});
+
 test('undercut threat survives LapData arriving faster than the insight tick', () => {
   const fm = createFieldModel();
   const ie = createInsightEngine(fm);

@@ -56,8 +56,8 @@ async function score(file, out) {
     fm.dispatch(header.packetId, header, data);
     const session = fm.getSession();
     if (!session || !RACE_TYPES.has(session.sessionType) || fm.playerIndex() == null) continue;
-    if (String(header.sessionUID) !== uid) {
-      uid = String(header.sessionUID);
+    if (String(fm.getSessionUID()) !== uid) { // the field's session: UID 0 packets belong to the current one
+      uid = String(fm.getSessionUID());
       races++;
     }
     const t = header.sessionTime;

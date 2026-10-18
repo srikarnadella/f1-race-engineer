@@ -89,6 +89,16 @@ test('event: safety car detail distinguishes VSC deployed from race resumed', ()
   assert.strictEqual(parsePacket(enc.encodeEvent(H, 'SCAR', [1, 3])).data.name, 'Safety Car race resumed');
 });
 
+test('event: speed trap and collision name the cars (layout checked on an F1 26 race)', () => {
+  // Speed trap: car 4 at 293.6 km/h, the fastest so far (float32 little-endian).
+  const f = Buffer.alloc(4);
+  f.writeFloatLE(293.6);
+  const trap = parsePacket(enc.encodeEvent(H, 'SPTP', [4, ...f, 1, 1, 4, ...f])).data;
+  assert.deepStrictEqual([trap.vehicleIdx, +trap.speedKmh.toFixed(1), trap.isOverallFastest], [4, 293.6, true]);
+  const coll = parsePacket(enc.encodeEvent(H, 'COLL', [11, 8])).data;
+  assert.deepStrictEqual([coll.name, coll.vehicleIdx, coll.otherVehicleIdx], ['Collision', 11, 8]);
+});
+
 test('a car-count mismatch degrades to a warning, not a throw', () => {
   const buf = enc.encodeLapData(H, []);
   const warn = console.warn;

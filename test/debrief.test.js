@@ -86,3 +86,21 @@ test('debrief: your best lap against a rival best lap, kept with the session', (
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('debrief: the session store keeps the newest 50 on disk (roadmap D5)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'debrief-'));
+  try {
+    // 55 older sessions (named by start time, as saved), plus a stray file that isn't a session.
+    for (let k = 0; k < 55; k++) fs.writeFileSync(path.join(dir, `2020-01-01-00-00-${String(k).padStart(2, '0')}_Old_Race.json.gz`), 'x');
+    fs.writeFileSync(path.join(dir, 'notes.txt'), 'keep me');
+    const d = createDebrief(fakeField({ classified: true }), { dir });
+    d.tick(); // the classification saves this session
+    const sessions = fs.readdirSync(dir).filter((n) => n.endsWith('.json.gz')).sort();
+    assert.strictEqual(sessions.length, 50);
+    assert.match(sessions[49], /_Suzuka_Race\.json\.gz$/); // the new one is kept
+    assert.strictEqual(sessions[0], '2020-01-01-00-00-06_Old_Race.json.gz'); // the six oldest went
+    assert.ok(fs.existsSync(path.join(dir, 'notes.txt')));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

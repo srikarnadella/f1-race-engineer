@@ -25,7 +25,7 @@ Tools beside the layers:
 | Folder | Job |
 |---|---|
 | `capture/` | Record raw packets (`.f1log.gz`), replay them on their own clock, and validate a capture against the tool's assumptions (`npm run analyze`) |
-| `data/` | The committed datasets built from captures (`npm run dataset`) and the model backtests CI holds the line on (`npm run backtest`) |
+| `data/` | The committed datasets built from captures (`npm run dataset`), the model backtests CI holds the line on (`npm run backtest`), and the race store: every session as SQL tables in `data/race.db` (`store.js`, `sessionRecorder.js`, `npm run db`; see [docs/race-store.md](../docs/race-store.md)) |
 | `sim/` | A synthetic race written in the game's binary format, for the demo and the scenario tests |
 
 ## One tick

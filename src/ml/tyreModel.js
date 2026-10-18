@@ -90,7 +90,8 @@ function slopeInterval(points, samples) {
 function fitDegradation(cars, burnKgPerLap = 1.6, { bootstrap = 0 } = {}) {
   const fuelMsPerLap = burnKgPerLap * FUEL_MS_PER_KG;
   const byCompound = new Map();
-  for (const car of cars) {
+  // By car, not track order: the bootstrap draws cars by index, so an overtake would move the range.
+  for (const car of [...cars].sort((a, b) => a.carIndex - b.carIndex)) {
     const usable = usableLaps(car);
     for (const compound of new Set(usable.map((l) => l.compound))) {
       if (!byCompound.has(compound)) byCompound.set(compound, []);

@@ -75,8 +75,7 @@ function monacoFrames() {
 
 // Read by a widget but null all through the synthetic race, which has none of these yet.
 const NOT_IN_THE_SYNTHETIC_RACE = [
-  '$.analysis.pitTiming.wear.fromInLaps (empty)', // every pick is 'stay out', which holds
-  '$.analysis.pitTiming.wear.toInLaps (empty)',
+  '$.analysis.pitTiming.wear.toInLaps (empty)', // at the slow-wear end the pick is always 'stay out' ("or later")
   '$.analysis.options (empty)', // safety-car options: it has a VSC, and they are for a full safety car
   '$.analysis.damage.lossPerLapMs (empty)', // no wing damage
   '$.analysis.quali (empty)', // a race, not qualifying

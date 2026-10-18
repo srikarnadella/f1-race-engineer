@@ -404,6 +404,7 @@ npm run accuracy         # score the predictions on captures/, writes docs/accur
 npm run analyze          # validate the newest capture, replay it, write report.md beside it
 npm run dataset          # rebuild datasets/ (races, laps, calls) from captures/
 npm run backtest         # score the models on datasets/ and print the calls audit (CI holds the line)
+npm run db               # fill the race store (data/race.db, SQLite) from captures/; docs/race-store.md
 npm run site             # build the demo website data; npm run site -- --serve to preview it
 npm run site -- --race captures/<folder>   # put a real race on the demo site (laps 11-16 live)
 node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay a real race, 8x
@@ -412,6 +413,14 @@ node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay
 Node 18.3+ and two small runtime dependencies (`ws` for the WebSocket, `qrcode-terminal` for the pairing
 QR code); `jsdom` and `c8` for tests only. No build step. The work plan is a dependency graph in
 [docs/roadmap.md](docs/roadmap.md): each node ships with the test that defines it as done.
+
+## Coming soon: ask the race
+
+Every session is now kept in a local SQL store ([docs/race-store.md](docs/race-store.md)): laps, sectors,
+stints, events (who passed whom, penalties, safety cars), the engineer's calls and radio, weather and lap
+traces. Next on top of it: questions in plain words ("what happened on lap 12?", "where did I lose time to
+Norris?"), answered by a language model that queries those tables, so every answer comes from the
+recorded race.
 
 ## Project status
 

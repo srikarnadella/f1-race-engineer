@@ -102,6 +102,7 @@ function serveStatic(req, res) {
 // and the handler decides what's valid.
 const MAX_CLIENT_MESSAGE_BYTES = 1024;
 const MAX_CLIENT_MESSAGES_PER_10S = 30;
+const MAX_QUEUED_BYTES = 1024 * 1024;
 
 // tls: { cert, key } (PEM) serves https - browsers only open the microphone
 // for voice questions on a secure page, and a tablet reaches the bridge by its
@@ -169,7 +170,9 @@ function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api
     if (wss.clients.size === 0) return;
     const payload = JSON.stringify(getSnapshot());
     for (const client of wss.clients) {
-      if (client.readyState === client.OPEN) client.send(payload);
+      // A sleeping tablet keeps its socket open but reads nothing: skip it once
+      // ~8 s of snapshots are queued, rather than buffering them without limit.
+      if (client.readyState === client.OPEN && client.bufferedAmount < MAX_QUEUED_BYTES) client.send(payload);
     }
   }
 

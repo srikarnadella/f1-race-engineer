@@ -275,13 +275,14 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   let pitPick = null;
   let pitNext = { lap: null, since: 0 };
   // The tyre fit, with its 90% range, changes only when a lap completes: refit
-  // then (~10 ms with the range), not on every 10 Hz tick.
+  // then (~10 ms with the range), not on every 10 Hz tick. The key ignores
+  // track order: a third of refits in a race were only an overtake.
   let tyreFit = { key: null, model: null };
   function tyreModelFor(ordered) {
     const key = ordered.map((c) => {
       const l = c.lapHistory && c.lapHistory[c.lapHistory.length - 1];
       return l ? `${c.carIndex}:${l.lapNum}:${l.lapMs}:${l.compound}` : '';
-    }).join('|');
+    }).sort().join('|');
     if (key !== tyreFit.key) tyreFit = { key, model: fitDegradation(ordered, fieldBurnKgPerLap(ordered), { bootstrap: TYRE_FIT_RESAMPLES }) };
     return tyreFit.model;
   }

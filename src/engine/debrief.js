@@ -14,6 +14,7 @@ const { compareLaps, consistency } = require('../analysis/lapCompare');
 const { rivalAnalysis } = require('../analysis/rivals');
 
 const KEEP_SESSIONS = 10;
+const KEEP_ON_DISK = 50; // older debriefs are deleted when a new one is saved
 
 const nameOf = (car, idx) => (car.participant && car.participant.name) || `Car ${idx}`;
 
@@ -69,6 +70,9 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       fs.writeFileSync(path.join(dir, name + '.tmp'), toFile(rec));
       fs.renameSync(path.join(dir, name + '.tmp'), path.join(dir, name));
       rec.saved = true;
+      // Names start with the start time, so the oldest sort first.
+      const saved = fs.readdirSync(dir).filter((n) => n.endsWith('.json.gz')).sort();
+      for (const n of saved.slice(0, -KEEP_ON_DISK)) fs.rmSync(path.join(dir, n), { force: true });
     } catch (err) {
       console.warn(`[debrief] couldn't save the session: ${err.message}`);
     }
@@ -359,7 +363,8 @@ function createDebrief(fieldModel, { dir = null } = {}) {
   // On shutdown: keep the session in progress too.
   const flush = () => { if (current && current.laps.length) save(current); };
 
-  return { tick, view, compare, rivals, flush };
+  // The raw record of the session in progress (the race store reads its lap traces).
+  return { tick, view, compare, rivals, flush, current: () => current };
 }
 
 module.exports = { RIVAL_ID, createDebrief };

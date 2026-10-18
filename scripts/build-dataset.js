@@ -50,11 +50,13 @@ async function buildCapture(file) {
     } catch {
       continue;
     }
-    if (String(header.sessionUID) !== uid) {
+    // UID 0 is no session (the game sends it at the flag): those packets belong to the current one.
+    if (header.sessionUID && String(header.sessionUID) !== uid) {
       finish();
       uid = String(header.sessionUID);
       pipeline = createPipeline({ now: () => t });
     }
+    if (!pipeline) continue; // menu packets before the first session
     pipeline.feed(buf);
     const session = pipeline.fieldModel.getSession();
     if (!race && session && RACE_SESSION_TYPES.has(session.sessionType)) {

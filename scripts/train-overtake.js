@@ -58,7 +58,7 @@ async function extract(file) {
     fm.dispatch(header.packetId, header, data);
     const session = fm.getSession();
     if (!session || !RACE_TYPES.has(session.sessionType)) continue;
-    uid = String(header.sessionUID);
+    uid = String(fm.getSessionUID()); // the field's session: UID 0 packets belong to the current one
     if (!races.has(uid)) races.set(uid, { name: `${path.basename(path.dirname(file))} (track ${session.trackId})`, samples: [], passes: [], trackId: session.trackId, trackLength: session.trackLength });
     const race = races.get(uid);
     const t = header.sessionTime;

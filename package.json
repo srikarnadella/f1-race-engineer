@@ -27,9 +27,11 @@
     "site": "node scripts/build-demo-site.js",
     "test:coverage": "c8 --all --include \"src/**\" --include \"public/**\" --check-coverage --lines 88 --branches 84 --functions 86 --reporter text-summary node --test test/",
     "dataset": "node scripts/build-dataset.js",
+    "db": "node scripts/build-db.js",
     "backtest": "node scripts/backtest.js"
   },
   "dependencies": {
+    "better-sqlite3": "^11.10.0",
     "qrcode-terminal": "0.12.0",
     "ws": "^8.18.0"
   },

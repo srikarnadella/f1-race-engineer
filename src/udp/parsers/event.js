@@ -64,6 +64,12 @@ function parseEvent(buf) {
   // Who passed whom - the labels the overtake model learns from (verified
   // on a real F1 26 race: "LAWSON passes SAINZ", then the re-pass).
   if (code === 'OVTK' && has(2)) return { code, name: EVENT_NAMES.OVTK, overtakerIdx: buf.readUInt8(d), overtakenIdx: buf.readUInt8(d + 1) };
+  // Both checked on a real F1 26 race: trap speeds of 282-299 km/h, and
+  // collisions between cars that were running together.
+  if (code === 'SPTP' && has(12)) {
+    return { code, name: EVENT_NAMES.SPTP, vehicleIdx: buf.readUInt8(d), speedKmh: buf.readFloatLE(d + 1), isOverallFastest: buf.readUInt8(d + 5) === 1 };
+  }
+  if (code === 'COLL' && has(2)) return { code, name: EVENT_NAMES.COLL, vehicleIdx: buf.readUInt8(d), otherVehicleIdx: buf.readUInt8(d + 1) };
   if (code === 'SCAR' && buf.length >= HEADER_LENGTH + 6) {
     const safetyCarType = buf.readUInt8(HEADER_LENGTH + 4);
     const safetyCarEventType = buf.readUInt8(HEADER_LENGTH + 5);
