@@ -61,6 +61,7 @@ came after it:
 - **HOLD to manage tyres** claims the cliff is close.
 - **BOX for damage** claims the time lost to the flag is worse than a stop.
 - **BOX under a safety car** claims the stop is cheaper than one under green.
+- **BOX for inters or slicks** claims that tyre is quicker: over the next 3 laps, the cars on it against the cars on the other one.
 
 On the recorded races: **13 right, 0 wrong, 20 that the laps can't judge** (mostly a call replaced by a
 safety car or a flashback before it could be checked). `npm run backtest` prints it.

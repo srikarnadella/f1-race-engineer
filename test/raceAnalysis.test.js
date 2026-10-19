@@ -308,3 +308,30 @@ test('a stop that leaves a time penalty in place teaches that penalties are adde
   // The next race: a penalty before the stop is added at the flag.
   assert.strictEqual(tick(race(), {}).penalties.servedAt, 'flag');
 });
+
+test('pace after a switch to inters counts only the laps on wet tyres', () => {
+  // Austria, 19 Oct 2026: a dry 70s slick lap averaged with two 78s laps on
+  // inters in the rain had PIASTRI "catching 8.7s/lap" - he was 0.8s quicker.
+  const fm = createFieldModel();
+  let t = 0;
+  const status = (wetCars) => fm.dispatch(PACKET_IDS.CAR_STATUS, header((t += 1)), {
+    cars: Array.from({ length: 5 }, (_, i) => ({ visualTyreCompound: wetCars.includes(i) ? 7 : 17, tyresAgeLaps: 3 })),
+  });
+  const send = (lap, o) => fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(lap, o) });
+  status([]);
+  for (let lap = 1; lap <= 5; lap++) send(lap, { 2: { lastLapTimeInMS: 70000 }, 3: { lastLapTimeInMS: 70000 } });
+  status([2, 3]);
+  for (let lap = 6; lap <= 7; lap++) send(lap, { 2: { lastLapTimeInMS: 78600 }, 3: { lastLapTimeInMS: 77800 } });
+  const behind = createRaceAnalysis(fm).compute().field.find((c) => c.carIndex === 3);
+  assert.strictEqual(behind.paceMs, 77800);
+  assert.strictEqual(behind.gapTrendMsPerLap, -800);
+});
+
+test('no battle call once the player has taken the flag', () => {
+  // Austria: "Defend from PIASTRI" 20 seconds after the chequered flag.
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars(3, { 3: { deltaToCarInFrontInMS: 400 } }) });
+  assert.strictEqual(createRaceAnalysis(fm).compute().battle.call.mode, 'DEFEND');
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(2), { cars: lapCars(3, { 2: { resultStatus: 3 }, 3: { deltaToCarInFrontInMS: 400 } }) });
+  assert.strictEqual(createRaceAnalysis(fm).compute().battle.call, null);
+});

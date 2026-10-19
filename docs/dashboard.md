@@ -111,8 +111,12 @@ buttons under **Ask** and are saved on that device.
 - **Penalties and track limits:** warnings named by corner, and whether the gap behind covers a time penalty.
 
 **Weather and sessions**
-- **Weather in laps, not minutes:** "Rain in ~5 laps (75%)". When it's drying, it compares cars on
-  slicks with cars on inters to call the switch.
+- **Weather in laps, not minutes:** "Rain in ~5 laps (70%)", counted down between the game's 5-minute
+  forecast updates. Once cars are on both tyres, it compares them on the same laps to call the switch,
+  and it never calls slicks in the rain or inters on a dry track with no rain due.
+- **Inters under a safety car:** with rain ~3 laps away it weighs the cheap stop against the laps you'd
+  run on inters on a dry track first, and gives one number: "box for inters, ~5s better than stopping
+  later". It assumes the safety car comes in at the end of this lap, the worst case for boxing.
 - **Qualifying mode:** the call becomes PREP (out lap), PUSH (timed lap) or BOX (in lap). It knows the
   knockout line, how many runs fit in the time left, and who is in your way.
 - **2026 rules:** Overtake mode replaces DRS, and ERS mode 3 is called Boost.

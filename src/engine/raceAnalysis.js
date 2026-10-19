@@ -3,7 +3,7 @@
 // actually costs at this track today, and where the player would rejoin if
 // they boxed now. Recomputed on every snapshot tick from FieldModel.
 
-const { createWeatherAnalysis } = require('./weather');
+const { createWeatherAnalysis, groupOf, RAIN_IMMINENT_LAPS } = require('./weather');
 const { raceLapsLeft, RACE_SESSION_TYPES } = require('../state/race');
 const { withoutSlowLaps } = require('../lib/laps');
 const { median } = require('../lib/stats');
@@ -12,7 +12,7 @@ const { fitDegradation, stopPayback } = require('../ml/tyreModel');
 const { pairFeatures, toVector } = require('../ml/overtakeFeatures');
 const { predict } = require('../ml/logistic');
 const { forecastAttack } = require('../analysis/attackForecast');
-const { strategyOptions } = require('../analysis/strategyOptions');
+const { strategyOptions, intersNowGain } = require('../analysis/strategyOptions');
 const { battleCall } = require('../analysis/battleCall');
 const { projectBattery } = require('../analysis/batteryProjection');
 const { pitTiming, wearRange } = require('../analysis/pitTiming');
@@ -125,8 +125,11 @@ const TYRE_FIT_RESAMPLES = 100;
 // Average of the last few laps that weren't pit or safety-car laps.
 function cleanPaceMs(car) {
   // Slow against the recent laps, not the whole race: when rain slows everyone,
-  // the slow laps are the pace now.
-  const clean = withoutSlowLaps(car.lapHistory.filter((l) => !l.pit && !l.neutralised && l.lapNum > 1).slice(-RECENT_LAPS)).slice(-PACE_LAPS);
+  // the slow laps are the pace now. Only laps on the kind of tyre fitted now
+  // (slicks or wets): a dry slick lap averaged into a wet stint is no pace at all.
+  const now = groupOf(car.status && car.status.visualTyreCompound);
+  const sameKind = (l) => !now || !groupOf(l.compound) || groupOf(l.compound) === now;
+  const clean = withoutSlowLaps(car.lapHistory.filter((l) => !l.pit && !l.neutralised && l.lapNum > 1 && sameKind(l)).slice(-RECENT_LAPS)).slice(-PACE_LAPS);
   return clean.length ? Math.round(avg(clean.map((l) => l.lapMs))) : null;
 }
 
@@ -660,7 +663,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const damage = damageFor({ player, session, tyreModel, myDeg, lapsLeft: raceLapsLeft(session, player.lapData), pitLossMs: loss.ms });
 
     // ATTACK / DEFEND / CLOSE IN / CLEAR.
-    battle.call = player.lapData.pitStatus === 0 ? battleCall({
+    // Nothing to fight for once you've taken the flag.
+    battle.call = player.lapData.pitStatus === 0 && isRunning(player) ? battleCall({
       ahead: rowOf(ahead),
       behind: rowOf(behind),
       gapAheadS: ahead ? player.lapData.deltaToCarInFrontInMS / 1000 : null,
@@ -673,6 +677,24 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
 
     // Under a safety car, VSC or red flag: the options, side by side.
     const situation = fieldModel.isRedFlag() ? 'Red flag' : session && session.safetyCarStatus === 1 ? 'Safety car' : session && session.safetyCarStatus === 2 ? 'VSC' : null;
+    // Rain due under a safety car / VSC on slicks: inters now, or later under green?
+    // The same window the BOX-for-inters call uses, so the card and the call agree.
+    const nc = weather && weather.nextChange;
+    const interSet = (player.tyreSets || []).filter((s) => s.available && !s.fitted && s.visualTyreCompound === 7)
+      .sort((a, b) => a.lapDeltaTimeMs - b.lapDeltaTimeMs)[0];
+    const rainStop = situation && situation !== 'Red flag' && weather && weather.playerOnSlicks && interSet
+      && nc && nc.to === 'rain' && !nc.afterFlag && Math.round(nc.inLaps) <= RAIN_IMMINENT_LAPS
+      ? {
+        rainInLaps: nc.inLaps,
+        ...intersNowGain({
+          rainInLaps: nc.inLaps,
+          lapFractionLeft: session.trackLength ? 1 - Math.max(0, Math.min(1, player.lapData.lapDistance / session.trackLength)) : 1,
+          stopLossMs: loss.ms + stopPenaltyMs,
+          normalLossMs: loss.normalMs + stopPenaltyMs,
+          interDeltaMs: interSet.lapDeltaTimeMs,
+        }),
+      }
+      : null;
     const options = situation
       ? strategyOptions({
         situation,
@@ -683,6 +705,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
         stopLossMs: loss.ms + stopPenaltyMs,
         normalLossMs: loss.normalMs + stopPenaltyMs,
         wetConditions: !!(weather && (weather.trackState === 'raining' || (weather.trackState === 'drying' && weather.playerOnWets))),
+        rainStop,
       })
       : null;
 
@@ -742,6 +765,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       pitLoss: loss,
       rejoin,
       options,
+      rainStop,
       pitTiming: timing,
       damage,
       penalties,

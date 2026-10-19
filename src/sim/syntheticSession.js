@@ -25,12 +25,15 @@ const TRACE_TICKS = 1500;
 // Weather: cloud building from the west. The game's forecast is a list of
 // slots ("now", +5, +10... minutes), each re-evaluated as time passes - so
 // the demo's rain first shows up beyond the flag, then moves inside the
-// race distance as the forecast slides forward. The player never actually
-// gets wet; the dashboard's job here is the warning.
+// race distance as the forecast slides forward. Then the shower misses: the
+// outlook clears before it arrives, so the player never actually gets wet;
+// the dashboard's job here is the warning, and standing it down.
 const FORECAST_SLOTS_MIN = [0, 5, 10, 15, 30];
-function weatherAt(minFromStart) {
+const FORECAST_CLEARS_MIN = 4.25;
+// asOfMin: when the forecast is made (the shower is only in it until it clears).
+function weatherAt(minFromStart, asOfMin = minFromStart) {
   if (minFromStart < 4) return { weather: 1, rainPct: 10, trackTemperature: 38, airTemperature: 26 };
-  if (minFromStart < 6.5) return { weather: 2, rainPct: 45, trackTemperature: 35, airTemperature: 24 };
+  if (minFromStart < 6.5 || asOfMin >= FORECAST_CLEARS_MIN) return { weather: 2, rainPct: 45, trackTemperature: 35, airTemperature: 24 };
   if (minFromStart < 20) return { weather: 3, rainPct: 75, trackTemperature: 29, airTemperature: 21 };
   return { weather: 2, rainPct: 30, trackTemperature: 31, airTemperature: 22 };
 }
@@ -306,7 +309,7 @@ function generate(emit, { seed = 26 } = {}) {
         ...weatherAt(nowMin), totalLaps: TOTAL_LAPS, trackLength: TRACK.lengthM,
         trackId: TRACK.id, safetyCarStatus: vscUntilS ? 2 : 0,
         forecast: FORECAST_SLOTS_MIN.map((offset) => {
-          const w = weatherAt(nowMin + offset);
+          const w = weatherAt(nowMin + offset, nowMin);
           return { sessionType: 15, timeOffsetMin: offset, weather: w.weather, rainPercentage: w.rainPct, trackTemperature: w.trackTemperature, airTemperature: w.airTemperature };
         }),
         forecastAccuracy: 0,

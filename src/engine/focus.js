@@ -28,7 +28,10 @@ function wanted({ strategy, analysis, sessionOver }) {
   if (wx) {
     const nc = wx.nextChange;
     if (wx.trackState === 'rain-coming' && nc && nc.inLaps <= RAIN_FOCUS_LAPS) return { screen: 'weather', reason: `Rain in ~${Math.max(1, Math.round(nc.inLaps))} laps` };
-    if (wx.trackState === 'drying' || (wx.crossover && wx.crossover.wetGainMs != null)) return { screen: 'weather', reason: wx.trackState === 'drying' ? 'Track drying' : 'Tyre crossover' };
+    // A crossover only matters if it says the other tyre to the one you're on.
+    const gain = wx.crossover && wx.crossover.wetGainMs;
+    const otherTyre = gain != null && ((wx.playerOnSlicks && gain > 0) || (wx.playerOnWets && gain < 0));
+    if (wx.trackState === 'drying' || otherTyre) return { screen: 'weather', reason: wx.trackState === 'drying' ? 'Track drying' : 'Tyre crossover' };
   }
   const bc = strategy && strategy.battle;
   if (bc && ['ATTACK', 'DEFEND', 'CLOSE IN'].includes(bc.mode)) return { screen: 'battle', reason: `${bc.mode}${bc.target ? ` ${bc.mode === 'DEFEND' ? 'vs' : 'on'} ${bc.target}` : ''}` };

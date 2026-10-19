@@ -147,9 +147,10 @@ Each line: what it is, why it matters, and the acceptance test.
   the laps ([datasets/calls.csv](../datasets/calls.csv), `src/analysis/callsAudit.js`). PUSH: the tyres
   hold (no two green laps in a row 1.5 s off the pace before). Manage tyres: the cliff comes within 3
   laps. BOX for damage: the loss to the flag beats a stop. BOX under a safety car: the stop cost less
-  than a green one (both measured against the cars that didn't stop). Following the rules isn't
+  than a green one (both measured against the cars that didn't stop). BOX for inters or slicks: the
+  cars on that tyre are quicker over the next 3 laps. Following the rules isn't
   graded. On the 6 recorded races: 13 right, 0 wrong, 20 can't be judged (mostly a call replaced
-  within its lap by a safety car or flashback). Weather, pit-window and fuel calls aren't graded yet;
+  within its lap by a safety car or flashback). Pit-window and fuel calls aren't graded yet;
   nor is whether an offered undercut would have worked.
 - **A3 Confidence on calls.** Every call carries how sure it is, from M1/M2 intervals. *Partly
   done:* the pit-timing pick is re-run at both ends of the wear range; when it moves, the card says

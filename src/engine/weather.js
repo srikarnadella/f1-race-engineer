@@ -8,6 +8,8 @@
 const { median } = require('../lib/stats');
 
 const WET_FROM = 3; // weather >= light rain
+// Rain this close (rounded laps) is worth a stop for inters when a safety car makes it cheap.
+const RAIN_IMMINENT_LAPS = 3;
 const WET_COMPOUNDS = new Set([7, 8]); // visual: inter, wet
 const SLICK_COMPOUNDS = new Set([16, 17, 18]);
 // After the rain stops, the track stays damp for a while; until then (or
@@ -26,6 +28,10 @@ const SWITCH_FRESH_LAPS = 3;
 // A car that just changed between slicks and wets is the cleanest read on
 // the crossover: its own last clean lap on the old tyre against its first
 // clean lap on the new one - same car, same driver, a couple of laps apart.
+// Only a switch that got quicker counts: the weather moves between the two
+// laps, so a car that went to inters as the rain came is slower on them than
+// it was on slicks in the dry (a real Austria race read that as "slicks 8s a
+// lap faster" with the whole field on inters in the rain).
 // Returned as the wet tyre's gain (ms per lap), or null.
 function switchGainMs(car) {
   const h = car.lapHistory;
@@ -41,6 +47,7 @@ function switchGainMs(car) {
     const before = h[j];
     if (groupOf(before.compound) === groupOf(after.compound)) continue;
     const gain = before.lapMs - after.lapMs; // > 0: the new tyre is quicker
+    if (gain <= 0) return null;
     return groupOf(after.compound) === 'wet' ? gain : -gain;
   }
   return null;
@@ -78,9 +85,14 @@ function crossoverPace(cars) {
 
 function createWeatherAnalysis() {
   let lastWetAtS = null;
+  // When the next change was first listed at its current offset: the game
+  // refreshes the forecast every ~5 minutes, so "+10 min" stands still for
+  // minutes while the rain gets closer. Counted down from here instead.
+  let eta = null; // { to, offsetMin, atS }
 
   function reset() {
     lastWetAtS = null;
+    eta = null;
   }
 
   // cars: FieldModel cars in position order. lapsLeft may be null (not a
@@ -112,13 +124,18 @@ function createWeatherAnalysis() {
     // The first future slot whose wet/dry state differs from now. Slots are
     // 5+ minutes apart, so this is "by then", not an exact moment.
     const flip = timeline.find((t) => t.offsetMin > 0 && isWet(t.weather) !== nowWet);
+    const to = nowWet ? 'dry' : 'rain';
+    if (!flip) eta = null;
+    else if (!eta || eta.to !== to || eta.offsetMin !== flip.offsetMin) eta = { to, offsetMin: flip.offsetMin, atS: sessionTime + flip.offsetMin * 60 };
+    // Clamped: a flashback rewinds sessionTime past the anchor.
+    const inMin = flip && Math.min(flip.offsetMin, Math.max(0, (eta.atS - sessionTime) / 60));
     const nextChange = flip && {
-      to: nowWet ? 'dry' : 'rain',
-      inMin: flip.offsetMin,
-      inLaps: flip.laps,
+      to,
+      inMin,
+      inLaps: toLaps(inMin),
       weather: flip.weather,
       rainPct: flip.rainPct,
-      afterFlag: flip.afterFlag,
+      afterFlag: afterFlag(toLaps(inMin)),
     };
 
     const crossover = crossoverPace(cars);
@@ -148,4 +165,4 @@ function createWeatherAnalysis() {
   return { compute, reset };
 }
 
-module.exports = { createWeatherAnalysis, crossoverPace, switchGainMs, isWet };
+module.exports = { createWeatherAnalysis, crossoverPace, switchGainMs, isWet, groupOf, RAIN_IMMINENT_LAPS };

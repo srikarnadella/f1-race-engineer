@@ -40,7 +40,8 @@ flowchart LR
 - **Tyre temperature calls:** the 8 °C and 12 °C thresholds come from four races, not from tyre data.
 - **The race plan** looks at one and two stops; a full-distance race can need three.
 - **Wet races:** pit timing and undercut calls are dry-only, there's no model of how inters wear, and I've
-  only recorded 7 minutes of rain.
+  recorded one wet race (Austria, 19 Oct 2026). The tyre-wear and rival-stop scores aren't built for
+  rain yet, so that race isn't in the committed dataset.
 - **An in-game overlay** needs a desktop wrapper; I parked it in favor of voice.
 
 ## Coming soon

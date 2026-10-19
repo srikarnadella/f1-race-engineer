@@ -9,6 +9,7 @@ const { auditCalls } = require('../src/analysis/callsAudit');
 //   HOLD manage tyres   the cliff is near: a lap 1.5 s+ off within 3 laps after
 //   BOX damage          the damage costs more to the flag than a stop does
 //   BOX safety car/VSC  the stop costs less than one under green
+//   BOX weather         the tyre it called for is quicker over the 3 laps after
 // Following the rules (in the pits, under a safety car, a penalty) isn't graded.
 
 const PACE = 80000;
@@ -140,4 +141,29 @@ test('calls audit: slow laps after a damage call are the damage, not the tyres',
   const laps = race({ player: (lap) => ({ lapMs: lap >= 4 ? PACE + 2000 : PACE }) });
   const [, , push] = only(laps, [call(1, 'PUSH', 'ok'), call(2, 'BOX', 'damage'), call(2, 'PUSH', 'ok')]);
   assert.notStrictEqual(push.verdict, 'wrong', push.why);
+});
+
+// BOX weather (inters or slicks) claims that tyre is quicker now: on the laps
+// after the call, cars on it against cars on the other one, lap by lap.
+const weatherCall = (lapNum, tyre) => ({ lapNum, action: 'BOX', kind: 'weather', reason: `Rain within ~1 lap - box for ${tyre}` });
+// From lap 11 it rains: cars 1-2 are on inters at 78s, cars 3-4 stay on slicks at 82s.
+const wetRace = () => race({
+  field: (c, lap) => (lap >= 11 ? (c <= 2 ? { compound: 7, lapMs: 78000 } : { lapMs: 82000 }) : {}),
+});
+
+test('calls audit: BOX for inters is right when the cars on inters are quicker after it', () => {
+  const [c] = only(wetRace(), [weatherCall(10, 'inters')]);
+  assert.strictEqual(c.verdict, 'right', c.why);
+  assert.match(c.why, /4\.0s/);
+});
+
+test('calls audit: BOX for slicks is wrong when the cars on inters are quicker (Austria, 19 Oct 2026)', () => {
+  const [c] = only(wetRace(), [weatherCall(12, 'slicks')]);
+  assert.strictEqual(c.verdict, 'wrong', c.why);
+});
+
+test('calls audit: a weather call with nobody on the other tyre to compare is unclear', () => {
+  const [c] = only(race(), [weatherCall(10, 'inters')]);
+  assert.strictEqual(c.verdict, 'unclear');
+  assert.notStrictEqual(c.why, 'No test for this call yet');
 });

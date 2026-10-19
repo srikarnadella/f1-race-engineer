@@ -156,6 +156,39 @@ test('strategy options: under a safety car, losing 15 places to stop is worse th
   assert.strictEqual(o.options.find((x) => x.id === 'box-16').positionsLost, 15);
 });
 
+const { intersNowGain } = require('../src/analysis/strategyOptions');
+
+test('inters under a safety car: the cheaper stop against the dry laps on inters before the rain', () => {
+  // Austria, 19 Oct 2026: a stop 16s under the safety car vs 24s under green;
+  // the game had inters 3.5s a lap slower on the dry track.
+  const base = { stopLossMs: 16000, normalLossMs: 24000, interDeltaMs: 3500, lapFractionLeft: 0.8 };
+  // Rain ~2 laps away: box at the line, ~1.2 dry laps on inters.
+  const g = intersNowGain({ ...base, rainInLaps: 2 });
+  assert.deepStrictEqual(g, { saveS: 8, dryLaps: 1.2, dryCostS: 4.2, gainS: 3.8 });
+  // Three dry laps cost more than the stop saves.
+  assert.strictEqual(intersNowGain({ ...base, rainInLaps: 3.8 }).gainS, -2.5);
+  // Rain before you reach the line: all saving.
+  assert.strictEqual(intersNowGain({ ...base, rainInLaps: 0.5 }).gainS, 8);
+});
+
+test('strategy options: rain due under a safety car - inters, not slicks, and the card says by how much', () => {
+  const player = { status: { visualTyreCompound: 17, tyresAgeLaps: 5 }, lapData: { carPosition: 1 } };
+  const sets = [set(17, { life: 20, fitted: true }), set(16, { life: 13, delta: -900 }), set(7, { life: 30, delta: 3500 })];
+  const opts = (rainInLaps) => strategyOptions({
+    situation: 'Safety car', lapsLeft: 7, player, rejoin: { position: 13 }, stopLossMs: 16000, normalLossMs: 24000, tyreSets: sets,
+    rainStop: { rainInLaps, ...intersNowGain({ stopLossMs: 16000, normalLossMs: 24000, interDeltaMs: 3500, lapFractionLeft: 0.8, rainInLaps }) },
+  });
+  const o = opts(2);
+  assert.deepStrictEqual(o.options.map((x) => x.id), ['stay', 'box-7']); // no fresh slicks with rain due
+  assert.strictEqual(o.recommendedId, 'box-7');
+  assert.match(o.headline, /^Safety car: best is box: inter - .*~4s better than stopping later/);
+  assert.match(o.options.find((x) => x.id === 'stay').summary, /rain in ~2 laps - a stop for inters under green/);
+  // Too many dry laps on inters first: stay out, and the inters say what they'd cost.
+  const late = opts(3.8);
+  assert.strictEqual(late.recommendedId, 'stay');
+  assert.match(late.options.find((x) => x.id === 'box-7').summary, /~3s worse than stopping later/);
+});
+
 test('battle call: attack, defend, the sandwich, close in, clear', () => {
   const row = (name, trend = 0, extra = {}) => ({ name, gapTrendMsPerLap: trend, pitStatus: 0, ...extra });
   const med = (p) => ({ p, level: p >= 0.25 ? 'high' : p >= 0.1 ? 'medium' : 'low' });

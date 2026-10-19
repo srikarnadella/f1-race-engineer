@@ -38,7 +38,7 @@ for it. When on:
 
 - **The bridge decides, the browser obeys.** `src/engine/focus.js` picks the screen from the same
   calls the radio uses, in priority order: session over → Debrief; safety car, VSC, red flag or a
-  pit call → Strategy; rain within ~5 laps, a drying track or a tyre crossover → Weather; ATTACK,
+  pit call → Strategy; rain within ~5 laps, a drying track or a tyre crossover toward the other tyre → Weather; ATTACK,
   DEFEND or CLOSE IN → Battle; otherwise your screen. Every device agrees, a replay always switches
   the same way, and it's unit-tested.
 - **It doesn't flap.** A screen stays at least 8 s, and the trigger has to be gone for 5 s before it

@@ -8,6 +8,7 @@ const { isRacing, raceLapsLeft } = require('../state/race');
 const { planText } = require('../analysis/racePlan');
 const { qualiCall, raceCall, standing, CALM_CALLS } = require('./calls');
 const { laps } = require('../lib/format');
+const { RAIN_IMMINENT_LAPS } = require('./weather');
 
 const SEVERITY = { INFO: 'info', ADVISORY: 'advisory', CRITICAL: 'critical' };
 const CATEGORY = { PACE: 'pace', STRATEGY: 'strategy', HEALTH: 'health', FLAG: 'flag', CAR: 'car' };
@@ -62,7 +63,6 @@ const PIT_WINDOW_MARGIN_S = 1.5;
 // Weather: warn this many laps ahead of rain; call the tyre switch once the
 // other tyre is this much quicker per lap (less is lap-time noise).
 const RAIN_WARN_LAPS = 10;
-const RAIN_IMMINENT_LAPS = 3;
 const CROSSOVER_MS = 1000;
 const WEATHER_NAME = ['clear', 'light cloud', 'overcast', 'light rain', 'heavy rain', 'storm'];
 // Damage costing less than this a lap is within lap-to-lap noise.
@@ -621,7 +621,8 @@ function createInsightEngine(fieldModel) {
     const lapsAway = (n) => `~${laps(Math.max(1, Math.round(n)))}`;
     let rainSoonLaps = null;
     let rainInLaps = null;
-    if (nc && nc.to === 'rain' && !nc.afterFlag && nc.inLaps <= RAIN_WARN_LAPS) {
+    const rainDue = !!(nc && nc.to === 'rain' && !nc.afterFlag && nc.inLaps <= RAIN_WARN_LAPS);
+    if (rainDue) {
       if (wx.playerOnSlicks) rainInLaps = nc.inLaps;
       // Judged on the rounded figure the message shows, so "~3 laps" is always imminent.
       const imminent = Math.round(nc.inLaps) <= RAIN_IMMINENT_LAPS;
@@ -629,7 +630,8 @@ function createInsightEngine(fieldModel) {
       upsert('rain-coming', {
         severity: imminent ? SEVERITY.ADVISORY : SEVERITY.INFO,
         category: CATEGORY.STRATEGY,
-        message: `Rain within ${lapsAway(nc.inLaps)} (${WEATHER_NAME[nc.weather]}, ${nc.rainPct}%)${wx.playerOnSlicks ? ' - plan the inters stop' : ''}`,
+        // To the nearest 10%: the game nudges it every few seconds.
+        message: `Rain within ${lapsAway(nc.inLaps)} (${WEATHER_NAME[nc.weather]}, ${Math.round(nc.rainPct / 10) * 10}%)${wx.playerOnSlicks ? ' - plan the inters stop' : ''}`,
         expiresAtMs: clock() + 5000,
       });
     } else {
@@ -647,10 +649,12 @@ function createInsightEngine(fieldModel) {
     }
     let weatherBox = null;
     const cx = wx && wx.crossover;
+    // Lap times can mislead (a fast car on the wrong tyre), the sky can't: no
+    // inters on a dry track with no rain due, no slicks while it's raining.
     if (playerOnTrack && cx && cx.wetGainMs != null) {
-      if (wx.playerOnSlicks && cx.wetGainMs >= CROSSOVER_MS) {
+      if (wx.playerOnSlicks && (wx.nowWet || rainDue) && cx.wetGainMs >= CROSSOVER_MS) {
         weatherBox = `Inters ${(cx.wetGainMs / 1000).toFixed(1)}s/lap faster - box for inters`;
-      } else if (wx.playerOnWets && -cx.wetGainMs >= CROSSOVER_MS) {
+      } else if (wx.playerOnWets && !wx.nowWet && -cx.wetGainMs >= CROSSOVER_MS) {
         weatherBox = `Slicks ${(-cx.wetGainMs / 1000).toFixed(1)}s/lap faster - box for slicks`;
       }
     }
@@ -664,6 +668,15 @@ function createInsightEngine(fieldModel) {
       });
     } else {
       expire('crossover');
+    }
+    // Before anyone is on inters there are no lap times to compare: box on the
+    // forecast once the rain is under a lap away, or a few laps out when a
+    // safety car makes the stop cheap enough to pay for the dry laps on inters.
+    const rs = analysis && analysis.rainStop;
+    if (!weatherBox && playerOnTrack && rainDue && wx.playerOnSlicks) {
+      const n = Math.max(1, Math.round(nc.inLaps));
+      if (n <= 1) weatherBox = `Rain within ~${laps(1)} - box for inters`;
+      else if (neutralised && !redFlag && rs && rs.gainS > 0) weatherBox = `${neutralised}, rain within ~${laps(n)} - box for inters, ~${Math.max(1, Math.round(rs.gainS))}s better than stopping later`;
     }
 
     // --- A neighbour just pitted ---

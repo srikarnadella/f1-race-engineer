@@ -39,3 +39,12 @@ test('focus: escalates at once, holds, and only returns once the trigger has set
   t += 500;
   assert.strictEqual(focus(boxing).screen, 'strategy');
 });
+
+test('focus: a tyre crossover only takes the screen when it favors the other tyre to yours', () => {
+  // Austria, 19 Oct 2026: on inters in the rain, inters the quicker tyre - nothing to
+  // act on, but the screen jumped to Weather in the middle of a fight.
+  const raining = (wetGainMs, onWets) => ({ trackState: 'raining', crossover: { wetGainMs }, playerOnWets: onWets, playerOnSlicks: !onWets });
+  assert.strictEqual(wanted({ ...battle, analysis: { weather: raining(1700, true) } }).screen, 'battle');
+  assert.deepStrictEqual(wanted({ ...battle, analysis: { weather: raining(1700, false) } }), { screen: 'weather', reason: 'Tyre crossover' });
+  assert.strictEqual(wanted({ ...battle, analysis: { weather: raining(-1700, true) } }).screen, 'weather');
+});

@@ -7,6 +7,8 @@ const { median } = require('../lib/stats');
 const OFF_MS = 1500; // two laps in a row this far off the pace before is the tyres, not traffic
 const TYRES_WINDOW = 3; // "manage tyres" means the cliff is this many laps away
 const CLEAN_LAPS = 3; // "the pace before": the last few clean laps on the set
+const WEATHER_WINDOW = 3; // a weather call is judged on the laps right after it
+const WET = new Set([7, 8]); // visual compounds: inter, wet
 
 const RULE_KINDS = new Set(['pit', 'neutralised', 'red-flag', 'penalty', 'too-late']);
 const PUSH_KINDS = new Set(['ok', 'undercut', 'rain']);
@@ -100,7 +102,22 @@ function auditCalls(calls, laps) {
       if (!stop || greenStop == null) return { verdict: 'unclear', why: stop ? 'No green-flag stop in the race to compare' : 'Not taken' };
       return { verdict: stop.costMs < greenStop ? 'right' : 'wrong', why: `The stop cost ${s(stop.costMs)}; one under green ${s(greenStop)}` };
     }
-    // shortcut: weather, pit-window and fuel calls aren't graded yet; add a rule when a race has them.
+    if (c.kind === 'weather') {
+      // The tyre it called for against the other one, on the same laps.
+      const toWet = /inters/.test(c.reason);
+      const gaps = [];
+      for (let n = c.lapNum + 1; n <= c.lapNum + WEATHER_WINDOW; n++) {
+        const lapsOn = (wet) => laps.filter((l) => l.lapNum === n && green(l) && l.compound != null && WET.has(l.compound) === wet).map((l) => l.lapMs);
+        const called = median(lapsOn(toWet));
+        const other = median(lapsOn(!toWet));
+        if (called != null && other != null) gaps.push(other - called);
+      }
+      const gain = median(gaps);
+      if (gain == null) return { verdict: 'unclear', why: 'Nobody on both tyres in the laps after to compare' };
+      const tyre = toWet ? 'Inters' : 'Slicks';
+      return { verdict: gain > 0 ? 'right' : 'wrong', why: `${tyre} ${s(Math.abs(gain))} a lap ${gain > 0 ? 'quicker' : 'slower'} over the next ${WEATHER_WINDOW} laps` };
+    }
+    // shortcut: pit-window and fuel calls aren't graded yet; add a rule when a race has them.
     return { verdict: 'unclear', why: 'No test for this call yet' };
   };
 

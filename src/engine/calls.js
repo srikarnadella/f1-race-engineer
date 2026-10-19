@@ -65,7 +65,7 @@ function raceCall({ lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits, 
   // An undercut is an option, not an order - but the call must not read as
   // "nothing to think about" while the radio is offering one.
   if (undercutOn) return { action: 'PUSH', kind: 'undercut', reason: `Or box now - undercut on ${undercutOn} is on` };
-  if (rainInLaps != null) return { action: 'PUSH', kind: 'rain', reason: `Rain within ~${laps(Math.max(1, Math.round(rainInLaps)))} - don't stop for slicks` };
+  if (rainInLaps != null) return { action: 'PUSH', kind: 'rain', reason: `Rain within ~${laps(Math.max(1, Math.round(rainInLaps)))} - stay out, inters when it arrives` };
   return { action: 'PUSH', kind: 'ok', reason: 'Tyres and fuel OK' };
 }
 
