@@ -326,7 +326,7 @@
       Object.assign(lap, { gap: clockText(q.timeLeftS), gapTone: '', trend: q.runs === 0 ? 'left · no time for another run' : `left · time for ${q.runs} run${q.runs === 1 ? '' : 's'}` });
     }
     const t = q.traffic && (q.traffic.ahead || q.traffic.behind);
-    if (t) Object.assign(lap, { chip: q.traffic.ahead ? `TRAFFIC ${t.gapS.toFixed(1)}s` : 'LET BY', chipTone: 'is-watch', extra: t.name });
+    if (t) Object.assign(lap, { chip: q.traffic.ahead ? `Traffic ${t.gapS.toFixed(1)}s` : 'Let by', chipTone: 'is-watch', extra: t.name });
     const stand = { name: q.cut ? `Top ${q.cut.position} go through` : 'By best lap', gap: q.position ? `P${q.position}` : '–', gapTone: q.position ? '' : 'is-muted', trend: q.position == null ? 'no time yet' : q.position === 1 ? 'fastest' : `+${secs(q.gapToPoleMs, 3)} to P1`, trendTone: 'is-muted', chip: '', extra: '' };
     if (q.cut && q.cut.marginMs != null) {
       const through = q.cut.marginMs < 0;
@@ -384,7 +384,7 @@
             <div class="w-drive__options w-opt" data-ref="optBox" hidden></div>
             <div class="w-drive__battle w-drive__quali" data-ref="qualiBox" hidden>${sideHtml('q', 'This lap', false)}${sideHtml('s', 'Standing', false)}</div>
           </div>
-          <div class="w-drive__radio" data-ref="radioBox"><span class="w-drive__radio-tag">RADIO</span><span data-ref="radio">No calls - drive</span></div>
+          <div class="w-drive__radio" data-ref="radioBox"><span class="w-drive__radio-tag">Radio</span><span data-ref="radio">No calls - drive</span></div>
           <div class="w-drive__tiles">${tile('tyre', 'Tyres')}${tile('box', 'Box now')}${tile('wx', 'Weather')}${tile('tip', 'Car')}</div>
         </div>`);
       return (s) => {
@@ -513,7 +513,7 @@
   function optionsHtml(o) {
     const cards = o.options.map((x) => `
       <div class="w-opt__card${x.recommended ? ' is-best' : ''}">
-        <div class="w-opt__title">${x.recommended ? '<span class="w-opt__pick">BEST</span>' : ''}${esc(x.title)}</div>
+        <div class="w-opt__title">${x.recommended ? '<span class="w-opt__pick">Best</span>' : ''}${esc(x.title)}</div>
         <div class="w-opt__pos">${x.position != null ? `P${x.position}` : '–'}<span>${x.positionsLost ? ` −${x.positionsLost}` : ''}</span></div>
         <div class="w-opt__line">${badge(x.compound)} ${esc(x.tyre)}</div>
         <div class="w-opt__line ${x.reachesFlag ? 'is-good' : 'is-watch'}">${x.reachesFlag ? 'Lasts to the flag' : `${x.lifeLaps} laps of life, ${o.lapsLeft} to go`}</div>
@@ -531,9 +531,9 @@
     const rows = pt.options.map((o) => `<tr class="${o.best ? 'is-best' : ''}">
         <td class="strong">${o.inLaps == null ? 'Stay out' : o.inLaps === 0 ? 'This lap' : o.inLaps === 1 ? 'Next lap' : `In ${o.inLaps}`} <span class="dim">${o.inLaps == null ? '' : `L${lap + o.inLaps}`}</span></td>
         <td class="tyre">${badge(o.compound)}</td>
-        <td class="num">P${o.rejoinPosition}${o.inTraffic ? ' <span class="pit-tag">TRAFFIC</span>' : ''}</td>
+        <td class="num">P${o.rejoinPosition}${o.inTraffic ? ' <span class="pit-tag">Traffic</span>' : ''}</td>
         <td class="num strong">P${o.finishPosition}</td>
-        <td class="num ${o.best ? 'is-good' : 'dim'}">${o.best ? 'BEST' : `+${o.lossS.toFixed(1)}s`}</td></tr>`).join('');
+        <td class="num ${o.best ? 'is-good' : 'dim'}">${o.best ? 'Best' : `+${o.lossS.toFixed(1)}s`}</td></tr>`).join('');
     const pl = s.analysis.pitLoss;
     // Only when the pick moves within the tyre model's range: a firm pick needs no caveat.
     const w = pt.wear && !pt.wear.holds ? pt.wear : null;
