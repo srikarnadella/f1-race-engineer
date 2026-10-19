@@ -13,6 +13,7 @@ const MIME = {
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.woff2': 'font/woff2',
 };
 const PUBLIC_DIR = path.resolve(__dirname, '..', '..', 'public');
 
