@@ -394,7 +394,7 @@
           <div><dt>Game</dt><dd>F1 26</dd><p>On PC or console</p></div>
           <div><dt>Runs on</dt><dd>Your PC</dd><p>Nothing in the cloud, no account</p></div>
           <div><dt>Watch on</dt><dd>Any screen</dd><p>Phone, tablet or browser on your Wi-Fi</p></div>
-          <div><dt>Cost</dt><dd>Free</dd><p>Open source, MIT licence</p></div>
+          <div><dt>Cost</dt><dd>Free</dd><p>Open source, MIT license</p></div>
         </dl>
       </section>
 
@@ -455,10 +455,10 @@
         <div class="bar"><span>[ 03 // MEASURED ]</span><span>SIX RECORDED RACES · EACH AGAINST THE OBVIOUS GUESS</span></div>
         <div class="tiles">
           <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>Six recorded races. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
-          <div class="tile" data-reveal style="--i:1"><b>2.5</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 4.3. Nearly all of it a pessimistic bias, next to fix.</small></div>
+          <div class="tile" data-reveal style="--i:1"><b>2.5</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 4.3. Nearly all of the error is a pessimistic bias, which is next to fix.</small></div>
           <div class="tile" data-reveal style="--i:2"><b>7.7</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 13.2 points off.</small></div>
-          <div class="tile" data-reveal style="--i:1"><b>5 / 6</b><span>races where the tyre model beats "no wear"</span><small>It doesn't yet at Silverstone, one race of the six.</small></div>
-          <div class="tile" data-reveal style="--i:2; --c: var(--watch)"><b>0.85</b><span>AUC, will the car behind pass in 10 s</span><small>Ties the gap-only baseline, so it's marked experimental</small></div>
+          <div class="tile" data-reveal style="--i:1"><b>5 / 6</b><span>races where the tyre model beats "no wear"</span><small>The exception is Silverstone, where it doesn't beat it yet.</small></div>
+          <div class="tile" data-reveal style="--i:2; --c: var(--watch)"><b>0.85</b><span>AUC: will the car behind pass within 10 s?</span><small>Ties the gap-only baseline, so it's marked experimental.</small></div>
           <figure class="tile tile-img" data-reveal style="--i:3"><img src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower, with the pit building behind" loading="lazy" decoding="async"><figcaption>Suzuka, one of the recorded races. <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Photo</a>: Tokumeigakarinoaoshima, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></figcaption></figure>
           <figure class="tile tile-img" data-reveal style="--i:4"><img src="img/pit-wall.jpg" width="1400" height="933" alt="A team's pit-wall stand beside the track at Suzuka, 2009" loading="lazy" decoding="async"><figcaption>A real pit wall, Suzuka 2009: the job, done by people. <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">Photo</a>: Morio, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a></figcaption></figure>
         </div>
@@ -473,7 +473,7 @@
         <div class="split">
           <div>
             <h1>From a packet to a call</h1>
-            <p class="lead">Under a millisecond, six steps, run ten times a second. Follow one call through them: the car behind closing in.</p>
+            <p class="lead">Six steps, run ten times a second, in under a millisecond. Follow one call through them: the car behind closing in.</p>
             <a class="button" style="margin-top: 32px" href="#watch">Demo</a>
           </div>
           <figure data-reveal>
@@ -499,7 +499,7 @@
             <p class="eg">SAINZ 0.6 s behind<br>closing 0.3 s / lap</p>
           </li>
           <li class="stage-i" data-reveal style="--c: var(--watch); --i:3">
-            <h3><button class="stage-btn" type="button" data-stage="analyse" aria-expanded="false" aria-controls="ex-analyse">Analyse</button></h3>
+            <h3><button class="stage-btn" type="button" data-stage="analyse" aria-expanded="false" aria-controls="ex-analyse">Analyze</button></h3>
             <p>Measures pit loss, fits tyre wear, simulates every stop, scores the chance of a pass.</p>
             <p class="eg">pass chance 41%<br>likely into turn 1</p>
           </li>
@@ -529,7 +529,7 @@
             </div>
             <div class="ex-body" role="tabpanel" data-sub="transport">
               <div>
-                <p>Telemetry goes to <strong>UDP port 20777</strong>, at the send rate chosen in the game's settings (20, 30 or 60 Hz), as packet format 2025 or 2026. Each packet type has its own rate: positions and telemetry at the send rate, session data a couple of times a second, events only when something happens.</p>
+                <p>Telemetry goes to <strong>UDP port 20777</strong> at the send rate chosen in the game's settings (20, 30 or 60 Hz), as packet format 2025 or 2026. Each packet type has its own rate: positions and telemetry at the send rate, session data a couple of times a second, events only when something happens.</p>
                 <p><strong>Why a bridge process?</strong> A browser can't open a raw UDP socket, and iOS restricts UDP listening for apps. So a small Node.js process beside the game takes the stream, does all the work, and serves the result to any browser on the network over a WebSocket. A phone or tablet only needs a browser, and the public demo can run the same dashboard from a file.</p>
                 <p>On a console or a second PC, the game is pointed at the bridge PC's LAN address; on the same PC it's localhost.</p>
               </div>
@@ -548,9 +548,9 @@ socket.bind(20777);</pre>
               <div>
                 <p>Every packet starts with the same 29 little-endian bytes, unchanged from F1 23 to F1 26. Byte 6 says which of the 17 packet types follows. Three fields do most of the work downstream:</p>
                 <ul>
-                  <li><strong>sessionUID</strong>: a new session resets the field model, so a qualifying lap never leaks into the race. A UID of 0, which the game sends at the chequered flag, belongs to the current session.</li>
-                  <li><strong>sessionTime</strong>: game time. Gaps and closing rates are measured on it, not on the PC's clock, and when it runs backwards a flashback happened.</li>
-                  <li><strong>overallFrameIdentifier</strong>: unlike frameIdentifier it never rewinds, so a jump in it is a lost packet. That's how feed loss is measured.</li>
+                  <li><strong>sessionUID</strong>: a new session resets the field model, so a qualifying lap never leaks into the race. A UID of 0, which the game sends at the checkered flag, belongs to the current session.</li>
+                  <li><strong>sessionTime</strong>: game time. Gaps and closing rates are measured on it, not on the PC's clock, and when it runs backwards, a flashback has happened.</li>
+                  <li><strong>overallFrameIdentifier</strong>: unlike frameIdentifier, it never rewinds, so a jump in it is a lost packet. That's how feed loss is measured.</li>
                 </ul>
               </div>
               <div>
@@ -558,7 +558,7 @@ socket.bind(20777);</pre>
                   <tr><td>0  u16</td><td>packetFormat (2026)</td></tr>
                   <tr><td>2  u8 ×3</td><td>gameYear, major, minor version</td></tr>
                   <tr><td>5  u8</td><td>packetVersion</td></tr>
-                  <tr><td>6  u8</td><td><strong>packetId</strong> - picks the parser</td></tr>
+                  <tr><td>6  u8</td><td><strong>packetId</strong> — picks the parser</td></tr>
                   <tr><td>7  u64</td><td><strong>sessionUID</strong></td></tr>
                   <tr><td>15 f32</td><td><strong>sessionTime</strong>, seconds</td></tr>
                   <tr><td>19 u32</td><td>frameIdentifier</td></tr>
@@ -600,7 +600,7 @@ socket.bind(20777);</pre>
                   <li><strong>Fuel.</strong> <code>fuelRemainingLaps</code> is the MFD surplus over the race distance, not laps of fuel, worked out from the real burn rate.</li>
                   <li><strong>Gap to leader reads 0</strong> while a car is in the pit lane, so a naive rejoin model counted every car mid-stop as leading the race (8 places off).</li>
                   <li><strong>Penalty types changed meaning.</strong> Type 16 ("Retired") arrived for a driver still racing; type 6 ("Disqualified") for one who then set the fastest lap. Neither reaches the radio.</li>
-                  <li><strong>Session UID 0 at the flag.</strong> Every car's Session History arrives with a session ID of 0 as the race ends. Read as a new session, it wiped each car's final lap and the official result.</li>
+                  <li><strong>Session UID 0 at the flag.</strong> Every car's Session History arrives with a session ID of 0 as the race ends. Read as a new session, it used to wipe each car's final lap and the official result; it now counts as the current session.</li>
                 </ul>
               </div>
               <div>
@@ -629,7 +629,7 @@ OK  ERS store maximum  4.00 MJ</pre>
             </div>
             <div class="ex-body" role="tabpanel" data-sub="dispatch">
               <div>
-                <p><code>parsePacket()</code> reads the header, looks the packet id up in a table of 14 parsers, and returns <code>{ header, data }</code>. Motion, lobby and time-trial packets aren't needed and return <code>data: null</code>.</p>
+                <p><code>parsePacket()</code> reads the header, looks the packet ID up in a table of 14 parsers, and returns <code>{ header, data }</code>. Motion, lobby and time-trial packets aren't needed and return <code>data: null</code>.</p>
                 <p>The <strong>same function</strong> is fed by the live UDP socket, by the recorded-file replayer, by the capture analyzer, by the dataset builder and by the tests. That's why the public demo can't drift from the real tool: it <em>is</em> the real tool, fed from a file.</p>
               </div>
               <div>
@@ -692,7 +692,7 @@ r.offset = start + stride; <span class="c">// skip what we don't know</span></pr
 
           <!-- Track the field -->
           <div class="ex-stage" id="ex-field" data-color="var(--info)" hidden>
-            <div class="ex-head"><h3>One model of every car, on game time</h3><p>The field model files each packet under its car and keeps the history the analysis needs. It holds facts only; no opinions, no calls.</p></div>
+            <div class="ex-head"><h3>One model of every car, on game time</h3><p>The field model files each packet under its car and keeps the history the analysis needs. It holds facts only: no opinions, no calls.</p></div>
             <div class="ex-tabs" role="tablist" aria-label="Track the field: topics">
               <button role="tab" type="button" data-sub="percar">What's kept per car</button>
               <button role="tab" type="button" data-sub="time">Game time</button>
@@ -703,7 +703,7 @@ r.offset = start + stride; <span class="c">// skip what we don't know</span></pr
               <div>
                 <p>For each of the 22-24 cars, the latest of every packet, plus:</p>
                 <ul>
-                  <li><strong>Lap history</strong>, the last 12 laps: time, tyre compound and age, fuel, and two flags - did the lap touch the pit lane, did any of it run under a safety car. Those flags are exactly what's needed to measure what a pit stop costs and to keep slow laps out of pace figures.</li>
+                  <li><strong>Lap history</strong>, the last 12 laps: time, tyre compound and age, fuel, and two flags: did the lap touch the pit lane, and did any of it run under a safety car? Those flags are exactly what's needed to measure what a pit stop costs and to keep slow laps out of pace figures.</li>
                   <li><strong>Gap samples</strong> to the car ahead, once a second of game time, two minutes deep: the closing rate per lap.</li>
                   <li><strong>Battery</strong> at each crossing of the line, and in 20 slices of the last lap: how this car spends its energy, lap after lap.</li>
                   <li><strong>25 mini-sectors</strong> per lap, timed from lap distance: where a car is quicker, and what damage costs.</li>
@@ -726,7 +726,7 @@ r.offset = start + stride; <span class="c">// skip what we don't know</span></pr
             <div class="ex-body" role="tabpanel" data-sub="time" hidden>
               <div>
                 <p>There are two clocks, and they're kept apart. <strong>Game time</strong> (the header's sessionTime) measures the race: gap samples are taken every second of it, so a closing rate means the same at 20 Hz or 60 Hz, and pausing the game doesn't skew it.</p>
-                <p><strong>The engine's clock</strong> (card expiries, settle timers) is injected into the pipeline rather than read from <code>Date.now()</code>. Live it's the wall clock; in a replay it's the recording's own clock. So a replay at 8× gives exactly the same calls as one at 1×, and that's a test.</p>
+                <p><strong>The engine's clock</strong> (card expiries, settle timers) is injected into the pipeline rather than read from <code>Date.now()</code>. Live, it's the wall clock; in a replay it's the recording's own clock. So a replay at 8× gives exactly the same calls as one at 1×, and that's a test.</p>
               </div>
               <div>
                 <pre><span class="c">// one pipeline, any clock</span>
@@ -760,8 +760,8 @@ if (c.currentLapNum &lt; prevLapNum) {
             </div>
             <div class="ex-body" role="tabpanel" data-sub="memory" hidden>
               <div>
-                <p><strong>Track memory.</strong> What a race measured at a track - the pit loss, the tyre age share and wear the AI boxed at, each compound's wear rate from practice - goes into a small JSON file. The next race there starts from those numbers instead of a generic guess. Replays and tests use no memory, so they stay reproducible.</p>
-                <p><strong>Feed health.</strong> Car Telemetry's frame counter steps by 1 between packets at 60 Hz and by 3 at 20 Hz. A step of twice the usual is one packet lost, and a pause isn't. Loss over the last 10 seconds shows on the link chip ("Live · 8% lost") from 2%, and nothing extra when the feed is fine.</p>
+                <p><strong>Track memory.</strong> What a race measured at a track — the pit loss, the share of tyre life and the wear at which the AI boxed, each compound's wear rate from practice — goes into a small JSON file. The next race there starts from those numbers instead of a generic guess. Replays and tests use no memory, so they stay reproducible.</p>
+                <p><strong>Feed health.</strong> Car Telemetry's frame counter steps by 1 between packets at 60 Hz and by 3 at 20 Hz. A step twice the usual size is one lost packet; a pause isn't counted as loss. Loss over the last 10 seconds shows on the link chip ("Live · 8% lost") from 2%, and nothing extra when the feed is fine.</p>
               </div>
               <div>
                 <pre><span class="c">// data/tracks.json - local, not committed (example values)</span>
@@ -787,7 +787,7 @@ if (c.currentLapNum &lt; prevLapNum) {
               <div>
                 <p><strong>Clean pace</strong> is the mean of a car's last 3 clean laps: not a pit lap, not under a safety car, not lap 1, and not more than 7% slower than its own typical lap (a spin or traffic).</p>
                 <p><strong>Pit loss is measured, not assumed.</strong> Whenever any car makes a green-flag stop, its in-lap plus out-lap minus two clean laps is what the stop cost. Readings between 8 and 45 s are kept, and the median is used. Before any stop, it falls back to earlier races at this track, then a per-track estimate, then 22 s. Under a safety car a stop costs about 55% of that, under a VSC 65%.</p>
-                <p><strong>Rejoin</strong>: add the pit loss to your time behind the leader and see where that slots in. Scored on 24 real stops it's 2.5 places off against 4.3 for "you keep your place" - but nearly all of the 2.5 is one direction, too pessimistic, and that's the next thing to fix.</p>
+                <p><strong>Rejoin</strong>: add the pit loss to your time behind the leader and see where that slots in. Scored on 24 real stops, it's 2.5 places off against 4.3 for "you keep your place" — but nearly all of the 2.5 is one direction, too pessimistic, and that's the next thing to fix.</p>
               </div>
               <div>
                 <pre>loss = inLap.lapMs + outLap.lapMs
@@ -805,7 +805,7 @@ if (safetyCar) pitLossMs *= 0.55  <span class="c">// VSC 0.65</span></pre>
               <div>
                 <p>Tyre wear is learned live from <strong>the whole field</strong>, 22 cars' laps rather than just yours, so the estimate firms up within a few laps instead of waiting for your own stint.</p>
                 <p>Each car is compared only with itself (its laps minus its own average), so fast and slow cars share one wear slope per compound. Fuel and tyre age both rise one per lap until someone stops, so lap times alone can't separate them: the fuel effect is fixed from physics, the measured burn per lap × ~0.03 s per kg. Laps far off a car's own trend are trimmed with a median-based (MAD) filter.</p>
-                <p>Each wear rate carries a <strong>90% range</strong> from a bootstrap that resamples cars, not laps - cars are the independent units. On synthetic fields the range holds the true rate about 90% of the time. The fit runs once per completed lap (~10 ms), not every tick.</p>
+                <p>Each wear rate carries a <strong>90% range</strong> from a bootstrap that resamples cars, not laps — cars are the independent units. On synthetic fields the range holds the true rate about 90% of the time. The fit runs once per completed lap (~10 ms), not every tick.</p>
               </div>
               <div>
                 <pre>lapTime = carBase + deg × tyreAge
@@ -820,8 +820,8 @@ no wear   485 ms per lap   <span class="c">(1,264 laps, 6 races)</span></pre>
             </div>
             <div class="ex-body" role="tabpanel" data-sub="strategy" hidden>
               <div>
-                <p><strong>Pit timing</strong> races every possible stop lap, from now to the flag, lap by lap, against the cars around you. Your laps slow by the fitted wear rate per lap of tyre age; a fresh set starts quicker by the game's own estimate. Rivals keep their clean pace and stop when they're expected to, so a car about to box no longer counts as one you'd rejoin behind for good. Places lost at the rejoin carry a track-position cost: a faster car still has to get past. Under 1,000 small sums a lap.</p>
-                <p><strong>When rivals stop</strong>: the AI's stop is a strategy, not a wear limit - at Monaco every car on mediums boxed at 12 laps on sets rated for 19-20. So each car is expected at a share of its set's rated life (60% as a prior), or by its own wear rate once the race has shown the wear the AI boxes at.</p>
+                <p><strong>Pit timing</strong> races every possible stop lap, from now to the flag, lap by lap, against the cars around you. Your laps slow by the fitted wear rate per lap of tyre age; a fresh set starts quicker by the game's own estimate. Rivals keep their clean pace and stop when they're expected to, so a car about to box no longer counts as one you'd rejoin behind for good. Places lost at the rejoin carry a track-position cost: a faster car still has to get past. It takes under 1,000 small sums per lap.</p>
+                <p><strong>When rivals stop</strong>: the AI's stop is a strategy, not a wear limit — at Monaco every car on mediums boxed at 12 laps on sets rated for 19-20. So each car is expected at a share of its set's rated life (60% as a prior), or by its own wear rate once the race has shown the wear the AI boxes at.</p>
                 <p><strong>The race plan</strong> before the start: one stop or two, on which tyres. Each plan's total time is linear in the wear rates, so the search runs once (5,800 plans pruned to 500 shapes) and then <strong>1,000 races</strong> with the wear rates and pit loss drawn as widely as they're uncertain take a few milliseconds. The card says "wins 87% of 1,000 simulated races".</p>
               </div>
               <div>
@@ -839,7 +839,7 @@ odds   = wins / 1000</pre>
             </div>
             <div class="ex-body" role="tabpanel" data-sub="fight" hidden>
               <div>
-                <p><strong>Will the car behind pass in the next 10 s?</strong> A logistic regression written from scratch - standardised features, an L2 penalty, class-weighted gradient descent - over the gap (log scale), the closing rate, the clean-pace difference, tyre age and compound, the battery difference and 2026 Overtake mode. It's trained on recorded races, labelled from the game's own overtake events, and scored on races it never saw. Held-out AUC 0.851 against 0.854 for the gap alone: it ties, so the app marks it experimental.</p>
+                <p><strong>Will the car behind pass in the next 10 s?</strong> A logistic regression written from scratch — standardized features, an L2 penalty, class-weighted gradient descent — over the gap (log scale), the closing rate, the clean-pace difference, tyre age and compound, the battery difference and 2026 Overtake mode. It's trained on recorded races, labeled from the game's own overtake events, and scored on races it never saw. Held-out AUC 0.851 against 0.854 for the gap alone: it ties, so the app marks it experimental.</p>
                 <p><strong>Battery at the line</strong>: drivers spend on the same straights every lap, so the rest of this lap is copied from the same stretch of the last one. 7.7 points off against 13.2 for "it stays where it is".</p>
                 <p><strong>Where they'll attack</strong>: your braking zones, scored by where passes actually happen at this track, with the places <em>you've</em> been passed this session weighted twice.</p>
               </div>
@@ -870,7 +870,7 @@ worth a stop if  loss/lap × lapsLeft
 
           <!-- Decide -->
           <div class="ex-stage" id="ex-decide" data-color="var(--act)" hidden>
-            <div class="ex-head"><h3>From numbers to one call and a radio line</h3><p>The decision layer turns the analysis into what the driver hears - and it has to be calm about it: a call that flaps is worse than no call.</p></div>
+            <div class="ex-head"><h3>From numbers to one call and a radio line</h3><p>The decision layer turns the analysis into what the driver hears — and it has to be calm about it: a call that flaps is worse than no call.</p></div>
             <div class="ex-tabs" role="tablist" aria-label="Decide: topics">
               <button role="tab" type="button" data-sub="call">The headline call</button>
               <button role="tab" type="button" data-sub="cards">Radio cards</button>
@@ -894,7 +894,7 @@ worth a stop if  loss/lap × lapsLeft
                 </ol>
               </div>
               <div>
-                <p>Each call carries a <strong>kind</strong> (why it was made), and the calm kinds - push, manage tyres, an undercut on offer - have to hold <strong>5 s</strong> before they replace each other. BOX, PIT and a safety car come at once.</p>
+                <p>Each call carries a <strong>kind</strong> (why it was made), and the calm kinds — push, manage tyres, an undercut on offer — have to hold <strong>5 s</strong> before they replace each other. BOX, PIT and a safety car come at once.</p>
                 <pre>{ action: 'BOX', kind: 'cheap-stop',
   reason: 'Safety car: a stop costs ~11s, not ~21s' }</pre>
                 <div class="ex-num"><span>undercut flips <b>7 → 2</b> after the settle</span></div>
@@ -905,7 +905,7 @@ worth a stop if  loss/lap × lapsLeft
               <div>
                 <p>Everything else is a radio card with an id, a severity (info, advisory, critical), a category and an expiry. The rules that keep them calm:</p>
                 <ul>
-                  <li><strong>Settled</strong>: who-and-where calls ("Defend from HADJAR") must hold for 5 s before they're said - in a train of cars the car ahead changes every few seconds.</li>
+                  <li><strong>Settled</strong>: who-and-where calls ("Defend from HADJAR") must hold for 5 s before they're said — in a train of cars the car ahead changes every few seconds.</li>
                   <li><strong>Held text</strong>: when only the numbers change ("0.4s" → "0.3s"), the text holds for 5 s. Radio text must not tick.</li>
                   <li><strong>One voice per topic</strong>: the battle call takes over the defend card instead of adding a second one.</li>
                   <li><strong>Critical is rare</strong>: only what the driver can't see from the cockpit (a safety car, a red flag) interrupts the screen.</li>
@@ -942,10 +942,10 @@ worth a stop if  loss/lap × lapsLeft
               <div>
                 <p>After the race, every call is graded by the one thing it claims, against the laps that followed:</p>
                 <ul>
-                  <li><strong>PUSH</strong> claims the tyres hold: wrong if two green laps in a row fall 1.5 s off the pace before.</li>
+                  <li><strong>PUSH</strong> claims the tyres hold: wrong if two green laps in a row fall 1.5 s off the earlier pace.</li>
                   <li><strong>HOLD, manage tyres</strong> claims the cliff is near: right if a lap falls off within 3 laps.</li>
                   <li><strong>BOX for damage</strong> claims the loss to the flag beats a stop.</li>
-                  <li><strong>BOX under a safety car</strong> claims the stop is cheaper than one under green - measured against the cars that didn't stop on those laps.</li>
+                  <li><strong>BOX under a safety car</strong> claims the stop is cheaper than one under green — measured against the cars that didn't stop on those laps.</li>
                 </ul>
                 <p>Following the rules (a penalty, the pit lane) isn't graded.</p>
               </div>
@@ -988,10 +988,10 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
             </div>
             <div class="ex-body" role="tabpanel" data-sub="dashboard" hidden>
               <div>
-                <p>Plain HTML, CSS and JavaScript with no build step. Six screens - Drive, Battle, Strategy, Weather, Debrief, Models - built from widgets that only turn the snapshot into text and colour.</p>
+                <p>Plain HTML, CSS and JavaScript with no build step. Six screens — Drive, Battle, Strategy, Weather, Debrief, Models — built from widgets that only turn the snapshot into text and color.</p>
                 <ul>
-                  <li>Made to be read in a glance at speed: a tiered type scale, colour only for meaning (green go, amber watch, red act), numbers that scale with the screen.</li>
-                  <li>Every text colour is at least 4.5:1 on its background, every control is named for a screen reader, and a new call is announced through a live region, not only drawn.</li>
+                  <li>Made to be read at a glance at speed: a tiered type scale, color only for meaning (green go, amber watch, red act), numbers that scale with the screen.</li>
+                  <li>Every text color is at least 4.5:1 on its background, every control is named for a screen reader, and a new call is announced through a live region, not only drawn.</li>
                   <li>Every widget and screen is tested in jsdom.</li>
                 </ul>
               </div>
@@ -1004,14 +1004,14 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
               <div>
                 <p>The browser's own speech synthesis reads the calls: no server work, no install. Two modes: <strong>key calls</strong> (advisory and critical cards, and changes of PUSH / HOLD / BOX) and <strong>all calls</strong>.</p>
                 <ul>
-                  <li>A card is spoken when it's new or gets more serious - not when its wording or numbers change.</li>
+                  <li>A card is spoken when it's new or gets more serious — not when its wording or numbers change.</li>
                   <li>A card that drops off and comes back within 45 s isn't news again.</li>
                   <li>ERS advice is spoken only when the mode changes.</li>
                   <li>"P8" is read as "P 8", "0.5s" as "0.5 seconds".</li>
                 </ul>
               </div>
               <div>
-                <p>Measured on a 40-minute race in a pack - by replaying it and simulating the voice:</p>
+                <p>Measured on a 40-minute race in a pack — by replaying it and simulating the voice:</p>
                 <div class="ex-num"><span>key calls <b>1.2</b> / min</span><span>all calls <b>4.5</b> / min</span></div>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/public/app.js">public/app.js</a> (voiceInsights)</p>
               </div>
@@ -1061,7 +1061,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
               <tr><td>Who's coming, and where will they try?</td><td>Gaps for all 22 cars sampled on game time; each car's battery; where passes happen at this track</td><td>DEFEND or ATTACK, the chance of a pass, the corner to watch</td></tr>
               <tr><td>Is this damage worth a stop?</td><td>25 mini-sectors per lap, before and after the hit</td><td>Seconds lost per lap, against the cost of a new nose</td></tr>
               <tr><td>When does the rain come, and when do I switch?</td><td>The forecast slots; lap times of the cars already on the other tyre</td><td>Rain in laps, not minutes; the crossover lap</td></tr>
-              <tr><td>Do fuel and battery last to the flag?</td><td>Fuel surplus; the battery at every crossing of the line</td><td>Save, deploy, or harvest - and by how much</td></tr>
+              <tr><td>Do fuel and battery last to the flag?</td><td>Fuel surplus; the battery at every crossing of the line</td><td>Save, deploy, or harvest — and by how much</td></tr>
               <tr><td>Was that call right?</td><td>Every call made, then the laps that followed</td><td>The calls audit: each call graded after the race</td></tr>
             </tbody>
           </table>
@@ -1086,9 +1086,9 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
           <table class="tbl">
             <thead><tr><th>Packet</th><th>Size</th><th>Rate</th><th>What it's used for</th></tr></thead>
             <tbody>
-              <tr><td>Lap Data</td><td class="num">1,399 B</td><td class="num">47 /s</td><td>Position, gaps, lap distance and pit status for every car - the spine of the field model</td></tr>
+              <tr><td>Lap Data</td><td class="num">1,399 B</td><td class="num">47 /s</td><td>Position, gaps, lap distance and pit status for every car — the spine of the field model</td></tr>
               <tr><td>Car Status</td><td class="num">1,445 B</td><td class="num">47 /s</td><td>Tyre compound and age, fuel, the ERS store for every car</td></tr>
-              <tr><td>Car Telemetry (+ 2026 extension)</td><td class="num">1,448 B</td><td class="num">47 /s</td><td>Speed, throttle, brake - offline, for every car, so rivals' laps can be traced; active aero and Overtake mode</td></tr>
+              <tr><td>Car Telemetry (+ 2026 extension)</td><td class="num">1,448 B</td><td class="num">47 /s</td><td>Speed, throttle, brake — offline, for every car, so rivals' laps can be traced; active aero and Overtake mode</td></tr>
               <tr><td>Motion Ex</td><td class="num">273 B</td><td class="num">47 /s</td><td>Your wheel slip: lock-ups, wheelspin, understeer per corner</td></tr>
               <tr><td>Tyre Sets</td><td class="num">231 B</td><td class="num">17.5 /s</td><td>Each set's rated life and pace difference, for the stop plan</td></tr>
               <tr><td>Session History</td><td class="num">1,460 B</td><td class="num">17 /s</td><td>Lap and sector times</td></tr>
@@ -1100,7 +1100,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         </div>
         <div class="practice">
           <div data-reveal><h3>Decode defensively</h3><p>Each parser takes the per-car struct size from the packet's length, not a constant: F1 26 inserted fields mid-struct, and a layout change costs one warning, not a crash. A non-finite float marks the packet corrupt. Random, truncated and bit-flipped packets are fuzzed through the whole pipeline in the tests.</p></div>
-          <div data-reveal style="--i:1"><h3>Model the field on game time</h3><p>Every car is kept: its last packets, 12 laps of history with pit and safety-car laps flagged, gaps sampled once a second of <em>game</em> time - so a closing rate means the same at 20 Hz or 60 Hz, and a pause doesn't skew it.</p></div>
+          <div data-reveal style="--i:1"><h3>Model the field on game time</h3><p>Every car is kept: its last packets, 12 laps of history with pit and safety-car laps flagged, gaps sampled once a second of <em>game</em> time — so a closing rate means the same at 20 Hz or 60 Hz, and a pause doesn't skew it.</p></div>
           <div data-reveal><h3>Record everything, replay exactly</h3><p>A capture saves every packet with its arrival time (<code>.f1log.gz</code>, ~300 MB a race). Replays run the same pipeline on the recording's clock, so a bug seen on Saturday can be reproduced, fixed and tested on Sunday, call for call.</p></div>
           <div data-reveal style="--i:1"><h3>Datasets from the raw stream</h3><p>Captures stay local; small datasets built from them are committed: one row per race, per car per lap (1,751 laps), and every call made. CI scores the models on them.</p></div>
           <div data-reveal><h3>Every session in SQL</h3><p>Each session is also kept as related SQLite tables: session, car, lap, stint, events, the engineer's calls and radio, weather and lap traces. The live bridge adds each session as it ends; <code>npm run db</code> fills it from the captures. Building it found that the game marks its own flag-time packets with a session ID of 0, which had been wiping every car's final lap and the official result. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/race-store.md">The schema</a></p></div>
@@ -1112,7 +1112,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         <h2 data-reveal>Five layers, wired once</h2>
         <p class="lead">Each layer only reads from the one above it. The live bridge, the replayer, the capture analyzer, the dataset builder and every test run the same <code>createPipeline()</code>, so none of them can drift from what the driver sees.</p>
         <div class="layers">
-          <div class="layer" data-reveal style="--c: var(--muted)"><b>udp/</b><span>Ingest: the socket and one parser per packet id. Bytes in, plain objects out.</span></div>
+          <div class="layer" data-reveal style="--c: var(--muted)"><b>udp/</b><span>Ingest: the socket and one parser per packet ID. Bytes in, plain objects out.</span></div>
           <div class="layer" data-reveal style="--i:1; --c: var(--info)"><b>state/</b><span>The field: every car, updated packet by packet, rewound by flashbacks. Facts only.</span></div>
           <div class="layer" data-reveal style="--i:2; --c: var(--info)"><b>analysis/ · ml/</b><span>Numbers: pure functions for pit timing, the race plan, rival stops, damage cost, tyre wear, overtake odds.</span></div>
           <div class="layer" data-reveal style="--i:3; --c: var(--watch)"><b>engine/</b><span>Decisions: runs the analysis every 100 ms and turns it into the call (PUSH / HOLD / BOX) and radio cards that settle before they're said.</span></div>
@@ -1133,11 +1133,11 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
             <thead><tr><th>Prediction</th><th>Model</th><th>Obvious guess</th><th>Verdict</th></tr></thead>
             <tbody>
               <tr><td>Tyre wear, each car predicted from the others<small>1,264 laps, 6 races</small></td><td class="num">342 ms</td><td class="num">485 ms <small>no wear</small></td><td class="good">Beats it on 5 of 6 races</td></tr>
-              <tr><td>Rejoin position if you box now<small>24 green-flag stops</small></td><td class="num">2.5 places</td><td class="num">4.3 <small>keep your place</small></td><td class="tie">Beats it, but biased: 2.5 places too pessimistic on average - next to fix</td></tr>
+              <tr><td>Rejoin position if you box now<small>24 green-flag stops</small></td><td class="num">2.5 places</td><td class="num">4.3 <small>keep your place</small></td><td class="tie">Beats it, but biased: 2.5 places too pessimistic on average — next to fix</td></tr>
               <tr><td>A rival's battery at the line<small>715 half-laps</small></td><td class="num">7.7 pts</td><td class="num">13.2 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
-              <tr><td>Will the car behind pass in 10 s<small>held-out AUC</small></td><td class="num">0.851</td><td class="num">0.854 <small>gap only</small></td><td class="tie">Ties - marked experimental</td></tr>
+              <tr><td>Will the car behind pass in 10 s<small>held-out AUC</small></td><td class="num">0.851</td><td class="num">0.854 <small>gap only</small></td><td class="tie">Ties — marked experimental</td></tr>
               <tr><td>When an AI car stops<small>23 green-flag stops</small></td><td class="num">1.22 laps</td><td class="num">1.24 <small>fixed share of tyre life</small></td><td class="tie">No real gain yet</td></tr>
-              <tr><td>The corner they'll attack<small>33 passes</small></td><td class="num">6 / 33</td><td class="num">7 / 33 <small>busiest corner</small></td><td class="tie">Not yet - worded as a "likely spot"</td></tr>
+              <tr><td>The corner they'll attack<small>33 passes</small></td><td class="num">6 / 33</td><td class="num">7 / 33 <small>busiest corner</small></td><td class="tie">Not yet — worded as a "likely spot"</td></tr>
             </tbody>
           </table>
         </div>
@@ -1146,14 +1146,14 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
 
       <section class="sec">
         <h2 data-reveal>One race, six fixes</h2>
-        <p class="lead">Barcelona, 23 laps, recorded on 17 October. The capture was replayed through the engine, every call graded against the laps that followed, and each problem became a failing test before it became a fix.</p>
+        <p class="lead">Barcelona, 23 laps, recorded on October 17. The capture was replayed through the engine, every call graded against the laps that followed, and each problem became a failing test before it became a fix.</p>
         <ul class="case">
           <li data-reveal><div><h3>The call flickered</h3><p>"Undercut on" and "Tyres and fuel OK" swapped 7 times in 3.5 minutes as the gap hovered at the threshold.</p></div><div><h3>Fix</h3><p>A calm call has to hold 5 s before it replaces another. BOX, PIT and a safety car still come at once.</p></div><div class="delta">7 → 2 calls</div></li>
-          <li data-reveal><div><h3>An undercut from P8 "rejoins P21"</h3><p>The rule checked for clean air but never whether you'd come out ahead of the car you were undercutting.</p></div><div><h3>Fix</h3><p>Only when fresh tyres gain more before they stop than the gap to them; it says by how much.</p></div><div class="delta">gain &gt; gap</div></li>
+          <li data-reveal><div><h3>An undercut from P8 "rejoins P21"</h3><p>The rule checked for clean air but never whether you'd come out ahead of the car you were undercutting.</p></div><div><h3>Fix</h3><p>It's offered only when fresh tyres would gain more than the gap before the rival stops, and it says by how much.</p></div><div class="delta">gain &gt; gap</div></li>
           <li data-reveal><div><h3>ERS advice every 10-20 s</h3><p>The 2026 battery swings 20%+ inside a lap, so "Boost" and "battery low, save it" took turns.</p></div><div><h3>Fix</h3><p>Judged on the battery at the line, not the swing within the lap.</p></div><div class="delta">74 → 46 a race</div></li>
           <li data-reveal><div><h3>"You gain 5.46 s" into turn 1</h3><p>The pit lane runs over that stretch, and a pit lap was in the averaged mini-sectors.</p></div><div><h3>Fix</h3><p>Pit and safety-car laps left out; the median, not the mean.</p></div><div class="delta">5.46 s → 0</div></li>
-          <li data-reveal><div><h3>Two defend calls taking turns</h3><p>The battle call and the older "right behind you" card spoke separately: 45 of 55 key radio calls.</p></div><div><h3>Fix</h3><p>One defend card; the battle call speaks on it.</p></div><div class="delta">1.4 → 1.2 /min</div></li>
-          <li data-reveal><div><h3>"Disqualified" in qualifying</h3><p>The game sent penalty type 6 to a driver who went on to set the fastest lap - its meaning changed in F1 26.</p></div><div><h3>Fix</h3><p>Kept off the radio, like type 16 before it. Only penalties whose meaning is certain are said.</p></div><div class="delta">off the radio</div></li>
+          <li data-reveal><div><h3>Two defend calls taking turns</h3><p>The battle call and the older "right behind you" card spoke separately; together they made up 45 of 55 key radio calls.</p></div><div><h3>Fix</h3><p>One defend card; the battle call speaks on it.</p></div><div class="delta">1.4 → 1.2 /min</div></li>
+          <li data-reveal><div><h3>"Disqualified" in qualifying</h3><p>The game sent penalty type 6 to a driver who went on to set the fastest lap — its meaning changed in F1 26.</p></div><div><h3>Fix</h3><p>Kept off the radio, like type 16 before it. Only penalties whose meaning is certain are said.</p></div><div class="delta">off the radio</div></li>
         </ul>
       </section>
 
@@ -1161,10 +1161,10 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         <h2 data-reveal>Tests that find bugs</h2>
         <p class="lead">Not tests that agree with the code.</p>
         <div class="practice">
-          <div data-reveal><h3>Test first, from the intended behaviour</h3><p>Over 260 tests. Each new rule's test is written from what it should do and seen to fail before the code exists; assertions are never edited to pass. Known weaknesses stay in the suite as <code>todo</code> tests.</p></div>
+          <div data-reveal><h3>Test first, from the intended behavior</h3><p>Over 260 tests. Each new rule's test is written from what it should do and seen to fail before the code exists; assertions are never edited to pass. Known weaknesses stay in the suite as <code>todo</code> tests.</p></div>
           <div data-reveal style="--i:1"><h3>Mutation-checked</h3><p>A test only counts once it fails on a planted bug. In the fixes above, 9 of 13 planted bugs were caught at first; each survivor got a test, and all 13 are caught now.</p></div>
-          <div data-reveal><h3>Gates in CI</h3><p>Coverage can't drop below 88% of lines; the model backtests can't get worse; a tick-time budget and a contract test that tracks every snapshot field a widget reads.</p></div>
-          <div data-reveal style="--i:1"><h3>Real packets, real races</h3><p>Parsers are pinned on packets captured from F1 26; scenario tests replay a scripted race and check each call follows its cause - and never comes before it.</p></div>
+          <div data-reveal><h3>Gates in CI</h3><p>Coverage can't drop below 88% of lines; the model backtests can't get worse; and there is a tick-time budget and a contract test that tracks every snapshot field a widget reads.</p></div>
+          <div data-reveal style="--i:1"><h3>Real packets, real races</h3><p>Parsers are pinned on packets captured from F1 26; scenario tests replay a scripted race and check each call follows its cause — and never comes before it.</p></div>
         </div>
         <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/README.md">Source map</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/how-it-works.md">One call traced through the code</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md#what-the-tests-found">What the tests found</a></p>
       </section>
