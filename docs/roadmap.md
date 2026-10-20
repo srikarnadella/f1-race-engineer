@@ -35,7 +35,7 @@ flowchart LR
     M2[M2 Overtake model calibration]:::done
     M3[M3 Lap-time model with uncertainty]
     M4[M4 Backtest gate per model]:::done
-    M5[M5 Rejoin bias]:::next
+    M5[M5 Rejoin bias]:::part
     M6[M6 Gradient-boosted overtake model]:::done
   end
   subgraph A[Analysis and decisions]
@@ -141,9 +141,14 @@ Each line: what it is, why it matters, and the acceptance test.
   (`src/ml/gbdt.js`): JS matches Python to 1e-9 on 200 real samples. On the 6 races the logistic model it
   replaced never saw, "pass likely" now comes before 32% of passes instead of 20%, right 38% of the time
   (was 41%). Calibrated to 60%, so the shown chance is capped there (was 50%).
-- **M5 Rejoin bias.** With 24 green-flag stops scored (3 before), the rejoin model is 2.54 places off
-  and 2.46 of that is one direction: it puts the car too far back. *Test:* signed mean error under half
-  a place on the recorded stops, without the absolute error getting worse.
+- **M5 Rejoin bias.** With 45 green-flag stops scored, the rejoin model was 4.22 places off and 4.18 of
+  that one direction: too far back. *Test:* signed mean error under half a place on the recorded stops,
+  without the absolute error getting worse. *Partly done:* the cause wasn't the pit loss (measured 20.5 s,
+  really 21.6 s by 25 s after the stop) but the "everyone else stays out" assumption: in AI pit waves ~3
+  of the cars it put ahead were already in the pit lane (the game reads their gap as 0, so they kept the
+  time of the car ahead on the road). Charging those, and the cars the rival-stop model has due this
+  lap: 2.71 places off, 1.47 pessimistic. Due within one lap instead got the bias to 0.53 but the error
+  up to 3.24, so this lap it is; the half-place bias isn't met yet.
 - **M4 Backtest gate.** Every model scored per race in CI against its baseline; a change that makes
   a model worse than it was fails the build. *Done for the lap-level models:* the tyre model and
   rival-stop timing are scored on the committed dataset in CI against `datasets/scores.json`.

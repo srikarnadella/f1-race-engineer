@@ -83,8 +83,10 @@ async function score(file, out) {
       // --- Rejoin ---
       if (ld.pitStatus === 0 && ld.currentLapNum > 1 && !neutralised) {
         const fixed = PIT_LOSS_ESTIMATE_MS[session.trackId] || 22000;
-        const p = predictRejoin(ordered, car, analysis.pitLoss.ms);
-        const q = predictRejoin(ordered, car, fixed);
+        // As the app calls it: rivals due to stop this lap stop too.
+        const stopIn = new Map((analysis.field || []).map((r) => [r.carIndex, r.stopInLaps]));
+        const p = predictRejoin(ordered, car, analysis.pitLoss.ms, { stopIn });
+        const q = predictRejoin(ordered, car, fixed, { stopIn });
         if (p && q) lastPrediction.set(car.carIndex, { position: p.position, fixedPosition: q.position, keepPosition: ld.carPosition, t });
       }
       const before = lastStops.get(car.carIndex);

@@ -22,14 +22,16 @@ From eight race sessions I recorded (one a sprint). Run `npm run accuracy` to re
 | Prediction | Undercut | Obvious guess | Verdict |
 |---|---|---|---|
 | Tyre wear per lap, each car predicted from the others (1,649 laps) | 356 ms off | 470 ms ("no wear") | Beats it on 7 of 8 races |
-| Where you rejoin after a stop (45 green-flag stops) | 4.22 places off | 5.27 ("keep your place") | Beats it, but it's too pessimistic |
+| Where you rejoin after a stop (45 green-flag stops) | 2.71 places off | 5.27 ("keep your place") | Beats it; still 1.5 places pessimistic |
 | A rival's battery at the line (843 half-laps) | 8.4 points off | 13.4 ("stays where it is") | Beats it |
 | When an AI car stops (45 green-flag stops) | 1.04 laps off | 1.06 (fixed share of tyre life) | No real gain yet |
 | Will the car behind pass in 10 s? (held-out AUC, 10 races) | 0.860 | 0.838 (gap only) | Beats it on 9 of 10 races |
 | Which corner they'll attack (50 passes) | 7 of 50 | 7 of 50 (busiest corner) | Not yet, so it says "likely spot" |
 
-The rejoin model's error is nearly all one direction: it puts you about 4 places too far back. Fixing
-that is next on the [roadmap](roadmap.md).
+The rejoin model was 4.2 places off, nearly all of it too far back. It had assumed every other car stays
+out, but AI cars stop in waves: on average 3 of the cars it put ahead were already in the pit lane, and
+more were due that lap. Charging both their stop took it to 2.71 places; it's still about 1.5 places
+pessimistic ([roadmap](roadmap.md), M5).
 
 ## The models
 

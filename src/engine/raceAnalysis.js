@@ -186,7 +186,8 @@ const isRunning = (car) => car.lapData && (car.lapData.resultStatus == null || c
 const nameOf = (car, fallback = `Car ${car.carIndex}`) => (car.participant && car.participant.name) || fallback;
 
 // If the player boxed now: their time behind the leader grows by the pit
-// loss; everyone else is assumed to stay out. Where does that slot in?
+// loss; so do the cars already in the pit lane and the ones due to stop this lap,
+// and everyone else stays out. Where does that slot in?
 // The game reports a gap to the leader of 0 while a car is in the pit lane
 // and for ~8s after it rejoins (seen on a real F1 26 race). Taken literally,
 // every car mid-stop counts as leading the race, which put a rejoin in a
@@ -203,18 +204,31 @@ function timesBehindLeader(ordered) {
   return t;
 }
 
-function predictRejoin(ordered, player, loss) {
+// fieldLossMs: what a stop costs the others (loss can carry the player's own penalty).
+// stopIn: carIndex -> laps until each rival's predicted stop (rivalStops), if known.
+function predictRejoin(ordered, player, loss, { fieldLossMs = loss, stopIn = null } = {}) {
   if (!player.lapData || player.lapData.pitStatus !== 0) return null;
   // Our own gap unknown (just out of the pits, or a red flag): no guess beats a wrong one.
   if (player.lapData.carPosition !== 1 && !(player.lapData.deltaToRaceLeaderInMS > 0)) return null;
   const times = timesBehindLeader(ordered);
   const myTime = (times.get(player.carIndex) || 0) + loss;
+  // A car already in the pit lane still has its stop to pay: it comes out at its time going in plus
+  // the loss, not where the road has it now. Counted where the road had it, AI pit waves put ~3 such
+  // cars ahead of every stop and the rejoin read 4 places too far back (npm run accuracy).
+  // The same for a car due to stop this lap: AI cars stop in waves, and charging the ones due this
+  // lap took the error from 4.2 to 2.7 places (due within a lap: 3.2 - most of those stop after you're out).
+  const midStop = (c) => c.lapData.pitStatus > 0 && c.pitEntryBehindLeaderMs != null;
+  const dueNow = (c) => c.lapData.pitStatus === 0 && !!stopIn && stopIn.get(c.carIndex) === 0;
+  const timeOf = (c) => {
+    if (midStop(c)) return c.pitEntryBehindLeaderMs + fieldLossMs;
+    return (times.get(c.carIndex) || 0) + (dueNow(c) ? fieldLossMs : 0);
+  };
   const others = ordered
     .filter((c) => c.carIndex !== player.carIndex && isRunning(c))
-    .map((c) => ({ car: c, t: times.get(c.carIndex) || 0 }))
+    .map((c) => ({ car: c, t: timeOf(c) }))
     .sort((a, b) => a.t - b.t);
   // Most of the field without a gap is a red flag or a restart, not a race order.
-  const known = others.filter((o) => o.car.lapData.carPosition === 1 || o.car.lapData.deltaToRaceLeaderInMS > 0).length;
+  const known = others.filter((o) => o.car.lapData.carPosition === 1 || o.car.lapData.deltaToRaceLeaderInMS > 0 || midStop(o.car)).length;
   if (known < others.length / 2) return null;
   const aheadList = others.filter((o) => o.t < myTime);
   const ahead = aheadList[aheadList.length - 1];
@@ -686,7 +700,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     // A time penalty served at the stop: you come out that much later -
     // in every stop prediction, so the cards agree.
     const stopPenaltyMs = penalties && penalties.servedAt === 'stop' ? penalties.timeS * 1000 : 0;
-    const rejoin = predictRejoin(ordered, player, loss.ms + stopPenaltyMs);
+    const rejoin = predictRejoin(ordered, player, loss.ms + stopPenaltyMs, { fieldLossMs: loss.ms, stopIn });
     const damage = damageFor({ player, session, tyreModel, myDeg, lapsLeft: raceLapsLeft(session, player.lapData), pitLossMs: loss.ms });
 
     // ATTACK / DEFEND / CLOSE IN / CLEAR.

@@ -456,7 +456,7 @@
         <div class="bar"><span>[ 03 // MEASURED ]</span><span>EIGHT RECORDED RACES · EACH AGAINST THE OBVIOUS GUESS</span></div>
         <div class="tiles">
           <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>Eight recorded races. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
-          <div class="tile" data-reveal style="--i:1"><b>4.2</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 5.3. Nearly all of the error is a pessimistic bias, which is next to fix.</small></div>
+          <div class="tile" data-reveal style="--i:1"><b>2.7</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 5.3. It was 4.2 until it counted the cars already stopping in a pit wave.</small></div>
           <div class="tile" data-reveal style="--i:2"><b>8.4</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 13.4 points off.</small></div>
           <div class="tile" data-reveal style="--i:1"><b>7 / 8</b><span>races where the tyre model beats "no wear"</span><small>The exception is the Silverstone sprint, where it doesn't beat it yet.</small></div>
           <div class="tile" data-reveal style="--i:2; --c: var(--go)"><b>0.86</b><span>AUC: will the car behind pass within 10 s?</span><small>LightGBM on 10 races. The gap alone: 0.84. Better on 9 of 10 races.</small></div>
@@ -788,7 +788,7 @@ if (c.currentLapNum &lt; prevLapNum) {
               <div>
                 <p><strong>Clean pace</strong> is the mean of a car's last 3 clean laps: not a pit lap, not under a safety car, not lap 1, and not more than 7% slower than its own typical lap (a spin or traffic).</p>
                 <p><strong>Pit loss is measured, not assumed.</strong> Whenever any car makes a green-flag stop, its in-lap plus out-lap minus two clean laps is what the stop cost. Readings between 8 and 45 s are kept, and the median is used. Before any stop, it falls back to earlier races at this track, then a per-track estimate, then 22 s. Under a safety car a stop costs about 55% of that, under a VSC 65%.</p>
-                <p><strong>Rejoin</strong>: add the pit loss to your time behind the leader and see where that slots in. Scored on 45 real stops, it's 4.2 places off against 5.3 for "you keep your place", but nearly all of the 4.2 is one direction, too pessimistic, and that's the next thing to fix.</p>
+                <p><strong>Rejoin</strong>: add the pit loss to your time behind the leader and see where that slots in, with the cars already in the pit lane and the ones due to stop this lap paying their own stop. Scored on 45 real stops, it's 2.7 places off against 5.3 for "you keep your place". It was 4.2 and almost all pessimistic while it assumed every other car stays out: AI cars stop in waves. It still reads about 1.5 places too far back.</p>
               </div>
               <div>
                 <pre>loss = inLap.lapMs + outLap.lapMs
@@ -798,7 +798,7 @@ pitLossMs = median(samples)       <span class="c">// measured</span>
          ?? median(trackMemory)  <span class="c">// earlier races</span>
          ?? TRACK_ESTIMATE ?? 22000
 if (safetyCar) pitLossMs *= 0.55  <span class="c">// VSC 0.65</span></pre>
-                <div class="ex-num"><span>rejoin <b>4.2</b> vs 5.3 places</span><span>bias <b>-4.2</b> places</span></div>
+                <div class="ex-num"><span>rejoin <b>2.7</b> vs 5.3 places</span><span>bias <b>-1.5</b> places</span></div>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/raceAnalysis.js">engine/raceAnalysis.js</a></p>
               </div>
             </div>
@@ -1134,7 +1134,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
             <thead><tr><th>Prediction</th><th>Model</th><th>Obvious guess</th><th>Verdict</th></tr></thead>
             <tbody>
               <tr><td>Tyre wear, each car predicted from the others<small>1,649 laps, 8 races</small></td><td class="num">356 ms</td><td class="num">470 ms <small>no wear</small></td><td class="good">Beats it on 7 of 8 races</td></tr>
-              <tr><td>Rejoin position if you box now<small>45 green-flag stops</small></td><td class="num">4.2 places</td><td class="num">5.3 <small>keep your place</small></td><td class="tie">Beats it, but biased: 4.2 places too pessimistic on average, next to fix</td></tr>
+              <tr><td>Rejoin position if you box now<small>45 green-flag stops</small></td><td class="num">2.7 places</td><td class="num">5.3 <small>keep your place</small></td><td class="good">Beats it; still 1.5 places pessimistic</td></tr>
               <tr><td>A rival's battery at the line<small>843 half-laps</small></td><td class="num">8.4 pts</td><td class="num">13.4 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
               <tr><td>Will the car behind pass in 10 s<small>held-out AUC, LightGBM, 10 races</small></td><td class="num">0.860</td><td class="num">0.838 <small>gap only</small></td><td class="good">Beats it on 9 of 10 races</td></tr>
               <tr><td>When an AI car stops<small>45 green-flag stops</small></td><td class="num">1.04 laps</td><td class="num">1.06 <small>fixed share of tyre life</small></td><td class="tie">No real gain yet</td></tr>
@@ -1180,7 +1180,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
           <li data-reveal><span class="tag">In progress</span><h3>Ask the race</h3><p>Ask about a race in plain words ("What happened on lap 12?", "Where did I lose time to Norris?") and get an answer built from the recorded data. Every session is already stored as tables; a language model will query them and show which laps and events it used.</p></li>
           <li data-reveal style="--i:1"><span class="tag">In progress</span><h3>Confidence on every call</h3><p>The pit-stop pick already says when it depends on tyre wear ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.</p></li>
           <li data-reveal style="--i:2"><span class="tag">Next</span><h3>The calls audit in the Debrief</h3><p>Every call graded against what happened after it, on screen after the race.</p></li>
-          <li data-reveal style="--i:3"><span class="tag">Next</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9" is 4.2 places off on average, nearly all of it too pessimistic. Fixing that bias.</p></li>
+          <li data-reveal style="--i:3"><span class="tag">In progress</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9": from 4.2 to 2.7 places off by counting the cars already stopping in a pit wave. Still about 1.5 places pessimistic.</p></li>
         </ul>
         <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">The full roadmap</a></p>
       </section>

@@ -178,6 +178,39 @@ test('rejoin: a car mid-stop (gap reported as 0) is not counted as leading the r
   assert.strictEqual(r.ahead.carIndex, 0);
 });
 
+test('rejoin: a car already in the pit lane has its own stop still to pay - it comes out behind us', () => {
+  // We're car 5, P6, 10s behind the leader; a 20s stop puts us at 30s. Cars 2, 3 and 4 are mid-stop
+  // (their gaps read 0): in at 4, 5 and 6s, out at 24, 25 and 26s - still ahead of us. Car 6 went in at
+  // 12s, so it comes out at 32s, behind us. Read the old way it took the 10s of the car ahead of it on
+  // the road and was counted ahead: one of the places the rejoin was pessimistic by (M5).
+  const car = (i, pos, gap, pit = 0, entry = null) => ({ carIndex: i, pitEntryBehindLeaderMs: entry, lapData: { carPosition: pos, deltaToRaceLeaderInMS: gap, pitStatus: pit, resultStatus: 2 } });
+  const ordered = [car(0, 1, 0), car(1, 2, 3000), car(2, 3, 0, 1, 4000), car(3, 4, 0, 1, 5000), car(4, 5, 0, 2, 6000), car(5, 6, 10000), car(6, 7, 0, 1, 12000), car(7, 8, 31000)];
+  const r = predictRejoin(ordered, ordered[5], 20000);
+  // Ahead of 30s: leader 0, car 1 3s, cars 2/3/4 at 24/25/26s. Behind: car 7 at 31s, car 6 at 32s.
+  assert.strictEqual(r.position, 6);
+  assert.strictEqual(r.ahead.carIndex, 4);
+  assert.strictEqual(r.behind.carIndex, 7);
+  // A car in the lane whose entry we never saw (the bridge joined mid-stop) keeps the old reading.
+  const unseen = [car(0, 1, 0), car(1, 2, 0, 1, null), car(2, 3, 3000)];
+  assert.strictEqual(predictRejoin(unseen, unseen[2], 1000).position, 3);
+});
+
+test('rejoin: a car due to stop this lap stops too - an AI pit wave does not leave the field ahead of you', () => {
+  // We're car 3, P4, 6s behind; a 20s stop puts us at 26s. Car 1 (P2, 2s) is due this lap: it comes
+  // out at 22s, still ahead. Car 2 (P3, 4s) isn't due for 5 laps: ahead. The leader is due this lap
+  // too: 20s, ahead. Car 4 (P5, 8s) is due this lap: 28s, behind us - not ahead at 8s.
+  const car = (i, pos, gap) => ({ carIndex: i, lapData: { carPosition: pos, deltaToRaceLeaderInMS: gap, pitStatus: 0, resultStatus: 2 } });
+  const ordered = [car(0, 1, 0), car(1, 2, 2000), car(2, 3, 4000), car(3, 4, 6000), car(4, 5, 8000), car(5, 6, 27000)];
+  const stopIn = new Map([[0, 0], [1, 0], [2, 5], [4, 0], [5, 3]]);
+  const r = predictRejoin(ordered, ordered[3], 20000, { stopIn });
+  // Ahead of 26s: car 2 (4s), leader (20s), car 1 (22s). Behind: car 5 (27s), car 4 (28s).
+  assert.strictEqual(r.position, 4);
+  assert.strictEqual(r.ahead.carIndex, 1);
+  assert.strictEqual(r.behind.carIndex, 5);
+  // Without the rival-stop predictions it's the old reading: everyone else stays out (0, 2, 4, 8s ahead).
+  assert.strictEqual(predictRejoin(ordered, ordered[3], 20000).position, 5);
+});
+
 test('rejoin: no prediction while the gaps are unknown (just out of the pits, red flag)', () => {
   const car = (i, pos, gap) => ({ carIndex: i, lapData: { carPosition: pos, deltaToRaceLeaderInMS: gap, pitStatus: 0, resultStatus: 2 } });
   const justOut = [car(0, 1, 0), car(1, 2, 0), car(2, 3, 3000)];

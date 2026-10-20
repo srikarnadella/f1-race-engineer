@@ -9,6 +9,8 @@ const { createCarBalanceTracker } = require('./carBalance');
 const { createLapTraceRecorder, createMiniSectorTracker } = require('./lapTrace');
 
 const GAP_SAMPLE_INTERVAL_S = 1;
+// The last real gap to the leader counts as the gap going into the pits if it is this recent.
+const PIT_ENTRY_GAP_MAX_AGE_S = 10;
 const GAP_HISTORY_SAMPLES = 120; // two minutes - comfortably more than one lap
 const LAP_HISTORY_SIZE = 12;
 const SLOW_VICTIM_KMH = 80;
@@ -229,11 +231,17 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       if (car.lastPitStatus === 0 && c.pitStatus !== 0) {
         car.pitEntryAtMs = clock();
         car.pitEntryPosition = car.lapData ? car.lapData.carPosition : c.carPosition;
+        // Its time behind the leader going in. The game reads the gap as 0 from the pit-entry road
+        // on (~4 s before the lane), so it's the last real gap, if it's that recent.
+        const g = car.behindLeader;
+        const age = g ? sessionTime - g.t : null;
+        car.pitEntryBehindLeaderMs = age != null && age >= 0 && age <= PIT_ENTRY_GAP_MAX_AGE_S ? g.ms : null;
         car.pitEntryPlayerPosition = playerCarIndex != null && cars.get(playerCarIndex) && cars.get(playerCarIndex).lapData
           ? cars.get(playerCarIndex).lapData.carPosition
           : null;
       }
       car.lastPitStatus = c.pitStatus;
+      if (c.pitStatus === 0 && (c.carPosition === 1 || c.deltaToRaceLeaderInMS > 0)) car.behindLeader = { t: sessionTime, ms: c.carPosition === 1 ? 0 : c.deltaToRaceLeaderInMS };
 
       const L = session && session.trackLength;
       if (L && car.status && Number.isFinite(car.status.ersStoreEnergy) && c.lapDistance >= 0) {
