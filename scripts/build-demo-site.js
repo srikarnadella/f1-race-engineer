@@ -111,6 +111,9 @@ async function buildRace(raceDir, [from, to]) {
   const live = sampler((snap) => snap.session && snap.session.sessionType === RACE && snap.player.currentLapNum >= from && snap.player.currentLapNum <= to);
   const race = await replay(file, { onTick: live.onTick });
   if (!live.frames.length) throw new Error(`no race laps ${from}-${to} in ${raceDir}`);
+  // Open on track: a demo that starts in the pit lane reads as a frozen dashboard.
+  const onTrack = live.frames.findIndex((fr) => !fr.s.player.pitStatus);
+  if (onTrack > 0) live.frames.splice(0, onTrack);
   // From zero, with the game's pauses (menus, a flashback being picked)
   // squeezed out - nobody watches a frozen demo for a minute.
   let t = 0;
