@@ -615,17 +615,20 @@ test('a tyre cliff after the flag is no cliff: no "manage tyres" when the set re
     fm.dispatch(PACKET_IDS.CAR_DAMAGE, header(t), { cars: Array.from({ length: 5 }, () => ({ tyresWear: [wear, wear, wear, wear] })) });
     fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { currentLapNum: lapNum, lapDistance: 2500 } }) });
     for (let k = 0; k < 60; k++, now += 100) ie.evaluate(); // a calm call settles over 5 s
-    return { ids: ie.evaluate().map((i) => i.id), call: ie.getStrategy().call };
+    return { ids: ie.evaluate().map((i) => i.id), call: ie.getStrategy().call, toFlag: ie.getStrategy().tyresReachFlag };
   };
   // 4% a lap, 73% worn: the cliff (85%) in 3 laps.
   step(1, 12, 65);
   step(2, 13, 69);
   const mid = step(3, 14, 73);
   assert.ok(mid.ids.includes('tyre-cliff') && mid.call.kind === 'tyres', JSON.stringify(mid));
+  assert.strictEqual(mid.toFlag, false);
   // The same wear with 1.5 laps to go: the set reaches the flag.
   step(4, 17, 65);
   step(5, 18, 69);
   const end = step(6, 19, 73);
   assert.ok(!end.ids.includes('tyre-cliff'), end.ids.join(', '));
   assert.notStrictEqual(end.call.kind, 'tyres');
+  // ...and the dashboard says so, not "measuring" as if there were no wear data yet.
+  assert.strictEqual(end.toFlag, true);
 });

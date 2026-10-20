@@ -78,6 +78,6 @@ instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md).
 ## Built with
 
 Node.js (no framework, no build step), WebSockets, SQLite, and plain HTML/CSS/JavaScript for the
-dashboard. The models are written from scratch. 260+ tests run on every push.
+dashboard. The models are written from scratch. 300+ tests run on every push.
 
 Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts. MIT license.

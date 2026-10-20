@@ -292,6 +292,7 @@ function createInsightEngine(fieldModel) {
     const player = fieldModel.getCar(playerIdx);
     if (!player.lapData) return [...activeInsights.values()];
     let lapsToCliff = null;
+    let tyresReachFlag = false;
     let lapsLeft = null;
     let fuelMarginLaps = null;
     let fuelSavePct = null;
@@ -313,7 +314,10 @@ function createInsightEngine(fieldModel) {
     if (racing && wear && wear.ratePerLap > 0) {
       lapsToCliff = (TYRE_CLIFF_THRESHOLD_PCT - wear.avgWear) / wear.ratePerLap;
       // A cliff after the flag is no cliff: the set gets there - push.
-      if (lapsLeft != null && lapsToCliff >= lapsLeft) lapsToCliff = null;
+      if (lapsLeft != null && lapsToCliff >= lapsLeft) {
+        lapsToCliff = null;
+        tyresReachFlag = true;
+      }
       if (lapsToCliff != null && lapsToCliff <= 3) {
         upsert('tyre-cliff', {
           severity: lapsToCliff <= 1 ? SEVERITY.CRITICAL : SEVERITY.ADVISORY,
@@ -946,6 +950,7 @@ function createInsightEngine(fieldModel) {
       fuelMarginLaps,
       fuelSavePct,
       tyreLapsToCliff: lapsToCliff == null ? null : Math.max(0, lapsToCliff),
+      tyresReachFlag,
       tyreWearRatePerLap: wear ? wear.ratePerLap : null,
       call: q ? qualiCall(q) : steadyCall(raceCall({ finished, position: player.lapData.carPosition, lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox })),
     };

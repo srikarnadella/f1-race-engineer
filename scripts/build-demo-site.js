@@ -174,12 +174,12 @@ async function main() {
 }
 
 // Local preview, laid out exactly as the Pages workflow publishes it:
-// site/ at the root, docs/screenshots/ at /img/, the dashboard (public/) at /demo/,
+// site/ at the root, docs/screenshots/ and site/img/ at /img/, the dashboard (public/) at /demo/,
 // its data at /demo/demo-data/.
 function serve() {
-  const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+  const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
   const resolve = (p) => {
-    if (p.startsWith('/img/')) return path.join(ROOT, 'docs', 'screenshots', p.slice(5));
+    if (p.startsWith('/img/')) return [path.join(ROOT, 'docs', 'screenshots', p.slice(5)), path.join(ROOT, 'site', 'img', p.slice(5))].find((f) => fs.existsSync(f));
     if (p.startsWith('/demo/demo-data/')) return path.join(ROOT, 'site', p.slice('/demo/'.length));
     if (p.startsWith('/demo/')) return path.join(ROOT, 'public', p.slice('/demo/'.length) || 'index.html');
     if (p === '/demo') return null;

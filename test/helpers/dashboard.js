@@ -19,8 +19,8 @@ function raceSnapshots() {
   return snapshots;
 }
 
-function open(t, { storage = {} } = {}) {
-  const dom = new JSDOM(HTML, { runScripts: 'outside-only', url: 'http://192.168.1.5:8080/', pretendToBeVisual: true });
+function open(t, { storage = {}, url = 'http://192.168.1.5:8080/' } = {}) {
+  const dom = new JSDOM(HTML, { runScripts: 'outside-only', url, pretendToBeVisual: true });
   const { window } = dom;
   t.after(() => window.close());
   for (const [k, v] of Object.entries(storage)) window.localStorage.setItem(k, JSON.stringify(v));
@@ -35,6 +35,7 @@ function open(t, { storage = {} } = {}) {
     }
   };
   window.fetch = async () => ({ ok: false, json: async () => ({}) });
+  window.Response = Response; // the recorded demo wraps fetch with it
   window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   const errors = [];
   window.console.error = (...a) => errors.push(a.join(' '));

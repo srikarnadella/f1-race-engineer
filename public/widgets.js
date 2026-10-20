@@ -442,7 +442,7 @@
         // Tyres: the projection, not the wear % the MFD already shows.
         const cliff = st && st.tyreLapsToCliff;
         const pay = a.tyreModel && a.tyreModel.payback;
-        let tyre = ['Measuring', '', 'is-muted'];
+        let tyre = st && st.tyresReachFlag ? ['To the flag', 'no cliff before the end', 'is-good'] : ['Measuring', '', 'is-muted'];
         if (isNum(cliff)) tyre = cliff > 20 ? ['20+ laps', 'to the cliff', 'is-good'] : cliff < 0.5 ? ['At the cliff', 'lap time is going', 'is-act'] : [`${cliff.toFixed(1)} laps`, 'to the cliff', cliff <= 1 ? 'is-act' : cliff <= 3 ? 'is-watch' : 'is-good'];
         if (pay && pay.worthIt && !a.pitTiming) tyre[1] = `new set repays a stop in ~${Math.round(pay.paybackLaps)} laps`;
         setText(r.tyre, tyre[0]);
@@ -625,8 +625,8 @@
         const tm = s.analysis && s.analysis.tyreModel;
         setCompound(r.badge, s.player.tyreCompound);
         const cliff = st && st.tyreLapsToCliff;
-        let text = 'Measuring wear';
-        let tone = 'is-muted';
+        let text = st && st.tyresReachFlag ? 'Lasts to the flag' : 'Measuring wear';
+        let tone = st && st.tyresReachFlag ? 'is-good' : 'is-muted';
         if (isNum(cliff)) [text, tone] = cliff > 20 ? ['20+ laps to the cliff', 'is-good'] : cliff < 0.5 ? ['At the cliff', 'is-act'] : [`${cliff.toFixed(1)} laps to the cliff`, cliff <= 1 ? 'is-act' : cliff <= 3 ? 'is-watch' : 'is-good'];
         setText(r.cliff, text);
         setTone(r.cliff, tone);

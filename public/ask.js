@@ -78,7 +78,7 @@
     const st = s.strategy || {};
     const tyre = `${s.player.tyresAgeLaps} laps old ${COMPOUND[s.player.tyreCompound] || 'tyres'}`;
     const c = st.tyreLapsToCliff;
-    if (!isNum(c)) return `${tyre}. Still measuring the wear rate.`;
+    if (!isNum(c)) return st.tyresReachFlag ? `${tyre}, they last to the flag.` : `${tyre}. Still measuring the wear rate.`;
     if (c < 0.5) return `${tyre}, at the cliff.`;
     return c > 20 ? `${tyre}, 20 plus laps to the cliff.` : `${tyre}, about ${lapsTxt(c)} to the cliff.`;
   }

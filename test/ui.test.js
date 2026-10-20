@@ -210,3 +210,16 @@ test('race plan card: the plan comes with how often it wins the simulated races'
   const pct = plan.best.stops === 1 ? plan.odds.oneStopPct : plan.odds.twoStopPct;
   assert.match(card.card.textContent, new RegExp(`wins ${pct}% of 1,000 simulated races`));
 });
+
+test('tyre tiles: a set that reaches the flag says so, not "measuring"', () => {
+  let snap = null;
+  replay(syntheticPackets(), { onTick: ({ snap: s }) => { if (!snap && s.player && s.strategy) snap = s; } });
+  const toFlag = { ...snap, strategy: { ...snap.strategy, tyreLapsToCliff: null, tyresReachFlag: true } };
+  const d = dashboard();
+  for (const id of ['drive', 'tyrecall']) {
+    const card = d.mounted.find((w) => w.id === id);
+    card.update(toFlag);
+    assert.match(card.card.textContent, /to the flag/i, id);
+    assert.doesNotMatch(card.card.textContent, /Measuring/, id);
+  }
+});

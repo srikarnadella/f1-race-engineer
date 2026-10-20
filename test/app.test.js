@@ -43,6 +43,15 @@ test('app: keys 1-6 switch screens, and the choice is remembered', (t) => {
   assert.deepStrictEqual(app.errors, []);
 });
 
+test('app: the recorded demo opens on Drive, whatever screen an earlier visit left on', async (t) => {
+  const app = open(t, { url: 'http://192.168.1.5:8080/?recorded', storage: { 'raceEngineer.screen': 'debrief' } });
+  assert.strictEqual(app.activeTab(), 'Drive');
+  await new Promise((r) => setTimeout(r, 20)); // let its demo-data fetch settle before the page closes
+  // The live app still reopens where the driver left it.
+  const live = open(t, { storage: { 'raceEngineer.screen': 'debrief' } });
+  assert.strictEqual(live.activeTab(), 'Debrief');
+});
+
 test('app: a saved screen from an older version still opens somewhere sensible', (t) => {
   const app = open(t, { storage: { 'raceEngineer.screen': 'pit' } });
   assert.strictEqual(app.activeTab(), 'Strategy');

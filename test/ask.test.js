@@ -73,3 +73,8 @@ test('ask: penalties and track limits', () => {
   const withPen = { ...snap, analysis: { ...snap.analysis, penalties: { timeS: 5, servedAt: 'flag', stopGos: 0, driveThroughs: 0, trackLimits: { count: 2, last: { corner: 5 } }, flag: { name: 'SAINZ', gapMs: 6200, covered: true } } } };
   assert.strictEqual(ask('penalty', withPen).reply, '5 second penalty at the flag - SAINZ is 6.2 seconds behind, covered. 2 track-limit warnings, the last at turn 5.');
 });
+
+test('ask: tyres that reach the flag say so, not "still measuring"', () => {
+  const toFlag = { ...snap, strategy: { ...snap.strategy, tyreLapsToCliff: null, tyresReachFlag: true } };
+  assert.strictEqual(ask('tyres', toFlag).reply, '11 laps old mediums, they last to the flag.');
+});

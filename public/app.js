@@ -97,8 +97,8 @@
   let custom = sanitizeCustom(load(STORE.custom, CUSTOM_DEFAULT));
   // Custom sits with the live screens; Debrief last.
   const screens = () => [...PRESETS.filter((p) => p.group === 'live'), { id: 'custom', group: 'live', label: 'Custom', ...custom }, ...PRESETS.filter((p) => p.group === 'after')];
-
-  let currentId = load(STORE.screen, 'drive');
+  // The recorded demo always opens on Drive: a screen picked on an earlier visit isn't what a first-time visitor should land on.
+  let currentId = RECORDED ? 'drive' : load(STORE.screen, 'drive');
   currentId = RENAMED[currentId] || currentId;
   if (!screens().some((s) => s.id === currentId)) currentId = 'drive';
   let editing = false;
