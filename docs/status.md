@@ -58,6 +58,6 @@ The same list as the website's Next steps page; the full plan is in the [roadmap
   as [tables](race-store.md); a language model will query them and show which laps and events it used.
 - **Confidence on every call** *(in progress)*: the pit-stop pick already says when it depends on tyre wear
   ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.
-- **The calls audit in the Debrief** *(next)*: every call graded against what happened after it, on screen.
+- **The calls audit in the Debrief** *(done)*: every call graded against what happened after it, in the Calls tab.
 - **A sharper rejoin prediction** *(in progress)*: from 4.2 to 2.7 places off by counting the cars
   already stopping and the ones due this lap. Still about 1.5 places pessimistic.

@@ -136,7 +136,7 @@ test('dashboard: before any packet (no player, no session) the always-on widgets
   render(d, { connected: false, updatedAtMs: 0, session: null, player: null, nearby: [], field: [], analysis: null, insights: [], strategy: null }, 'disconnected');
 });
 
-test('debrief: each view (summary, lap compare, rivals, models) renders from the bridge API without a leak', async () => {
+test('debrief: each view (summary, lap compare, rivals, calls, models) renders from the bridge API without a leak', async () => {
   // A finished stint, then the debrief screens as the bridge serves them.
   const p = replay(syntheticPackets());
   let snap = p.tick();
@@ -146,6 +146,7 @@ test('debrief: each view (summary, lap compare, rivals, models) renders from the
     const lap = (k) => (q.get(k) ? Number(q.get(k)) : null);
     if (pathname === '/api/debrief/compare') return p.debrief.compare(q.get('session'), lap('a'), q.get('b') && /^r\d+$/.test(q.get('b')) ? q.get('b') : lap('b'));
     if (pathname === '/api/debrief/rivals') return p.debrief.rivals(q.get('session'));
+    if (pathname === '/api/debrief/audit') return p.debrief.audit(q.get('session'));
     if (pathname === '/api/models') return { overtake: null, tyre: snap.analysis && snap.analysis.tyreModel };
     return null;
   };
@@ -153,13 +154,18 @@ test('debrief: each view (summary, lap compare, rivals, models) renders from the
   const deb = d.mounted.find((w) => w.id === 'debrief');
   deb.update(snap);
   const buttons = [...deb.card.querySelectorAll('.w-deb__views button')];
-  assert.deepStrictEqual(buttons.map((b) => b.textContent), ['Summary', 'Lap compare', 'Rivals', 'Models']);
+  assert.deepStrictEqual(buttons.map((b) => b.textContent), ['Summary', 'Lap compare', 'Rivals', 'Calls', 'Models']);
   for (const b of buttons) {
     b.click();
     deb.update(snap);
     await new Promise((resolve) => setTimeout(resolve, 0)); // the fetch
     const text = deb.card.textContent;
     assert.ok(!/Couldn't reach the bridge/.test(text), `${b.textContent}: the API call failed`);
+    // The calls audit: the summary, and each graded call with what happened.
+    if (b.textContent === 'Calls') {
+      const a = p.debrief.audit(snap.debrief.sessions[0].id);
+      assert.ok(a.calls.length && text.includes(`Right${a.summary.right}`) && text.includes(a.calls[0].why), text.slice(0, 300));
+    }
     const leak = text.match(LEAKS);
     assert.ok(!leak, `${b.textContent} shows "${leak && leak[0]}": ...${leak && text.slice(Math.max(0, leak.index - 60), leak.index + 20)}...`);
   }

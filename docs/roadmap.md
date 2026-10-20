@@ -44,7 +44,7 @@ flowchart LR
     A3[A3 Confidence on every call]:::part
   end
   subgraph U[User experience]
-    U1[U1 Calls audit screen]:::next
+    U1[U1 Calls audit screen]:::done
     U2[U2 Uncertainty bands]
     U3[U3 Feed health badge]:::done
     U4[U4 Accessibility pass]:::done
@@ -178,7 +178,9 @@ Each line: what it is, why it matters, and the acceptance test.
 
 ### User experience
 
-- **U1 Calls audit screen** in the Debrief. **U2 Uncertainty bands** on rejoin and gap charts.
+- **U1 Calls audit screen** (*done*): the Debrief's Calls tab grades each race call (right, wrong,
+  unclear, or following the rules) with what happened, as `npm run backtest` does, and keeps it with the
+  saved session. **U2 Uncertainty bands** on rejoin and gap charts.
   **U3 Feed health badge** (*done*): the link chip says "Live · 8% lost" from 2% loss, and nothing
   extra when the feed is fine. **U4 Accessibility** (*done*): every text colour on every background at
   4.5:1 or more (dashboard and website), every control on every screen named for a screen reader,

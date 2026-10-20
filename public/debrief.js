@@ -170,6 +170,22 @@
       <table class="tbl w-cmp__table"><thead><tr><th>Corner</th><th class="num">At</th><th class="num">Time</th><th class="num">Brake point</th><th class="num">Apex</th><th class="num">Exit</th><th class="num">Spread</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
+  // ---------- Calls: each race call graded against what then happened ----------
+  const VERDICT = { right: ['Right', 'is-good'], wrong: ['Wrong', 'is-act'], unclear: ['Unclear', 'is-watch'], rule: ['Rule', 'dim'] };
+  function callsHtml(a) {
+    if (a.error) return `<div class="w-deb__empty dim">${esc(a.error)}</div>`;
+    if (!a.calls.length) return '<div class="w-deb__empty dim">No race calls yet - they are graded lap by lap as the race goes on.</div>';
+    const t = a.summary;
+    const tile = (label, value, tone) => `<div class="w-deb__tile"><span class="w-label">${label}</span><b class="${tone}">${value}</b></div>`;
+    const rows = a.calls.map((c) => {
+      const [word, tone] = VERDICT[c.verdict] || [esc(c.verdict), ''];
+      return `<tr><td class="num">${c.lapNum}</td><td class="strong">${esc(c.action)}</td><td class="dim">${esc(c.kind)}</td><td class="${tone}">${word}</td><td>${esc(c.why)}</td></tr>`;
+    }).join('');
+    return `<div class="w-deb__tiles">${tile('Right', t.right, 'is-good')}${tile('Wrong', t.wrong, t.wrong ? 'is-act' : '')}${tile('Unclear', t.unclear, 'is-watch')}${tile('Calls', t.calls, '')}</div>`
+      + `<table class="tbl"><thead><tr><th class="num">Lap</th><th>Call</th><th>Why</th><th>Verdict</th><th>What happened</th></tr></thead><tbody>${rows}</tbody></table>`
+      + '<div class="w-foot">Each call is judged by the one thing it claims, on the laps after it. Following the rules (in the pits, a safety car, a penalty) is not graded.</div>';
+  }
+
   function rivalsHtml(r) {
     if (r.error) return `<div class="w-deb__empty dim">${esc(r.error)}</div>`;
     const tile = (label, value, sub = '', tone = '') => `<div class="w-deb__tile"><span class="w-label">${label}</span><b class="${tone}">${value}</b><span class="dim">${sub}</span></div>`;
@@ -251,7 +267,7 @@
       const viewsEl = el.querySelector('.w-deb__views');
       const sessionEl = el.querySelector('.w-deb__session');
       const body = el.querySelector('.w-deb__body');
-      const VIEWS = [['summary', 'Summary'], ['compare', 'Lap compare'], ['rivals', 'Rivals'], ['models', 'Models']];
+      const VIEWS = [['summary', 'Summary'], ['compare', 'Lap compare'], ['rivals', 'Rivals'], ['calls', 'Calls'], ['models', 'Models']];
       let view = 'summary';
       let selected = null;
       let pick = { a: null, b: null };
@@ -328,6 +344,8 @@
           load(`/api/debrief/compare?${q}`, `cmp|${q}|${d.comparable.length}`, compareHtml);
         } else if (view === 'rivals') {
           load(`/api/debrief/rivals?session=${encodeURIComponent(d.id)}`, `riv|${d.id}|${d.laps.length}`, rivalsHtml);
+        } else if (view === 'calls') {
+          load(`/api/debrief/audit?session=${encodeURIComponent(d.id)}`, `aud|${d.id}|${d.laps.length}`, callsHtml);
         }
       }
 
