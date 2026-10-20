@@ -5,7 +5,11 @@
   'use strict';
 
   const { widgets: WIDGETS, setText, setTone, lapsTxt } = window.RaceWidgets;
+  // Loosely typed: which element an id names (input, select, img) is known only from index.html.
+  /** @type {(id: string) => any} */
   const $ = (id) => document.getElementById(id);
+  // A key typed into a form field is text, not a shortcut.
+  const inField = (e) => /^(SELECT|INPUT|TEXTAREA)$/.test(/** @type {HTMLElement} */ (e.target).tagName);
   const STALE_AFTER_MS = 3000;
   const LOSSY_FEED_PCT = 2;
   const TOAST_MS = 6000;
@@ -33,7 +37,7 @@
   if (RECORDED) {
     const realFetch = window.fetch.bind(window);
     window.fetch = (url, ...rest) => {
-      const u = new URL(url, location.href);
+      const u = new URL(/** @type {string | URL} */ (url), location.href);
       if (!u.pathname.includes('/api/')) return realFetch(url, ...rest);
       const p = u.searchParams;
       const file = u.pathname.endsWith('/api/models') ? 'models'
@@ -315,7 +319,7 @@
   // Number keys 1-6 switch screens: a keyboard (or a button box mapped to
   // keys) beside the wheel, when the dashboard is on a PC monitor.
   document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || /^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName) || !$('settings-sheet').hidden) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || inField(e) || !$('settings-sheet').hidden) return;
     const s = screens()[Number(e.key) - 1];
     if (s) showScreen(s.id);
   });
@@ -377,7 +381,7 @@
     closeAsk();
   });
   $('set-auto').addEventListener('change', (e) => {
-    autoOn = e.target.checked;
+    autoOn = $('set-auto').checked;
     save(STORE.auto, autoOn);
     autoPausedUntil = 0;
     homeId = currentId;
@@ -751,7 +755,7 @@
     renderAskButtons();
   }
   $('cmd-save').addEventListener('click', () => {
-    const picked = [...$('cmd-reports').querySelectorAll('input:checked')].map((x) => x.value);
+    const picked = [...$('cmd-reports').querySelectorAll('input:checked')].map((/** @type {HTMLInputElement} */ x) => x.value);
     const c = window.RaceAsk.cleanCommand({ phrase: $('cmd-phrase').value, reports: picked });
     if (!c) {
       setText($('cmd-note'), !picked.length ? 'Tick at least one thing to report.' : 'Pick a phrase of a word or more (not "engineer").');
@@ -771,7 +775,7 @@
   $('ask-close').addEventListener('click', closeAsk);
   // Q: push-to-talk from a keyboard, or a wheel button mapped to it.
   document.addEventListener('keydown', (e) => {
-    if ((e.key === 'q' || e.key === 'Q') && !e.repeat && !/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName) && $('settings-sheet').hidden) openAsk(true);
+    if ((e.key === 'q' || e.key === 'Q') && !e.repeat && !inField(e) && $('settings-sheet').hidden) openAsk(true);
   });
 
   // ---------- Hands-free: "Engineer, ..." ----------
@@ -855,7 +859,7 @@
     setText($('handsfree-note'), note || (canListen ? '' : 'Not available on this page: open the dashboard in a browser on the PC itself (http://localhost:8080), or on an https page.'));
   }
   $('set-handsfree').addEventListener('change', (e) => {
-    handsFree = e.target.checked && canListen;
+    handsFree = $('set-handsfree').checked && canListen;
     save(STORE.handsFree, handsFree);
     if (handsFree) startHandsFree();
     else stopHandsFree();
@@ -896,14 +900,15 @@
     mark();
   });
   $('mark-sheet').addEventListener('pointerdown', (e) => {
-    const tag = e.target.dataset && e.target.dataset.tag;
+    const { dataset } = /** @type {HTMLElement} */ (e.target);
+    const tag = dataset && dataset.tag;
     if (!tag) return;
     e.preventDefault();
     send({ type: 'mark', id: lastMarkId, tag });
     hideMarkSheet();
   });
   document.addEventListener('keydown', (e) => {
-    if ((e.key === 'm' || e.key === 'M') && !/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) mark();
+    if ((e.key === 'm' || e.key === 'M') && !inField(e)) mark();
   });
 
   // ---------- Connection + waiting states ----------
@@ -962,6 +967,7 @@
     $('mark').hidden = !s.capturing;
     // Each step on its own: one failure must not stop the screen or the voice
     // for the rest of the race.
+    /** @type {[string, () => void][]} */
     const steps = [
       ['topbar', () => renderTopbar(s)],
       ['toasts', () => renderRadio(s.insights || [])],

@@ -24,7 +24,7 @@
     "demo:regenerate": "node scripts/generate-demo-session.js",
     "test": "node --test test/",
     "lint": "eslint .",
-    "typecheck": "tsc -p .",
+    "typecheck": "tsc -p . && tsc -p tsconfig.public.json",
     "accuracy": "node scripts/accuracy.js",
     "site": "node scripts/build-demo-site.js",
     "test:coverage": "c8 --all --include \"src/**\" --include \"public/**\" --check-coverage --lines 88 --branches 84 --functions 86 --reporter text-summary node --test test/",

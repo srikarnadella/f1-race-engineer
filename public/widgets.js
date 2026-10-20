@@ -674,6 +674,7 @@
   };
 
   // ---------- Tables: nearby + full timing tower ----------
+  /** @param {{ rows: (s: any) => any[], columns: any[], scrollToPlayer?: boolean }} spec */
   function tableWidget({ rows, columns, scrollToPlayer }) {
     return (el) => {
       el.innerHTML = '<div class="w-table"><table class="tbl tbl--board"><tbody></tbody></table></div>';

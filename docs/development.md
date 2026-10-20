@@ -70,7 +70,7 @@ npm run backtest         # score the models on datasets/ and grade every call
 npm run db               # fill the SQL race store (data/race.db) from the captures
 npm run train:overtake   # retrain the overtake model from the captures
 npm run lint             # ESLint
-npm run typecheck        # TypeScript checks the JSDoc types in src/ (no build step)
+npm run typecheck        # TypeScript checks the JSDoc types in src/ and public/ (no build step)
 npm run site             # build the demo website's data
 npm run demo:regenerate  # rebuild the made-up demo race after changing src/sim/
 node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay a real race at 8x

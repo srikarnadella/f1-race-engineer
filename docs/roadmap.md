@@ -98,7 +98,7 @@ Each line: what it is, why it matters, and the acceptance test.
 - **T7 Recorder, replay, traces.** *Test:* record → replay gives back identical bytes in order;
   lap traces survive a flashback; mini-sectors add up to the lap time.
 - **T8 Coverage gate.** *Test:* CI fails below the line coverage measured when this lands.
-- **T9 Lint and type check.** *Done:* ESLint and TypeScript (checking JSDoc types in `src/`, no build
+- **T9 Lint and type check.** *Done:* ESLint and TypeScript (checking JSDoc types in `src/` and the dashboard, no build
   step) run in CI beside the tests, which now run on Linux and Windows with Node 20 and 22. The decision
   engine's one 700-line function became one rule per topic (`src/engine/rules/`); every recorded race's
   report replays byte-identical, and 7 of 7 planted rule-order and shared-state bugs fail a test.

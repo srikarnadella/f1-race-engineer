@@ -3,7 +3,7 @@
 // and the pit-timing pick all arrive computed from the bridge; this only
 // picks the right numbers and says them. Runs in the browser (window.RaceAsk)
 // and in Node for the tests.
-(function (root) {
+(/** @param {any} root */ function (root) {
   'use strict';
 
   const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
