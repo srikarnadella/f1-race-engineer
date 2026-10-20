@@ -26,6 +26,7 @@ From eight race sessions I recorded (one a sprint). Run `npm run accuracy` to re
 | A rival's battery at the line (843 half-laps) | 8.4 points off | 13.4 ("stays where it is") | Beats it |
 | When an AI car stops (45 green-flag stops) | 1.04 laps off | 1.06 (fixed share of tyre life) | No real gain yet |
 | Will the car behind pass in 10 s? (held-out AUC) | 0.851 | 0.854 (gap only) | A tie, so it's marked experimental |
+| The same with LightGBM, 10 races (Python, not in the app yet) | 0.860 | 0.838 (gap only) | Beats it on 9 of 10 races |
 | Which corner they'll attack (50 passes) | 7 of 50 | 7 of 50 (busiest corner) | Not yet, so it says "likely spot" |
 
 The rejoin model's error is nearly all one direction: it puts you about 4 places too far back. Fixing
@@ -44,11 +45,14 @@ All of them are written from scratch (no ML library).
   on recorded races, using the game's own overtake events as the answers, and tested on races it never saw
   (`npm run train:overtake`, report in [ml-overtake-model.md](ml-overtake-model.md)). It ties the simple
   "just look at the gap" guess, so the dashboard treats it as experimental and caps it at about 50%.
+  A gradient-boosted model (LightGBM, in Python) on the same samples from 10 races does beat it: AUC 0.860
+  against 0.838 held out race by race, better on 9 of 10 races, gain +0.014 to +0.030 (90% range over
+  races). Report: [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md). The app doesn't run it yet.
 - **Battery at the line.** Drivers spend their battery on the same straights every lap, so the rest of this
   lap is assumed to go like the same stretch of the last one.
 - **Where they'll attack.** Your braking zones, ranked by where passes actually happen: the places *you've*
   been passed this race first, then the track's usual passing spots. It beats picking a corner at random
-  (4.5 of 33), but not yet the simpler "busiest corner" rule.
+  (5.7 of 50), but not yet the simpler "busiest corner" rule (7 of 50 each).
 - **The race plan.** One stop or two, raced 1,000 times with the wear rates and pit loss drawn from their
   uncertainty, which takes a few milliseconds. The card says something like "wins 87% of 1,000 simulated races".
 

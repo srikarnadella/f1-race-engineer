@@ -32,7 +32,7 @@ works out things like pit loss, tyre wear and who is about to stop, and turns th
 
 ## Try it
 
-You need [Node.js](https://nodejs.org) 18.3 or newer.
+You need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
 git clone https://github.com/srikarnadella/f1-race-engineer.git
@@ -58,9 +58,11 @@ what really happened, next to the obvious guess:
 | Where you rejoin after a stop (45 stops) | **4.22 places off** | 5.27 ("keep your place") |
 | A rival's battery at the line | **8.4 points off** | 13.4 ("stays where it is") |
 | Will the car behind pass in 10 s? | 0.851 AUC | 0.854 (gap only), so it's a tie |
+| The same, with gradient boosting (LightGBM, 10 races, not in the app yet) | **0.860 AUC** | 0.838 (gap only), better on 9 of 10 races |
 
 Three of the six models I score beat the obvious guess and three don't yet, and the app says so
-instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md).
+instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md); the LightGBM comparison is in
+[docs/ml-overtake-lightgbm.md](docs/ml-overtake-lightgbm.md).
 
 ## Read more
 

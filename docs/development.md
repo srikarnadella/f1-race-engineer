@@ -48,10 +48,11 @@ Each step only reads from the steps before it. [src/README.md](../src/README.md)
 I write each test from what the code *should* do and watch it fail before writing the code, and I never
 edit a test just to make it pass. A test only counts once it catches a bug I plant on purpose.
 
-- **Over 260 tests:** parsers on real F1 26 packets, random and corrupted packets (fuzzing), model
+- **Over 300 tests:** parsers on real F1 26 packets, random and corrupted packets (fuzzing), model
   properties, scripted race scenarios, the calls audit, every dashboard screen in jsdom, and a speed budget.
-- **CI** runs them on every push, fails if line coverage drops below 88%, and fails if a change makes the
-  tyre model or rival-stop timing worse on the recorded races.
+- **CI** runs them on every push on Linux and Windows (Node 20 and 22), fails if line coverage drops below
+  88%, fails if a change makes the tyre model or rival-stop timing worse on the recorded races, and runs
+  ESLint and the TypeScript check of the JSDoc types.
 - What the tests have found so far is listed in the [roadmap](roadmap.md#what-the-tests-found).
 
 ## Commands
@@ -68,10 +69,21 @@ npm run dataset          # rebuild datasets/ (races, laps, calls) from the captu
 npm run backtest         # score the models on datasets/ and grade every call
 npm run db               # fill the SQL race store (data/race.db) from the captures
 npm run train:overtake   # retrain the overtake model from the captures
+npm run lint             # ESLint
+npm run typecheck        # TypeScript checks the JSDoc types in src/ (no build step)
 npm run site             # build the demo website's data
 npm run demo:regenerate  # rebuild the made-up demo race after changing src/sim/
 node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay a real race at 8x
 ```
 
-**Dependencies:** Node.js 18.3+ and three packages: `ws` (WebSocket), `qrcode-terminal` (the pairing QR
-code) and `better-sqlite3` (the race store). `jsdom` and `c8` are for tests only. No build step.
+**Dependencies:** Node.js 20+ and three packages: `ws` (WebSocket), `qrcode-terminal` (the pairing QR
+code) and `better-sqlite3` (the race store). `jsdom` and `c8` are for tests; `eslint` and `typescript` check the code (`npm run lint`, `npm run typecheck`: JSDoc types, no build step).
+
+**Python (optional, ml/ only):** the LightGBM comparison for the overtake model. It reads the samples
+in `datasets/overtake-samples.csv.gz` (`npm run train:overtake -- --samples datasets/overtake-samples.csv.gz`
+rebuilds them from the captures) and writes [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md):
+
+```
+python -m venv .venv && .venv/Scripts/pip install -r ml/requirements.txt   # bin/ instead of Scripts/ on macOS/Linux
+.venv/Scripts/python ml/overtake_lgbm.py
+```

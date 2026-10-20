@@ -19,3 +19,6 @@ _site/
 notes/
 # Coverage output (npm run test:coverage).
 coverage/
+# Python environment for ml/ (pip install -r ml/requirements.txt).
+.venv/
+__pycache__/

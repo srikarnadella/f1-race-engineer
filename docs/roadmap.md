@@ -20,6 +20,7 @@ flowchart LR
     T6[T6 Snapshot contract]:::done
     T7[T7 Recorder, replay, traces]:::done
     T8[T8 Coverage gate in CI]:::done
+    T9[T9 Lint and type check in CI]:::done
   end
   subgraph D[Data engineering]
     D1[D1 Capture catalog]:::done
@@ -35,6 +36,7 @@ flowchart LR
     M3[M3 Lap-time model with uncertainty]
     M4[M4 Backtest gate per model]:::done
     M5[M5 Rejoin bias]:::next
+    M6[M6 Gradient-boosted overtake model]:::part
   end
   subgraph A[Analysis and decisions]
     A1[A1 Monte Carlo strategy]:::done
@@ -53,12 +55,14 @@ flowchart LR
   T1 --> T6
   T1 --> D4
   T3 & T4 & T5 & T6 & T7 --> T8
+  T8 --> T9
   T1 --> D2 --> U3
   D1 --> D3
   D3 --> M1 & M2
   M1 --> M3 --> A1
   D1 & T4 --> M4 --> A2 --> U1
   M4 --> M5
+  M2 --> M6
   M1 & M2 --> A3 --> U2
   A1 --> U2
 ```
@@ -94,6 +98,10 @@ Each line: what it is, why it matters, and the acceptance test.
 - **T7 Recorder, replay, traces.** *Test:* record → replay gives back identical bytes in order;
   lap traces survive a flashback; mini-sectors add up to the lap time.
 - **T8 Coverage gate.** *Test:* CI fails below the line coverage measured when this lands.
+- **T9 Lint and type check.** *Done:* ESLint and TypeScript (checking JSDoc types in `src/`, no build
+  step) run in CI beside the tests, which now run on Linux and Windows with Node 20 and 22. The decision
+  engine's one 700-line function became one rule per topic (`src/engine/rules/`); every recorded race's
+  report replays byte-identical, and 7 of 7 planted rule-order and shared-state bugs fail a test.
 
 ### Data engineering
 
@@ -127,6 +135,10 @@ Each line: what it is, why it matters, and the acceptance test.
   are in [ml-overtake-model.md](ml-overtake-model.md). It is well calibrated (20-40% predicted,
   33% observed) but doesn't beat the gap-only baseline yet.
 - **M3 Lap-time model.** Fuel + tyre age + traffic, with residual spread, feeding A1.
+- **M6 Gradient-boosted overtake model.** *Partly done:* LightGBM (Python, `ml/`) on the same samples from
+  10 races, held out race by race: AUC 0.860 against 0.838 for the gap alone, better on 9 of 10 races, gain
+  +0.014 to +0.030 (90% range over races). [Report](ml-overtake-lightgbm.md). *Test to finish:* the
+  trees exported to JSON and run in the app give the same probabilities as Python, and the tick budget holds.
 - **M5 Rejoin bias.** With 24 green-flag stops scored (3 before), the rejoin model is 2.54 places off
   and 2.46 of that is one direction: it puts the car too far back. *Test:* signed mean error under half
   a place on the recorded stops, without the absolute error getting worse.
@@ -176,7 +188,7 @@ Each of these was a failing test before it was a fix; none was found by reading 
 | T5 invariants | Late-stint traffic (1-3 s, under the slow-lap filter) tilts the wear fit by up to 49 ms/lap on synthetic laps. | Not fixed: re-trimming fixed it there but predicted held-out cars worse on Suzuka. Kept as a `todo` test. |
 | T4 scenarios | Damage read "front wing l 12%" on the radio, the voice answer and the card; an existing test asserted that text. | "front-left wing". |
 | U4 accessibility | A new call (PUSH → BOX) was drawn but never announced to a screen reader; the voice-command phrase box had no label; the website's dim grey was 3.9:1. | A polite live region that speaks the call when the action changes (not its ticking numbers); a label; a lighter grey (5.1:1). |
-| D4 budget | The tick-time budget failed in full test runs (p99 11 ms) even before any change: other test files run in parallel. | The mean is now CPU time, which contention can't inflate; a planted 3 ms stall still fails it. |
+| D4 budget | The tick-time budget failed in full test runs (p99 11 ms, later 29 ms against a 25 ms limit) even before any change: other test files run in parallel. | The mean is CPU time, which contention can't inflate. The p99 is wall-clock, fastest of three passes of the same deterministic replay (one tick's CPU time moves in ~15.6 ms steps on Windows, so it can't be used). A planted 3 ms stall fails it; three full runs in a row pass. Profiled on a 23-lap race: 0.58 ms a tick on average; the p99 (11.6 ms) is the tyre fit's 100-resample bootstrap, run whenever a car completes a lap, and is kept. |
 | D1 catalog | The first lap dataset dropped every car's last lap: at the flag the lap counter doesn't move on. Seen as "4 of 5 laps" in the catalog. | Kept once the car has finished; a test for it. |
 | D3 dataset | The tyre backtest in accuracy.md had scored only each race's last 12 laps (all the field model keeps). | Scored on every lap from the dataset: the model still beats "no wear" on 4 of 5 races (311 vs 417 ms a lap). |
 | D6 race store | At the flag the game sends Session History with session UID 0. The field model reset on it, losing every car's final lap and the official result (no saved debrief had one; laps.csv was 120 laps short). | UID 0 belongs to the current session. Tyre backtest re-scored on the recovered laps: 342 ms (was 329 on fewer laps). |

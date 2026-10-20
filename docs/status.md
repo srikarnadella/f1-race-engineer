@@ -18,19 +18,20 @@ F1 26 races. Things I've checked against recordings of the real game (not just t
 ```mermaid
 flowchart LR
     subgraph NEED["Needs more recorded races"]
-        A["Overtake model<br/>ties the simple guess"]
+        A["Overtake model in the app<br/>ties the simple guess<br/>(LightGBM beats it offline)"]
         B["Attack corner<br/>trails the busiest-corner rule"]
         C["Pit timing<br/>can't be scored yet"]
         D["AI stop timing<br/>no gain over the prior"]
     end
     subgraph UNTESTED["Untested"]
         E["Online races"]
-        F["Wet races<br/>(7 minutes of rain so far)"]
+        F["A drying track<br/>(inters to slicks)"]
     end
 ```
 
-- **More races for the models.** The overtake model ties the gap-only guess and the attack forecast trails
-  the busiest-corner rule. The rejoin prediction beats its guess but is too pessimistic.
+- **More races for the models.** The overtake model in the app ties the gap-only guess and the attack forecast
+  trails the busiest-corner rule. On 10 races a LightGBM model beats the gap (AUC 0.860 vs 0.838,
+  [report](ml-overtake-lightgbm.md)); putting it in the app is next. The rejoin prediction beats its guess but is too pessimistic.
 - **Scoring pit timing** needs races where the same stop was made on different laps.
 - **Damage cost on a full lap:** in every race so far I undid the damage with a flashback within a few
   corners, so this is only tested on made-up laps. The 6 s a nose change adds to a stop is a guess.

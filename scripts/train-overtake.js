@@ -2,6 +2,9 @@
 // Trains the overtake-probability model from recorded races.
 //
 //   npm run train:overtake [-- capture-folder ...]   (default: every folder in captures/)
+//   npm run train:overtake -- --samples out.csv.gz [capture-folder ...]
+//     writes the battle samples (features + label, one row per second of a
+//     close battle) and stops - the shipped model is left alone. ml/ reads it.
 //
 // Pipeline: replay each capture through the real parsers and FieldModel ->
 // once a second, one sample per close battle (car directly behind another,
@@ -11,12 +14,14 @@
 // one), against a gap-only baseline -> model + report written to the repo.
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const PACKET_IDS = require('../src/udp/packetIds');
 const { readLog } = require('../src/capture/logFile');
 const { parsePacket } = require('../src/udp/parsePacket');
 const { createFieldModel } = require('../src/state/fieldModel');
 const { FEATURES, pairFeatures, toVector } = require('../src/ml/overtakeFeatures');
 const { train, predict, evaluate } = require('../src/ml/logistic');
+const { TRACKS } = require('../src/udp/gameIds');
 
 const HORIZON_S = 10;
 // L2 strength - chosen by the held-out score (see the report).
@@ -59,7 +64,7 @@ async function extract(file) {
     const session = fm.getSession();
     if (!session || !RACE_TYPES.has(session.sessionType)) continue;
     uid = String(fm.getSessionUID()); // the field's session: UID 0 packets belong to the current one
-    if (!races.has(uid)) races.set(uid, { name: `${path.basename(path.dirname(file))} (track ${session.trackId})`, samples: [], passes: [], trackId: session.trackId, trackLength: session.trackLength });
+    if (!races.has(uid)) races.set(uid, { name: `${path.basename(path.dirname(file))} (track ${session.trackId})`, file, samples: [], passes: [], trackId: session.trackId, trackLength: session.trackLength });
     const race = races.get(uid);
     const t = header.sessionTime;
     // A flashback rewinds time: drop the future that no longer happened.
@@ -95,8 +100,22 @@ async function extract(file) {
 
 const weightsTable = (model, names) => names.map((n, j) => ({ feature: n, weight: +model.weights[j].toFixed(3) })).sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight));
 
+// One row per sample: which race, when, who, the label, then the features.
+function writeSamples(file, races) {
+  const rows = [['race', 'session', 't', 'attacker', 'defender', 'y', ...FEATURES].join(',')];
+  races.forEach((r, i) => {
+    const session = `${path.basename(path.dirname(r.file))} ${TRACKS[r.trackId] || `track ${r.trackId}`}`;
+    for (const s of r.samples) rows.push([i, session, s.t.toFixed(3), s.a, s.d, s.y, ...s.x.map((v) => +v.toFixed(6))].join(','));
+  });
+  const text = rows.join('\n') + '\n';
+  fs.writeFileSync(file, file.endsWith('.gz') ? zlib.gzipSync(text) : text);
+}
+
 async function main() {
-  const files = captureFiles(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const at = argv.indexOf('--samples');
+  const samplesOut = at >= 0 ? argv.splice(at, 2)[1] : null;
+  const files = captureFiles(argv);
   if (!files.length) throw new Error('No captures found - record races with `npm run capture` first.');
   const races = [];
   for (const f of files) {
@@ -105,6 +124,11 @@ async function main() {
     for (const r of found) console.log(`${r.name}: ${r.samples.length} battle samples, ${r.samples.filter((s) => s.y).length} labelled passes (${r.passes.length} OVTK events)`);
   }
   if (!races.length) throw new Error('No race sessions in those captures.');
+  if (samplesOut) {
+    writeSamples(samplesOut, races);
+    console.log(`\nwrote ${races.flatMap((r) => r.samples).length} samples from ${races.length} race(s) to ${samplesOut}`);
+    return;
+  }
   const all = races.flatMap((r) => r.samples);
 
   // Leave-one-race-out: every race scored by a model that never saw it.

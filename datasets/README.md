@@ -57,3 +57,17 @@ The line CI holds: each model's error on these laps (lower is better), and the s
 it was scored on. `npm run backtest` prints the scores; after an intended change,
 `npm run backtest -- --update` saves new ones. Rebuild after recording races:
 `npm run dataset && npm run backtest -- --update`.
+
+## overtake-samples.csv.gz - one row per second of a close battle
+
+Built by `npm run train:overtake -- --samples datasets/overtake-samples.csv.gz`: the samples the
+overtake model learns from, for the LightGBM comparison in `ml/` ([report](../docs/ml-overtake-lightgbm.md)).
+A car directly behind another, within 3 s, once a second of game time; flashbacks are rewound out.
+
+| Column | |
+|---|---|
+| race, session | race number (0-9) and `<capture folder> <track>` |
+| t | session time, seconds |
+| attacker, defender | car slots (`carIndex`) |
+| y | 1 if the game's OVTK event shows that exact pass within the next 10 s |
+| logGap ... lapOne | the model's features, from `src/ml/overtakeFeatures.js` |

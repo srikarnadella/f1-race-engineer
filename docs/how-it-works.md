@@ -74,6 +74,8 @@ Every prediction is scored against a naive baseline on real races by `npm run ac
 - **The overtake model doesn't beat a gap-only model yet** (held-out AUC 0.851 vs 0.854), and the
   attack forecast ties the track's busiest passing corner. Both are shown that way in the app: the
   Models tab prints the verdict and a calibration chart, and the forecast is worded as a "likely spot".
+  With 10 races, a gradient-boosted model (LightGBM) does beat the gap: AUC 0.860 vs 0.838, better on 9
+  of 10 races held out ([report](ml-overtake-lightgbm.md)). It isn't in the app yet.
 
 ## 4. Out: one snapshot, ten times a second
 
