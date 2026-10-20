@@ -974,16 +974,16 @@
     let html = '';
     if (o) {
       const ev = o.evaluation;
-      const maxW = Math.max(...o.weights.map((w) => Math.abs(w.weight)), 0.01);
-      // Features that never varied in the training races carry no weight - hide them.
-      const weights = [...o.weights].filter((w) => Math.abs(w.weight) >= 0.005).sort((x, y) => Math.abs(y.weight) - Math.abs(x.weight)).map((w) => `<div class="w-mdl__w"><span>${FEATURE_LABEL[w.feature] || esc(w.feature)}</span>`
-        + `<span class="w-mdl__bar"><i class="${w.weight >= 0 ? 'pos' : 'neg'}" style="width:${(Math.abs(w.weight) / maxW) * 100}%"></i></span><b>${w.weight >= 0 ? '+' : '−'}${Math.abs(w.weight).toFixed(2)}</b></div>`).join('');
-      html += `<div class="w-mdl__card"><h3>Overtake probability</h3><p class="dim">${esc(o.question)} Logistic regression, trained on ${o.trainedOn.races} recorded races: ${o.trainedOn.samples.toLocaleString()} one-second battle samples, ${o.trainedOn.passes.toLocaleString()} followed by a pass. Drives the pass / threat chips and "pass likely" calls.</p>`
+      const maxS = Math.max(...o.importance.map((w) => w.share), 0.01);
+      // Features the trees never split on learned nothing - hide them.
+      const shares = o.importance.filter((w) => w.share >= 0.005).map((w) => `<div class="w-mdl__w"><span>${FEATURE_LABEL[w.feature] || esc(w.feature)}</span>`
+        + `<span class="w-mdl__bar"><i class="pos" style="width:${(w.share / maxS) * 100}%"></i></span><b>${Math.round(w.share * 100)}%</b></div>`).join('');
+      html += `<div class="w-mdl__card"><h3>Overtake probability</h3><p class="dim">${esc(o.question)} Gradient-boosted trees (LightGBM, ${o.trees} trees), trained on ${o.trainedOn.races} recorded races: ${o.trainedOn.samples.toLocaleString()} one-second battle samples, ${o.trainedOn.passes.toLocaleString()} followed by a pass. Drives the pass / threat chips and "pass likely" calls.</p>`
         + (ev ? `<div class="w-deb__tiles"><div class="w-deb__tile"><span class="w-label">Held-out AUC</span><b>${ev.model.auc.toFixed(3)}</b><span class="dim">gap-only baseline ${ev.gapOnlyBaseline.auc.toFixed(3)}</span></div><div class="w-deb__tile"><span class="w-label">Brier skill</span><b>${ev.model.brierSkill.toFixed(3)}</b><span class="dim">baseline ${ev.gapOnlyBaseline.brierSkill.toFixed(3)}</span></div><div class="w-deb__tile"><span class="w-label">Evaluation</span><b>Leave one race out</b><span class="dim">each race scored by a model that never saw it</span></div></div>` : '')
         + (ev ? verdictHtml(ev) + calibrationHtml(ev.model.calibration) : '')
-        + `<div class="w-label">What drives a pass <span class="w-cmp__key"><i class="pos"></i>more likely <i class="neg"></i>less likely</span></div><div class="w-mdl__weights">${weights}</div></div>`;
+        + `<div class="w-label">What it leans on <span class="dim">share of what the trees learned from each</span></div><div class="w-mdl__weights">${shares}</div></div>`;
     } else {
-      html += '<div class="w-mdl__card"><h3>Overtake probability</h3><p class="dim">No model yet - record races with npm run capture, then npm run train:overtake.</p></div>';
+      html += '<div class="w-mdl__card"><h3>Overtake probability</h3><p class="dim">No model yet - record races with npm run capture, then python ml/overtake_lgbm.py.</p></div>';
     }
     const rows = tyre ? Object.entries(tyre.compounds) : [];
     html += `<div class="w-mdl__card"><h3>Tyre degradation (live)</h3><p class="dim">Fitted during the session from every car's clean laps: each car against its own average, fuel-corrected (${tyre ? `${tyre.fuelMsPerLap} ms/lap` : '~30 ms per kg'}), outlier laps trimmed. Feeds the cliff projection and stop pay-back.</p>`

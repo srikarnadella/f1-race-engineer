@@ -164,8 +164,7 @@ async function main() {
   // 3. The Models tab, as /api/models serves it.
   let overtake = null;
   try {
-    const m = require('../src/ml/models/overtake.json');
-    overtake = { question: m.question, horizonS: m.horizonS, trainedOn: m.trainedOn, evaluation: m.evaluation, weights: m.features.map((f, j) => ({ feature: f, weight: m.weights[j] })) };
+    overtake = require('../src/ml/modelInfo').overtakeInfo();
   } catch (_) {
     overtake = null;
   }

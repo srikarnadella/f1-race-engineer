@@ -98,3 +98,21 @@ test('app: a lossy feed is flagged on the link; a healthy one says nothing extra
   app.send({ ...snap, feed: { rateHz: null, lossPct: null } });
   assert.strictEqual(app.$('link-text').textContent, 'Live', 'no reading is not a warning');
 });
+
+test('app: the Models tab shows the overtake model the app runs - LightGBM, its held-out score and what it leans on', async (t) => {
+  const { overtakeInfo } = require('../src/ml/modelInfo');
+  const info = overtakeInfo();
+  const app = open(t);
+  app.window.fetch = async (url) => ({ ok: true, json: async () => (String(url).endsWith('/api/models') ? { overtake: info, tyre: null } : {}) });
+  app.press('6');
+  assert.strictEqual(app.activeTab(), 'Debrief');
+  app.window.document.querySelector('[data-view="models"]').click();
+  await new Promise((r) => setTimeout(r, 20));
+  const text = app.window.document.querySelector('.w-mdl__card').textContent;
+  assert.ok(text.includes(`Gradient-boosted trees (LightGBM, ${info.trees} trees)`), text);
+  assert.match(text, new RegExp(info.evaluation.model.auc.toFixed(3)));
+  assert.match(text, /Beats the gap-only baseline/);
+  // The biggest driver first, as a share of what the model learned.
+  assert.ok(text.includes(`Gap to the car ahead (log)${Math.round(info.importance[0].share * 100)}%`), text);
+  assert.deepStrictEqual(app.errors, []);
+});

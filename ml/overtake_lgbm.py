@@ -7,8 +7,11 @@ The samples are the ones the shipped model learns from (`npm run train:overtake
 car behind passed that car within 10 s. Every model here is scored the same
 way as the shipped one: leave one race out, so each race is predicted by models
 that never saw it, against the same gap-only baseline. Writes
-docs/ml-overtake-lightgbm.md.
+docs/ml-overtake-lightgbm.md, and the model the app runs: its trees as JSON in
+src/ml/models/overtake-gbdt.json (evaluated by src/ml/gbdt.js), with
+test/fixtures/overtake-gbdt-parity.json to check JS and Python agree.
 """
+import json
 import sys
 from pathlib import Path
 
@@ -23,6 +26,12 @@ from sklearn.preprocessing import StandardScaler
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLES = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / 'datasets' / 'overtake-samples.csv.gz'
 REPORT = ROOT / 'docs' / 'ml-overtake-lightgbm.md'
+MODEL_OUT = ROOT / 'src' / 'ml' / 'models' / 'overtake-gbdt.json'
+PARITY_OUT = ROOT / 'test' / 'fixtures' / 'overtake-gbdt-parity.json'
+PARITY_ROWS = 200
+HORIZON_S = 10
+# The same buckets as src/ml/logistic.js evaluate(), so the Models tab reads both alike.
+CAL_EDGES = [0, 0.05, 0.1, 0.2, 0.4, 0.6, 1.0001]
 SEED = 7
 BOOTSTRAPS = 1000
 
@@ -54,13 +63,16 @@ def lightgbm(train, features):
 
 def leave_one_race_out(df, features):
     preds = {name: np.zeros(len(df)) for name in ('gap', 'logistic', 'lightgbm')}
+    trees = []
     for race in sorted(df.race.unique()):
         test = df.race == race
         train = df[~test]
         preds['gap'][test] = logistic().fit(train[['logGap']], train.y).predict_proba(df.loc[test, ['logGap']])[:, 1]
         preds['logistic'][test] = logistic().fit(train[features], train.y).predict_proba(df.loc[test, features])[:, 1]
-        preds['lightgbm'][test] = lightgbm(train, features).predict_proba(df.loc[test, features])[:, 1]
-    return preds
+        model = lightgbm(train, features)
+        trees.append(model.best_iteration_)
+        preds['lightgbm'][test] = model.predict_proba(df.loc[test, features])[:, 1]
+    return preds, trees
 
 
 def scores(y, p, base_rate):
@@ -71,6 +83,26 @@ def scores(y, p, base_rate):
         'brier': brier,
         'brier_skill': 1 - brier / brier_score_loss(y, np.full(len(y), base_rate)),
     }
+
+
+def calibration(y, p):
+    out = []
+    for lo, hi in zip(CAL_EDGES, CAL_EDGES[1:]):
+        inb = (p >= lo) & (p < hi)
+        n = int(inb.sum())
+        out.append({'bucket': f'{round(lo * 100)}-{min(100, round(hi * 100))}%', 'n': n,
+                    'predicted': round(float(p[inb].mean()), 3) if n else None,
+                    'observed': round(float(y[inb].mean()), 3) if n else None})
+    return out
+
+
+def tree_json(node):
+    """One LightGBM tree as nested {f, t, l, r} splits (x[f] <= t goes left) and {v} leaves."""
+    if 'leaf_value' in node:
+        return {'v': node['leaf_value']}
+    assert node['decision_type'] == '<=', node['decision_type']
+    return {'f': node['split_feature'], 't': node['threshold'], 'dl': node['default_left'],
+            'm': node['missing_type'], 'l': tree_json(node['left_child']), 'r': tree_json(node['right_child'])}
 
 
 def race_bootstrap(df, p_model, p_base, rng):
@@ -91,7 +123,7 @@ def main():
     df = pd.read_csv(SAMPLES)
     features = list(df.columns[df.columns.get_loc('y') + 1:])
     base_rate = df.y.mean()
-    preds = leave_one_race_out(df, features)
+    preds, fold_trees = leave_one_race_out(df, features)
     pooled = {name: scores(df.y, p, base_rate) for name, p in preds.items()}
 
     per_race = []
@@ -107,14 +139,18 @@ def main():
     rng = np.random.default_rng(SEED)
     lo, hi = race_bootstrap(df, preds['lightgbm'], preds['gap'], rng)
 
-    full = lgb.LGBMClassifier(**{**LGB_PARAMS, 'n_estimators': 300}).fit(df[features], df.y)
+    # The shipped model: every race, as many trees as the held-out folds stopped at (their median).
+    n_trees = int(np.median(fold_trees))
+    full = lgb.LGBMClassifier(**{**LGB_PARAMS, 'n_estimators': n_trees}).fit(df[features], df.y)
     gain = pd.Series(full.booster_.feature_importance('gain'), index=features)
     gain = (gain / gain.sum()).sort_values(ascending=False)
 
     beats = lo > 0
+    cal = calibration(df.y.values, preds['lightgbm'])
     verdict = (
         f'LightGBM beats the gap on its own: AUC {pooled["lightgbm"]["auc"]:.3f} against {pooled["gap"]["auc"]:.3f}, '
-        f'better on {wins} of {len(per_race)} races, and the 90% range of the gain ({lo:+.3f} to {hi:+.3f}) is above zero.'
+        f'better on {wins} of {len(per_race)} races, and the 90% range of the gain ({lo:+.3f} to {hi:+.3f}) is above zero. '
+        f'The app runs it ({n_trees} trees, trained on every race).'
         if beats else
         f'LightGBM does not clearly beat the gap on its own: AUC {pooled["lightgbm"]["auc"]:.3f} against '
         f'{pooled["gap"]["auc"]:.3f}, better on {wins} of {len(per_race)} races, and the 90% range of the gain '
@@ -141,6 +177,10 @@ def main():
         'the base rate (above zero is better than that).', '',
         f'AUC gain of LightGBM over the baseline, 90% range from {BOOTSTRAPS:,} resamples of whole races: '
         f'**{lo:+.3f} to {hi:+.3f}**.', '',
+        '### Calibration (LightGBM, held out)', '',
+        '| Predicted | Samples | Mean predicted | Observed |', '|---|---|---|---|',
+        *[f'| {c["bucket"]} | {c["n"]:,} | {c["predicted"] if c["n"] else "-"} | {c["observed"] if c["n"] else "-"} |' for c in cal],
+        '',
         '## Each race, held out', '',
         '| Race | Samples | Passes | Baseline AUC | Logistic AUC | LightGBM AUC |', '|---|---|---|---|---|---|',
         *[f'| {r.race} | {int(r.samples):,} | {int(r.passes):,} | {r.gap:.3f} | {r.logistic:.3f} | {r.lightgbm:.3f} |' for r in per_race.itertuples()],
@@ -156,10 +196,30 @@ def main():
         '- The game\'s OVTK event fires on any position swap, including a car ahead running wide or pitting.',
     ]
     REPORT.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+    def evaluation(n):
+        sc = pooled[n]
+        return {'auc': round(sc['auc'], 4), 'logLoss': round(sc['log_loss'], 4), 'brier': round(sc['brier'], 4), 'brierSkill': round(sc['brier_skill'], 3)}
+    model = {
+        'name': 'overtake-probability',
+        'kind': 'gbdt',
+        'question': f'Will the car directly behind pass the car ahead within {HORIZON_S}s?',
+        'horizonS': HORIZON_S,
+        'features': features,
+        'trainedOn': {'races': int(df.race.nunique()), 'samples': len(df), 'passes': int(df.y.sum())},
+        'evaluation': {'method': 'leave-one-race-out', 'model': {**evaluation('lightgbm'), 'calibration': cal}, 'gapOnlyBaseline': evaluation('gap')},
+        'importance': [{'feature': f, 'share': round(float(v), 4)} for f, v in gain.items()],
+        'trees': [tree_json(t['tree_structure']) for t in full.booster_.dump_model()['tree_info']],
+    }
+    MODEL_OUT.write_text(json.dumps(model, separators=(',', ':')) + '\n', encoding='utf-8')
+    rows = df.sample(PARITY_ROWS, random_state=SEED)
+    parity = {'note': 'Python predict_proba for these rows; test/gbdt.test.js checks src/ml/gbdt.js gives the same.',
+              'features': features, 'rows': [{'x': [float(v) for v in r], 'p': float(q)} for r, q in zip(rows[features].values, full.predict_proba(rows[features])[:, 1])]}
+    PARITY_OUT.write_text(json.dumps(parity) + '\n', encoding='utf-8')
     for n, s in pooled.items():
         print(f'{names[n]:40s} AUC {s["auc"]:.3f}  log loss {s["log_loss"]:.4f}  Brier skill {s["brier_skill"]:+.3f}')
     print(f'LightGBM better on {wins}/{len(per_race)} races; AUC gain 90% range {lo:+.3f} to {hi:+.3f}')
-    print(f'wrote {REPORT.relative_to(ROOT)}')
+    print(f'wrote {REPORT.relative_to(ROOT)}, {MODEL_OUT.relative_to(ROOT)} ({n_trees} trees, {MODEL_OUT.stat().st_size // 1024} KB), {PARITY_OUT.relative_to(ROOT)}')
 
 
 if __name__ == '__main__':

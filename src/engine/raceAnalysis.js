@@ -10,7 +10,7 @@ const { median } = require('../lib/stats');
 const { createTrackMemory } = require('../state/trackMemory');
 const { fitDegradation, stopPayback } = require('../ml/tyreModel');
 const { pairFeatures } = require('../ml/overtakeFeatures');
-const { predict } = require('../ml/logistic');
+const { predict } = require('../ml/gbdt');
 const { forecastAttack } = require('../analysis/attackForecast');
 const { strategyOptions, intersNowGain } = require('../analysis/strategyOptions');
 const { battleCall } = require('../analysis/battleCall');
@@ -22,16 +22,18 @@ const { qualifying } = require('../analysis/qualifying');
 const { createTyreTempTracker } = require('../analysis/tyreTemps');
 const { racePlan, planOdds, planUncertainty } = require('../analysis/racePlan');
 
-// The trained overtake model (npm run train:overtake), if one has been built.
+// The overtake model: LightGBM trained on recorded races (ml/overtake_lgbm.py),
+// run from its exported trees.
 let OVERTAKE_MODEL = null;
 try {
-  OVERTAKE_MODEL = require('../ml/models/overtake.json');
+  OVERTAKE_MODEL = require('../ml/models/overtake-gbdt.json');
 } catch (_) {
   OVERTAKE_MODEL = null;
 }
-// The model is well calibrated up to ~40% and overconfident above (few
-// samples), so the dashboard gets a level plus a capped percentage.
-const PASS_CAP = 0.5;
+// Held out race by race it's well calibrated up to 60% (40-60% predicted: 51%
+// observed) and a little overconfident above (64% said, 57% seen, 173 samples),
+// so the dashboard gets a level plus a percentage capped there.
+const PASS_CAP = 0.6;
 const MIN_DEG_CARS = 5;
 const MIN_DEG_LAPS = 25;
 const PRACTICE_TYPES = new Set([1, 2, 3, 4]);

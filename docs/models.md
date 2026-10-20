@@ -25,8 +25,7 @@ From eight race sessions I recorded (one a sprint). Run `npm run accuracy` to re
 | Where you rejoin after a stop (45 green-flag stops) | 4.22 places off | 5.27 ("keep your place") | Beats it, but it's too pessimistic |
 | A rival's battery at the line (843 half-laps) | 8.4 points off | 13.4 ("stays where it is") | Beats it |
 | When an AI car stops (45 green-flag stops) | 1.04 laps off | 1.06 (fixed share of tyre life) | No real gain yet |
-| Will the car behind pass in 10 s? (held-out AUC) | 0.851 | 0.854 (gap only) | A tie, so it's marked experimental |
-| The same with LightGBM, 10 races (Python, not in the app yet) | 0.860 | 0.838 (gap only) | Beats it on 9 of 10 races |
+| Will the car behind pass in 10 s? (held-out AUC, 10 races) | 0.860 | 0.838 (gap only) | Beats it on 9 of 10 races |
 | Which corner they'll attack (50 passes) | 7 of 50 | 7 of 50 (busiest corner) | Not yet, so it says "likely spot" |
 
 The rejoin model's error is nearly all one direction: it puts you about 4 places too far back. Fixing
@@ -40,14 +39,17 @@ All of them are written from scratch (no ML library).
   average, so fast and slow cars share one wear rate per compound, and the estimate firms up within a few
   laps instead of waiting for your own stint. Fuel burn is taken out using the measured burn rate. Each
   wear rate comes with a 90% range, from resampling the cars.
-- **Will the car behind pass in the next 10 seconds?** A logistic regression over the gap, the closing
-  rate, the pace difference, tyre age and compound, the battery difference and Overtake mode. It's trained
-  on recorded races, using the game's own overtake events as the answers, and tested on races it never saw
-  (`npm run train:overtake`, report in [ml-overtake-model.md](ml-overtake-model.md)). It ties the simple
-  "just look at the gap" guess, so the dashboard treats it as experimental and caps it at about 50%.
-  A gradient-boosted model (LightGBM, in Python) on the same samples from 10 races does beat it: AUC 0.860
-  against 0.838 held out race by race, better on 9 of 10 races, gain +0.014 to +0.030 (90% range over
-  races). Report: [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md). The app doesn't run it yet.
+- **Will the car behind pass in the next 10 seconds?** Gradient-boosted trees (LightGBM, 88 trees) over the
+  gap, the closing rate, the pace difference, tyre age and compound, the battery difference and Overtake
+  mode. Trained in Python (`ml/overtake_lgbm.py`) on 10 recorded races, using the game's own overtake events
+  as the answers, and tested race by race on races each model never saw: AUC 0.860 against 0.838 for the gap
+  alone, better on 9 of 10 races, gain +0.014 to +0.030 (90% range over races). The app runs the exported
+  trees in plain JavaScript (`src/ml/gbdt.js`; a test checks it matches Python to 1e-9). It is well
+  calibrated up to 60%, so that's where the shown chance is capped. Report:
+  [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md). The logistic regression it replaced, written from
+  scratch, tied the gap ([ml-overtake-model.md](ml-overtake-model.md)). On the six races that model never
+  saw, "pass likely" now comes before 32% of the passes on you instead of 20%, and is right about as often
+  (38% vs 41%).
 - **Battery at the line.** Drivers spend their battery on the same straights every lap, so the rest of this
   lap is assumed to go like the same stretch of the last one.
 - **Where they'll attack.** Your braking zones, ranked by where passes actually happen: the places *you've*

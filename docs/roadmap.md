@@ -36,7 +36,7 @@ flowchart LR
     M3[M3 Lap-time model with uncertainty]
     M4[M4 Backtest gate per model]:::done
     M5[M5 Rejoin bias]:::next
-    M6[M6 Gradient-boosted overtake model]:::part
+    M6[M6 Gradient-boosted overtake model]:::done
   end
   subgraph A[Analysis and decisions]
     A1[A1 Monte Carlo strategy]:::done
@@ -135,10 +135,12 @@ Each line: what it is, why it matters, and the acceptance test.
   are in [ml-overtake-model.md](ml-overtake-model.md). It is well calibrated (20-40% predicted,
   33% observed) but doesn't beat the gap-only baseline yet.
 - **M3 Lap-time model.** Fuel + tyre age + traffic, with residual spread, feeding A1.
-- **M6 Gradient-boosted overtake model.** *Partly done:* LightGBM (Python, `ml/`) on the same samples from
+- **M6 Gradient-boosted overtake model.** *Done:* LightGBM (Python, `ml/`) on the same samples from
   10 races, held out race by race: AUC 0.860 against 0.838 for the gap alone, better on 9 of 10 races, gain
-  +0.014 to +0.030 (90% range over races). [Report](ml-overtake-lightgbm.md). *Test to finish:* the
-  trees exported to JSON and run in the app give the same probabilities as Python, and the tick budget holds.
+  +0.014 to +0.030 (90% range over races). [Report](ml-overtake-lightgbm.md). The app runs the exported trees
+  (`src/ml/gbdt.js`): JS matches Python to 1e-9 on 200 real samples. On the 6 races the logistic model it
+  replaced never saw, "pass likely" now comes before 32% of passes instead of 20%, right 38% of the time
+  (was 41%). Calibrated to 60%, so the shown chance is capped there (was 50%).
 - **M5 Rejoin bias.** With 24 green-flag stops scored (3 before), the rejoin model is 2.54 places off
   and 2.46 of that is one direction: it puts the car too far back. *Test:* signed mean error under half
   a place on the recorded stops, without the absolute error getting worse.

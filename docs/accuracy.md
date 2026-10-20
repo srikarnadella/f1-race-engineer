@@ -74,4 +74,4 @@ words it as a "likely spot" and it stays marked experimental until more races ar
 
 ## Overtake model
 
-Scored separately, by leave-one-race-out cross-validation: see [ml-overtake-model.md](ml-overtake-model.md).
+Scored separately, by leave-one-race-out cross-validation: the LightGBM model the app runs in [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md), the logistic regression it replaced in [ml-overtake-model.md](ml-overtake-model.md).

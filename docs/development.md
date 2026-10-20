@@ -79,9 +79,10 @@ node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay
 **Dependencies:** Node.js 20+ and three packages: `ws` (WebSocket), `qrcode-terminal` (the pairing QR
 code) and `better-sqlite3` (the race store). `jsdom` and `c8` are for tests; `eslint` and `typescript` check the code (`npm run lint`, `npm run typecheck`: JSDoc types, no build step).
 
-**Python (optional, ml/ only):** the LightGBM comparison for the overtake model. It reads the samples
+**Python (ml/ only, to retrain the overtake model):** LightGBM, scored against the gap-only baseline. It reads the samples
 in `datasets/overtake-samples.csv.gz` (`npm run train:overtake -- --samples datasets/overtake-samples.csv.gz`
-rebuilds them from the captures) and writes [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md):
+rebuilds them from the captures) and writes the report [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md), the
+trees the app runs (`src/ml/models/overtake-gbdt.json`) and the parity fixture `test/gbdt.test.js` checks:
 
 ```
 python -m venv .venv && .venv/Scripts/pip install -r ml/requirements.txt   # bin/ instead of Scripts/ on macOS/Linux

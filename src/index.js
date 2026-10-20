@@ -160,8 +160,7 @@ function main() {
   // Debrief screens fetch these on demand.
   const MODEL_INFO = (() => {
     try {
-      const m = require('./ml/models/overtake.json');
-      return { overtake: { question: m.question, horizonS: m.horizonS, trainedOn: m.trainedOn, evaluation: m.evaluation, weights: m.features.map((f, j) => ({ feature: f, weight: m.weights[j] })) } };
+      return { overtake: require('./ml/modelInfo').overtakeInfo() };
     } catch (_) {
       return { overtake: null };
     }

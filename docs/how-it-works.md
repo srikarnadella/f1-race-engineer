@@ -44,7 +44,7 @@ either side:
 | Question | How | Where |
 |---|---|---|
 | Is Sainz closing? | Gap trend per lap from clean-lap pace | `raceAnalysis.js` |
-| Will he pass in 10 s? | Logistic regression, written from scratch, trained on recorded races | [`src/ml/`](../src/ml/) |
+| Will he pass in 10 s? | Gradient-boosted trees (LightGBM), trained in Python on recorded races, run from exported JSON | [`ml/`](../ml/), [`src/ml/gbdt.js`](../src/ml/gbdt.js) |
 | Where will he try? | Your braking zones, scored by where passes actually happen here | [`attackForecast.js`](../src/analysis/attackForecast.js) |
 | Who has the battery? | Last lap's battery profile, projected to the line | [`batteryProjection.js`](../src/analysis/batteryProjection.js) |
 
@@ -71,11 +71,11 @@ Every prediction is scored against a naive baseline on real races by `npm run ac
   stint's early laps made 17 overheating calls in one Monaco race, flipping between fronts and rears:
   the surface is hotter after every slow corner and cooler on every straight. Comparing the same
   stretches of track on earlier laps brought it to 3.
-- **The overtake model doesn't beat a gap-only model yet** (held-out AUC 0.851 vs 0.854), and the
-  attack forecast ties the track's busiest passing corner. Both are shown that way in the app: the
-  Models tab prints the verdict and a calibration chart, and the forecast is worded as a "likely spot".
-  With 10 races, a gradient-boosted model (LightGBM) does beat the gap: AUC 0.860 vs 0.838, better on 9
-  of 10 races held out ([report](ml-overtake-lightgbm.md)). It isn't in the app yet.
+- **The first overtake model only tied the gap.** A logistic regression on 4 races scored 0.851 against
+  0.854 for the gap alone. Gradient-boosted trees (LightGBM) on 10 races beat it: 0.860 vs 0.838, better on
+  9 of 10 races held out ([report](ml-overtake-lightgbm.md)), and that's the model the app runs now. The
+  attack forecast still ties the track's busiest passing corner, so it's worded as a "likely spot"; the
+  Models tab prints each model's verdict and calibration.
 
 ## 4. Out: one snapshot, ten times a second
 

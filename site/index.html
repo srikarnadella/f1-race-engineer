@@ -459,7 +459,7 @@
           <div class="tile" data-reveal style="--i:1"><b>4.2</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 5.3. Nearly all of the error is a pessimistic bias, which is next to fix.</small></div>
           <div class="tile" data-reveal style="--i:2"><b>8.4</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 13.4 points off.</small></div>
           <div class="tile" data-reveal style="--i:1"><b>7 / 8</b><span>races where the tyre model beats "no wear"</span><small>The exception is the Silverstone sprint, where it doesn't beat it yet.</small></div>
-          <div class="tile" data-reveal style="--i:2; --c: var(--watch)"><b>0.85</b><span>AUC: will the car behind pass within 10 s?</span><small>Ties the gap-only baseline in the app, so it's marked experimental. LightGBM on 10 races beats it: 0.860 vs 0.838.</small></div>
+          <div class="tile" data-reveal style="--i:2; --c: var(--go)"><b>0.86</b><span>AUC: will the car behind pass within 10 s?</span><small>LightGBM on 10 races. The gap alone: 0.84. Better on 9 of 10 races.</small></div>
           <figure class="tile tile-img" data-reveal style="--i:3"><img src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower, with the pit building behind" loading="lazy" decoding="async"><figcaption>Suzuka, one of the recorded races. <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Photo</a>: Tokumeigakarinoaoshima, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></figcaption></figure>
           <figure class="tile tile-img" data-reveal style="--i:4"><img src="img/pit-wall.jpg" width="1400" height="933" alt="A team's pit-wall stand beside the track at Suzuka, 2009" loading="lazy" decoding="async"><figcaption>A real pit wall, Suzuka 2009: the job, done by people. <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">Photo</a>: Morio, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a></figcaption></figure>
         </div>
@@ -840,17 +840,17 @@ odds   = wins / 1000</pre>
             </div>
             <div class="ex-body" role="tabpanel" data-sub="fight" hidden>
               <div>
-                <p><strong>Will the car behind pass in the next 10 s?</strong> A logistic regression written from scratch (standardized features, an L2 penalty, class-weighted gradient descent) over the gap (log scale), the closing rate, the clean-pace difference, tyre age and compound, the battery difference and 2026 Overtake mode. It's trained on recorded races, labeled from the game's own overtake events, and scored on races it never saw. Held-out AUC 0.851 against 0.854 for the gap alone: it ties, so the app marks it experimental. On 10 races, gradient boosting (LightGBM, in Python) on the same features does beat the gap: 0.860 against 0.838, better on 9 of 10 races held out. It isn't in the app yet.</p>
+                <p><strong>Will the car behind pass in the next 10 s?</strong> Gradient-boosted trees (LightGBM, 88 trees) over the gap (log scale), the closing rate, the clean-pace difference, tyre age and compound, the battery difference and 2026 Overtake mode. Trained in Python on 10 recorded races, labeled from the game's own overtake events, and scored race by race on races it never saw: AUC 0.860 against 0.838 for the gap alone, better on 9 of 10. The app runs the exported trees in plain JavaScript, checked against Python to 1e-9. The logistic regression it replaced, written from scratch on 4 races, only tied the gap.</p>
                 <p><strong>Battery at the line</strong>: drivers spend on the same straights every lap, so the rest of this lap is copied from the same stretch of the last one. 8.4 points off against 13.4 for "it stays where it is".</p>
                 <p><strong>Where they'll attack</strong>: your braking zones, scored by where passes actually happen at this track, with the places <em>you've</em> been passed this session weighted twice.</p>
               </div>
               <div>
-                <pre>p(pass) = σ(w · [log gap, closing, Δpace,
-                 Δtyre age, compound,
-                 Δbattery, overtakeMode] + b)
+                <pre>p(pass) = σ(Σ tree_k[log gap, closing, Δpace,
+              Δtyre age, compound,
+              Δbattery, overtakeMode]),  k = 1..88
 
 battery@line = now + (lastLap@line - lastLap@here)</pre>
-                <div class="ex-num"><span>AUC <b>0.851</b> vs 0.854</span><span>battery <b>8.4</b> vs 13.4 pts</span></div>
+                <div class="ex-num"><span>AUC <b>0.860</b> vs 0.838</span><span>battery <b>8.4</b> vs 13.4 pts</span></div>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/ml/logistic.js">ml/logistic.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/ml/overtake_lgbm.py">ml/overtake_lgbm.py</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/batteryProjection.js">batteryProjection.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/attackForecast.js">attackForecast.js</a></p>
               </div>
             </div>
@@ -1136,8 +1136,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
               <tr><td>Tyre wear, each car predicted from the others<small>1,649 laps, 8 races</small></td><td class="num">356 ms</td><td class="num">470 ms <small>no wear</small></td><td class="good">Beats it on 7 of 8 races</td></tr>
               <tr><td>Rejoin position if you box now<small>45 green-flag stops</small></td><td class="num">4.2 places</td><td class="num">5.3 <small>keep your place</small></td><td class="tie">Beats it, but biased: 4.2 places too pessimistic on average, next to fix</td></tr>
               <tr><td>A rival's battery at the line<small>843 half-laps</small></td><td class="num">8.4 pts</td><td class="num">13.4 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
-              <tr><td>Will the car behind pass in 10 s<small>held-out AUC</small></td><td class="num">0.851</td><td class="num">0.854 <small>gap only</small></td><td class="tie">Ties, so marked experimental</td></tr>
-              <tr><td>The same with LightGBM<small>held-out AUC, 10 races, not in the app yet</small></td><td class="num">0.860</td><td class="num">0.838 <small>gap only</small></td><td class="good">Beats it on 9 of 10 races</td></tr>
+              <tr><td>Will the car behind pass in 10 s<small>held-out AUC, LightGBM, 10 races</small></td><td class="num">0.860</td><td class="num">0.838 <small>gap only</small></td><td class="good">Beats it on 9 of 10 races</td></tr>
               <tr><td>When an AI car stops<small>45 green-flag stops</small></td><td class="num">1.04 laps</td><td class="num">1.06 <small>fixed share of tyre life</small></td><td class="tie">No real gain yet</td></tr>
               <tr><td>The corner they'll attack<small>50 passes</small></td><td class="num">7 / 50</td><td class="num">7 / 50 <small>busiest corner</small></td><td class="tie">Not yet, so worded as a "likely spot"</td></tr>
             </tbody>
@@ -1232,7 +1231,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         { lap: 12, pos: 1, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Yellow ahead at turn 6 - careful, no overtaking' },
         { lap: 13, pos: 1, action: 'PIT', reason: 'In the pit lane', radio: null },
         { lap: 14, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack ALBON - pass chance high into corner 8' },
-        { lap: 14, pos: 7, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'ALBON is right behind you - defend, watch corner 1' },
+        { lap: 14, pos: 7, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'ALBON is right behind you - defend, pass likely, watch corner 1' },
         { lap: 14, pos: 7, action: 'HOLD', reason: 'Red flag - race stopped', radio: 'Red flag: best is box: medium - keep P7, lasts to the flag, 0.7s/lap faster. Or stay out: keep the position, tyres reach the flag' },
         { lap: 16, pos: 5, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack RUSSELL - LECLERC close behind - make it stick into corner 1' },
         { lap: 16, pos: 4, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from RUSSELL - cover first, VERSTAPPEN is within reach after - watch into corner 1' },
