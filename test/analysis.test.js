@@ -501,3 +501,10 @@ test('attack forecast: the standing-start lap 1 is not where a car gains', () =>
   const f = forecastAttack({ attacker: lap1(quickerInto3), defender: lap1(even), corners, trackLength: 5800, gapS: 0.8, closingSPerLap: 0, passesAtM: [2900, 5400] });
   assert.ok(f.candidates.every((c) => c.gainS === 0), JSON.stringify(f.candidates));
 });
+
+test('battle call: no "close in ... in ~2 laps" with less than that to the flag', () => {
+  const ahead = { name: 'NORRIS', gapTrendMsPerLap: -400, pitStatus: 0 };
+  const battle = { attackForecast: { when: { laps: 2, text: 'in ~2 laps' } } };
+  assert.strictEqual(battleCall({ ahead, gapAheadS: 1.8, battle, lapsLeft: 5 }).mode, 'CLOSE IN');
+  assert.notStrictEqual(battleCall({ ahead, gapAheadS: 1.8, battle, lapsLeft: 1.5 }).mode, 'CLOSE IN');
+});

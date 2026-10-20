@@ -42,4 +42,15 @@ function projectBattery(car, trackLength) {
   };
 }
 
-module.exports = { projectBattery, ERS_MAX_J };
+// The battery at the last crossing of the line, %: what "enough to attack /
+// defend" is judged on - the 2026 store swings 20%+ inside a lap, and the live
+// figure flipped the advice every 10-20 s. After a stop or a neutralised lap
+// the store has charged since the line, so the live figure stands.
+function lineBatteryPct(car) {
+  const st = car && car.status;
+  if (!st || !Number.isFinite(st.ersStoreEnergy)) return null;
+  const last = (car.ersHistory || []).at(-1);
+  return pct(last && !last.pit && !last.neutralised && Number.isFinite(last.energyJ) ? last.energyJ : st.ersStoreEnergy);
+}
+
+module.exports = { projectBattery, lineBatteryPct, ERS_MAX_J };

@@ -537,3 +537,95 @@ test('a cheap stop under a safety car is not a BOX call when the options say sta
   for (let k = 0; k < 6; k++, now += 1000) call('box-17');
   assert.strictEqual(call('box-17'), 'BOX');
 });
+
+test('the tyre-cliff warning survives a flashback: laps after the rewind never happened', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  const step = (t, lapNum, wear, age) => {
+    fm.dispatch(PACKET_IDS.CAR_STATUS, header(t), { cars: Array.from({ length: 5 }, () => ({ tyresAgeLaps: age, fuelRemainingLaps: 1 })) });
+    fm.dispatch(PACKET_IDS.CAR_DAMAGE, header(t), { cars: Array.from({ length: 5 }, () => ({ tyresWear: [wear, wear, wear, wear] })) });
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { currentLapNum: lapNum } }) });
+    return ie.evaluate();
+  };
+  step(1, 10, 70, 18);
+  step(2, 11, 75, 19);
+  assert.ok(step(3, 12, 80, 20).some((i) => i.id === 'tyre-cliff'));
+  // Flashback into lap 11: 5% a lap from lap 10 still puts the cliff ~2 laps away.
+  const card = step(2.5, 11, 75, 19).find((i) => i.id === 'tyre-cliff');
+  assert.ok(card, 'still warned');
+  assert.match(card.message, /~2 laps to the cliff/);
+});
+
+test('after the chequered flag the race advice stops: no defend, no "last lap" battery, the call says the race is over', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { sessionType: 15, totalLaps: 18, trackLength: 5891, safetyCarStatus: 0 });
+  fm.dispatch(PACKET_IDS.CAR_STATUS, header(1), { cars: Array.from({ length: 5 }, () => ({ ersStoreEnergy: 1.2e6, ersDeployMode: 1, fuelRemainingLaps: 1 })) });
+  const lap = (resultStatus) => {
+    // P3 on the last lap, the car behind 0.3 s back.
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(2), { cars: lapCars({ [PLAYER]: { currentLapNum: 18, lapDistance: 5800, resultStatus }, [PLAYER + 1]: { currentLapNum: 18, deltaToCarInFrontInMS: 300 } }) });
+    return { ids: ie.evaluate().map((i) => i.id), call: ie.getStrategy().call };
+  };
+  const racing = lap(2);
+  assert.ok(racing.ids.includes('under-attack'), racing.ids.join(', '));
+  // Silverstone sprint: "ANTONELLI is right behind you - defend" on the cool-down lap.
+  const done = lap(3);
+  assert.ok(!done.ids.includes('under-attack') && !done.ids.includes('ers'), done.ids.join(', '));
+  assert.deepStrictEqual([done.call.action, done.call.reason], ['HOLD', 'Chequered flag - P3']);
+});
+
+test('undercut: once pit timing has an answer it decides - no "box now" beside "box in 3 laps" (Barcelona, 17 Oct 2026)', () => {
+  const run = (pitTiming) => {
+    const fm = createFieldModel();
+    const ie = createInsightEngine(fm);
+    raceWithTyres(fm);
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: 1200 } }) });
+    const cards = ie.evaluate({ ...undercutAnalysis(), pitTiming });
+    return { card: cards.find((i) => i.id === 'undercut-window'), call: ie.getStrategy().call };
+  };
+  assert.ok(run(null).card, 'no simulator answer yet: the undercut rule of thumb speaks');
+  // The simulator, which races the undercut out against everyone's stops, says later.
+  const later = run({ options: [{ inLaps: 3, best: true }], marginS: 0.7, headline: 'Best: box in 3 laps onto softs' });
+  assert.ok(!later.card);
+  assert.notStrictEqual(later.call.kind, 'undercut');
+});
+
+test('no "expect an attack in ~2 laps" on the last lap (Silverstone, 19 Oct 2026, 72:40)', () => {
+  let now = 0;
+  const fm = createFieldModel({ clock: () => now });
+  const ie = createInsightEngine(fm);
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { sessionType: 15, totalLaps: 18, trackLength: 5000, safetyCarStatus: 0 });
+  const warn = (lapNum) => {
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(lapNum), { cars: lapCars({ [PLAYER]: { currentLapNum: lapNum, lapDistance: 1000 } }) });
+    const defendForecast = { where: { corner: 11, atM: 4800 }, when: { laps: 2, text: 'in ~2 laps' }, closingSPerLap: 0.6 };
+    for (let k = 0; k < 60; k++, now += 100) ie.evaluate({ battle: { defendForecast }, field: [] });
+    return ie.evaluate({ battle: { defendForecast }, field: [] }).some((i) => i.id === 'attack-warning');
+  };
+  assert.ok(warn(10), 'mid-race: warned');
+  assert.ok(!warn(18), 'last lap: the attack would come after the flag');
+});
+
+test('a tyre cliff after the flag is no cliff: no "manage tyres" when the set reaches the end', () => {
+  let now = 0;
+  const fm = createFieldModel({ clock: () => now });
+  const ie = createInsightEngine(fm);
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { sessionType: 15, totalLaps: 20, trackLength: 5000, safetyCarStatus: 0 });
+  const step = (t, lapNum, wear) => {
+    fm.dispatch(PACKET_IDS.CAR_STATUS, header(t), { cars: Array.from({ length: 5 }, () => ({ tyresAgeLaps: lapNum, fuelRemainingLaps: 1 })) });
+    fm.dispatch(PACKET_IDS.CAR_DAMAGE, header(t), { cars: Array.from({ length: 5 }, () => ({ tyresWear: [wear, wear, wear, wear] })) });
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { currentLapNum: lapNum, lapDistance: 2500 } }) });
+    for (let k = 0; k < 60; k++, now += 100) ie.evaluate(); // a calm call settles over 5 s
+    return { ids: ie.evaluate().map((i) => i.id), call: ie.getStrategy().call };
+  };
+  // 4% a lap, 73% worn: the cliff (85%) in 3 laps.
+  step(1, 12, 65);
+  step(2, 13, 69);
+  const mid = step(3, 14, 73);
+  assert.ok(mid.ids.includes('tyre-cliff') && mid.call.kind === 'tyres', JSON.stringify(mid));
+  // The same wear with 1.5 laps to go: the set reaches the flag.
+  step(4, 17, 65);
+  step(5, 18, 69);
+  const end = step(6, 19, 73);
+  assert.ok(!end.ids.includes('tyre-cliff'), end.ids.join(', '));
+  assert.notStrictEqual(end.call.kind, 'tyres');
+});

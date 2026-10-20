@@ -10,7 +10,7 @@ const CLEAN_LAPS = 3; // "the pace before": the last few clean laps on the set
 const WEATHER_WINDOW = 3; // a weather call is judged on the laps right after it
 const WET = new Set([7, 8]); // visual compounds: inter, wet
 
-const RULE_KINDS = new Set(['pit', 'neutralised', 'red-flag', 'penalty', 'too-late']);
+const RULE_KINDS = new Set(['pit', 'neutralised', 'red-flag', 'penalty', 'too-late', 'finished']);
 const PUSH_KINDS = new Set(['ok', 'undercut', 'rain']);
 
 const s = (ms) => `${(ms / 1000).toFixed(1)}s`;

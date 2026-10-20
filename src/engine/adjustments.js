@@ -11,7 +11,9 @@
 //   ERS                          -> deploy to attack/defend, harvest when
 //                                   alone, empty it on the last lap
 
-const ERS_MAX_J = 4e6;
+const { ERS_MAX_J, lineBatteryPct } = require('../analysis/batteryProjection');
+const { ATTACK_MIN_PCT } = require('../analysis/battleCall');
+
 const ERS_MODE = ['None', 'Medium', 'Hotlap', 'Overtake'];
 // Under the 2026 rules mode 3 is Boost - 'Overtake mode' is a separate system
 // (Car Telemetry 2), so the tips must not mix the two up.
@@ -25,7 +27,6 @@ const GLOBAL_BIAS_CORNERS = 3; // locking in this many corners = move the base b
 
 const ATTACK_GAP_MS = 1200;
 const DEFEND_GAP_MS = 1000;
-const ATTACK_MIN_PCT = 40;
 const DEFEND_MIN_PCT = 25;
 const DRAIN_ALERT_PCT_PER_LAP = -5;
 const FULL_PCT = 95;
@@ -165,10 +166,7 @@ function computeAdjustments({ player, issues, gapAheadMs, gapBehindMs, lapsLeft,
   const diff = player.setup ? player.setup.onThrottle : null;
   const pct = st && Number.isFinite(st.ersStoreEnergy) ? Math.max(0, Math.min(100, (st.ersStoreEnergy / ERS_MAX_J) * 100)) : null;
   const trend = batteryTrend(player.ersHistory || []);
-  // After a stop or a neutralised lap the battery has charged since the line: use the live figure.
-  const last = (player.ersHistory || []).at(-1);
-  const lastLine = last && !last.pit && !last.neutralised ? last : null;
-  const linePct = lastLine && Number.isFinite(lastLine.energyJ) ? Math.max(0, Math.min(100, (lastLine.energyJ / ERS_MAX_J) * 100)) : pct;
+  const linePct = lineBatteryPct(player) ?? pct;
   const mode = st ? st.ersDeployMode : null;
 
   const suggestions = [];

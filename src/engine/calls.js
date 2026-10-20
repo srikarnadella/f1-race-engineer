@@ -41,7 +41,8 @@ function qualiCall(q) {
 
 // The headline call for the strategy tier, derived from the same numbers
 // the insight rules use so the call and the radio messages never disagree.
-function raceCall({ lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }) {
+function raceCall({ finished = null, position = null, lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits, neutralised, cheapStop, undercutOn, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox }) {
+  if (finished) return { action: 'HOLD', kind: 'finished', reason: finished === 3 ? `Chequered flag - P${position}` : 'Out of the race' };
   if (inPits) return { action: 'PIT', kind: 'pit', reason: 'In the pit lane' };
   // Not served in time = disqualified. Not servable under a safety car or red flag.
   if (penaltyBox && !neutralised) return { action: 'BOX', kind: 'penalty', reason: penaltyBox };

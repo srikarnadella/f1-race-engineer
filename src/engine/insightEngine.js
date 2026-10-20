@@ -36,6 +36,7 @@ const numbersOut = (text) => String(text).replace(/[0-9]+([.:][0-9]+)?/g, '#');
 // vehicleFiaFlags / zoneFlag: 0 none, 1 green, 2 blue, 3 yellow.
 const FIA_BLUE = 2;
 const OUT_LAP = 3; // lapData.driverStatus
+const RESULT_FINISHED = 3; // lapData.resultStatus: 3 finished, 4+ out (DNF, DSQ, retired)
 const FIA_YELLOW = 3;
 const YELLOW_AHEAD_M = 800;
 const BLUE_LOOKUP_M = 500;
@@ -161,6 +162,8 @@ function createInsightEngine(fieldModel) {
     // A new set (tyre age went down, or wear dropped sharply): the old
     // stint's samples would drag the new set's slope negative.
     const age = car.status ? car.status.tyresAgeLaps : null;
+    // A flashback: laps from the rewound-to lap on never happened.
+    if (history.length && lapNum < history[history.length - 1].lapNum) history = history.filter((h) => h.lapNum < lapNum);
     const prior = history[history.length - 1];
     if (prior && ((age != null && prior.age != null && age < prior.age) || avgWear < prior.avgWear - 10)) history = [];
     tyreWearHistory.set(carIndex, history);
@@ -299,13 +302,19 @@ function createInsightEngine(fieldModel) {
     const behind = myPosIdx >= 0 && myPosIdx < ordered.length - 1 ? ordered[myPosIdx + 1] : null;
 
     const session = fieldModel.getSession();
-    const racing = isRacing(session);
+    // Past the flag (or out of it) the race is over for you: the cool-down lap
+    // got "defend" and "empty the battery" on four real races.
+    const finished = player.lapData.resultStatus >= RESULT_FINISHED ? player.lapData.resultStatus : null;
+    const racing = isRacing(session) && !finished;
+    lapsLeft = finished ? null : raceLapsLeft(session, player.lapData);
 
     // --- Tyres: laps-to-cliff projection (a race thing: a qualifying run is three laps) ---
     const wear = trackTyreWear(playerIdx, player);
     if (racing && wear && wear.ratePerLap > 0) {
       lapsToCliff = (TYRE_CLIFF_THRESHOLD_PCT - wear.avgWear) / wear.ratePerLap;
-      if (lapsToCliff <= 3) {
+      // A cliff after the flag is no cliff: the set gets there - push.
+      if (lapsLeft != null && lapsToCliff >= lapsLeft) lapsToCliff = null;
+      if (lapsToCliff != null && lapsToCliff <= 3) {
         upsert('tyre-cliff', {
           severity: lapsToCliff <= 1 ? SEVERITY.CRITICAL : SEVERITY.ADVISORY,
           category: CATEGORY.STRATEGY,
@@ -335,7 +344,6 @@ function createInsightEngine(fieldModel) {
     const playerOnTrack = onTrack(player);
     const myTyreAge = player.status ? player.status.tyresAgeLaps : null;
 
-    lapsLeft = raceLapsLeft(session, player.lapData);
 
     // --- Fuel: will current load last to the flag? ---
     if (lapsLeft != null && player.status) {
@@ -441,7 +449,7 @@ function createInsightEngine(fieldModel) {
     const ersTip = adjust.suggestions.find((s) => s.kind === 'ers');
     const balanceTip = adjust.suggestions.find((s) => s.kind !== 'ers');
     for (const [id, tip] of [['ers', ersTip], ['balance', balanceTip]]) {
-      if (tip && playerOnTrack) {
+      if (tip && playerOnTrack && !finished) {
         upsert(id, { severity: SEVERITY.INFO, category: CATEGORY.CAR, message: tip.radio, expiresAtMs: clock() + 5000 });
       } else {
         expire(id);
@@ -485,7 +493,9 @@ function createInsightEngine(fieldModel) {
     const nameOf = (c) => (c.participant && c.participant.name ? c.participant.name : `P${c.lapData.carPosition}`);
     const km = (m) => `${(m / 1000).toFixed(1)} km`;
     const dfc = analysis && analysis.battle && analysis.battle.defendForecast;
-    if (racing && greenRacing && behind && dfc && dfc.where && dfc.when.laps > 0 && dfc.when.laps <= 3
+    // Only what happens before the flag: "in ~2 laps" with one to go was said on a real last lap.
+    const beforeFlag = (fc) => lapsLeft == null || fc.when.laps < lapsLeft;
+    if (racing && greenRacing && behind && dfc && dfc.where && dfc.when.laps > 0 && dfc.when.laps <= 3 && beforeFlag(dfc)
       && settled('attack-warning', `${behind.carIndex}:${dfc.where.corner}`)) {
       upsert('attack-warning', {
         severity: SEVERITY.INFO,
@@ -497,7 +507,7 @@ function createInsightEngine(fieldModel) {
       expire('attack-warning');
     }
     const afc = analysis && analysis.battle && analysis.battle.attackForecast;
-    if (racing && greenRacing && ahead && afc && afc.where && afc.when.laps <= 2 && !activeInsights.has('battle-call') && !(activeInsights.get('under-attack') || {}).battle
+    if (racing && greenRacing && ahead && afc && afc.where && afc.when.laps <= 2 && beforeFlag(afc) && !activeInsights.has('battle-call') && !(activeInsights.get('under-attack') || {}).battle
       && settled('attack-chance', `${ahead.carIndex}:${afc.where.corner}`)) {
       const gain = afc.candidates && afc.candidates[0] && afc.candidates[0].gainS >= 0.02 ? ` - you gain ${afc.candidates[0].gainS.toFixed(2)}s on the run to it` : '';
       upsert('attack-chance', {
@@ -547,7 +557,9 @@ function createInsightEngine(fieldModel) {
     const theyStopIn = aheadRow ? aheadRow.stopInLaps : null;
     const myDegMs = analysis && analysis.tyreModel && analysis.tyreModel.mine ? analysis.tyreModel.mine.degMsPerLap : null;
     const undercutGainMs = myDegMs > 0 && theyStopIn != null ? myDegMs * (theirAge ?? myTyreAge) * Math.max(1, theyStopIn) : 0;
-    const undercutOn = racing && greenRacing && onTrack(ahead) && rejoin && !rejoin.inTraffic
+    // Only until pit timing has an answer: it races the undercut out against
+    // everyone's stops, and said "box in 3 laps" beside this "box now".
+    const undercutOn = racing && greenRacing && !(analysis && analysis.pitTiming) && onTrack(ahead) && rejoin && !rejoin.inTraffic
       && gapAheadNow > 0 && gapAheadNow <= UNDERCUT_GAP_MS
       && myTyreAge >= STOP_WORTH_IT_TYRE_AGE && (theirAge == null || theirAge >= myTyreAge - 2)
       && theyStopIn != null && theyStopIn <= UNDERCUT_THEY_STOP_WITHIN
@@ -722,7 +734,7 @@ function createInsightEngine(fieldModel) {
     const dmg = analysis && analysis.damage;
     let damageBox = null;
     let damageCard = null;
-    if (dmg && playerOnTrack) {
+    if (dmg && playerOnTrack && !finished) {
       const what = dmg.parts.map((x) => `${x.label.toLowerCase()} ${x.pct}%`).join(', ');
       const loss = dmg.lossPerLapMs;
       const heavyWing = dmg.parts.some((x) => x.fixable && x.pct >= WING_HEAVY_PCT);
@@ -935,7 +947,7 @@ function createInsightEngine(fieldModel) {
       fuelSavePct,
       tyreLapsToCliff: lapsToCliff == null ? null : Math.max(0, lapsToCliff),
       tyreWearRatePerLap: wear ? wear.ratePerLap : null,
-      call: q ? qualiCall(q) : steadyCall(raceCall({ lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox })),
+      call: q ? qualiCall(q) : steadyCall(raceCall({ finished, position: player.lapData.carPosition, lapsLeft, lapsToCliff, fuelMarginLaps, fuelSavePct, inPits: !playerOnTrack, neutralised, cheapStop, undercutOn: undercutTarget, weatherBox, rainSoonLaps, rainInLaps, pitWindow, damageBox, penaltyBox })),
     };
 
     // Most severe first, then newest - insights[0] is the dashboard's banner,

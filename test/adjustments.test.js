@@ -169,3 +169,17 @@ test('ERS: no drain trend across a pit lap - the store charges in the pit lane (
   assert.strictEqual(batteryTrend([{ lapNum: 9, energyJ: 3.0e6 }, { lapNum: 10, energyJ: 1.4e6, pit: true }]), null);
   assert.strictEqual(batteryTrend([{ lapNum: 9, energyJ: 3.0e6 }, { lapNum: 10, energyJ: 1.4e6, pit: true }, { lapNum: 11, energyJ: 1.0e6 }]), -10);
 });
+
+test('ERS and the battle card agree: never "Attack" beside "harvest this lap" (Silverstone, 19 Oct 2026)', () => {
+  const { battleCall } = require('../src/analysis/battleCall');
+  const { lineBatteryPct } = require('../src/analysis/batteryProjection');
+  const atLine = (pct) => [{ lapNum: 10, energyJ: (pct / 100) * 4e6 }];
+  for (let line = 0; line <= 100; line += 5) {
+    for (const live of [line, Math.min(100, line + 30)]) {
+      const p = player(live, { history: atLine(line) });
+      const harvest = ers({ player: p, gapAheadMs: 600 });
+      const bc = battleCall({ ahead: { name: 'NORRIS', gapTrendMsPerLap: 0, pitStatus: 0 }, gapAheadS: 0.6, battle: { attack: { p: 0.15, level: 'medium' } }, batteryPct: lineBatteryPct(p) });
+      assert.ok(!(bc.mode === 'ATTACK' && harvest && harvest.action === 'ERS: Medium'), `line ${line}%, live ${live}%: ${bc.mode} beside "${harvest && harvest.radio}"`);
+    }
+  }
+});

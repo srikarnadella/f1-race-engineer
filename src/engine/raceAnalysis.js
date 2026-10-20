@@ -14,7 +14,7 @@ const { predict } = require('../ml/logistic');
 const { forecastAttack } = require('../analysis/attackForecast');
 const { strategyOptions, intersNowGain } = require('../analysis/strategyOptions');
 const { battleCall } = require('../analysis/battleCall');
-const { projectBattery } = require('../analysis/batteryProjection');
+const { projectBattery, lineBatteryPct } = require('../analysis/batteryProjection');
 const { pitTiming, wearRange } = require('../analysis/pitTiming');
 const { expectedStopIn, learned, maxWear } = require('../analysis/rivalStops');
 const { damageLoss, MINI_SECTORS } = require('../analysis/damageLoss');
@@ -694,8 +694,9 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       gapBehindS: behind ? behind.lapData.deltaToCarInFrontInMS / 1000 : null,
       battle,
       overtakeAvailable: !!(player.telemetry2 && player.telemetry2.overtakeAvailable),
-      batteryPct: player.status && Number.isFinite(player.status.ersStoreEnergy) ? (player.status.ersStoreEnergy / 4e6) * 100 : null,
+      batteryPct: lineBatteryPct(player), // judged as the ERS card judges it, so the two agree
       neutralised: neutralisedNow,
+      lapsLeft: raceLapsLeft(session, player.lapData),
     }) : null;
 
     // Under a safety car, VSC or red flag: the options, side by side.

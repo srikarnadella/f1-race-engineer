@@ -8,12 +8,14 @@ const CLEAR_S = 2.0;
 // This close it's a fight whatever the trend or model says (and early in a
 // stint there's no clean-lap trend yet).
 const TOUCHING_S = 0.6;
-const MIN_BATTERY_TO_ATTACK = 25;
+// Battery at the line to attack on - the ERS card's "harvest this lap" below it, so the two agree.
+const ATTACK_MIN_PCT = 40;
 
 const levelRank = { low: 0, medium: 1, high: 2 };
 
 // a: the snapshot's analysis; ahead/behind: field rows; player: snapshot player.
-function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtakeAvailable, batteryPct, neutralised }) {
+// lapsLeft: to the flag - a forecast past it is no forecast.
+function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtakeAvailable, batteryPct, neutralised, lapsLeft = null }) {
   if (neutralised) return null;
   const attackP = battle.attack ? battle.attack.p : 0;
   const threatP = battle.defend ? battle.defend.p : 0;
@@ -25,14 +27,14 @@ function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtak
   const name = (row) => (row ? row.name : '');
 
   const canAttack = ahead && !ahead.pitStatus && gapAheadS > 0 && gapAheadS <= IN_RANGE_S
-    && (atkLevel >= 1 || overtakeAvailable || closingAhead >= 0.2 || gapAheadS <= TOUCHING_S) && !(batteryPct != null && batteryPct < MIN_BATTERY_TO_ATTACK && !overtakeAvailable);
+    && (atkLevel >= 1 || overtakeAvailable || closingAhead >= 0.2 || gapAheadS <= TOUCHING_S) && !(batteryPct != null && batteryPct < ATTACK_MIN_PCT && !overtakeAvailable);
   const mustDefend = behind && !behind.pitStatus && gapBehindS > 0 && gapBehindS <= IN_RANGE_S
     && (defLevel >= 1 || closingBehind >= 0.2 || behind.overtakeAvailable || gapBehindS <= TOUCHING_S);
 
   if (canAttack && mustDefend) {
     // Sandwiched: go for it only when the chance ahead beats the threat
     // behind and there's battery to do it; otherwise protect the place.
-    if (attackP >= threatP && (batteryPct == null || batteryPct >= 40)) {
+    if (attackP >= threatP && (batteryPct == null || batteryPct >= ATTACK_MIN_PCT)) {
       return { mode: 'ATTACK', target: name(ahead), reason: `${name(behind)} close behind - make it stick${corner(battle.attackForecast)}` };
     }
     return { mode: 'DEFEND', target: name(behind), reason: `cover first, ${name(ahead)} is within reach after${corner(battle.defendForecast) ? ` - watch${corner(battle.defendForecast)}` : ''}` };
@@ -45,7 +47,7 @@ function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtak
     const why = behind.overtakeAvailable ? 'they have Overtake mode' : defLevel >= 1 ? `threat ${battle.defend.level}` : closingBehind >= 0.2 ? `catching ${closingBehind.toFixed(1)}s/lap` : `${gapBehindS.toFixed(1)}s behind`;
     return { mode: 'DEFEND', target: name(behind), reason: `${why}${corner(battle.defendForecast) ? ` - watch${corner(battle.defendForecast)}` : ''}` };
   }
-  if (ahead && gapAheadS > IN_RANGE_S && closingAhead >= 0.15 && battle.attackForecast && battle.attackForecast.when.laps > 0) {
+  if (ahead && gapAheadS > IN_RANGE_S && closingAhead >= 0.15 && battle.attackForecast && battle.attackForecast.when.laps > 0 && !(lapsLeft != null && battle.attackForecast.when.laps >= lapsLeft)) {
     return { mode: 'CLOSE IN', target: name(ahead), reason: `in range ${battle.attackForecast.when.text}` };
   }
   if ((!ahead || gapAheadS > CLEAR_S) && (!behind || gapBehindS > CLEAR_S)) {
@@ -55,4 +57,4 @@ function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtak
   return { mode: 'HOLD', target: null, reason: gaps.length ? `${gaps.join(', ')} - not closing either way` : 'hold position' };
 }
 
-module.exports = { battleCall, IN_RANGE_S };
+module.exports = { battleCall, IN_RANGE_S, ATTACK_MIN_PCT };
