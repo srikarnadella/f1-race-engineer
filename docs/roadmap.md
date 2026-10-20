@@ -148,7 +148,7 @@ Each line: what it is, why it matters, and the acceptance test.
   of the cars it put ahead were already in the pit lane (the game reads their gap as 0, so they kept the
   time of the car ahead on the road). Charging those, and the cars the rival-stop model has due this
   lap: 2.71 places off, 1.47 pessimistic. Due within one lap instead got the bias to 0.53 but the error
-  up to 3.24, so this lap it is; the half-place bias isn't met yet.
+  up to 3.24, so this lap it is; the half-place bias isn't met yet. On all 66 stops recorded since: 3.26 places off, 2.41 pessimistic.
 - **M4 Backtest gate.** Every model scored per race in CI against its baseline; a change that makes
   a model worse than it was fails the build. *Done for the lap-level models:* the tyre model and
   rival-stop timing are scored on the committed dataset in CI against `datasets/scores.json`.

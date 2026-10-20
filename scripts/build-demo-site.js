@@ -65,7 +65,7 @@ async function replay(file, { onTick, everyMs = TICK_MS }) {
       if (tMs - lastTick < everyMs) continue;
       lastTick = tMs;
       const snap = pipeline.tick();
-      if (onTick) onTick({ tMs: tMs - t0, snap });
+      if (onTick) onTick({ tMs: tMs - t0, snap, sessionTime: pipeline.fieldModel.getSessionTime() });
     }
   } finally {
     console.warn = origWarn;
@@ -75,18 +75,22 @@ async function replay(file, { onTick, everyMs = TICK_MS }) {
 
 // Records what the dashboard would have received, twice a second, while
 // keep(snapshot) says so - with `field` cut to the cars it actually shows.
+// A flashback cuts what it undid: the demo shows the race as it stood.
 function sampler(keep) {
   const frames = [];
   let lastSample = -Infinity;
   let tyre = null;
-  const onTick = ({ tMs, snap }) => {
-    if (tMs - lastSample < SAMPLE_MS || !snap.player || !keep(snap)) return;
+  const onTick = ({ tMs, snap, sessionTime }) => {
+    if (!snap.player || !keep(snap)) return;
+    // The game clock rewinds a tick before the lap data does: wait a sample before the next frame.
+    while (frames.length && frames[frames.length - 1].st > sessionTime + 0.5) { frames.pop(); lastSample = tMs; }
+    if (tMs - lastSample < SAMPLE_MS) return;
     lastSample = tMs;
     tyre = snap.analysis.tyreModel;
     const { updatedAtMs, field, debrief, ...rest } = snap; // the Debrief is written once, separately
     const me = field.findIndex((c) => c.isPlayer);
     const near = field.slice(Math.max(0, me - FIELD_EACH_SIDE), me + FIELD_EACH_SIDE + 1);
-    frames.push({ t: tMs, s: { ...rest, source: 'demo', capturing: false, field: near } });
+    frames.push({ t: tMs, st: sessionTime, s: { ...rest, source: 'demo', capturing: false, field: near } });
   };
   return { frames, onTick, tyre: () => tyre };
 }
@@ -135,7 +139,7 @@ async function buildSynthetic() {
   if (!fs.existsSync(DEMO_LOG)) require('child_process').execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'generate-demo-session.js')], { stdio: 'inherit' });
   const live = sampler(neighboursHavePace);
   const demo = await replay(DEMO_LOG, { onTick: live.onTick });
-  return { frames: live.frames, sessions: debriefSessions(demo.debrief, OUT), tyre: live.tyre() };
+  return { frames: live.frames.map(({ t, s }) => ({ t, s })), sessions: debriefSessions(demo.debrief, OUT), tyre: live.tyre() };
 }
 
 async function main() {

@@ -17,21 +17,21 @@ flowchart LR
 
 ## The results
 
-From eight race sessions I recorded (one a sprint). Run `npm run accuracy` to regenerate the full report, [accuracy.md](accuracy.md).
+From the 10 race sessions I recorded. Run `npm run accuracy` to regenerate the full report, [accuracy.md](accuracy.md).
 
 | Prediction | Undercut | Obvious guess | Verdict |
 |---|---|---|---|
 | Tyre wear per lap, each car predicted from the others (1,649 laps) | 356 ms off | 470 ms ("no wear") | Beats it on 7 of 8 races |
-| Where you rejoin after a stop (45 green-flag stops) | 2.71 places off | 5.27 ("keep your place") | Beats it; still 1.5 places pessimistic |
-| A rival's battery at the line (843 half-laps) | 8.4 points off | 13.4 ("stays where it is") | Beats it |
+| Where you rejoin after a stop (66 green-flag stops) | 3.26 places off | 6.14 ("keep your place") | Beats it; still 2.4 places pessimistic |
+| A rival's battery at the line (1,167 half-laps) | 10.0 points off | 14.6 ("stays where it is") | Beats it |
 | When an AI car stops (45 green-flag stops) | 1.04 laps off | 1.06 (fixed share of tyre life) | No real gain yet |
 | Will the car behind pass in 10 s? (held-out AUC, 10 races) | 0.860 | 0.838 (gap only) | Beats it on 9 of 10 races |
 | Which corner they'll attack (50 passes) | 7 of 50 | 7 of 50 (busiest corner) | Not yet, so it says "likely spot" |
 
 The rejoin model was 4.2 places off, nearly all of it too far back. It had assumed every other car stays
 out, but AI cars stop in waves: on average 3 of the cars it put ahead were already in the pit lane, and
-more were due that lap. Charging both their stop took it to 2.71 places; it's still about 1.5 places
-pessimistic ([roadmap](roadmap.md), M5).
+more were due that lap. Charging both their stop took it to 2.71 places on those first 45 stops; on all 66 it's 3.26, still about
+2.4 places pessimistic ([roadmap](roadmap.md), M5).
 
 ## The models
 

@@ -371,13 +371,13 @@
           <div class="hero-copy">
             <p data-rise style="--i:0">It reads the game's live telemetry while you drive and calls your race one thing at a time: when to box, who to attack, when the rain comes. On a phone or tablet beside your screen. Free and open source.</p>
             <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Demo</a><a href="#setup">Set it up</a></div>
-            <p class="note" data-rise style="--i:2">The board replays a real race at Barcelona, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 11 to 14. A stop drops me to P19; then the fight back to P8.</p>
+            <p class="note" data-rise style="--i:2">The board replays a real race at Barcelona, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 20 to 22: chasing Leclerc, then the pass on Hamilton for P7 and holding him off.</p>
           </div>
           <div class="hero-visual">
             <img class="hero-bg" src="img/verstappen-spa.jpg" width="1920" height="1080" alt="Max Verstappen in the Red Bull RB22 at Spa-Francorchamps, 2026, the background blurred by the speed" fetchpriority="high" decoding="async">
             <div class="board" data-ui id="board" style="--c: var(--go)">
               <div class="board-top board-ctl">
-                <span>Barcelona · lap <b id="b-lap">12</b> of 23</span><span class="pos" id="b-pos">P14</span>
+                <span>Barcelona · lap <b id="b-lap">21</b> of 23</span><span class="pos" id="b-pos">P8</span>
                 <button type="button" id="b-prev" aria-label="Earlier in the race">Earlier</button>
                 <button type="button" id="b-next" aria-label="Later in the race">Later</button>
               </div>
@@ -385,9 +385,9 @@
                 <div class="board-callrow"><div class="board-call" id="b-call">PUSH</div><p class="board-reason" id="b-reason">Tyres and fuel OK</p></div>
                 <p class="board-label">Radio, newest first</p>
                 <ol class="board-log" id="b-log">
-                  <li><span>Lap 12</span>Attack LECLERC - Overtake mode ready into corner 1</li>
-                  <li><span>Lap 12</span>LAWSON behind is due to box this lap (tyres 11 laps old) - cover the undercut</li>
-                  <li><span>Lap 11</span>HULKENBERG just pitted behind you - undercut threat, cover within ~2 laps</li>
+                  <li><span>Lap 21</span>Attack HAMILTON - Overtake mode ready into corner 1</li>
+                  <li><span>Lap 21</span>Overtake mode available on HAMILTON - use it on the straight</li>
+                  <li><span>Lap 20</span>Attack LECLERC - Overtake mode ready into corner 1</li>
                 </ol>
               </div>
             </div>
@@ -403,7 +403,7 @@
       </section>
 
       <section class="show" id="watch" aria-label="The real app, replaying the race">
-        <div class="bar"><span>[ 01 // LIVE DEMO ]</span><span>REPLAY · BARCELONA · LAPS 11-14 OF 23 · F1 26</span></div>
+        <div class="bar"><span>[ 01 // LIVE DEMO ]</span><span>REPLAY · BARCELONA · LAPS 20-22 OF 23 · F1 26</span></div>
         <div class="show-list" role="group" aria-label="Demo screens">
           <button data-screen="drive" type="button">Drive</button>
           <button data-screen="battle" type="button">Battle</button>
@@ -459,8 +459,8 @@
         <div class="bar"><span>[ 03 // MEASURED ]</span><span>EIGHT RECORDED RACES · EACH AGAINST THE OBVIOUS GUESS</span></div>
         <div class="tiles">
           <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>Eight recorded races. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
-          <div class="tile" data-reveal style="--i:1"><b>2.7</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 5.3. It was 4.2 until it counted the cars already stopping in a pit wave.</small></div>
-          <div class="tile" data-reveal style="--i:2"><b>8.4</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 13.4 points off.</small></div>
+          <div class="tile" data-reveal style="--i:1"><b>3.3</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 6.1. AI cars stop in waves, so it counts the ones already stopping.</small></div>
+          <div class="tile" data-reveal style="--i:2"><b>10.0</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 14.6 points off.</small></div>
           <div class="tile" data-reveal style="--i:1"><b>7 / 8</b><span>races where the tyre model beats "no wear"</span><small>The exception is the Silverstone sprint, where it doesn't beat it yet.</small></div>
           <div class="tile" data-reveal style="--i:2; --c: var(--go)"><b>0.86</b><span>AUC: will the car behind pass within 10 s?</span><small>LightGBM, scored on every race session recorded (10, the wet one included), each held out. The gap alone: 0.84.</small></div>
           <figure class="tile tile-img" data-reveal style="--i:3"><img src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower, with the pit building behind" loading="lazy" decoding="async"><figcaption>Suzuka, one of the recorded races. <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Photo</a>: Tokumeigakarinoaoshima, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></figcaption></figure>
@@ -791,7 +791,7 @@ if (c.currentLapNum &lt; prevLapNum) {
               <div>
                 <p><strong>Clean pace</strong> is the mean of a car's last 3 clean laps: not a pit lap, not under a safety car, not lap 1, and not more than 7% slower than its own typical lap (a spin or traffic).</p>
                 <p><strong>Pit loss is measured, not assumed.</strong> Whenever any car makes a green-flag stop, its in-lap plus out-lap minus two clean laps is what the stop cost. Readings between 8 and 45 s are kept, and the median is used. Before any stop, it falls back to earlier races at this track, then a per-track estimate, then 22 s. Under a safety car a stop costs about 55% of that, under a VSC 65%.</p>
-                <p><strong>Rejoin</strong>: add the pit loss to your time behind the leader and see where that slots in, with the cars already in the pit lane and the ones due to stop this lap paying their own stop. Scored on 45 real stops, it's 2.7 places off against 5.3 for "you keep your place". It was 4.2 and almost all pessimistic while it assumed every other car stays out: AI cars stop in waves. It still reads about 1.5 places too far back.</p>
+                <p><strong>Rejoin</strong>: add the pit loss to your time behind the leader and see where that slots in, with the cars already in the pit lane and the ones due to stop this lap paying their own stop. Scored on 66 real stops, it's 3.3 places off against 6.1 for "you keep your place". While it assumed every other car stays out it was almost all pessimistic: AI cars stop in waves. Counting them took it from 4.2 to 2.7 places on the first 45 stops. It still reads about 2.4 places too far back.</p>
               </div>
               <div>
                 <pre>loss = inLap.lapMs + outLap.lapMs
@@ -801,7 +801,7 @@ pitLossMs = median(samples)       <span class="c">// measured</span>
          ?? median(trackMemory)  <span class="c">// earlier races</span>
          ?? TRACK_ESTIMATE ?? 22000
 if (safetyCar) pitLossMs *= 0.55  <span class="c">// VSC 0.65</span></pre>
-                <div class="ex-num"><span>rejoin <b>2.7</b> vs 5.3 places</span><span>bias <b>-1.5</b> places</span></div>
+                <div class="ex-num"><span>rejoin <b>3.3</b> vs 6.1 places</span><span>bias <b>-2.4</b> places</span></div>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/engine/raceAnalysis.js">engine/raceAnalysis.js</a></p>
               </div>
             </div>
@@ -844,7 +844,7 @@ odds   = wins / 1000</pre>
             <div class="ex-body" role="tabpanel" data-sub="fight" hidden>
               <div>
                 <p><strong>Will the car behind pass in the next 10 s?</strong> Gradient-boosted trees (LightGBM, 88 trees) over the gap (log scale), the closing rate, the clean-pace difference, tyre age and compound, the battery difference and 2026 Overtake mode. Trained in Python on 10 recorded races, labeled from the game's own overtake events, and scored race by race on races it never saw: AUC 0.860 against 0.838 for the gap alone, better on 9 of 10. The app runs the exported trees in plain JavaScript, checked against Python to 1e-9. The logistic regression it replaced, written from scratch on 4 races, only tied the gap.</p>
-                <p><strong>Battery at the line</strong>: drivers spend on the same straights every lap, so the rest of this lap is copied from the same stretch of the last one. 8.4 points off against 13.4 for "it stays where it is".</p>
+                <p><strong>Battery at the line</strong>: drivers spend on the same straights every lap, so the rest of this lap is copied from the same stretch of the last one. 10.0 points off against 14.6 for "it stays where it is".</p>
                 <p><strong>Where they'll attack</strong>: your braking zones, scored by where passes actually happen at this track, with the places <em>you've</em> been passed this session weighted twice.</p>
               </div>
               <div>
@@ -853,7 +853,7 @@ odds   = wins / 1000</pre>
               Δbattery, overtakeMode]),  k = 1..88
 
 battery@line = now + (lastLap@line - lastLap@here)</pre>
-                <div class="ex-num"><span>AUC <b>0.860</b> vs 0.838</span><span>battery <b>8.4</b> vs 13.4 pts</span></div>
+                <div class="ex-num"><span>AUC <b>0.860</b> vs 0.838</span><span>battery <b>10.0</b> vs 14.6 pts</span></div>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/ml/logistic.js">ml/logistic.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/ml/overtake_lgbm.py">ml/overtake_lgbm.py</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/batteryProjection.js">batteryProjection.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/attackForecast.js">attackForecast.js</a></p>
               </div>
             </div>
@@ -1137,8 +1137,8 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
             <thead><tr><th>Prediction</th><th>Model</th><th>Obvious guess</th><th>Verdict</th></tr></thead>
             <tbody>
               <tr><td>Tyre wear, each car predicted from the others<small>1,649 laps, 8 races</small></td><td class="num">356 ms</td><td class="num">470 ms <small>no wear</small></td><td class="good">Beats it on 7 of 8 races</td></tr>
-              <tr><td>Rejoin position if you box now<small>45 green-flag stops</small></td><td class="num">2.7 places</td><td class="num">5.3 <small>keep your place</small></td><td class="good">Beats it; still 1.5 places pessimistic</td></tr>
-              <tr><td>A rival's battery at the line<small>843 half-laps</small></td><td class="num">8.4 pts</td><td class="num">13.4 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
+              <tr><td>Rejoin position if you box now<small>66 green-flag stops</small></td><td class="num">3.3 places</td><td class="num">6.1 <small>keep your place</small></td><td class="good">Beats it; still 2.4 places pessimistic</td></tr>
+              <tr><td>A rival's battery at the line<small>1,167 half-laps</small></td><td class="num">10.0 pts</td><td class="num">14.6 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
               <tr><td>Will the car behind pass in 10 s<small>held-out AUC, LightGBM, 10 races</small></td><td class="num">0.860</td><td class="num">0.838 <small>gap only</small></td><td class="good">Beats it on 9 of 10 races</td></tr>
               <tr><td>When an AI car stops<small>45 green-flag stops</small></td><td class="num">1.04 laps</td><td class="num">1.06 <small>fixed share of tyre life</small></td><td class="tie">No real gain yet</td></tr>
               <tr><td>The corner they'll attack<small>50 passes</small></td><td class="num">7 / 50</td><td class="num">7 / 50 <small>busiest corner</small></td><td class="tie">Not yet, so worded as a "likely spot"</td></tr>
@@ -1183,7 +1183,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
           <li data-reveal><span class="tag">In progress</span><h3>Ask the race</h3><p>Ask about a race in plain words ("What happened on lap 12?", "Where did I lose time to Norris?") and get an answer built from the recorded data. Every session is already stored as tables; a language model will query them and show which laps and events it used.</p></li>
           <li data-reveal style="--i:1"><span class="tag">In progress</span><h3>Confidence on every call</h3><p>The pit-stop pick already says when it depends on tyre wear ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.</p></li>
           <li data-reveal style="--i:2"><span class="tag">Done</span><h3>The calls audit in the Debrief</h3><p>Every call graded against what happened after it, on screen after the race: the Debrief's Calls tab.</p></li>
-          <li data-reveal style="--i:3"><span class="tag">In progress</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9": from 4.2 to 2.7 places off by counting the cars already stopping in a pit wave. Still about 1.5 places pessimistic.</p></li>
+          <li data-reveal style="--i:3"><span class="tag">In progress</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9": counting the cars already stopping in a pit wave took it from 4.2 to 2.7 places off on the first 45 stops. On all 66 it's 3.3, still about 2.4 places pessimistic.</p></li>
         </ul>
         <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">The full roadmap</a></p>
       </section>
@@ -1229,22 +1229,22 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
       // ---- The call board: the real calls and radio lines from the recorded Barcelona race ----
       // Each one as recorded: the lap, position and call at the moment the radio line first came (null: no new line).
       const MOMENTS = [
-        { lap: 11, pos: 11, action: 'PIT', reason: 'In the pit lane', radio: null },
-        { lap: 11, pos: 19, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from ALBON - threat medium - watch into corner 11' },
-        { lap: 11, pos: 19, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack LAWSON - pass chance high into corner 1' },
-        { lap: 11, pos: 19, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'LAWSON ahead is due to box this lap (tyres 10 laps old) - clean air after, push' },
-        { lap: 11, pos: 18, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from LAWSON - they have Overtake mode - watch into corner 1' },
-        { lap: 11, pos: 17, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'HULKENBERG just pitted behind you - undercut threat, cover within ~2 laps' },
-        { lap: 12, pos: 14, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'LAWSON behind is due to box this lap (tyres 11 laps old) - cover the undercut' },
-        { lap: 12, pos: 14, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack LECLERC - Overtake mode ready into corner 1' },
-        { lap: 13, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'HADJAR is right behind you - defend, pass likely, watch corner 11' },
-        { lap: 13, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from HADJAR - cover first, LECLERC is within reach after - watch into corner 11' },
+        { lap: 20, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Best chance on LECLERC: into corner 1 (0.7 km)' },
+        { lap: 20, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Battery ~5% at the line - harvest this lap in Medium, attack on the next' },
+        { lap: 20, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Overtake mode available on LECLERC - use it on the straight' },
+        { lap: 20, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack LECLERC - Overtake mode ready into corner 1' },
+        { lap: 21, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Overtake mode available on HAMILTON - use it on the straight' },
+        { lap: 21, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack HAMILTON - Overtake mode ready into corner 1' },
+        { lap: 22, pos: 7, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'HAMILTON is right behind you - defend, pass likely, watch corner 11' },
+        { lap: 22, pos: 7, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from HAMILTON - 0.3s behind - watch into corner 11' },
+        { lap: 22, pos: 7, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend - Boost on the straights' },
+        { lap: 22, pos: 7, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Rears ~10°C hotter than early in the stint - easy on the throttle out of slow corners' },
       ];
       const COLOUR = { PUSH: 'var(--go)', HOLD: 'var(--watch)', BOX: 'var(--act)', PIT: 'var(--info)' };
       const board = document.getElementById('board');
       const $b = (id) => document.getElementById(id);
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      let at = 7;
+      let at = 5;
       let autoplay = !reduce;
       function paint() {
         const m = MOMENTS[at];

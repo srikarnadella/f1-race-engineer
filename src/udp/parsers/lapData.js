@@ -7,6 +7,10 @@ const TRAILING_BYTES = 2;
 // is supplied. Real stride is derived from packet length / numCars.
 const APPROX_CAR_STRUCT_SIZE = 50;
 
+// A gap is minutes + ms, the ms part under 60000. A tiny negative gap (a car
+// passed on the line) arrives wrapped, e.g. 65515: cars level, not 65.5 s apart.
+const gapMs = (min, ms) => (ms >= 60000 ? 0 : min * 60000 + ms);
+
 function readCar(r, carStructSize) {
   const start = r.offset;
   const lastLapTimeInMS = r.u32();
@@ -49,8 +53,8 @@ function readCar(r, carStructSize) {
     currentLapTimeInMS,
     sector1TimeInMS: sector1TimeMinutesPart * 60000 + sector1TimeMSPart,
     sector2TimeInMS: sector2TimeMinutesPart * 60000 + sector2TimeMSPart,
-    deltaToCarInFrontInMS: deltaToCarInFrontMinutesPart * 60000 + deltaToCarInFrontMSPart,
-    deltaToRaceLeaderInMS: deltaToRaceLeaderMinutesPart * 60000 + deltaToRaceLeaderMSPart,
+    deltaToCarInFrontInMS: gapMs(deltaToCarInFrontMinutesPart, deltaToCarInFrontMSPart),
+    deltaToRaceLeaderInMS: gapMs(deltaToRaceLeaderMinutesPart, deltaToRaceLeaderMSPart),
     lapDistance,
     totalDistance,
     safetyCarDelta,

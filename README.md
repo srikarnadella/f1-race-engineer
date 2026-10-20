@@ -9,7 +9,7 @@ already in the data the game sends out. It's a student project: free, open sourc
 runs on your own PC.
 
 **[▶ Try the demo in your browser](https://srikarnadella.github.io/f1-race-engineer/)**: the real
-dashboard replaying a race I recorded at Barcelona: a pit stop drops me to P19, then the fight back to P8.
+dashboard replaying a race I recorded at Barcelona: chasing Leclerc, then passing Hamilton for P7 and holding him off.
 No install needed.
 
 ![The Drive screen: the call, the cars either side, the radio and four projections](docs/screenshots/drive.png)
@@ -50,14 +50,14 @@ your phone or tablet. Full steps, options and voice setup: [docs/setup.md](docs/
 
 ## Does it actually work?
 
-I recorded eight race sessions in F1 26 (one a sprint) and replayed them through the engine, scoring each prediction against
+I recorded 10 race sessions in F1 26 and replayed them through the engine, scoring each prediction against
 what really happened, next to the obvious guess:
 
 | Prediction | Undercut | Obvious guess |
 |---|---|---|
 | Tyre wear per lap (1,649 laps) | **356 ms off** | 470 ms ("no wear") |
-| Where you rejoin after a stop (45 stops) | **2.71 places off** | 5.27 ("keep your place") |
-| A rival's battery at the line | **8.4 points off** | 13.4 ("stays where it is") |
+| Where you rejoin after a stop (66 stops) | **3.26 places off** | 6.14 ("keep your place") |
+| A rival's battery at the line | **10.0 points off** | 14.6 ("stays where it is") |
 | Will the car behind pass in 10 s? (LightGBM, 10 race sessions) | **0.860 AUC** | 0.838 (gap only), better on 9 of 10 races |
 
 Four of the six models I score beat the obvious guess and two don't yet, and the app says so

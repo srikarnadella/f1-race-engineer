@@ -54,6 +54,18 @@ test('lap data: split minute/ms fields recombine, all cars parsed', () => {
   assert.strictEqual(data.cars[0].lapDistance, 1000);
 });
 
+test('lap data: a gap the game wrapped below zero (ms part 65515) reads as level, not 65.5 s', () => {
+  // Seen at Barcelona as a car was passed on the line: -21 ms sent as an unsigned 16-bit ms part.
+  const buf = enc.encodeLapData(H, cars((i) => ({ carPosition: i + 1, deltaToCarInFrontInMS: 1234, deltaToRaceLeaderInMS: 1234 })));
+  const at = 29 + 14; // header, then car 0: last + current lap (u32 each), two split sector times
+  assert.strictEqual(buf.readUInt16LE(at), 1234);
+  buf.writeUInt16LE(65515, at);
+  buf.writeUInt16LE(65515, at + 3);
+  const c = parsePacket(buf).data.cars[0];
+  assert.strictEqual(c.deltaToCarInFrontInMS, 0);
+  assert.strictEqual(c.deltaToRaceLeaderInMS, 0);
+});
+
 test('participants: names are null-terminated within a 57-byte struct', () => {
   const { data } = parsePacket(enc.encodeParticipants(H, cars((i) => ({ name: `DRIVER${i}`, teamId: i % 10, raceNumber: i + 1 }))));
   assert.strictEqual(data.participants.length, 22);

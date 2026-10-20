@@ -208,6 +208,13 @@ test('battle call: attack, defend, the sandwich, close in, clear', () => {
   const tight = battleCall({ behind: row('SAINZ', null), gapBehindS: 0.4, battle: { defend: med(0.05) } });
   assert.deepStrictEqual([tight.mode, tight.reason], ['DEFEND', '0.4s behind']);
   assert.match(battleCall({ ahead: row('NORRIS'), gapAheadS: 1.5, behind: row('SAINZ'), gapBehindS: 1.4, battle: {} }).reason, /1\.5s to NORRIS, 1\.4s to SAINZ/);
+  // Held back by the battery, not the gaps: the card says so (Barcelona lap 20 read
+  // "not closing either way" for 75 s while the radio said closing 1.5s/lap).
+  const flat = battleCall({ ahead: row('LECLERC', -700), gapAheadS: 0.8, behind: row('HADJAR'), gapBehindS: 2.0, battle: { attack: med(0.15) }, batteryPct: 10 });
+  assert.strictEqual(flat.mode, 'HOLD');
+  assert.match(flat.reason, /LECLERC.*harvest/);
+  // Catching the car ahead is not "not closing either way".
+  assert.doesNotMatch(battleCall({ ahead: row('NORRIS', -500), gapAheadS: 1.5, behind: row('SAINZ'), gapBehindS: 1.6, battle: {} }).reason, /not closing/);
 });
 
 test('lap delta: to best and to last lap, and live mini-sectors rated', () => {

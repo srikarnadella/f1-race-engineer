@@ -185,6 +185,19 @@ test('closing-ahead is not called once already within a second', () => {
   assert.ok(!ie.evaluate().some((i) => i.id === 'closing-ahead'));
 });
 
+test('closing-ahead stays quiet when the pace trend says the car ahead is pulling away', () => {
+  // Barcelona lap 20: the radio said "Closing on P7 by 0.7s/lap" under a card reading "Dropping 0.1s/lap".
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  for (let t = 0; t <= 40; t += 1 / 20) {
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: 2000 - (t / 90) * 500 } }) });
+  }
+  const field = [{ carIndex: PLAYER - 1, gapTrendMsPerLap: 100 }];
+  assert.ok(!ie.evaluate({ field }).some((i) => i.id === 'closing-ahead'));
+  field[0].gapTrendMsPerLap = -300;
+  assert.ok(ie.evaluate({ field }).some((i) => i.id === 'closing-ahead'), 'the trend agrees: say it');
+});
+
 test('closing-ahead stays quiet when the gap is stable', () => {
   const fm = createFieldModel();
   const ie = createInsightEngine(fm);

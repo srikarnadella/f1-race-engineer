@@ -54,8 +54,14 @@ function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtak
   if ((!ahead || gapAheadS > CLEAR_S) && (!behind || gapBehindS > CLEAR_S)) {
     return { mode: 'CLEAR', target: null, reason: 'nobody within 2s - manage tyres and battery' };
   }
+  // Near the car ahead but the battery's too low to attack. To 2 s, not 1: a gap
+  // hovering at 1.0 s flipped the card every few seconds.
+  if (ahead && !ahead.pitStatus && gapAheadS > 0 && gapAheadS <= CLEAR_S && batteryPct != null && batteryPct < ATTACK_MIN_PCT) {
+    return { mode: 'HOLD', target: null, reason: `${name(ahead)} ahead - harvest, attack when the battery's back` };
+  }
   const gaps = [ahead && gapAheadS != null ? `${gapAheadS.toFixed(1)}s to ${name(ahead)}` : null, behind && gapBehindS != null ? `${gapBehindS.toFixed(1)}s to ${name(behind)}` : null].filter(Boolean);
-  return { mode: 'HOLD', target: null, reason: gaps.length ? `${gaps.join(', ')} - not closing either way` : 'hold position' };
+  const closing = closingAhead >= 0.15 || closingBehind >= 0.15;
+  return { mode: 'HOLD', target: null, reason: gaps.length ? `${gaps.join(', ')}${closing ? '' : ' - not closing either way'}` : 'hold position' };
 }
 
 module.exports = { battleCall, IN_RANGE_S, ATTACK_MIN_PCT };

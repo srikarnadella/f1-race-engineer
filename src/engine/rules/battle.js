@@ -37,12 +37,14 @@ function closingRateMsPerLap(car, paceMs) {
 // Compares the gap now with the gap ~30s of game time ago and expresses
 // it per lap, which is how an engineer would call it on the radio.
 /** @param {RuleContext} ctx */
-function closingAhead({ player, analysis, racing, greenRacing, pastLap1, onTrack, ahead, upsert, expire, clock }) {
+function closingAhead({ player, analysis, racing, greenRacing, pastLap1, onTrack, ahead, aheadRow, upsert, expire, clock }) {
   const closingRate = closingRateMsPerLap(player, analysis && analysis.playerPaceMs);
   // Not on lap 1: the start scrambles every gap.
   if (!(racing && greenRacing && pastLap1)) expire('closing-ahead');
   if (racing && greenRacing && pastLap1 && onTrack(ahead) && closingRate != null) {
-    if (closingRate <= CLOSING_THRESHOLD_MS_PER_LAP && closingRate >= -CLOSING_MAX_MS_PER_LAP && player.lapData.deltaToCarInFrontInMS >= CLOSING_MIN_GAP_MS) {
+    // Not when the pace trend on the Ahead card says they're pulling away: the two would contradict.
+    const paceDisagrees = aheadRow && aheadRow.gapTrendMsPerLap != null && aheadRow.gapTrendMsPerLap > 0;
+    if (closingRate <= CLOSING_THRESHOLD_MS_PER_LAP && closingRate >= -CLOSING_MAX_MS_PER_LAP && player.lapData.deltaToCarInFrontInMS >= CLOSING_MIN_GAP_MS && !paceDisagrees) {
       upsert('closing-ahead', {
         severity: SEVERITY.INFO,
         category: CATEGORY.PACE,

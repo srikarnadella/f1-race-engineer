@@ -30,7 +30,7 @@ flowchart LR
 ```
 
 - **More races for the models.** The attack forecast trails the busiest-corner rule. The rejoin prediction
-  beats its guess (2.71 places off against 5.27) but is still about 1.5 places pessimistic. (The overtake model needed them too: on 10 races LightGBM beats the
+  beats its guess (3.26 places off against 6.14) but is still about 2.4 places pessimistic. (The overtake model needed them too: on 10 races LightGBM beats the
   gap, AUC 0.860 vs 0.838, where a logistic regression on 4 had tied it.)
 - **Scoring pit timing** needs races where the same stop was made on different laps.
 - **Damage cost on a full lap:** in every race so far I undid the damage with a flashback within a few
@@ -59,5 +59,5 @@ The same list as the website's Next steps page; the full plan is in the [roadmap
 - **Confidence on every call** *(in progress)*: the pit-stop pick already says when it depends on tyre wear
   ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.
 - **The calls audit in the Debrief** *(done)*: every call graded against what happened after it, in the Calls tab.
-- **A sharper rejoin prediction** *(in progress)*: from 4.2 to 2.7 places off by counting the cars
-  already stopping and the ones due this lap. Still about 1.5 places pessimistic.
+- **A sharper rejoin prediction** *(in progress)*: from 4.2 to 2.7 places off (first 45 stops) by counting the cars
+  already stopping and the ones due this lap. On all 66 stops: 3.26, still about 2.4 places pessimistic.

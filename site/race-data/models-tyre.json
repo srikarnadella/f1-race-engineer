@@ -1,1 +1,1 @@
-{"fuelMsPerLap":33,"compounds":{"16":{"name":"soft","degMsPerLap":226,"laps":173,"cars":19,"ciMs":[181,267]}},"mine":null,"payback":null}
+{"fuelMsPerLap":33,"compounds":{"17":{"name":"medium","degMsPerLap":214,"laps":101,"cars":13,"ciMs":[195,236]},"18":{"name":"hard","degMsPerLap":137,"laps":62,"cars":8,"ciMs":[87,175]}},"mine":{"compound":17,"name":"medium","degMsPerLap":214,"laps":101,"cars":13,"ciMs":[195,236]},"payback":{"gainPerLapMs":2354,"paybackLaps":8.5,"worthIt":false}}
