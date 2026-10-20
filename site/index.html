@@ -8,7 +8,10 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="Undercut: a race engineer for F1 26">
   <meta property="og:description" content="Live telemetry for all 22 cars, turned into one call you can act on mid-corner. Try the demo: a real race, replayed in your browser.">
-  <meta property="og:image" content="https://srikarnadella.github.io/f1-race-engineer/img/strategy.png">
+  <meta property="og:image" content="https://srikarnadella.github.io/f1-race-engineer/img/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="627">
+  <meta property="og:image:alt" content="The Undercut dashboard mid-race: PUSH, and ATTACK LECLERC with Overtake mode ready, 0.5 s behind">
   <meta property="og:url" content="https://srikarnadella.github.io/f1-race-engineer/">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2306080b'/%3E%3Cpath d='M6 22h20M9 16h14M12 10h8' stroke='%23f2554a' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -459,7 +462,7 @@
           <div class="tile" data-reveal style="--i:1"><b>2.7</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 5.3. It was 4.2 until it counted the cars already stopping in a pit wave.</small></div>
           <div class="tile" data-reveal style="--i:2"><b>8.4</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 13.4 points off.</small></div>
           <div class="tile" data-reveal style="--i:1"><b>7 / 8</b><span>races where the tyre model beats "no wear"</span><small>The exception is the Silverstone sprint, where it doesn't beat it yet.</small></div>
-          <div class="tile" data-reveal style="--i:2; --c: var(--go)"><b>0.86</b><span>AUC: will the car behind pass within 10 s?</span><small>LightGBM on 10 races. The gap alone: 0.84. Better on 9 of 10 races.</small></div>
+          <div class="tile" data-reveal style="--i:2; --c: var(--go)"><b>0.86</b><span>AUC: will the car behind pass within 10 s?</span><small>LightGBM, scored on every race session recorded (10, the wet one included), each held out. The gap alone: 0.84.</small></div>
           <figure class="tile tile-img" data-reveal style="--i:3"><img src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower, with the pit building behind" loading="lazy" decoding="async"><figcaption>Suzuka, one of the recorded races. <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Photo</a>: Tokumeigakarinoaoshima, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></figcaption></figure>
           <figure class="tile tile-img" data-reveal style="--i:4"><img src="img/pit-wall.jpg" width="1400" height="933" alt="A team's pit-wall stand beside the track at Suzuka, 2009" loading="lazy" decoding="async"><figcaption>A real pit wall, Suzuka 2009: the job, done by people. <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">Photo</a>: Morio, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a></figcaption></figure>
         </div>

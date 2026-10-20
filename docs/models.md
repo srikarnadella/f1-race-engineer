@@ -35,7 +35,8 @@ pessimistic ([roadmap](roadmap.md), M5).
 
 ## The models
 
-All of them are written from scratch (no ML library).
+All of them are written from scratch in JavaScript (no ML library), except the overtake model: LightGBM,
+trained in Python (`ml/`) and run in the app from its exported trees (`src/ml/gbdt.js`).
 
 - **Tyre wear, learned from the whole field.** Every car's clean laps are compared with that car's own
   average, so fast and slow cars share one wear rate per compound, and the estimate firms up within a few

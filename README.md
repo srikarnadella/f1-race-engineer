@@ -58,7 +58,7 @@ what really happened, next to the obvious guess:
 | Tyre wear per lap (1,649 laps) | **356 ms off** | 470 ms ("no wear") |
 | Where you rejoin after a stop (45 stops) | **2.71 places off** | 5.27 ("keep your place") |
 | A rival's battery at the line | **8.4 points off** | 13.4 ("stays where it is") |
-| Will the car behind pass in 10 s? (LightGBM, 10 races) | **0.860 AUC** | 0.838 (gap only), better on 9 of 10 races |
+| Will the car behind pass in 10 s? (LightGBM, 10 race sessions) | **0.860 AUC** | 0.838 (gap only), better on 9 of 10 races |
 
 Four of the six models I score beat the obvious guess and two don't yet, and the app says so
 instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md); the LightGBM comparison is in
@@ -80,6 +80,7 @@ instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md); 
 ## Built with
 
 Node.js (no framework, no build step), WebSockets, SQLite, and plain HTML/CSS/JavaScript for the
-dashboard. The models are written from scratch. 300+ tests run on every push.
+dashboard. The models are written from scratch in JavaScript, except the overtake model: LightGBM, trained in
+Python and run in the app from its exported trees. 300+ tests, ESLint and a TypeScript check run on every push.
 
 Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts. MIT license.
