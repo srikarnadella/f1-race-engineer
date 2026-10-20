@@ -53,7 +53,7 @@ flowchart LR
 
 The same list as the website's Next steps page; the full plan is in the [roadmap](roadmap.md).
 
-- **Ask the race** *(in progress)*: ask about a race in plain words ("What happened on lap 12?", "Where did
+- **Ask the race** *(next)*: ask about a race in plain words ("What happened on lap 12?", "Where did
   I lose time to Norris?") and get an answer built from the recorded data. Every session is already stored
   as [tables](race-store.md); a language model will query them and show which laps and events it used.
 - **Confidence on every call** *(in progress)*: the pit-stop pick already says when it depends on tyre wear
