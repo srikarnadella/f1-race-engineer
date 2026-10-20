@@ -88,7 +88,7 @@
     .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; margin-top: 32px; }
     .hero-copy .note { max-width: 46ch; margin-top: 32px; font: 400 0.98rem/1.5 var(--sans); letter-spacing: 0; text-transform: none; }
     .hero-visual { position: relative; min-height: 640px; overflow: hidden; }
-    .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 55% 60%; filter: brightness(0.92); }
+    .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 0% 50%; filter: brightness(0.92); }
     .hero-credit { position: absolute; left: var(--gutter); top: 12px; z-index: 1; font: 500 var(--micro)/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); background: var(--bg); padding: 4px 6px; }
     .hero-credit a { color: inherit; }
     .spec { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
@@ -98,12 +98,12 @@
     .spec dd { margin-top: 10px; font: 900 clamp(1.8rem, 1rem + 2.4vw, 3.2rem)/1 var(--sans); letter-spacing: -0.01em; text-transform: uppercase; }
 
     /* The call board: the app's own call card and radio, at work. */
-    .board { position: absolute; z-index: 1; right: var(--gutter); bottom: 48px; width: min(470px, calc(100% - 2 * var(--gutter))); background: rgba(10, 10, 10, 0.92); border: 1px solid var(--line); }
+    .board { position: absolute; z-index: 1; left: var(--gutter); bottom: 48px; width: min(400px, calc(100% - 2 * var(--gutter))); background: rgba(10, 10, 10, 0.92); border: 1px solid var(--line); }
     .board-top { display: flex; align-items: center; gap: 0; border-bottom: 1px solid var(--line); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-    .board-top > span:first-child { padding: 0 14px; }
+    .board-top > span:first-child { padding: 0 14px; white-space: nowrap; }
     .board-top b { color: var(--text); }
     .board-top .pos { margin-right: auto; color: var(--text); }
-    .board-ctl button { appearance: none; height: 44px; padding: 0 16px; border: 0; border-left: 1px solid var(--line); background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--text); cursor: pointer; }
+    .board-ctl button { appearance: none; height: 44px; padding: 0 12px; border: 0; border-left: 1px solid var(--line); background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--text); cursor: pointer; }
     .board-ctl button:hover { background: var(--text); color: var(--bg); }
     .board-callrow { display: flex; align-items: baseline; gap: 20px; padding: 18px 16px 16px; border-bottom: 1px solid var(--line); }
     .board-call { font: 900 clamp(2.6rem, 1.8rem + 2.4vw, 4rem)/1 var(--sans); letter-spacing: -0.01em; color: var(--c, var(--go)); }
@@ -308,7 +308,8 @@
       .pages button { padding: 0 10px; }
       .hero-grid { grid-template-columns: minmax(0, 1fr); }
       .hero-visual { min-height: 0; padding: 220px var(--gutter) 24px; }
-      .board { position: relative; right: auto; top: auto; width: 100%; }
+      .board { position: relative; left: auto; top: auto; width: 100%; }
+      .hero-bg { height: 220px; object-position: 65% 50%; } /* a band above the board, so it does not hide the car */
       .spec { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .show { grid-template-columns: minmax(0, 1fr); }
       .show-list, .stage { display: none; }
@@ -370,7 +371,7 @@
             <p class="note" data-rise style="--i:2">The board replays a real race at Monaco, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 11 to 16.</p>
           </div>
           <div class="hero-visual">
-            <img class="hero-bg" src="img/raidillon.jpg" width="1600" height="1067" alt="Eau Rouge and Raidillon at Spa-Francorchamps from the top of the hill, the pit straight running away behind" fetchpriority="high" decoding="async">
+            <img class="hero-bg" src="img/verstappen-spa.jpg" width="1920" height="1080" alt="Max Verstappen in the Red Bull RB22 at Spa-Francorchamps, 2026, the background blurred by the speed" fetchpriority="high" decoding="async">
             <div class="board" data-ui id="board" style="--c: var(--go)">
               <div class="board-top board-ctl">
                 <span>Monaco · lap <b id="b-lap">14</b> of 27</span><span class="pos" id="b-pos">P8</span>
@@ -387,7 +388,7 @@
                 </ol>
               </div>
             </div>
-            <p class="hero-credit">Raidillon, Spa. <a href="https://commons.wikimedia.org/wiki/File:2021_6_Hours_of_Spa-Francorchamps_-_Raidillon.jpg">Photo</a>: United Autosports, <a href="https://creativecommons.org/licenses/by-sa/2.0">CC BY-SA 2.0</a></p>
+            <p class="hero-credit">Spa, 2026. <a href="https://commons.wikimedia.org/wiki/File:F1_2026,_Red_Bull_Racing,_Red_Bull_RB22,_Max_Verstappen,_Spa_Francorchamps_(55425736764).jpg">Photo</a>: Der Alf, <a href="https://creativecommons.org/licenses/by/4.0">CC BY 4.0</a></p>
           </div>
         </div>
         <dl class="spec">
