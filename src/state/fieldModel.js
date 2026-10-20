@@ -136,6 +136,12 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       // Flags for the lap in progress: a lap that touched the pit lane or ran
       // under a safety car isn't representative pace, but the in/out laps
       // are exactly what's needed to measure the time a pit stop costs.
+      // Crossing the line on the same lap number (negative distance -> positive): the lap really starts
+      // here. Qualifying from the garage puts the car on track before the line on lap 1 (Spa, F1 26).
+      if (car.lapData && prevLapNum === c.currentLapNum && car.lapData.lapDistance < 0 && c.lapDistance >= 0) {
+        car.lapTouchedPit = false;
+        car.lapNeutralised = false;
+      }
       if (c.pitStatus !== 0) car.lapTouchedPit = true;
       if (isNeutralised()) car.lapNeutralised = true;
 

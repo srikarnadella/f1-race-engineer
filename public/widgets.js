@@ -274,7 +274,7 @@
   }
   const sideHtml = (k, label, withTyre) => `
     <div class="w-battle__side">
-      <div class="w-label">${label}</div>
+      <div class="w-label" data-ref="${k}Label">${label}</div>
       <div class="w-battle__name" data-ref="${k}Name">–</div>
       <div class="big w-battle__gap" data-ref="${k}Gap">–</div>
       <div class="w-battle__trend" data-ref="${k}Trend"></div>
@@ -302,6 +302,17 @@
     mount(el) {
       const r = template(el, `<div class="w-battle-wrap">${modeHtml}<div class="w-battle">${sideHtml('a', 'Ahead', true)}${sideHtml('b', 'Behind', true)}</div></div>`);
       return (s) => {
+        // Practice / qualifying: this lap and where you stand, as on Drive - not a car "0.0s behind" in the garage.
+        const q = s.analysis && s.analysis.quali;
+        setText(r.aLabel, q ? 'This lap' : 'Ahead');
+        setText(r.bLabel, q ? 'Standing' : 'Behind');
+        if (q) {
+          r.modeBox.hidden = true;
+          const sides = qualiSides(s, q);
+          fillSide(r, 'a', sides.lap, null);
+          fillSide(r, 'b', sides.stand, null);
+          return;
+        }
         fillMode(r, s);
         const { ahead, behind } = neighbours(s);
         fillSide(r, 'a', battleSide(s, ahead, 'ahead'), ahead);

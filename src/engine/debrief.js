@@ -218,6 +218,10 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       rec.status = car.lapData.resultStatus;
       rec.isPlayer = car.carIndex === pi;
       for (const l of car.lapHistory) if (!l.pit && l.lapMs > 0 && (rec.bestMs == null || l.lapMs < rec.bestMs)) rec.bestMs = l.lapMs;
+      // Qualifying / practice: the game's own best valid lap - cars start push laps mid-lap there.
+      const sh = car.sessionHistory;
+      const shBest = sh && sh.bestLapNum > 0 ? sh.laps[sh.bestLapNum - 1] : null;
+      if (!RACE_SESSION_TYPES.has(current.sessionType) && shBest && shBest.valid && shBest.lapMs > 0) rec.bestMs = shBest.lapMs;
       const compound = car.status ? car.status.visualTyreCompound : null;
       if (compound && rec.compounds[rec.compounds.length - 1] !== compound) rec.compounds.push(compound);
       if (car.miniSectors) rec.miniSectors = car.miniSectors.slice();

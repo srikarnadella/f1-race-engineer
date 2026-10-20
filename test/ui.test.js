@@ -219,6 +219,19 @@ test('race plan card: the plan comes with how often it wins the simulated races'
   assert.match(card.card.textContent, new RegExp(`wins ${pct}% of 1,000 simulated races`));
 });
 
+test('battle card in qualifying: this lap and where you stand, not a car "0.0s behind" (Spa, 20 Oct 2026)', () => {
+  let snap = null;
+  replay(syntheticPackets(), { onTick: ({ snap: s }) => { if (!snap && s.player && s.strategy) snap = s; } });
+  const quali = { status: 'garage', timeLeftS: 135, runs: 1, position: 19, gapToPoleMs: 2259, cut: null, traffic: null, projected: null, toLine: null };
+  const card = dashboard().mounted.find((w) => w.id === 'battle');
+  card.update({ ...snap, analysis: { ...snap.analysis, quali } });
+  const text = card.card.textContent;
+  assert.match(text, /This lap/);
+  assert.match(text, /In the garage/);
+  assert.match(text, /P19/);
+  assert.doesNotMatch(text, /Ahead|Behind|Overtake mode/);
+});
+
 test('tyre tiles: a set that reaches the flag says so, not "measuring"', () => {
   let snap = null;
   replay(syntheticPackets(), { onTick: ({ snap: s }) => { if (!snap && s.player && s.strategy) snap = s; } });

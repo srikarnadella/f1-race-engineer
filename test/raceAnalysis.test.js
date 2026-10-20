@@ -501,3 +501,27 @@ test('a time penalty is not judged against the car behind under a safety car or 
   // The field is bunched behind the safety car: the gap behind says nothing about the flag.
   assert.strictEqual(tick(2), '5s penalty - added at the flag');
 });
+
+test('a gap the game has not updated after a pass (5 s for a car alongside) is read from the distance (Spa, 20 Oct 2026)', () => {
+  // HAMILTON went by side by side; for a second or two the game still sent the old 4.979 s interval,
+  // and the Battle card showed him 5.0 s away.
+  const fm = createFieldModel();
+  const cars = lapCars(13, {
+    1: { totalDistance: 84540, deltaToCarInFrontInMS: 2000 },
+    2: { totalDistance: 84300, deltaToCarInFrontInMS: 4979 }, // the player, 3 m behind HAMILTON in reality
+  }).map((c, i) => ({ ...c, totalDistance: c.totalDistance ?? 90000 - i * 1000 }));
+  cars[1].totalDistance = 84303; // HAMILTON (P2) just ahead of the player (P3)
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars });
+  fm.dispatch(PACKET_IDS.CAR_TELEMETRY, header(1), { cars: cars.map(() => ({ speed: 250, throttle: 1, brake: 0, steer: 0, gear: 8 })) });
+  const row = createRaceAnalysis(fm).compute().field.find((r) => r.carIndex === 1);
+  assert.ok(Math.abs(row.gapToPlayerMs) < 500, `gap ${row.gapToPlayerMs}`);
+  // A real 5 s gap (no distance contradiction) is untouched.
+  const far = lapCars(13).map((c, i) => ({ ...c, totalDistance: 90000 - i * 300, deltaToCarInFrontInMS: i ? 4979 : 0 }));
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(2), { cars: far });
+  assert.strictEqual(createRaceAnalysis(fm).compute().field.find((r) => r.carIndex === 1).gapToPlayerMs, -4979);
+  // The other way round: ALBON read 0.1 s ahead for a moment while 5 s (about 400 m) up the road.
+  const stale = lapCars(13).map((c, i) => ({ ...c, totalDistance: 90000 - i * 400, deltaToCarInFrontInMS: i ? 100 : 0 }));
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(3), { cars: stale });
+  const albon = createRaceAnalysis(fm).compute().field.find((r) => r.carIndex === 1).gapToPlayerMs;
+  assert.ok(albon < -4000, `gap ${albon}`);
+});

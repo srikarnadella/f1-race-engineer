@@ -49,6 +49,11 @@ test('qualifying: time to the line on an out lap, runs left from the garage, tra
   garage[19].lapData.pitStatus = 1;
   // 400s: an out lap (95.6s), then a whole run (76.5 + 2 x 95.6 = 267.8s) each.
   assert.strictEqual(qualifying({ session, cars: garage, player: garage[19], delta: {} }).runs, 2);
+  // Spa, short qualifying: the game puts the car on track 1.9 km from the line, so the garage to a
+  // push lap took 33 s, not a full out lap. With 90 s left there's time for one more run.
+  const late = { ...session, sessionTimeLeft: 90 };
+  assert.strictEqual(qualifying({ session: late, cars: garage, player: garage[19], delta: {} }).runs, 0, 'guessed out lap: 95.6 s');
+  assert.strictEqual(qualifying({ session: late, cars: garage, player: garage[19], delta: {}, outLapMs: 33000 }).runs, 1, 'measured out lap');
 
   // On a push lap, a car on an out lap 200m up the road is traffic; one alongside isn't.
   const push = field({ lapDistance: 2800 });
@@ -80,6 +85,24 @@ test('qualifying: the call is about the lap, and the race calls stay quiet', () 
   // A car 0.3s behind on track is not a car to defend from in qualifying.
   assert.ok(!push.ids.includes('under-attack'));
   assert.strictEqual(call(2).call.action, 'BOX');
+});
+
+test('qualifying: the garage-to-push-lap time is measured, and runs left use it (Spa, 20 Oct 2026)', () => {
+  // The call said "no time for another run" with 2:15 left; the last trip from the garage had taken 33 s.
+  const PLAYER = 1;
+  const header = (t) => ({ sessionUID: 9n, sessionTime: t, playerCarIndex: PLAYER });
+  const fm = createFieldModel();
+  const ra = createRaceAnalysis(fm);
+  const at = (t, driverStatus, pitStatus, left) => {
+    fm.dispatch(PACKET_IDS.SESSION, header(t), { sessionType: 8, trackLength: 7004, sessionTimeLeft: left, safetyCarStatus: 0, forecast: [] });
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: [0, 1].map((i) => ({ carPosition: i + 1, currentLapNum: 1, lastLapTimeInMS: 0, pitStatus: i === PLAYER ? pitStatus : 0, lapDistance: 100, driverStatus: i === PLAYER ? driverStatus : 1, resultStatus: 2 })) });
+    return ra.compute().quali;
+  };
+  at(800, 0, 1, 280);
+  assert.strictEqual(at(818, 0, 1, 262).runs, 1, 'before it is measured: the guess (112.5 s out lap, 90 s lap)');
+  at(819, 3, 0, 261);
+  at(852, 1, 0, 228);
+  assert.strictEqual(at(1123, 0, 1, 100).runs, 1, '100 s left, 33 s from the garage: one more run');
 });
 
 test('ask: damage, and qualifying answers', () => {

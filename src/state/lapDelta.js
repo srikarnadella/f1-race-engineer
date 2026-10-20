@@ -103,7 +103,8 @@ function createLapDeltaTracker() {
 
   function current(lap) {
     const out = { bestLapTimeInMS: best ? best.lapTimeMs : null, deltaToBestMs: null, previousLapTimeInMS: last ? last.lapTimeMs : null, deltaToLastMs: null, miniSectors: null };
-    if (!lap) return out;
+    // In the pits / garage the timer and the distance don't describe a lap being driven.
+    if (!lap || lap.pitStatus || !(lap.currentLapTimeInMS > 0)) return out;
     const refBest = best && timeAtDistance(best.trace, lap.lapDistance);
     const refLast = last && timeAtDistance(last.trace, lap.lapDistance);
     if (refBest != null) out.deltaToBestMs = Math.round(lap.currentLapTimeInMS - refBest);

@@ -290,7 +290,8 @@ function createInsightEngine(fieldModel) {
       gapBehindNow,
       bc,
       prevDefend,
-      battleDefending: !!(bc && bc.mode === 'DEFEND' && prevDefend && prevDefend.battle),
+      // Same car only: after a pass the call moves to the next car, and "Defend from <the car that passed>" must go.
+      battleDefending: !!(bc && bc.mode === 'DEFEND' && prevDefend && prevDefend.battle && prevDefend.message.startsWith(`Defend from ${bc.target} `)),
       aheadRow: rowOf(ahead),
       behindRow: rowOf(behind),
       q: !racing && analysis && analysis.quali,

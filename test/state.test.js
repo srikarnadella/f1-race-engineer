@@ -22,6 +22,20 @@ function lapCars(overrides = {}) {
   }));
 }
 
+test('qualifying from the garage: the push lap that starts at the line on the same lap number is not a pit lap (Spa, 20 Oct 2026)', () => {
+  // The game put the car on track 1.9 km before the line on lap 1 and kept lap 1 across the line, so the
+  // garage time and the 1:48.209 push lap shared lap 1: the Debrief marked it PIT and showed no best for anyone.
+  const fm = createFieldModel();
+  const me = (t, o) => fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { currentLapNum: 1, lastLapTimeInMS: 0, ...o } }) });
+  me(1, { pitStatus: 1, lapDistance: -6874 });
+  me(2, { pitStatus: 0, lapDistance: -1900 });
+  me(3, { pitStatus: 0, lapDistance: 50 });
+  me(4, { pitStatus: 0, lapDistance: 6900 });
+  me(5, { currentLapNum: 2, lastLapTimeInMS: 108209, pitStatus: 0, lapDistance: 20 });
+  const lap1 = fm.getCar(PLAYER).lapHistory.find((l) => l.lapNum === 1);
+  assert.deepStrictEqual([lap1.lapMs, lap1.pit], [108209, false]);
+});
+
 test('snapshot nearby gaps are signed and summed across intervals', () => {
   const fm = createFieldModel();
   fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars({ 1: { deltaToCarInFrontInMS: 1500 }, 3: { deltaToCarInFrontInMS: 700 }, 4: { deltaToCarInFrontInMS: 2100 } }) });
@@ -478,6 +492,26 @@ test('defending: one card for the car behind - the battle call speaks on it, not
     assert.deepStrictEqual(cards.map((c) => c.id), ['under-attack'], `at ${ms} ms: ${cards.map((c) => c.message)}`);
   }
   assert.match(at(12000)[0].message, /^Defend from HADJAR - watch into corner 11/, 'the settled battle call replaces the text');
+});
+
+test('defending: once the call moves on (they passed), "Defend from" that car goes at once, not after the new call settles (Spa, 20 Oct 2026)', () => {
+  // HAMILTON passed at 44:05 and the card still said "Defend from HAMILTON" for seconds, beside a stale 5.0s gap.
+  let t = 0;
+  const fm = createFieldModel({ clock: () => t });
+  const ie = createInsightEngine(fm);
+  raceWithTyres(fm);
+  const at = (ms, call) => {
+    t = ms;
+    // The next car behind is close too (VERSTAPPEN, 0.6 s at Spa).
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(ms / 1000), { cars: lapCars({ 3: { deltaToCarInFrontInMS: 600 } }) });
+    return ie.evaluate({ battle: { call } }).map((i) => i.message);
+  };
+  const defend = { mode: 'DEFEND', target: 'HAMILTON', reason: 'they have Overtake mode' };
+  for (const ms of [0, 3000, 6000, 9000, 12000]) at(ms, defend);
+  assert.ok(at(12500, defend).some((m) => m.startsWith('Defend from HAMILTON')), 'settled and on screen');
+  // HAMILTON went by; the call is now about the next car behind (not yet settled).
+  const passed = at(13000, { mode: 'DEFEND', target: 'VERSTAPPEN', reason: 'they have Overtake mode' });
+  assert.ok(!passed.some((m) => m.startsWith('Defend from HAMILTON')), `still showing: ${passed}`);
 });
 
 test('the call: a calm call that drops out has to hold 5 s again from the start', () => {

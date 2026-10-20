@@ -235,6 +235,9 @@ test('lap delta: to best and to last lap, and live mini-sectors rated', () => {
   assert.strictEqual(now.deltaToLastMs, -1500);
   assert.strictEqual(now.miniSectors.length, 25);
   assert.strictEqual(now.miniSectors[12].state, 'current');
+  // Back in the garage (Spa qualifying): parked at the end of the lap, timer at 0 - no delta, not "-108.060".
+  const garage = t.current({ currentLapNum: 3, lapDistance: 2490, currentLapTimeInMS: 0, pitStatus: 1 });
+  assert.deepStrictEqual([garage.deltaToBestMs, garage.deltaToLastMs, garage.bestLapTimeInMS], [null, null, 60000]);
 });
 
 test('overtake features: the same inputs live and in training', () => {

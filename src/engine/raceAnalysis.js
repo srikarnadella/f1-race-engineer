@@ -151,10 +151,22 @@ function cleanPaceMs(car) {
 // Signed gap between two cars in an ordered list, summing the intervals in
 // between (each car only reports its interval to the car directly ahead).
 // Negative = `theirIdx` is ahead of `myIdx`.
+// After a pass the game keeps the old interval for a second or two: a car alongside read 5.0 s, and one
+// 400 m up the road 0.1 s (Spa, 20 Oct 2026). When the interval contradicts the distance on track
+// (over 2 s for under 100 m, under 0.5 s for over 300 m), use distance / speed.
+function intervalMs(ahead, car) {
+  const ms = car.lapData.deltaToCarInFrontInMS || 0;
+  const dM = ahead.lapData.totalDistance - car.lapData.totalDistance;
+  const stale = (ms > 2000 && dM >= 0 && dM < 100) || (ms < 500 && dM > 300);
+  if (!stale || car.lapData.pitStatus || ahead.lapData.pitStatus) return ms;
+  const mps = car.telemetry && car.telemetry.speed > 50 ? car.telemetry.speed / 3.6 : 60;
+  return Math.round((dM / mps) * 1000);
+}
+
 function gapBetweenMs(ordered, myIdx, theirIdx) {
   const [from, to] = theirIdx < myIdx ? [theirIdx, myIdx] : [myIdx, theirIdx];
   let sum = 0;
-  for (let k = from + 1; k <= to; k++) sum += ordered[k].lapData.deltaToCarInFrontInMS || 0;
+  for (let k = from + 1; k <= to; k++) sum += intervalMs(ordered[k - 1], ordered[k]);
   return theirIdx < myIdx ? -sum : sum;
 }
 
@@ -349,6 +361,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // books records the answer (a game rule, so not per track) for every
   // session after. pitVisit: the player's current trip down the pit lane.
   let pitVisit = null;
+  // Qualifying: when the player last left the garage (session s), and how long that took to a push lap.
+  let outLap = { from: null, ms: null };
   const tyreTemps = createTyreTempTracker();
   // The last trusted wear fit this session: { trackId, compounds }, saved to
   // the track's memory when the session ends - practice laps feed the race plan.
@@ -525,6 +539,21 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     lastFit = null;
   }
 
+  // Garage -> push lap, in game time. A flashback can rewind past the start: no reading then.
+  function measureOutLap(player) {
+    if (!player || !player.lapData) return outLap.ms;
+    const ds = player.lapData.driverStatus;
+    const t = fieldModel.getSessionTime();
+    if (ds === 0) outLap.from = 'garage';
+    else if (outLap.from === 'garage') outLap.from = t;
+    if (ds === 1 && typeof outLap.from === 'number') {
+      const ms = (t - outLap.from) * 1000;
+      if (ms > 0) outLap.ms = ms;
+      outLap.from = null;
+    }
+    return outLap.ms;
+  }
+
   function compute() {
     if (fieldModel.getGeneration() !== seenGeneration) {
       seenGeneration = fieldModel.getGeneration();
@@ -544,6 +573,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       trackLimitLog.length = 0;
       trackLimitsSeen = false;
       pitVisit = null;
+      outLap = { from: null, ms: null };
       tyreTemps.reset();
     }
     const playerIdx = fieldModel.playerIndex();
@@ -813,7 +843,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       penalties,
       tyreTemps: temps,
       // Practice / qualifying: the lap-by-lap view instead of the race calls.
-      quali: qualifying({ session, cars: ordered, player, delta: fieldModel.getPlayerDelta() }),
+      quali: qualifying({ session, cars: ordered, player, delta: fieldModel.getPlayerDelta(), outLapMs: measureOutLap(player) }),
       weather,
       battle,
       tyreModel: { ...tyreModel, mine: myDeg ? { compound: myCompound, ...myDeg } : null, payback },

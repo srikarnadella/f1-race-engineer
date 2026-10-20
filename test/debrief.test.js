@@ -7,7 +7,7 @@ const { createDebrief } = require('../src/engine/debrief');
 
 // Just the FieldModel surface the debrief reads: the player (car 0) and one
 // rival, a finished race, and the official result.
-function fakeField({ classified, playerTraces = [], rivalTraces = [] }) {
+function fakeField({ classified, playerTraces = [], rivalTraces = [], sessionType = 15 }) {
   const lapData = (pos) => ({ carPosition: pos, currentLapNum: 3, gridPosition: 4, numPitStops: 1, resultStatus: 3, sector1TimeInMS: 0, sector2TimeInMS: 0 });
   const sh = (s1, s2, s3) => ({ laps: [{ lapMs: s1 + s2 + s3, s1, s2, s3, valid: true }, { lapMs: 99000, s1: 1, s2: 1, s3: 1, valid: false }] });
   const cars = [
@@ -16,7 +16,7 @@ function fakeField({ classified, playerTraces = [], rivalTraces = [] }) {
   ];
   return {
     getGeneration: () => 1,
-    getSession: () => ({ sessionType: 15, trackId: 13, totalLaps: 3, trackLength: 5800 }),
+    getSession: () => ({ sessionType, trackId: 13, totalLaps: 3, trackLength: 5800 }),
     takePlayerLapTraces: () => playerTraces.splice(0),
     takeRivalLapTraces: () => rivalTraces.splice(0),
     playerIndex: () => 0,
@@ -51,6 +51,17 @@ test('debrief: official result, sector gaps and position chart; saved and reload
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('debrief in qualifying: each best is the game best valid lap, not the laps seen in passing (Spa, 20 Oct 2026)', () => {
+  // The Field showed LECLERC 1:56.780 against his 1:45.950: the game drops cars on track mid-lap there.
+  const f = fakeField({ classified: false, sessionType: 8 });
+  f.getCar(1).lapHistory = [{ lapNum: 2, lapMs: 116780 }];
+  f.getCar(1).sessionHistory.bestLapNum = 1;
+  const d = createDebrief(f);
+  d.tick();
+  const rival = d.view().sessions[0].field.find((x) => x.name === 'RIVAL');
+  assert.strictEqual(rival.bestMs, 78500);
 });
 
 test('debrief: nothing is written without a directory', () => {

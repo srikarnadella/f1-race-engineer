@@ -49,8 +49,9 @@ function bestLapMs(car) {
 }
 
 // session: Session packet; cars: FieldModel ordered cars; player: one of them;
-// delta: FieldModel.getPlayerDelta() (live delta to your best lap).
-function qualifying({ session, cars, player, delta }) {
+// delta: FieldModel.getPlayerDelta() (live delta to your best lap). outLapMs: the garage to a push
+// lap as measured this session (the game can start the car part-way round), else a guess.
+function qualifying({ session, cars, player, delta, outLapMs = null }) {
   const kind = session && sessionKind(session.sessionType);
   if (!kind || !player || !player.lapData) return null;
   const lap = player.lapData;
@@ -96,8 +97,9 @@ function qualifying({ session, cars, player, delta }) {
   }
   // From the garage: each run is an out lap, a push lap and an in lap - and
   // the last one only has to start its push lap before the flag.
-  const outMs = lapMs * SLOW_LAP_FACTOR;
-  const runs = status === 'garage' && timeLeftS != null ? (timeLeftS * 1000 < outMs ? 0 : 1 + Math.floor((timeLeftS * 1000 - outMs) / (lapMs + 2 * outMs))) : null;
+  const inMs = lapMs * SLOW_LAP_FACTOR;
+  const outMs = outLapMs || inMs;
+  const runs = status === 'garage' && timeLeftS != null ? (timeLeftS * 1000 < outMs ? 0 : 1 + Math.floor((timeLeftS * 1000 - outMs) / (lapMs + inMs + outMs))) : null;
 
   // Who's in the way on the road.
   let traffic = null;
