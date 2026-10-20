@@ -15,7 +15,7 @@ calls, and nothing in `analysis/` knows about packets.
 | 1 | `udp/` | **Ingest.** The UDP socket and one parser per packet id. Bytes in, plain objects out | `listener.js`, `parsePacket.js`, `parsers/*.js`, `gameIds.js` |
 | 2 | `state/` | **The field.** Every car, kept up to date packet by packet; flashbacks rewind it. Facts only | `fieldModel.js`, `lapTrace.js`, `lapDelta.js`, `feedHealth.js`, `trackMemory.js` |
 | 3 | `analysis/`, `ml/` | **Numbers.** Pure functions: pit timing, the race plan, rival stops, damage cost, tyre wear, overtake odds | `pitTiming.js`, `racePlan.js`, `rivalStops.js`, `damageLoss.js`, `ml/tyreModel.js` |
-| 4 | `engine/` | **Decisions.** Runs the analysis every tick and turns it into what the driver hears and sees | `raceAnalysis.js`, `insightEngine.js`, `calls.js`, `adjustments.js`, `focus.js`, `debrief.js` |
+| 4 | `engine/` | **Decisions.** Runs the analysis every tick and turns it into what the driver hears and sees | `raceAnalysis.js`, `insightEngine.js`, `rules/*.js`, `calls.js`, `adjustments.js`, `focus.js`, `debrief.js` |
 | 5 | `server/` | **Out.** One JSON snapshot, pushed over a WebSocket at a fixed 10 Hz | `snapshot.js`, `httpServer.js` |
 
 The dashboard (`public/`) only formats the snapshot. It makes no decisions.
@@ -36,8 +36,10 @@ Tools beside the layers:
    (`createPipeline({ now })`), so a replay is identical at any speed.
 3. Every 100 ms, `engine/raceAnalysis.js` computes pace, pit loss, rejoin, rival stops, the race
    plan, damage and weather from the field, calling `analysis/` and `ml/`.
-4. `engine/insightEngine.js` turns those numbers into radio cards and the headline call
-   (`engine/calls.js`: PUSH / HOLD / BOX / PIT / PREP, each with a `kind`).
+4. `engine/insightEngine.js` builds one context for the tick and runs the rules in `engine/rules/`
+   (tyres, fuel, battle, strategy, weather, damage, qualifying, flags), in a fixed order. They turn
+   those numbers into radio cards and the headline call (`engine/calls.js`: PUSH / HOLD / BOX / PIT /
+   PREP, each with a `kind`).
 5. `server/snapshot.js` flattens everything into the one object the dashboard reads.
 
 ## Where to look
@@ -47,7 +49,7 @@ Tools beside the layers:
 | A packet field reads wrong, or a warning names a packet | `udp/parsers/<packet>.js`; real F1 26 packets are pinned in `test/fixtures/f1-26-packets.json` |
 | Laps, gaps or history wrong after a flashback | `state/fieldModel.js` (rewind), `state/lapTrace.js` (mini-sectors) |
 | A number on screen is off (pit loss, rejoin, wear, stop lap) | `engine/raceAnalysis.js`, then the `analysis/` function it calls |
-| The call or a radio card is wrong, flaps or repeats | `engine/calls.js` (the call), `engine/insightEngine.js` (cards; find the `// --- <topic> ---` section) |
+| The call or a radio card is wrong, flaps or repeats | `engine/calls.js` (the call), `engine/rules/<topic>.js` (the card), `engine/insightEngine.js` (settling, order) |
 | The screen didn't switch, or switched too often | `engine/focus.js` |
 | A widget shows "–" | the field it reads in `server/snapshot.js` (`test/ui.test.js` checks every field a widget reads) |
 | Was a call right in hindsight? | `analysis/callsAudit.js`, printed by `npm run backtest` |

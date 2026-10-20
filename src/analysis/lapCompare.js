@@ -68,6 +68,7 @@ const at = (arr, k) => arr[Math.max(0, Math.min(arr.length - 1, k))];
 // otherwise "matched" the hairpin itself on the others.
 function matchZones(refZones, refR, zones, r) {
   const nearest = (d, list, rr) => {
+    /** @type {{ idx: number, dist: number } | null} */
     let best = null;
     list.forEach((z, idx) => {
       const dist = Math.abs(rr.d[z.start] - d);

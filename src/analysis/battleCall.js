@@ -15,6 +15,7 @@ const levelRank = { low: 0, medium: 1, high: 2 };
 
 // a: the snapshot's analysis; ahead/behind: field rows; player: snapshot player.
 // lapsLeft: to the flag - a forecast past it is no forecast.
+/** @param {{ [k: string]: any, battle?: any, lapsLeft?: number | null }} args */
 function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtakeAvailable, batteryPct, neutralised, lapsLeft = null }) {
   if (neutralised) return null;
   const attackP = battle.attack ? battle.attack.p : 0;

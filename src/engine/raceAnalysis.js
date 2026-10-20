@@ -9,7 +9,7 @@ const { withoutSlowLaps } = require('../lib/laps');
 const { median } = require('../lib/stats');
 const { createTrackMemory } = require('../state/trackMemory');
 const { fitDegradation, stopPayback } = require('../ml/tyreModel');
-const { pairFeatures, toVector } = require('../ml/overtakeFeatures');
+const { pairFeatures } = require('../ml/overtakeFeatures');
 const { predict } = require('../ml/logistic');
 const { forecastAttack } = require('../analysis/attackForecast');
 const { strategyOptions, intersNowGain } = require('../analysis/strategyOptions');
@@ -101,6 +101,7 @@ const PIT_LOSS_FALLBACK_MS = 22000;
 
 // Bodywork the Car Damage packet reports, in %. Only the front wing can be
 // changed at a stop in the F1 games. Below DAMAGE_MIN_PCT it's a scratch.
+/** @type {[string, string, boolean][]} */
 const DAMAGE_PARTS = [
   ['frontLeftWingDamage', 'Front-left wing', true],
   ['frontRightWingDamage', 'Front-right wing', true],
@@ -236,6 +237,7 @@ function predictRejoin(ordered, player, loss) {
 
 // Builds pitTiming()'s inputs from the field. Only called once the player's
 // degradation is trusted (the same bar as the stop pay-back).
+/** @param {{ ordered: any, player: any, myPace: any, myDeg: any, tyreModel: any, lapsLeft: any, pitLossMs: any, stopIn: any, wingLossMs: any, prefer?: any, hold?: boolean, noStopRule: any }} args */
 function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pitLossMs, stopIn, wingLossMs, prefer, hold, noStopRule }) {
   const degOf = (compound) => (tyreModel.compounds[compound] ? tyreModel.compounds[compound].degMsPerLap : 0);
   const age = player.status.tyresAgeLaps;

@@ -192,6 +192,7 @@ function lapDistOf(car) {
 // Generates the session tick by tick, calling emit(tMs, packetBuffer).
 function generate(emit, { seed = 26 } = {}) {
   const rand = makeRng(seed);
+  /** @type {any[]} */
   const cars = buildCars();
   const sessionUID = 0x26f1de0000000001n;
   let sessionTime = 1830; // seconds into the session, as the game would report
@@ -212,6 +213,7 @@ function generate(emit, { seed = 26 } = {}) {
     // --- Scripted race events ---
     const playerLap = lapNumOf(player);
     const playerFrac = lapDistOf(player) / TRACK.lengthM;
+    /** @type {[string, any, string][]} */
     const events = []; // [code, detailBytes, onceKey]
     if (playerLap === 16 && playerFrac > 0.3) {
       // Fastest lap: Sainz on fresh softs. Detail = vehicleIdx, float lapTime (s).
@@ -225,7 +227,7 @@ function generate(emit, { seed = 26 } = {}) {
       events.push(['SCAR', [2, 3], 'VSC-ended']);
     }
     const toEmit = events.filter(([, , key]) => !firedEvents.has(key));
-    for (const [code, , key] of toEmit) {
+    for (const [, , key] of toEmit) {
       firedEvents.add(key);
       if (key === 'VSC-deployed') vscUntilS = sessionTime + 22;
     }

@@ -177,7 +177,7 @@ function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api
     }
   }
 
-  server.on('error', (err) => {
+  server.on('error', (/** @type {NodeJS.ErrnoException} */ err) => {
     if (err.code === 'EADDRINUSE') {
       console.error(`[server] port ${httpPort} is already in use - is another copy running? Try --port <n>.`);
       process.exit(1);

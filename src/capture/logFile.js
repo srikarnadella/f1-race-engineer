@@ -34,6 +34,7 @@ function openLogWriter(filePath) {
 // a truncated gzip tail (capture killed mid-write) end or skip quietly;
 // `stats` counts what was skipped so callers can report it.
 async function* readLog(filePath, stats = { badLines: 0, truncated: false }) {
+  /** @type {NodeJS.ReadableStream} */
   let input = fs.createReadStream(filePath);
   if (filePath.endsWith('.gz')) {
     // readline re-throws any error from its input, so it reads from a

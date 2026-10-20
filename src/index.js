@@ -49,7 +49,9 @@ function parseCli(argv) {
 
   const httpPort = Number(values.port);
   const udpPort = Number(values['udp-port']);
-  for (const [flag, n] of [['--port', httpPort], ['--udp-port', udpPort]]) {
+  /** @type {[string, number][]} */
+  const ports = [['--port', httpPort], ['--udp-port', udpPort]];
+  for (const [flag, n] of ports) {
     if (!Number.isInteger(n) || n < 1 || n > 65535) throw new Error(`${flag} must be a port number (1-65535)`);
   }
   if (values.demo && values.record) throw new Error('--record only applies to live mode, not --demo');

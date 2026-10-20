@@ -33,6 +33,7 @@ const FULL_PCT = 95;
 const LAST_LAP = 1.2; // laps left
 const LAST_LAP_MIN_PCT = 20;
 
+/** @type {(v: number, range: number[]) => number} */
 const clamp = (v, [lo, hi]) => Math.max(lo, Math.min(hi, v));
 const km = (m) => `${(m / 1000).toFixed(1)} km`;
 const lapsTxt = (n) => `${n} lap${n === 1 ? '' : 's'}`;

@@ -4,7 +4,7 @@
 
 ## Try the demo (no game needed)
 
-You need [Node.js](https://nodejs.org) 18.3 or newer.
+You need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
 git clone https://github.com/srikarnadella/f1-race-engineer.git

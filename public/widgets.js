@@ -11,7 +11,6 @@
   // ---------- Formatting ----------
   const COMPOUND = { 16: 'S', 17: 'M', 18: 'H', 7: 'I', 8: 'W' };
   const WEATHER = ['Clear', 'Light cloud', 'Overcast', 'Light rain', 'Heavy rain', 'Storm'];
-  const SAFETY_CAR = { 1: 'Safety car', 2: 'Virtual safety car', 3: 'Formation lap' };
   const YELLOW = { 1: 'Safety car', 2: 'VSC' };
 
   const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -22,7 +21,6 @@
   }
   const secs = (ms, dp = 1) => (isNum(ms) ? (Math.abs(ms) / 1000).toFixed(dp) : '–');
   const signed = (ms, dp = 1) => (isNum(ms) ? `${ms < 0 ? '−' : '+'}${secs(ms, dp)}` : '–');
-  const level = (v, watch, act) => (v >= act ? 'is-act' : v >= watch ? 'is-watch' : '');
 
   function setText(el, text) {
     const t = text == null ? '' : String(text);

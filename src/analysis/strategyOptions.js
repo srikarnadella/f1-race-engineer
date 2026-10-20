@@ -61,6 +61,7 @@ function strategyOptions({ situation, lapsLeft, player, tyreSets, rejoin, stopLo
   const rainDue = !!rainStop && !WET.has(st.visualTyreCompound);
   const rainLaps = rainDue && Math.max(1, Math.round(rainStop.rainInLaps));
 
+  /** @type {any[]} */
   const options = [];
   const fittedLife = fitted ? fitted.lifeSpan : null;
   const stayReaches = fittedLife == null || fittedLife >= left;

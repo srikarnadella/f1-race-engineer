@@ -36,7 +36,7 @@ function toFile(rec) {
   return zlib.gzipSync(JSON.stringify({ ...rec, field: [...rec.field], traces: [...rec.traces], rivalBest }));
 }
 function fromFile(buf) {
-  const rec = JSON.parse(zlib.gunzipSync(buf));
+  const rec = JSON.parse(zlib.gunzipSync(buf).toString());
   return { ...rec, field: new Map(rec.field), traces: new Map(rec.traces), rivalBest: new Map(rec.rivalBest || []), generation: null };
 }
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
