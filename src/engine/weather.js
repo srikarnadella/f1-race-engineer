@@ -6,12 +6,11 @@
 // wetness figure.
 
 const { median } = require('../lib/stats');
+const { groupOf, WET_COMPOUNDS, SLICK_COMPOUNDS } = require('../lib/laps');
 
 const WET_FROM = 3; // weather >= light rain
 // Rain this close (rounded laps) is worth a stop for inters when a safety car makes it cheap.
 const RAIN_IMMINENT_LAPS = 3;
-const WET_COMPOUNDS = new Set([7, 8]); // visual: inter, wet
-const SLICK_COMPOUNDS = new Set([16, 17, 18]);
 // After the rain stops, the track stays damp for a while; until then (or
 // while anyone is still on inters) it's "drying" rather than "dry".
 const DRYING_MEMORY_S = 15 * 60;
@@ -21,7 +20,6 @@ const FALLBACK_LAP_MS = 90000;
 
 const isWet = (weather) => weather >= WET_FROM;
 
-const groupOf = (compound) => (WET_COMPOUNDS.has(compound) ? 'wet' : SLICK_COMPOUNDS.has(compound) ? 'slick' : null);
 // A switch older than this says little about the track now.
 const SWITCH_FRESH_LAPS = 3;
 

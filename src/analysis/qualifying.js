@@ -5,6 +5,8 @@
 // and whether you'll make it back to the line to start another lap, and
 // who's in the way on the road.
 
+const { groupOf } = require('../lib/laps');
+
 // F1 25/26 sessionType: 1-4 practice, 5-9 qualifying (Q1-Q3, short, one-shot),
 // 10-14 sprint shootout (SQ1-SQ3, short, one-shot), 15-17 race, 18 time trial.
 const NAMES = {
@@ -77,7 +79,12 @@ function qualifying({ session, cars, player, delta }) {
     const ms = myBest + delta.deltaToBestMs;
     projected = { lapMs: ms, position: rankOf(ms), improves: ms < myBest };
   }
-  const lapGone = !!(projected && projected.lapMs - myBest > LAP_GONE_MS);
+  // In the wet a dry best is no yardstick (8 s down on it can be a good lap on inters): the lap is
+  // judged against your best on wet tyres, and not at all until there is one.
+  const onWets = groupOf(player.status && player.status.visualTyreCompound) === 'wet';
+  const wetLaps = (player.lapHistory || []).filter((l) => l.lapMs > 0 && !l.pit && groupOf(l.compound) === 'wet').map((l) => l.lapMs);
+  const yardstick = !onWets ? myBest : wetLaps.length ? Math.min(...wetLaps) : null;
+  const lapGone = !!(projected && yardstick != null && projected.lapMs - yardstick > LAP_GONE_MS);
 
   // Getting to the line before the flag: a lap only counts if it's started in time.
   // Time trial has no session clock.

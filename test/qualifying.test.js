@@ -144,3 +144,30 @@ test('qualifying: on a lap that is gone, a push lap behind is the traffic to wat
   assert.strictEqual(tr(-100).behind, null, 'on a push lap of your own, they are not in your way');
   assert.strictEqual(tr(2500).behind.name, 'D3');
 });
+
+test('qualifying in the wet: a dry best is no yardstick - "lap gone" is judged against your best on the same tyre', () => {
+  const { qualiCall } = require('../src/engine/calls');
+  // Your best (76.500) was set on softs; it's raining now and you're on inters.
+  const wet = (history) => {
+    const cars = field();
+    cars[19].status = { visualTyreCompound: 7 };
+    cars[19].lapHistory = history;
+    return cars;
+  };
+  const dryOnly = wet([{ lapNum: 1, lapMs: 76500, compound: 16 }]);
+  // 8 s down on the dry best is a decent wet lap, not a lost one - and nothing to judge it by yet.
+  const first = qualifying({ session, cars: dryOnly, player: dryOnly[19], delta: { bestLapTimeInMS: 76500, deltaToBestMs: 8000 } });
+  assert.strictEqual(first.lapGone, false);
+  assert.notDeepStrictEqual(qualiCall(first), { action: 'PREP', reason: 'Lap gone - set up the next one' });
+  // With an inters lap of 84.000 behind you, 87.000 projected is 3 s down on it: gone.
+  const withWet = wet([{ lapNum: 1, lapMs: 76500, compound: 16 }, { lapNum: 3, lapMs: 84000, compound: 7 }]);
+  const later = qualifying({ session, cars: withWet, player: withWet[19], delta: { bestLapTimeInMS: 76500, deltaToBestMs: 10500 } });
+  assert.strictEqual(later.lapGone, true);
+  // ...and 85.500 is 1.5 s down on it: still on.
+  const close = qualifying({ session, cars: withWet, player: withWet[19], delta: { bestLapTimeInMS: 76500, deltaToBestMs: 9000 } });
+  assert.strictEqual(close.lapGone, false);
+  // Dry, it's unchanged: 2.1 s down on the slick best is gone.
+  const dry = field();
+  dry[19].status = { visualTyreCompound: 16 };
+  assert.strictEqual(qualifying({ session, cars: dry, player: dry[19], delta: { bestLapTimeInMS: 76500, deltaToBestMs: 2100 } }).lapGone, true);
+});

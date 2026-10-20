@@ -25,6 +25,7 @@ flowchart LR
     subgraph UNTESTED["Untested"]
         E["Online races"]
         F["A drying track<br/>(inters to slicks)"]
+        G["Wet qualifying<br/>(handled, never recorded)"]
     end
 ```
 

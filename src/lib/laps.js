@@ -10,4 +10,9 @@ function withoutSlowLaps(laps) {
   return typical == null ? laps : laps.filter((l) => l.lapMs <= typical * SLOW_LAP_FACTOR);
 }
 
-module.exports = { withoutSlowLaps };
+const WET_COMPOUNDS = new Set([7, 8]); // visual: inter, wet
+const SLICK_COMPOUNDS = new Set([16, 17, 18]);
+// Slick or wet: lap times on one say little about the other.
+const groupOf = (compound) => (WET_COMPOUNDS.has(compound) ? 'wet' : SLICK_COMPOUNDS.has(compound) ? 'slick' : null);
+
+module.exports = { withoutSlowLaps, groupOf, WET_COMPOUNDS, SLICK_COMPOUNDS };
