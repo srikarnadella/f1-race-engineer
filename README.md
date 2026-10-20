@@ -9,7 +9,8 @@ already in the data the game sends out. It's a student project: free, open sourc
 runs on your own PC.
 
 **[▶ Try the demo in your browser](https://srikarnadella.github.io/f1-race-engineer/)**: the real
-dashboard replaying a race I recorded at Monaco. No install needed.
+dashboard replaying a race I recorded at Barcelona: a pit stop drops me to P19, then the fight back to P8.
+No install needed.
 
 ![The Drive screen: the call, the cars either side, the radio and four projections](docs/screenshots/drive.png)
 

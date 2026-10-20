@@ -368,13 +368,13 @@
           <div class="hero-copy">
             <p data-rise style="--i:0">It reads the game's live telemetry while you drive and calls your race one thing at a time: when to box, who to attack, when the rain comes. On a phone or tablet beside your screen. Free and open source.</p>
             <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Demo</a><a href="#setup">Set it up</a></div>
-            <p class="note" data-rise style="--i:2">The board replays a real race at Monaco, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 11 to 16.</p>
+            <p class="note" data-rise style="--i:2">The board replays a real race at Barcelona, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 11 to 14. A stop drops me to P19; then the fight back to P8.</p>
           </div>
           <div class="hero-visual">
             <img class="hero-bg" src="img/verstappen-spa.jpg" width="1920" height="1080" alt="Max Verstappen in the Red Bull RB22 at Spa-Francorchamps, 2026, the background blurred by the speed" fetchpriority="high" decoding="async">
             <div class="board" data-ui id="board" style="--c: var(--go)">
               <div class="board-top board-ctl">
-                <span>Monaco · lap <b id="b-lap">14</b> of 27</span><span class="pos" id="b-pos">P8</span>
+                <span>Barcelona · lap <b id="b-lap">12</b> of 23</span><span class="pos" id="b-pos">P14</span>
                 <button type="button" id="b-prev" aria-label="Earlier in the race">Earlier</button>
                 <button type="button" id="b-next" aria-label="Later in the race">Later</button>
               </div>
@@ -382,9 +382,9 @@
                 <div class="board-callrow"><div class="board-call" id="b-call">PUSH</div><p class="board-reason" id="b-reason">Tyres and fuel OK</p></div>
                 <p class="board-label">Radio, newest first</p>
                 <ol class="board-log" id="b-log">
-                  <li><span>Lap 14</span>Attack ALBON - pass chance high into corner 8</li>
-                  <li><span>Lap 12</span>Yellow ahead at turn 6 - careful, no overtaking</li>
-                  <li><span>Lap 11</span>Rears ~10°C hotter than early in the stint - easy on the throttle out of slow corners</li>
+                  <li><span>Lap 12</span>Attack LECLERC - Overtake mode ready into corner 1</li>
+                  <li><span>Lap 12</span>LAWSON behind is due to box this lap (tyres 11 laps old) - cover the undercut</li>
+                  <li><span>Lap 11</span>HULKENBERG just pitted behind you - undercut threat, cover within ~2 laps</li>
                 </ol>
               </div>
             </div>
@@ -400,7 +400,7 @@
       </section>
 
       <section class="show" id="watch" aria-label="The real app, replaying the race">
-        <div class="bar"><span>[ 01 // LIVE DEMO ]</span><span>REPLAY · MONACO · LAPS 11-16 OF 27 · F1 26</span></div>
+        <div class="bar"><span>[ 01 // LIVE DEMO ]</span><span>REPLAY · BARCELONA · LAPS 11-14 OF 23 · F1 26</span></div>
         <div class="show-list" role="group" aria-label="Demo screens">
           <button data-screen="drive" type="button">Drive</button>
           <button data-screen="battle" type="button">Battle</button>
@@ -411,8 +411,8 @@
         </div>
         <div class="stage" data-reveal><div class="frame"><iframe id="dash" src="demo/?recorded" title="Undercut dashboard, replaying a recorded race" allow="microphone; autoplay" loading="lazy"></iframe></div></div>
         <div class="show-copy">
-          <a class="phone-shot" href="demo/?recorded"><img src="img/drive.png" width="1180" height="885" alt="The Drive screen of the dashboard, from the recorded Monaco race" loading="lazy" decoding="async"></a>
-          <p id="caption">The real app, replaying the same Monaco race.</p>
+          <a class="phone-shot" href="demo/?recorded"><img src="img/drive.png" width="1180" height="885" alt="The Drive screen of the dashboard, from the recorded Barcelona race" loading="lazy" decoding="async"></a>
+          <p id="caption">The real app, replaying the same Barcelona race.</p>
           <a class="button button-big" href="demo/?recorded">Open the demo full screen</a>
         </div>
       </section>
@@ -479,7 +479,7 @@
           </div>
           <figure data-reveal>
             <img src="img/battle.png" width="1180" height="885" alt="The Battle screen: the cars either side, the gaps and the chance of a pass" loading="lazy" decoding="async">
-            <figcaption class="note">Where that call ends up: the Battle screen, from the recorded Monaco race.</figcaption>
+            <figcaption class="note">Where that call ends up: the Battle screen, from the recorded Barcelona race.</figcaption>
           </figure>
         </div>
 
@@ -997,7 +997,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
                 </ul>
               </div>
               <div>
-                <p>The same dashboard runs on this site: the Overview replays a real Monaco race through the real engine.</p>
+                <p>The same dashboard runs on this site: the Overview replays a real Barcelona race through the real engine.</p>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/tree/main/public">public/</a> · design notes: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/ux.md">docs/ux.md</a></p>
               </div>
             </div>
@@ -1223,26 +1223,25 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
       });
       document.querySelector('.brand').addEventListener('click', (e) => { e.preventDefault(); history.replaceState(null, '', '#overview'); show('overview'); window.scrollTo(0, 0); });
 
-      // ---- The call board: the real calls and radio lines from the recorded Monaco race ----
+      // ---- The call board: the real calls and radio lines from the recorded Barcelona race ----
       // Each one as recorded: the lap, position and call at the moment the radio line first came (null: no new line).
       const MOMENTS = [
-        { lap: 11, pos: 1, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Damage: front-left wing 11% - measuring what it costs' },
-        { lap: 11, pos: 1, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Rears ~10°C hotter than early in the stint - easy on the throttle out of slow corners' },
-        { lap: 12, pos: 1, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Yellow ahead at turn 6 - careful, no overtaking' },
-        { lap: 13, pos: 1, action: 'PIT', reason: 'In the pit lane', radio: null },
-        { lap: 14, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack ALBON - pass chance high into corner 8' },
-        { lap: 14, pos: 7, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'ALBON is right behind you - defend, pass likely, watch corner 1' },
-        { lap: 14, pos: 7, action: 'HOLD', reason: 'Red flag - race stopped', radio: 'Red flag: best is box: medium - keep P7, lasts to the flag, 0.7s/lap faster. Or stay out: keep the position, tyres reach the flag' },
-        { lap: 16, pos: 5, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack RUSSELL - LECLERC close behind - make it stick into corner 1' },
-        { lap: 16, pos: 4, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from RUSSELL - cover first, VERSTAPPEN is within reach after - watch into corner 1' },
-        { lap: 16, pos: 3, action: 'HOLD', reason: 'Safety car - hold position, keep the delta positive', radio: 'Safety car: best is stay out - keep the position, tyres reach the flag. Or box: soft: rejoin P17, lasts to the flag, 0.8s/lap faster' },
-        { lap: 16, pos: 3, action: 'HOLD', reason: 'Safety car - hold position, keep the delta positive', radio: 'Tyres ~10°C under racing temperature - get heat in before the restart' },
+        { lap: 11, pos: 11, action: 'PIT', reason: 'In the pit lane', radio: null },
+        { lap: 11, pos: 19, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from ALBON - threat medium - watch into corner 11' },
+        { lap: 11, pos: 19, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack LAWSON - pass chance high into corner 1' },
+        { lap: 11, pos: 19, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'LAWSON ahead is due to box this lap (tyres 10 laps old) - clean air after, push' },
+        { lap: 11, pos: 18, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from LAWSON - they have Overtake mode - watch into corner 1' },
+        { lap: 11, pos: 17, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'HULKENBERG just pitted behind you - undercut threat, cover within ~2 laps' },
+        { lap: 12, pos: 14, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'LAWSON behind is due to box this lap (tyres 11 laps old) - cover the undercut' },
+        { lap: 12, pos: 14, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Attack LECLERC - Overtake mode ready into corner 1' },
+        { lap: 13, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'HADJAR is right behind you - defend, pass likely, watch corner 11' },
+        { lap: 13, pos: 8, action: 'PUSH', reason: 'Tyres and fuel OK', radio: 'Defend from HADJAR - cover first, LECLERC is within reach after - watch into corner 11' },
       ];
       const COLOUR = { PUSH: 'var(--go)', HOLD: 'var(--watch)', BOX: 'var(--act)', PIT: 'var(--info)' };
       const board = document.getElementById('board');
       const $b = (id) => document.getElementById(id);
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      let at = 4;
+      let at = 7;
       let autoplay = !reduce;
       function paint() {
         const m = MOMENTS[at];

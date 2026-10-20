@@ -225,11 +225,14 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       current.field.set(car.carIndex, rec);
     }
 
+    // A flashback takes back the penalties after the time it rewound to (a crash, a stop-go, then undone).
+    const t = fieldModel.getSessionTime ? fieldModel.getSessionTime() : null;
+    if (t != null) current.penalties = current.penalties.filter((p) => p.atS == null || p.atS <= t);
     for (const e of fieldModel.getRecentEvents()) {
       if (e.seq <= current.lastEventSeq) continue;
       current.lastEventSeq = e.seq;
       // Same rule as the radio: only penalty types whose F1 26 meaning is certain.
-      if (e.code === 'PENA' && e.vehicleIdx === pi && [0, 1, 4, 5, 6].includes(e.penaltyType)) current.penalties.push({ what: e.name, lap: e.lapNum, timeS: e.timeS });
+      if (e.code === 'PENA' && e.vehicleIdx === pi && [0, 1, 4, 5, 6].includes(e.penaltyType)) current.penalties.push({ what: e.name, lap: e.lapNum, timeS: e.timeS, atS: e.sessionTime ?? null });
       if (e.code === 'SCAR' && !(e.safetyCarEventType > 0)) current.safetyCars++;
       if (e.code === 'FTLP' && e.vehicleIdx != null) {
         const car = fieldModel.getCar(e.vehicleIdx);

@@ -104,3 +104,22 @@ test('debrief: the session store keeps the newest 50 on disk (roadmap D5)', () =
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('debrief: a penalty a flashback undid is not on the record (Barcelona, 17 Oct 2026)', () => {
+  // A crash, a stop-go, then a flashback to before it: the race went on without the penalty.
+  const f = fakeField({ classified: false });
+  let now = 100;
+  const events = [];
+  f.getSessionTime = () => now;
+  f.getRecentEvents = () => events;
+  const d = createDebrief(f);
+  events.push({ seq: 1, code: 'PENA', vehicleIdx: 0, penaltyType: 0, name: 'Stop-go penalty', lapNum: 3, timeS: 10, sessionTime: 100 });
+  d.tick();
+  assert.strictEqual(d.current().penalties.length, 1);
+  now = 101;
+  d.tick();
+  assert.strictEqual(d.current().penalties.length, 1, 'still there as time goes on');
+  now = 95; // the flashback
+  d.tick();
+  assert.deepStrictEqual(d.current().penalties, []);
+});
