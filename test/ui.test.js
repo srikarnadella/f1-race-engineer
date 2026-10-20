@@ -11,9 +11,11 @@ const { syntheticPackets, replay } = require('./helpers/synthetic');
 // fed real snapshots, renders without throwing and never shows a placeholder
 // for a missing field. The dashboard swallows a widget's error (one bad card
 // must not blank the screen), so without this a renamed field fails silently.
-const WIDGETS_FILE = path.join(__dirname, '..', 'public', 'widgets.js');
-// Compiled once with its filename, so coverage counts it as public/widgets.js.
-const WIDGETS_JS = new vm.Script(fs.readFileSync(WIDGETS_FILE, 'utf8'), { filename: WIDGETS_FILE });
+// Compiled once each with their filenames, so coverage counts them as public/widgets.js and public/debrief.js.
+const WIDGETS_JS = ['widgets.js', 'debrief.js'].map((f) => {
+  const file = path.join(__dirname, '..', 'public', f);
+  return new vm.Script(fs.readFileSync(file, 'utf8'), { filename: file });
+});
 const LEAKS = /undefined|NaN|\bnull\b|\[object Object\]|Infinity/;
 
 function dashboard(api = () => null) {
@@ -24,7 +26,7 @@ function dashboard(api = () => null) {
     const body = api(u.pathname, u.searchParams);
     return { ok: !!body, status: body ? 200 : 404, json: async () => body };
   };
-  WIDGETS_JS.runInContext(dom.getInternalVMContext());
+  for (const s of WIDGETS_JS) s.runInContext(dom.getInternalVMContext());
   const mounted = Object.entries(window.RaceWidgets.widgets).map(([id, def]) => {
     const card = window.document.createElement('section');
     card.className = `card card--${id}`;

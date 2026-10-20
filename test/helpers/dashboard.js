@@ -7,7 +7,7 @@ const { syntheticPackets, replay } = require('./synthetic');
 // The dashboard shell (public/app.js) in jsdom, connected to a fake bridge:
 // the page as a driver uses it - the link, the screens, the keys, auto-switch.
 const PUBLIC = path.join(__dirname, '..', '..', 'public');
-const SCRIPTS = ['widgets.js', 'ask.js', 'app.js'].map((f) => new vm.Script(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), { filename: path.join(PUBLIC, f) }));
+const SCRIPTS = ['widgets.js', 'debrief.js', 'ask.js', 'app.js'].map((f) => new vm.Script(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), { filename: path.join(PUBLIC, f) }));
 const HTML = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8').replace(/<script[^>]*src=[^>]*><\/script>/g, '');
 
 let snapshots = null;

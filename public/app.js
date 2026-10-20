@@ -1,5 +1,5 @@
 // Dashboard shell: connection, screens/layouts, the custom-screen editor,
-// and the global radio band + toasts. Widgets live in widgets.js. Nothing
+// and the global radio band + toasts. Widgets live in widgets.js (the Debrief in debrief.js). Nothing
 // here judges race state - it arrives decided in each snapshot.
 (function () {
   'use strict';

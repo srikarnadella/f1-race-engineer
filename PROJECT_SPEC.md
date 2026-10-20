@@ -128,7 +128,8 @@ f1-race-engineer/
 │   ├── index.html                           shell: screen tabs, custom-screen editor, settings, radio band/toasts
 │   ├── manifest.json, icon-*.png            Add to Home Screen
 │   ├── ask.js                               "Ask the engineer": question -> one-sentence answer from the snapshot
-│   ├── widgets.js                           14 widgets (drive, battle, radio, call, rejoin, options, ...); formatting only
+│   ├── widgets.js                           the live widgets (drive, battle, radio, call, rejoin, options, ...); formatting only
+│   ├── debrief.js                           the Debrief widget: recap, lap compare, rivals, models
 │   ├── app.js                               6 screens + layouts, custom screen, auto-switch, settings, voice + Ask, WebSocket client
 │   └── style.css                            dark cockpit theme; every card a size container, cq-scaled type
 ├── scripts/
