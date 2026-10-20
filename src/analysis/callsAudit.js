@@ -89,7 +89,8 @@ function auditCalls(calls, laps) {
     }
     if (c.kind === 'damage') {
       const st = stintOf.get(c.lapNum);
-      const before = st ? st.laps.filter((l) => l.lapNum < c.lapNum && green(l)).slice(-CLEAN_LAPS) : [];
+      // Not lap 1: the standing start makes it slow.
+      const before = st ? st.laps.filter((l) => l.lapNum > 1 && l.lapNum < c.lapNum && green(l)).slice(-CLEAN_LAPS) : [];
       const nextStop = mine.find((l) => l.pit && l.lapNum >= c.lapNum);
       const after = mine.filter((l) => l.lapNum >= c.lapNum && green(l) && (!nextStop || l.lapNum < nextStop.lapNum));
       if (!before.length || !after.length || greenStop == null || totalLaps == null) return { verdict: 'unclear', why: 'No clean lap before it, or no damaged lap after, to compare' };

@@ -138,3 +138,34 @@ test('ERS: low battery is judged at the line, not on the swing inside a lap (Boo
   assert.match(lowAtLine.radio, /^Battery low/, 'started the lap at 15%');
   assert.strictEqual(ers({ player: player(60, { history: atLine(15) }), gapAheadMs: 800 }).action, 'ERS: Medium', 'attack waits for a charge, judged at the line too');
 });
+
+const atLineOf = (pct, extra = {}) => [{ lapNum: 10, energyJ: (pct / 100) * 4e6, ...extra }];
+
+test('ERS: after a stop or a VSC the line figure is stale - the battery charged since (Silverstone, 19 Oct 2026)', () => {
+  // Out of the pits on 90%: "Battery low, battery ~90%" was on screen.
+  assert.match(ers({ player: player(90, { history: atLineOf(15, { pit: true }) }), gapBehindMs: 600 }).why, /^Defend/);
+  // Restart after a VSC on 90%: "harvest this lap in Medium" was.
+  assert.strictEqual(ers({ player: player(90, { history: atLineOf(15, { neutralised: true }) }), gapAheadMs: 800 }).action, 'ERS: Overtake');
+});
+
+test('ERS: "low" and "harvest" quote the battery at the line, the figure they are judged on', () => {
+  assert.strictEqual(ers({ player: player(50, { history: atLineOf(15) }), gapBehindMs: 600 }).radio, 'Battery low, ~15% at the line - save it for the main straight to defend');
+  assert.strictEqual(ers({ player: player(60, { history: atLineOf(15) }), gapAheadMs: 800 }).radio, 'Battery ~15% at the line - harvest this lap in Medium, attack on the next');
+});
+
+test('ERS: no "harvest this lap" while Overtake mode is ready - the battle card says use it', () => {
+  const p = { ...player(30, { history: atLineOf(15) }), telemetry2: { overtakeAvailable: true } };
+  assert.strictEqual(ers({ player: p, gapAheadMs: 800 }), undefined);
+});
+
+test('ERS: a battery that runs out this lap, in words', () => {
+  const history = [{ lapNum: 10, energyJ: 2.0e6 }, { lapNum: 11, energyJ: 1.0e6 }]; // -25%/lap
+  // "empty in ~0 laps - None for a sector to save it" in the Silverstone sprint.
+  assert.strictEqual(ers({ player: player(20, { mode: 1, history }), lapsLeft: 5 }).radio, 'Battery dropping 25% a lap, empty this lap - ERS to None for a sector to save it');
+  assert.strictEqual(ers({ player: player(60, { mode: 2, history }), lapsLeft: 5 }).radio, 'Battery dropping 25% a lap, empty in ~2 laps - ERS to Medium to save it');
+});
+
+test('ERS: no drain trend across a pit lap - the store charges in the pit lane (Silverstone, "dropping 41% a lap" after the stop)', () => {
+  assert.strictEqual(batteryTrend([{ lapNum: 9, energyJ: 3.0e6 }, { lapNum: 10, energyJ: 1.4e6, pit: true }]), null);
+  assert.strictEqual(batteryTrend([{ lapNum: 9, energyJ: 3.0e6 }, { lapNum: 10, energyJ: 1.4e6, pit: true }, { lapNum: 11, energyJ: 1.0e6 }]), -10);
+});

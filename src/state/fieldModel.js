@@ -190,7 +190,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
         }
         // Battery at the line, for the per-lap ERS trend (charging or draining).
         if (car.status) {
-          car.ersHistory.push({ lapNum: c.currentLapNum, energyJ: car.status.ersStoreEnergy, neutralised: !!car.lapNeutralised });
+          car.ersHistory.push({ lapNum: c.currentLapNum, energyJ: car.status.ersStoreEnergy, neutralised: !!car.lapNeutralised, pit: !!car.lapTouchedPit });
           if (car.ersHistory.length > LAP_HISTORY_SIZE) car.ersHistory.shift();
         }
         car.ersPrevLap = car.ersLap && car.status && car.ersLap.lapNum === prevLapNum
@@ -216,7 +216,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       if (newest && sessionTime < newest.t) car.gapAheadHistory.length = 0;
       const lastSample = car.gapAheadHistory[car.gapAheadHistory.length - 1];
       if (!lastSample || sessionTime - lastSample.t >= GAP_SAMPLE_INTERVAL_S) {
-        car.gapAheadHistory.push({ t: sessionTime, gapMs: c.deltaToCarInFrontInMS });
+        car.gapAheadHistory.push({ t: sessionTime, gapMs: c.deltaToCarInFrontInMS, neutralised: isNeutralised() });
         if (car.gapAheadHistory.length > GAP_HISTORY_SAMPLES) car.gapAheadHistory.shift();
       }
 

@@ -92,20 +92,23 @@ function average(arr) {
 }
 
 // Gap change per lap to the car ahead, from FieldModel's game-time samples.
-// Negative = closing. Null until there's a full window of history.
-function closingRateMsPerLap(car) {
+// Negative = closing. Null until there's a full window of green history: the
+// field bunching up behind a safety car / VSC isn't pace.
+function closingRateMsPerLap(car, paceMs) {
   const h = car.gapAheadHistory;
   if (h.length < 2) return null;
   const now = h[h.length - 1];
   let then = null;
   for (let i = h.length - 2; i >= 0; i--) {
+    if (h[i].neutralised) break;
     if (now.t - h[i].t >= CLOSING_WINDOW_S) {
       then = h[i];
       break;
     }
   }
-  if (!then) return null;
-  const lapMs = car.lapData.lastLapTimeInMS || FALLBACK_LAP_MS;
+  if (!then || now.neutralised) return null;
+  // Clean pace, not the last lap: that can be a safety-car or pit lap.
+  const lapMs = paceMs || (car.lapData.currentLapNum > 2 && car.lapData.lastLapTimeInMS) || FALLBACK_LAP_MS; // not lap 1's time
   return ((now.gapMs - then.gapMs) / (now.t - then.t)) * (lapMs / 1000);
 }
 
@@ -359,10 +362,12 @@ function createInsightEngine(fieldModel) {
     // --- Pace vs car ahead: is the gap closing? ---
     // Compares the gap now with the gap ~30s of game time ago and expresses
     // it per lap, which is how an engineer would call it on the radio.
-    const closingRate = closingRateMsPerLap(player);
+    const closingRate = closingRateMsPerLap(player, analysis && analysis.playerPaceMs);
     const greenRacing = playerOnTrack && !neutralised;
-    if (!(racing && greenRacing)) expire('closing-ahead');
-    if (racing && greenRacing && onTrack(ahead) && closingRate != null) {
+    // Not on lap 1: the start scrambles every gap.
+    const pastLap1 = player.lapData.currentLapNum > 1;
+    if (!(racing && greenRacing && pastLap1)) expire('closing-ahead');
+    if (racing && greenRacing && pastLap1 && onTrack(ahead) && closingRate != null) {
       if (closingRate <= CLOSING_THRESHOLD_MS_PER_LAP && closingRate >= -CLOSING_MAX_MS_PER_LAP && player.lapData.deltaToCarInFrontInMS >= CLOSING_MIN_GAP_MS) {
         upsert('closing-ahead', {
           severity: SEVERITY.INFO,
@@ -382,9 +387,8 @@ function createInsightEngine(fieldModel) {
     // arrows, and a full-width red banner mid-battle is a distraction. The
     // interrupt is kept for things the driver can't see from the cockpit.
     const gapBehindNow = onTrack(behind) ? behind.lapData.deltaToCarInFrontInMS : null;
-    // Not on lap 1: the whole field is nose to tail, and one real start
+    // Not on lap 1 either: the whole field is nose to tail, and one real start
     // named eleven different "right behind you" cars in under a minute.
-    const pastLap1 = player.lapData.currentLapNum > 1;
     // The battle call's DEFEND speaks on this same card (below), so the
     // driver hears one defend call, not two that take turns - 45 of 55 key
     // calls in a real race were the pair. While it holds the card, it owns it.
@@ -468,7 +472,9 @@ function createInsightEngine(fieldModel) {
 
     // --- Safety car / VSC / red flag: the options, once per decision ---
     const opts = analysis && analysis.options;
-    if (racing && opts && settled('sc-options', `${opts.situation}:${opts.recommendedId}`)) {
+    // The settled pick, which the card shows - the cheap-stop call follows it, not a flicker.
+    const optsSettled = !!(racing && opts && settled('sc-options', `${opts.situation}:${opts.recommendedId}`));
+    if (optsSettled) {
       upsert('sc-options', { severity: SEVERITY.ADVISORY, category: CATEGORY.STRATEGY, message: opts.headline, expiresAtMs: clock() + 4000 });
     } else if (!opts) {
       expire('sc-options');
@@ -596,7 +602,9 @@ function createInsightEngine(fieldModel) {
     // The biggest strategy swing of most races, and the game only tells you
     // the safety car is out - not what a stop costs now.
     let cheapStop = null;
-    if (racing && neutralised && !redFlag && playerOnTrack && myTyreAge >= STOP_WORTH_IT_TYRE_AGE
+    // The options card weighs the stop against the position: the call boxes only on its settled box.
+    const optsSayBox = !opts || (optsSettled && opts.recommendedId !== 'stay');
+    if (racing && neutralised && !redFlag && playerOnTrack && optsSayBox && myTyreAge >= STOP_WORTH_IT_TYRE_AGE
       && (lapsLeft == null || lapsLeft >= CHEAP_STOP_MIN_LAPS_LEFT)) {
       const pl = analysis && analysis.pitLoss;
       cheapStop = pl && pl.ms < pl.normalMs

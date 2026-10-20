@@ -49,14 +49,14 @@ your phone or tablet. Full steps, options and voice setup: [docs/setup.md](docs/
 
 ## Does it actually work?
 
-I recorded six races in F1 26 and replayed them through the engine, scoring each prediction against
+I recorded eight race sessions in F1 26 (one a sprint) and replayed them through the engine, scoring each prediction against
 what really happened, next to the obvious guess:
 
 | Prediction | Undercut | Obvious guess |
 |---|---|---|
-| Tyre wear per lap (1,264 laps) | **342 ms off** | 485 ms ("no wear") |
-| Where you rejoin after a stop (24 stops) | **2.54 places off** | 4.33 ("keep your place") |
-| A rival's battery at the line | **7.7 points off** | 13.2 ("stays where it is") |
+| Tyre wear per lap (1,649 laps) | **356 ms off** | 470 ms ("no wear") |
+| Where you rejoin after a stop (45 stops) | **4.22 places off** | 5.27 ("keep your place") |
+| A rival's battery at the line | **8.4 points off** | 13.4 ("stays where it is") |
 | Will the car behind pass in 10 s? | 0.851 AUC | 0.854 (gap only), so it's a tie |
 
 Three of the six models I score beat the obvious guess and three don't yet, and the app says so

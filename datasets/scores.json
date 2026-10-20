@@ -1,10 +1,10 @@
 {
   "dataset": {
-    "races": 6,
-    "laps": 1751
+    "races": 8,
+    "laps": 2266
   },
   "gate": {
-    "tyre.meanMs": 342,
-    "rivalStops.meanLaps": 1.22
+    "tyre.meanMs": 356,
+    "rivalStops.meanLaps": 1.04
   }
 }

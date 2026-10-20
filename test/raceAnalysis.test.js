@@ -45,7 +45,8 @@ test('pace averages the last clean laps, ignoring pit laps and the standing-star
   send(5, { 0: { lastLapTimeInMS: 105000 } });
   send(6, { 0: { lastLapTimeInMS: 91000 } });
   const leader = createRaceAnalysis(fm).compute().field.find((c) => c.carIndex === 0);
-  assert.strictEqual(leader.paceMs, Math.round((90000 + 91000) / 2));
+  // Only the stint since the stop (19 Oct 2026: the laps before it were on the old set).
+  assert.strictEqual(leader.paceMs, 91000);
 });
 
 test('pit loss is measured from a rival stop: in-lap + out-lap - 2 x clean pace', () => {
@@ -334,4 +335,136 @@ test('no battle call once the player has taken the flag', () => {
   assert.strictEqual(createRaceAnalysis(fm).compute().battle.call.mode, 'DEFEND');
   fm.dispatch(PACKET_IDS.LAP_DATA, header(2), { cars: lapCars(3, { 2: { resultStatus: 3 }, 3: { deltaToCarInFrontInMS: 400 } }) });
   assert.strictEqual(createRaceAnalysis(fm).compute().battle.call, null);
+});
+
+test('a sprint has no compulsory stop: no stop plan, no rival due to box (Silverstone sprint, 19 Oct 2026)', () => {
+  // The game names the sprint "Race" and the main race "Race 2"; what marks a
+  // sprint is the sprint shootout earlier in the same weekend.
+  const SILVERSTONE_WEEKEND = 2227884873;
+  const h = (uid, t) => ({ sessionUID: uid, sessionTime: t, playerCarIndex: PLAYER });
+  const set = (index, c, life, lapDeltaTimeMs) => ({ index, visualTyreCompound: c, usableLife: life, lifeSpan: life, lapDeltaTimeMs, wear: 0, available: true, fitted: index === 0 });
+  // A 6-lap race, everyone on softs rated 12 laps.
+  const race = (fm, ra, uid, weekendLinkIdentifier) => {
+    fm.dispatch(PACKET_IDS.SESSION, h(uid, 0), { trackId: 7, totalLaps: 6, trackLength: 5891, sessionType: 15, weekendLinkIdentifier });
+    for (let c = 0; c < 5; c++) fm.dispatch(PACKET_IDS.TYRE_SETS, h(uid, 0), { carIdx: c, sets: [set(0, 16, 12, 0), set(1, 17, 18, 500), set(2, 18, 25, 900)] });
+    fm.dispatch(PACKET_IDS.CAR_STATUS, h(uid, 0), { cars: Array.from({ length: 5 }, () => ({ visualTyreCompound: 16, tyresAgeLaps: 0 })) });
+    fm.dispatch(PACKET_IDS.LAP_DATA, h(uid, 1), { cars: lapCars(1) });
+    const grid = ra.compute();
+    fm.dispatch(PACKET_IDS.CAR_STATUS, h(uid, 2), { cars: Array.from({ length: 5 }, () => ({ visualTyreCompound: 16, tyresAgeLaps: 3 })) });
+    fm.dispatch(PACKET_IDS.LAP_DATA, h(uid, 3), { cars: lapCars(4) });
+    return { plan: grid.racePlan, stops: ra.compute().field.map((c) => c.stopInLaps) };
+  };
+
+  const fm = createFieldModel();
+  const ra = createRaceAnalysis(fm);
+  fm.dispatch(PACKET_IDS.SESSION, h(1n, 0), { trackId: 7, totalLaps: 1, trackLength: 5891, sessionType: 13, weekendLinkIdentifier: SILVERSTONE_WEEKEND });
+  fm.dispatch(PACKET_IDS.LAP_DATA, h(1n, 1), { cars: lapCars(1) });
+  ra.compute();
+  const sprint = race(fm, ra, 2n, SILVERSTONE_WEEKEND);
+  assert.strictEqual(sprint.plan, null, 'no "Soft 5 laps, Medium 1"');
+  assert.deepStrictEqual(sprint.stops, [null, null, null, null, null], 'softs rated 12 laps reach the flag of a 6-lap sprint');
+
+  // The same race on a weekend without a sprint owes the two-compound stop.
+  const fm2 = createFieldModel();
+  const full = race(fm2, createRaceAnalysis(fm2), 3n, 12345);
+  assert.ok(full.plan, 'a race plan');
+  assert.ok(full.stops.some((k) => k != null), JSON.stringify(full.stops));
+});
+
+test('pace after a stop is the new set\'s, not an average across the stop', () => {
+  // Austria's "catching 8.7s/lap" was slick laps averaged with inter laps; a
+  // stop onto fresh slicks mixes the same way: old 92s laps with new 90s ones.
+  const fm = createFieldModel();
+  let t = 0;
+  const send = (lap, o) => fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(lap, o) });
+  send(1, {});
+  for (let lap = 2; lap <= 4; lap++) send(lap, { 0: { lastLapTimeInMS: 92000 } });
+  send(4, { 0: { pitStatus: 1 } });
+  send(5, { 0: { pitStatus: 1, lastLapTimeInMS: 110000 } }); // in-lap
+  send(6, { 0: { lastLapTimeInMS: 105000 } }); // out-lap
+  send(7, { 0: { lastLapTimeInMS: 90000 } }); // first lap on the new set
+  const car0 = createRaceAnalysis(fm).compute().field.find((c) => c.carIndex === 0);
+  assert.strictEqual(car0.paceMs, 90000);
+});
+
+test('pit loss is not measured against the standing-start lap 1', () => {
+  const fm = createFieldModel();
+  let t = 0;
+  const send = (lap, o) => fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(lap, o) });
+  // Car 4: a 99s standing-start lap 1, in on lap 2 (110s), out on lap 3 (100s), 90s laps after.
+  send(1, {});
+  send(2, { 4: { lastLapTimeInMS: 99000 } });
+  send(2, { 4: { pitStatus: 1 } });
+  send(3, { 4: { pitStatus: 2, lastLapTimeInMS: 110000 } });
+  send(3, { 4: { pitStatus: 1 } });
+  send(4, { 4: { pitStatus: 0, lastLapTimeInMS: 100000 } });
+  send(5, {});
+  assert.strictEqual(createRaceAnalysis(fm).compute().pitLoss.ms, 30000, '110 + 100 - 2 x 90');
+});
+
+test('a stop in a sprint is not learned as when the AI boxes (it is damage, not strategy)', () => {
+  const { createTrackMemory } = require('../src/state/trackMemory');
+  const memory = createTrackMemory();
+  const realNow = Date.now;
+  let now = 1000;
+  Date.now = () => now;
+  try {
+    const fm = createFieldModel();
+    const ra = createRaceAnalysis(fm, { memory });
+    const h = (uid, t) => ({ sessionUID: uid, sessionTime: t, playerCarIndex: PLAYER });
+    fm.dispatch(PACKET_IDS.SESSION, h(1n, 0), { trackId: 7, totalLaps: 1, trackLength: 5891, sessionType: 13, weekendLinkIdentifier: 99 });
+    fm.dispatch(PACKET_IDS.LAP_DATA, h(1n, 1), { cars: lapCars(1) });
+    ra.compute();
+    fm.dispatch(PACKET_IDS.SESSION, h(2n, 0), { trackId: 7, totalLaps: 6, trackLength: 5891, sessionType: 15, weekendLinkIdentifier: 99 });
+    fm.dispatch(PACKET_IDS.TYRE_SETS, h(2n, 0), { carIdx: 4, sets: [{ index: 0, visualTyreCompound: 16, usableLife: 12, fitted: true }] });
+    fm.dispatch(PACKET_IDS.CAR_STATUS, h(2n, 0), { cars: Array.from({ length: 5 }, () => ({ visualTyreCompound: 16, tyresAgeLaps: 3 })) });
+    for (const [t, o] of [[10, {}], [11, { 4: { pitStatus: 1 } }]]) {
+      now += 100;
+      fm.dispatch(PACKET_IDS.LAP_DATA, h(2n, t), { cars: lapCars(4, o) });
+      ra.compute();
+    }
+    assert.deepStrictEqual(memory.get(7, 'stopShare'), []);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('a tyre change under a red flag starts a new stint too - no pit lap marks it (Monaco, 15 Oct 2026: "catching 3.2s/lap")', () => {
+  const fm = createFieldModel();
+  let t = 0;
+  const lap = (n, age, ms) => {
+    fm.dispatch(PACKET_IDS.CAR_STATUS, header((t += 1)), { cars: Array.from({ length: 5 }, () => ({ visualTyreCompound: 17, tyresAgeLaps: age })) });
+    fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(n, { 0: { lastLapTimeInMS: ms } }) });
+  };
+  lap(1, 0, 90000);
+  for (let n = 2; n <= 5; n++) lap(n, n - 1, 93000); // laps 1-4 on one set, worn
+  lap(6, 0, 89000); // new set fitted during the stoppage, then a 89s lap
+  const car0 = createRaceAnalysis(fm).compute().field.find((c) => c.carIndex === 0);
+  assert.strictEqual(car0.paceMs, 89000);
+});
+
+test('a 5-lap race has no compulsory stop either: no stop plan (15 Oct 2026: none of 63 AI cars stopped in three 5-lap races)', () => {
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 7, totalLaps: 5, trackLength: 5891, sessionType: 15 });
+  const set = (index, c, life, lapDeltaTimeMs) => ({ index, visualTyreCompound: c, usableLife: life, lifeSpan: life, lapDeltaTimeMs, wear: 0, available: true, fitted: index === 0 });
+  fm.dispatch(PACKET_IDS.TYRE_SETS, header(0), { carIdx: PLAYER, sets: [set(0, 16, 12, 0), set(1, 17, 18, 500), set(2, 18, 25, 900)] });
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars(1) });
+  assert.strictEqual(createRaceAnalysis(fm).compute().racePlan, null, 'not "Soft 4 laps, Medium 1"');
+});
+
+test('a time penalty is not judged against the car behind under a safety car or red flag (Barcelona, 16 Oct 2026)', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  const ra = createRaceAnalysis(fm);
+  const sc = (safetyCarStatus) => fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 4, totalLaps: 23, trackLength: 4664, sessionType: 15, safetyCarStatus });
+  // Already stopped once, so the 5s is added at the flag; the car behind 0.3s back.
+  const tick = (t) => {
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars(15, { [PLAYER]: { penalties: 5, numPitStops: 1 }, [PLAYER + 1]: { deltaToCarInFrontInMS: 300 } }) });
+    return ie.evaluate(ra.compute()).find((c) => c.id === 'penalty-time').message;
+  };
+  sc(0);
+  assert.match(tick(1), /not covered, push/);
+  sc(1);
+  // The field is bunched behind the safety car: the gap behind says nothing about the flag.
+  assert.strictEqual(tick(2), '5s penalty - added at the flag');
 });

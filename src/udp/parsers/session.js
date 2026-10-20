@@ -68,6 +68,12 @@ function parseSession(buf) {
     }
     forecastAccuracy = r.u8();
   }
+  // The same for every session of a weekend: a race after a sprint shootout is the sprint.
+  let weekendLinkIdentifier = null;
+  if (forecastAccuracy != null && r.remaining >= 9) {
+    r.skip(5); // aiDifficulty, seasonLinkIdentifier
+    weekendLinkIdentifier = r.u32();
+  }
 
   return {
     weather,
@@ -91,6 +97,7 @@ function parseSession(buf) {
     networkGame,
     forecast,
     forecastAccuracy,
+    weekendLinkIdentifier,
   };
 }
 

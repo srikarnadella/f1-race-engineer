@@ -113,3 +113,8 @@ test('a car-count mismatch degrades to a warning, not a throw', () => {
   }
   assert.ok(warnings.some((m) => /size mismatch/.test(m)));
 });
+
+test('session: the weekend ID, after the forecast (shared by every session of a weekend)', () => {
+  const { data } = parsePacket(enc.encodeSession(H, { sessionType: 15, weekendLinkIdentifier: 2227884873 }));
+  assert.strictEqual(data.weekendLinkIdentifier, 2227884873);
+});

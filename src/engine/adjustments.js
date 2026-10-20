@@ -35,6 +35,7 @@ const LAST_LAP_MIN_PCT = 20;
 const clamp = (v, [lo, hi]) => Math.max(lo, Math.min(hi, v));
 const km = (m) => `${(m / 1000).toFixed(1)} km`;
 const lapsTxt = (n) => `${n} lap${n === 1 ? '' : 's'}`;
+const emptyIn = (n) => (n < 1 ? 'empty this lap' : `empty in ~${lapsTxt(n)}`);
 
 function balanceSuggestions(issues, brakeBias, diff) {
   const out = [];
@@ -99,12 +100,12 @@ function balanceSuggestions(issues, brakeBias, diff) {
 
 // Battery % change over the most recent complete green lap. Each entry is
 // the battery at a crossing of the line, flagged if the lap that just ended
-// ran under yellow - a recharge under the VSC isn't the driver's deployment.
+// ran under yellow or through the pit lane - a recharge there isn't the driver's deployment.
 function batteryTrend(ersHistory) {
   for (let k = ersHistory.length - 1; k > 0; k--) {
     const a = ersHistory[k - 1];
     const b = ersHistory[k];
-    if (!b.neutralised && b.lapNum === a.lapNum + 1) return ((b.energyJ - a.energyJ) / ERS_MAX_J) * 100;
+    if (!b.neutralised && !b.pit && b.lapNum === a.lapNum + 1) return ((b.energyJ - a.energyJ) / ERS_MAX_J) * 100;
   }
   return null;
 }
@@ -112,13 +113,15 @@ function batteryTrend(ersHistory) {
 // linePct: the battery at the last crossing of the line. "Enough to attack /
 // defend" is judged on it: the 2026 store swings 20%+ inside a lap, and the
 // live figure flipped Boost <-> save every 10-20 s in a real race.
-function ersSuggestion({ pct, linePct = pct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, neutralised, lapNum, regs2026 }) {
+function ersSuggestion({ pct, linePct = pct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, neutralised, lapNum, regs2026, overtakeReady = false }) {
   const top = (regs2026 ? ERS_MODE_2026 : ERS_MODE)[OVERTAKE];
   const s = (action, why, radio) => ({ id: 'ers', kind: 'ers', action, where: 'Straights', why, radio });
   // Nearest 5%: the exact figure is on the widget; the call shouldn't churn.
   // The attack / defend radio leaves it out: it changed the line every few
   // seconds of a real battle, and the why on the Adjust card has it.
   const battery = `battery ~${Math.round(pct / 5) * 5}%`;
+  // "Low" is judged at the line, so it says that figure (it holds all lap).
+  const atLine = `~${Math.round(linePct / 5) * 5}%${linePct === pct ? '' : ' at the line'}`;
 
   if (neutralised) {
     return pct < FULL_PCT ? s('ERS: None', `${neutralised} - recharge, ${battery}`, `${neutralised} - ERS to None and recharge, ${battery}`) : null;
@@ -130,19 +133,20 @@ function ersSuggestion({ pct, linePct = pct, trend, mode, gapAheadMs, gapBehindM
     if (linePct >= DEFEND_MIN_PCT && mode !== OVERTAKE) {
       return s(`ERS: ${top}`, `Defend - car ${(gapBehindMs / 1000).toFixed(1)}s behind, ${battery}`, `Defend - ${top} on the straights`);
     }
-    if (linePct < DEFEND_MIN_PCT) return s('Save for the straight', `Defend, but ${battery}`, `Battery low, ${battery} - save it for the main straight to defend`);
+    if (linePct < DEFEND_MIN_PCT) return s('Save for the straight', `Defend, but battery ${atLine}`, `Battery low, ${atLine} - save it for the main straight to defend`);
   }
   if (gapAheadMs != null && gapAheadMs < ATTACK_GAP_MS) {
     if (linePct >= ATTACK_MIN_PCT && mode !== OVERTAKE) {
       return s(`ERS: ${top}`, `Attack - ${(gapAheadMs / 1000).toFixed(1)}s to the car ahead, ${battery}`, `Attack - ${top} on the straights`);
     }
-    if (linePct < ATTACK_MIN_PCT) return s('ERS: Medium', `Harvest a lap, then attack - ${battery}`, `${battery} - harvest this lap in Medium, attack on the next`);
+    // Overtake mode ready: the battle card says use it, so no "harvest" beside it.
+    if (linePct < ATTACK_MIN_PCT && !overtakeReady) return s('ERS: Medium', `Harvest a lap, then attack - battery ${atLine}`, `Battery ${atLine} - harvest this lap in Medium, attack on the next`);
   }
   if (trend != null && trend <= DRAIN_ALERT_PCT_PER_LAP) {
     const lapsOfBattery = Math.floor(pct / -trend);
     if (lapsLeft == null || lapsOfBattery < lapsLeft) {
       const fix = mode >= 2 ? 'ERS: Medium' : 'ERS: None for a sector';
-      return s(fix, `Dropping ${Math.abs(trend).toFixed(0)}%/lap - empty in ~${lapsTxt(lapsOfBattery)}`, `Battery dropping ${Math.abs(trend).toFixed(0)}% a lap, empty in ~${lapsTxt(lapsOfBattery)} - ${fix.replace('ERS: ', '')} to save it`);
+      return s(fix, `Dropping ${Math.abs(trend).toFixed(0)}%/lap - ${emptyIn(lapsOfBattery)}`, `Battery dropping ${Math.abs(trend).toFixed(0)}% a lap, ${emptyIn(lapsOfBattery)} - ${fix.replace(': ', ' to ')} to save it`);
     }
   }
   // A full battery on the opening lap is the plan, not waste.
@@ -161,14 +165,17 @@ function computeAdjustments({ player, issues, gapAheadMs, gapBehindMs, lapsLeft,
   const diff = player.setup ? player.setup.onThrottle : null;
   const pct = st && Number.isFinite(st.ersStoreEnergy) ? Math.max(0, Math.min(100, (st.ersStoreEnergy / ERS_MAX_J) * 100)) : null;
   const trend = batteryTrend(player.ersHistory || []);
-  const lastLine = (player.ersHistory || []).at(-1);
+  // After a stop or a neutralised lap the battery has charged since the line: use the live figure.
+  const last = (player.ersHistory || []).at(-1);
+  const lastLine = last && !last.pit && !last.neutralised ? last : null;
   const linePct = lastLine && Number.isFinite(lastLine.energyJ) ? Math.max(0, Math.min(100, (lastLine.energyJ / ERS_MAX_J) * 100)) : pct;
   const mode = st ? st.ersDeployMode : null;
 
   const suggestions = [];
   if (pct != null) {
     const regs2026 = !!(player.telemetry2 && player.telemetry2.regulations2026);
-    const ers = ersSuggestion({ pct, linePct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, neutralised, lapNum, regs2026 });
+    const overtakeReady = !!(player.telemetry2 && player.telemetry2.overtakeAvailable);
+    const ers = ersSuggestion({ pct, linePct, trend, mode, gapAheadMs, gapBehindMs, lapsLeft, neutralised, lapNum, regs2026, overtakeReady });
     if (ers) suggestions.push(ers);
   }
   suggestions.push(...balanceSuggestions(issues, brakeBias, diff).sort((a, b) => b.laps - a.laps));

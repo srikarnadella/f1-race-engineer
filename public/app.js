@@ -554,7 +554,7 @@
   // All calls: every radio message (ERS, undercut, rain, fastest lap...).
   // The ERS tip is re-spoken only when its mode changes - not its wording
   // ("battery ~65%" -> "~60%") or its reason (attack <-> defend in a battle).
-  const ersMode = (msg) => (msg.match(/Overtake|Medium|Hotlap|None|save/i) || [''])[0].toLowerCase();
+  const ersMode = (msg) => (msg.match(/Overtake|Boost|Medium|Hotlap|None|save/i) || [''])[0].toLowerCase();
   const voiceKey = (i) => `${i.severity}|${i.id === 'ers' ? ersMode(i.message) : ''}`;
   let voicePrimed = false;
   function voiceInsights(insights, strategy) {

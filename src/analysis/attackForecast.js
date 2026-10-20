@@ -23,10 +23,11 @@ const GAIN_WEIGHT = Number(process.env.F1RE_GAIN_WEIGHT || 0.2);
 
 // Median mini-sector splits over a car's last few racing laps. Pit and
 // neutralised laps are left out, and the median drops one bad lap: the pit
-// lane on the run to corner 1 read as a 5.46 s "gain" in a real race.
+// lane on the run to corner 1 read as a 5.46 s "gain" in a real race. So is
+// lap 1: on lap 2 it's the only lap there is, and a standing start isn't pace.
 function recentSplits(car) {
   const skip = new Set((car.lapHistory || []).filter((l) => l.pit || l.neutralised).map((l) => l.lapNum));
-  const laps = (car.miniSectors || []).filter((l) => !skip.has(l.lapNum)).slice(-RECENT_LAPS);
+  const laps = (car.miniSectors || []).filter((l) => l.lapNum > 1 && !skip.has(l.lapNum)).slice(-RECENT_LAPS);
   if (!laps.length) return null;
   const n = laps[0].splits.length;
   return Array.from({ length: n }, (_, k) => median(laps.map((l) => l.splits[k])));

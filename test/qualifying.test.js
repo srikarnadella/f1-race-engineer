@@ -126,3 +126,21 @@ test('review fixes: time trial has no clock, an in lap has no countdown, damage 
   fm.dispatch(PACKET_IDS.LAP_DATA, header(2), { cars: [{ carPosition: 1, currentLapNum: 14, lastLapTimeInMS: 80000, pitStatus: 0, lapDistance: 100, resultStatus: 2 }] });
   assert.strictEqual(createRaceAnalysis(fm).compute().damage.basis, 'no-baseline');
 });
+
+test('qualifying: 2 s down mid-lap, the lap is gone - not "PUSH, on for P22" (Silverstone cool-down lap, 19 Oct 2026)', () => {
+  const { qualiCall } = require('../src/engine/calls');
+  const cars = field();
+  const q = (deltaToBestMs) => qualiCall(qualifying({ session, cars, player: cars[19], delta: { bestLapTimeInMS: 76500, deltaToBestMs } }));
+  assert.strictEqual(q(1900).action, 'PUSH');
+  // No figure: it grows every tick and would rewrite the call ten times a second.
+  assert.deepStrictEqual(q(2100), { action: 'PREP', reason: 'Lap gone - set up the next one' });
+});
+
+test('qualifying: on a lap that is gone, a push lap behind is the traffic to watch - let them by', () => {
+  const cars = field({ lapDistance: 2800 });
+  for (const c of cars.slice(0, 19)) c.lapData.lapDistance = 4500;
+  Object.assign(cars[3].lapData, { driverStatus: 1, lapDistance: 2600 }); // on a push lap, 200 m back
+  const tr = (deltaToBestMs) => qualifying({ session, cars, player: cars[19], delta: { bestLapTimeInMS: 76500, deltaToBestMs } }).traffic;
+  assert.strictEqual(tr(-100).behind, null, 'on a push lap of your own, they are not in your way');
+  assert.strictEqual(tr(2500).behind.name, 'D3');
+});

@@ -497,3 +497,43 @@ test('defending: the battle call on the defend card holds its text while only th
   for (const ms of [0, 3000, 6000]) at(ms, '0.4s behind');
   assert.strictEqual(at(7000, '0.3s behind'), 'Defend from HADJAR - 0.4s behind', 'radio text must not tick');
 });
+
+test('closing-ahead does not measure across a VSC: the gap shrinks while the field bunches up', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  const vsc = (status) => fm.dispatch(PACKET_IDS.SESSION, header(0), { sessionType: 15, totalLaps: 20, trackLength: 5000, safetyCarStatus: status });
+  vsc(2);
+  // 30s of VSC: the gap ahead comes down from 5s to 2s.
+  for (let t = 0; t <= 30; t += 1) fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: 5000 - t * 100 } }) });
+  vsc(0);
+  // Green again, the gap holding at 2s: nobody is closing.
+  for (let t = 31; t <= 50; t += 1) fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: 2000 } }) });
+  assert.ok(!ie.evaluate().some((i) => i.id === 'closing-ahead'));
+});
+
+test('closing-ahead is not called on lap 1 - the start scrambles every gap (Montreal: "Closing on P21 by 3.2s/lap")', () => {
+  const fm = createFieldModel();
+  const ie = createInsightEngine(fm);
+  for (let t = 0; t <= 40; t += 1) {
+    fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { currentLapNum: 1, lastLapTimeInMS: 0, deltaToCarInFrontInMS: 9000 - t * 30 } }) });
+  }
+  assert.ok(!ie.evaluate().some((i) => i.id === 'closing-ahead'));
+});
+
+test('a cheap stop under a safety car is not a BOX call when the options say stay out (Monaco, 15 Oct 2026)', () => {
+  let now = 0;
+  const fm = createFieldModel({ clock: () => now });
+  const ie = createInsightEngine(fm);
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { sessionType: 15, totalLaps: 27, trackLength: 3337, safetyCarStatus: 1 });
+  fm.dispatch(PACKET_IDS.CAR_STATUS, header(1), { cars: Array.from({ length: 5 }, () => ({ visualTyreCompound: 17, tyresAgeLaps: 12, fuelRemainingLaps: 2 })) });
+  fm.dispatch(PACKET_IDS.LAP_DATA, header(1), { cars: lapCars() });
+  const analysis = (recommendedId) => ({ pitLoss: { ms: 10000, normalMs: 19000 }, options: { situation: 'Safety car', recommendedId, headline: 'Safety car: best is stay out' }, field: [] });
+  const call = (rec) => { ie.evaluate(analysis(rec)); return ie.getStrategy().call.action; };
+  for (let k = 0; k < 10; k++, now += 1000) assert.notStrictEqual(call('stay'), 'BOX');
+  // A one-second flicker to "box" (Austria, 19:39) is not a call: it has to hold, like the card.
+  assert.notStrictEqual(call('box-17'), 'BOX');
+  now += 1000;
+  assert.notStrictEqual(call('stay'), 'BOX');
+  for (let k = 0; k < 6; k++, now += 1000) call('box-17');
+  assert.strictEqual(call('box-17'), 'BOX');
+});

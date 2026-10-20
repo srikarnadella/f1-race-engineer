@@ -54,7 +54,8 @@ async function buildCapture(file) {
     if (header.sessionUID && String(header.sessionUID) !== uid) {
       finish();
       uid = String(header.sessionUID);
-      pipeline = createPipeline({ now: () => t });
+      // One pipeline for the whole capture, as live: a sprint is known by the shootout before it.
+      if (!pipeline) pipeline = createPipeline({ now: () => t });
     }
     if (!pipeline) continue; // menu packets before the first session
     pipeline.feed(buf);

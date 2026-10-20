@@ -34,6 +34,8 @@ const SLOW_LAP_FACTOR = 1.25;
 const FALLBACK_LAP_MS = 90000;
 // A car this close on the road can spoil (or be spoilt by) a push lap.
 const TRAFFIC_M = 500;
+// A cool-down lap reads as a flying lap to the game: this far down, the lap is gone.
+const LAP_GONE_MS = 2000;
 // Closer than this they are alongside - being passed, not in the way.
 const ALONGSIDE_M = 30;
 
@@ -75,6 +77,7 @@ function qualifying({ session, cars, player, delta }) {
     const ms = myBest + delta.deltaToBestMs;
     projected = { lapMs: ms, position: rankOf(ms), improves: ms < myBest };
   }
+  const lapGone = !!(projected && projected.lapMs - myBest > LAP_GONE_MS);
 
   // Getting to the line before the flag: a lap only counts if it's started in time.
   // Time trial has no session clock.
@@ -101,8 +104,9 @@ function qualifying({ session, cars, player, delta }) {
       .sort((a, b) => a.m - b.m)[0];
     const view = (x) => x && { name: name(x.c), gapS: Math.round((x.m / mps) * 10) / 10, status: STATUS[x.c.lapData.driverStatus] };
     // On a push lap, a slow car ahead is the problem; on a slow lap, a push lap behind is.
-    const ahead = status === 'flying' ? near(1) : null;
-    const behind = status !== 'flying' ? near(-1) : null;
+    const pushing = status === 'flying' && !lapGone;
+    const ahead = pushing ? near(1) : null;
+    const behind = !pushing ? near(-1) : null;
     traffic = {
       ahead: ahead && ahead.c.lapData.driverStatus !== 1 ? view(ahead) : null,
       behind: behind && behind.c.lapData.driverStatus === 1 ? view(behind) : null,
@@ -121,6 +125,7 @@ function qualifying({ session, cars, player, delta }) {
     gapToPoleMs: myBest && pole ? myBest - pole : null,
     cut,
     projected,
+    lapGone,
     toLine,
     runs,
     traffic,

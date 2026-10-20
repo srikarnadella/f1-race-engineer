@@ -167,3 +167,9 @@ test('calls audit: a weather call with nobody on the other tyre to compare is un
   assert.strictEqual(c.verdict, 'unclear');
   assert.notStrictEqual(c.why, 'No test for this call yet');
 });
+
+test('calls audit: the standing-start lap 1 is not a clean lap to judge damage against (Silverstone sprint, 19 Oct 2026)', () => {
+  // Damage called on lap 2; lap 1 was 3 s slower only because of the start.
+  const [c] = only(damaged({ player: (lap) => ({ lapMs: lap === 1 ? PACE + 3000 : PACE }) }), [call(2, 'BOX', 'damage')]);
+  assert.strictEqual(c.verdict, 'unclear', c.why);
+});

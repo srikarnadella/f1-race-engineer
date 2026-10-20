@@ -34,11 +34,15 @@ flowchart LR
 - **Scoring pit timing** needs races where the same stop was made on different laps.
 - **Damage cost on a full lap:** in every race so far I undid the damage with a flashback within a few
   corners, so this is only tested on made-up laps. The 6 s a nose change adds to a stop is a guess.
-- **When the AI stops:** learning from the stops already made in a race (1.22 laps off) is no better than
-  the fixed starting guess of 60% of rated tyre life (1.24), because the first stops a race sees are the early ones.
+- **When the AI stops:** learning from the stops already made in a race (1.04 laps off) is no better than
+  the fixed starting guess of 60% of rated tyre life (1.06), because the first stops a race sees are the early ones.
 - **Online races** are untested: human drivers don't stop like the AI, and other cars' data may be hidden.
 - **Tyre temperature calls:** the 8 °C and 12 °C thresholds come from four races, not from tyre data.
 - **The race plan** looks at one and two stops; a full-distance race can need three.
+- **Sprints and 5-lap races** have no compulsory stop (no AI car stopped in three 5-lap races), so there's no
+  stop plan and no rival due to box. The game calls the sprint "Race", so the tool knows it by the sprint
+  shootout earlier in the same recording: start recording at the sprint itself and it's treated as a full race.
+  Races of 25% distance and longer keep the compulsory stop.
 - **Wet races:** pit timing and undercut calls are dry-only, there's no model of how inters wear, and I've
   recorded one wet race (Austria, 19 Oct 2026) plus 7 minutes of rain in an earlier session. The tyre-wear and rival-stop scores aren't built for
   rain yet, so that race isn't in the committed dataset.
@@ -54,5 +58,5 @@ The same list as the website's Next steps page; the full plan is in the [roadmap
 - **Confidence on every call** *(in progress)*: the pit-stop pick already says when it depends on tyre wear
   ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.
 - **The calls audit in the Debrief** *(next)*: every call graded against what happened after it, on screen.
-- **A sharper rejoin prediction** *(next)*: it's 2.5 places off on average, nearly all of it too
+- **A sharper rejoin prediction** *(next)*: it's 4 places off on average, nearly all of it too
   pessimistic. Fixing that bias.

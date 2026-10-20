@@ -150,7 +150,8 @@ function main() {
       position: lap ? lap.carPosition : null,
       speed: car && car.telemetry ? car.telemetry.speed : null,
     });
-    if (ok && msg.tag && msg.tag !== 'mark') console.log(`[capture] mark tagged: ${msg.tag}`);
+    // Only a plain word reaches the terminal: anyone on the Wi-Fi can send this.
+    if (ok && typeof msg.tag === 'string' && msg.tag !== 'mark' && /^[\w-]{1,20}$/.test(msg.tag)) console.log(`[capture] mark tagged: ${msg.tag}`);
     else if (ok) console.log(`[capture] mark at lap ${lap ? lap.currentLapNum : '?'}, ${lap ? Math.round(lap.lapDistance) : '?'} m`);
   }
 

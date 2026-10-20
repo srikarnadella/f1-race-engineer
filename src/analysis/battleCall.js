@@ -39,7 +39,7 @@ function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtak
   }
   if (canAttack) {
     const why = overtakeAvailable ? 'Overtake mode ready' : atkLevel >= 1 ? `pass chance ${battle.attack.level}` : closingAhead >= 0.2 ? `catching ${closingAhead.toFixed(1)}s/lap` : `${gapAheadS.toFixed(1)}s ahead`;
-    return { mode: 'ATTACK', target: name(ahead), reason: `${why}${corner(battle.attackForecast)}${batteryPct != null ? `, battery ${Math.round(batteryPct / 5) * 5}%` : ''}` };
+    return { mode: 'ATTACK', target: name(ahead), reason: `${why}${corner(battle.attackForecast)}` };
   }
   if (mustDefend) {
     const why = behind.overtakeAvailable ? 'they have Overtake mode' : defLevel >= 1 ? `threat ${battle.defend.level}` : closingBehind >= 0.2 ? `catching ${closingBehind.toFixed(1)}s/lap` : `${gapBehindS.toFixed(1)}s behind`;

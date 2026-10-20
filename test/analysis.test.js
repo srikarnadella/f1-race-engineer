@@ -194,6 +194,9 @@ test('battle call: attack, defend, the sandwich, close in, clear', () => {
   const med = (p) => ({ p, level: p >= 0.25 ? 'high' : p >= 0.1 ? 'medium' : 'low' });
   assert.strictEqual(battleCall({ ahead: row('NORRIS'), gapAheadS: 0.6, battle: { attack: med(0.15) }, batteryPct: 70 }).mode, 'ATTACK');
   assert.strictEqual(battleCall({ ahead: row('NORRIS'), gapAheadS: 0.6, battle: { attack: med(0.15) }, batteryPct: 10 }).mode, 'HOLD', 'no battery, no attack');
+  // The battery swings 20%+ inside a lap: in the text it rewrote the card every
+  // 5 s for 7 minutes at Silverstone. The Adjust card has the figure.
+  assert.strictEqual(battleCall({ ahead: row('NORRIS'), gapAheadS: 0.6, battle: { attack: med(0.15) }, overtakeAvailable: true, batteryPct: 35 }).reason, 'Overtake mode ready');
   assert.strictEqual(battleCall({ behind: row('SAINZ', -300), gapBehindS: 0.7, battle: {} }).mode, 'DEFEND');
   // Sandwiched, bigger threat behind: defend first.
   const both = battleCall({ ahead: row('NORRIS'), behind: row('SAINZ', 0, { overtakeAvailable: true }), gapAheadS: 0.5, gapBehindS: 0.4, battle: { attack: med(0.1), defend: med(0.3) }, batteryPct: 80 });
@@ -487,4 +490,14 @@ test('damage loss: a crawl back to the pits is not a racing lap ("~142.0s a lap"
   // A crawled lap among real damaged laps is left out; the real ones still measure.
   const r = damageLoss({ ...base, damaged: [lap({ 5: 200, 6: 200 }), lap({ 12: 40000 })], lapsLeft: 10 });
   assert.strictEqual(r.lossPerLapMs, 400);
+});
+
+test('attack forecast: the standing-start lap 1 is not where a car gains', () => {
+  const corners = [{ corner: 2, startM: 2800 }, { corner: 3, startM: 5300 }];
+  const even = Array(25).fill(3700);
+  const quickerInto3 = even.map((v, k) => (k >= 19 && k <= 22 ? v - 100 : v));
+  // On lap 2 the only laps on record are lap 1s: the start, not pace.
+  const lap1 = (splits) => ({ miniSectors: [{ lapNum: 1, splits }] });
+  const f = forecastAttack({ attacker: lap1(quickerInto3), defender: lap1(even), corners, trackLength: 5800, gapS: 0.8, closingSPerLap: 0, passesAtM: [2900, 5400] });
+  assert.ok(f.candidates.every((c) => c.gainS === 0), JSON.stringify(f.candidates));
 });

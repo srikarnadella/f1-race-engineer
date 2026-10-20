@@ -17,18 +17,18 @@ flowchart LR
 
 ## The results
 
-From six races I recorded. Run `npm run accuracy` to regenerate the full report, [accuracy.md](accuracy.md).
+From eight race sessions I recorded (one a sprint). Run `npm run accuracy` to regenerate the full report, [accuracy.md](accuracy.md).
 
 | Prediction | Undercut | Obvious guess | Verdict |
 |---|---|---|---|
-| Tyre wear per lap, each car predicted from the others (1,264 laps) | 342 ms off | 485 ms ("no wear") | Beats it on 5 of 6 races |
-| Where you rejoin after a stop (24 green-flag stops) | 2.54 places off | 4.33 ("keep your place") | Beats it, but it's too pessimistic |
-| A rival's battery at the line (715 half-laps) | 7.7 points off | 13.2 ("stays where it is") | Beats it |
-| When an AI car stops (23 green-flag stops) | 1.22 laps off | 1.24 (fixed share of tyre life) | No real gain yet |
+| Tyre wear per lap, each car predicted from the others (1,649 laps) | 356 ms off | 470 ms ("no wear") | Beats it on 7 of 8 races |
+| Where you rejoin after a stop (45 green-flag stops) | 4.22 places off | 5.27 ("keep your place") | Beats it, but it's too pessimistic |
+| A rival's battery at the line (843 half-laps) | 8.4 points off | 13.4 ("stays where it is") | Beats it |
+| When an AI car stops (45 green-flag stops) | 1.04 laps off | 1.06 (fixed share of tyre life) | No real gain yet |
 | Will the car behind pass in 10 s? (held-out AUC) | 0.851 | 0.854 (gap only) | A tie, so it's marked experimental |
-| Which corner they'll attack (33 passes) | 6 of 33 | 7 of 33 (busiest corner) | Not yet, so it says "likely spot" |
+| Which corner they'll attack (50 passes) | 7 of 50 | 7 of 50 (busiest corner) | Not yet, so it says "likely spot" |
 
-The rejoin model's error is nearly all one direction: it puts you about 2.5 places too far back. Fixing
+The rejoin model's error is nearly all one direction: it puts you about 4 places too far back. Fixing
 that is next on the [roadmap](roadmap.md).
 
 ## The models

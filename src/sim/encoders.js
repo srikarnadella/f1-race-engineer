@@ -251,6 +251,9 @@ function encodeSession(h, s) {
     w.u8(f.rainPercentage || 0);
   }
   w.u8(s.forecastAccuracy || 0);
+  w.u8(0); // aiDifficulty
+  w.u32(0); // seasonLinkIdentifier
+  w.u32(s.weekendLinkIdentifier || 0);
   return w.buf; // remainder (assists, settings, etc.) stays zero-filled
 }
 

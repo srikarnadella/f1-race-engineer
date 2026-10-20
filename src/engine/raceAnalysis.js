@@ -35,6 +35,9 @@ const PASS_CAP = 0.5;
 const MIN_DEG_CARS = 5;
 const MIN_DEG_LAPS = 25;
 const PRACTICE_TYPES = new Set([1, 2, 3, 4]);
+const SHOOTOUT_TYPES = new Set([10, 11, 12, 13, 14]);
+// The game's 5-lap race length: three had no AI stops (15 Oct 2026). 25% races and longer do have the stop.
+const SHORT_RACE_LAPS = 5;
 const GAME_RULES = 'game'; // track-memory key for what holds at every track
 const passLevel = (p) => (p >= 0.25 ? 'high' : p >= 0.1 ? 'medium' : 'low');
 function passChance(attacker, defender) {
@@ -127,9 +130,18 @@ function cleanPaceMs(car) {
   // Slow against the recent laps, not the whole race: when rain slows everyone,
   // the slow laps are the pace now. Only laps on the kind of tyre fitted now
   // (slicks or wets): a dry slick lap averaged into a wet stint is no pace at all.
+  // And only this stint: worn-set laps averaged with fresh-set ones lag the pace for laps after a stop.
+  // A stint starts after a pit lap, or where tyre age drops (a change under a red flag has no pit lap).
   const now = groupOf(car.status && car.status.visualTyreCompound);
   const sameKind = (l) => !now || !groupOf(l.compound) || groupOf(l.compound) === now;
-  const clean = withoutSlowLaps(car.lapHistory.filter((l) => !l.pit && !l.neutralised && l.lapNum > 1 && sameKind(l)).slice(-RECENT_LAPS)).slice(-PACE_LAPS);
+  const h = car.lapHistory;
+  let from = 0;
+  for (let k = 0; k < h.length; k++) {
+    if (h[k].pit) from = k + 1;
+    else if (k > 0 && h[k].tyreAge != null && h[k - 1].tyreAge != null && h[k].tyreAge < h[k - 1].tyreAge) from = k;
+  }
+  const stint = h.slice(from);
+  const clean = withoutSlowLaps(stint.filter((l) => !l.neutralised && l.lapNum > 1 && sameKind(l)).slice(-RECENT_LAPS)).slice(-PACE_LAPS);
   return clean.length ? Math.round(avg(clean.map((l) => l.lapMs))) : null;
 }
 
@@ -147,7 +159,7 @@ const fittedSet = (car) => (car.tyreSets || []).find((x) => x.fitted) || null;
 
 // When this car is expected to box (laps from now), from its tyres and
 // whether it still owes the compulsory stop. Dry races only.
-function stopInLapsOf(car, session, dry, stopShare, stopWear, startWear) {
+function stopInLapsOf(car, session, dry, stopShare, stopWear, startWear, noStopRule) {
   if (!car.lapData || !isRunning(car)) return null;
   // In the pit lane: the stop is happening now (its gap reads as the car ahead's until it rejoins).
   if (car.lapData.pitStatus !== 0) return 0;
@@ -157,7 +169,7 @@ function stopInLapsOf(car, session, dry, stopShare, stopWear, startWear) {
     compound: car.status.visualTyreCompound,
     age: car.status.tyresAgeLaps,
     usableLife: set ? set.usableLife : null,
-    owesStop: !car.lapData.numPitStops,
+    owesStop: !noStopRule && !car.lapData.numPitStops,
     lapsLeft: raceLapsLeft(session, car.lapData),
     stopShare,
     wear: maxWear(car),
@@ -224,7 +236,7 @@ function predictRejoin(ordered, player, loss) {
 
 // Builds pitTiming()'s inputs from the field. Only called once the player's
 // degradation is trusted (the same bar as the stop pay-back).
-function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pitLossMs, stopIn, wingLossMs, prefer, hold }) {
+function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pitLossMs, stopIn, wingLossMs, prefer, hold, noStopRule }) {
   const degOf = (compound) => (tyreModel.compounds[compound] ? tyreModel.compounds[compound].degMsPerLap : 0);
   const age = player.status.tyresAgeLaps;
   const fitted = fittedSet(player);
@@ -255,7 +267,7 @@ function pitTimingFor({ ordered, player, myPace, myDeg, tyreModel, lapsLeft, pit
       };
     });
   return pitTiming({
-    me: { t: times.get(player.carIndex) || 0, position: player.lapData.carPosition, compound: player.status.visualTyreCompound, degMs: myDeg.degMsPerLap, lifeLeft: fitted ? fitted.lifeSpan : null, stopped: player.lapData.numPitStops > 0, wingLossMs },
+    me: { t: times.get(player.carIndex) || 0, position: player.lapData.carPosition, compound: player.status.visualTyreCompound, degMs: myDeg.degMsPerLap, lifeLeft: fitted ? fitted.lifeSpan : null, stopped: noStopRule || player.lapData.numPitStops > 0, wingLossMs },
     sets,
     rivals,
     laps: Math.ceil(lapsLeft),
@@ -324,6 +336,11 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // the track's memory when the session ends - practice laps feed the race plan.
   let lastFit = null;
   let plan = { key: null, value: null };
+  // Weekends with a sprint shootout (by the game's weekend ID): their "Race"
+  // is the sprint. Kept across sessions.
+  const sprintWeekends = new Set();
+  // No compulsory stop: a sprint, or the game's 5-lap race length.
+  let noStopRule = false;
 
   // A stop splits across two laps (pit entry before the line, box after it),
   // so loss = in-lap + out-lap - 2 x the car's clean pace around it.
@@ -341,7 +358,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       if (inLap.neutralised || outLap.neutralised) continue; // a stop under SC/VSC is cheaper, not typical
       const key = `${car.carIndex}:${inLap.lapNum}`;
       if (measuredLosses.has(key)) continue;
-      const around = [...h.slice(0, k), ...h.slice(k + 2)].filter((l) => !l.pit && !l.neutralised);
+      const around = [...h.slice(0, k), ...h.slice(k + 2)].filter((l) => !l.pit && !l.neutralised && l.lapNum > 1); // not the standing start
       if (!around.length) continue;
       const loss = inLap.lapMs + outLap.lapMs - 2 * avg(around.slice(-PACE_LAPS).map((l) => l.lapMs));
       if (loss >= PIT_LOSS_SANE_RANGE_MS[0] && loss <= PIT_LOSS_SANE_RANGE_MS[1]) {
@@ -392,7 +409,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     else damageHit.total = Math.min(damageHit.total, total);
 
     const byLap = new Map(player.lapHistory.map((l) => [l.lapNum, l]));
-    const clean = (n) => byLap.has(n) && !byLap.get(n).pit && !byLap.get(n).neutralised;
+    // Not lap 1: the standing start would read as damage costing nothing.
+    const clean = (n) => n > 1 && byLap.has(n) && !byLap.get(n).pit && !byLap.get(n).neutralised;
     const ms = player.miniSectors || [];
     if (!damageHit.base && !sawUndamaged) damageHit.base = [];
     if (!damageHit.base) {
@@ -429,7 +447,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       pitLossMs,
       fixable: parts.some((x) => x.fixable),
       fixableShare: Math.round((parts.filter((x) => x.fixable).reduce((a, x) => a + x.pct, 0) / total) * 100) / 100,
-      stopAnyway: !player.lapData.numPitStops && lapsLeft != null,
+      stopAnyway: !noStopRule && !player.lapData.numPitStops && lapsLeft != null,
     }) : null;
     return {
       parts,
@@ -444,7 +462,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // served at the next stop (it goes into every stop's cost, so rejoin
   // positions are where you'd really come out), or added at the flag (set
   // against the gap to the car behind).
-  function penaltiesFor({ player, behind, corners }) {
+  function penaltiesFor({ player, behind, corners, neutralised }) {
     const l = player.lapData;
     const cc = l.cornerCuttingWarnings || 0;
     while (trackLimitLog.length > cc) trackLimitLog.pop(); // a flashback took one back
@@ -470,7 +488,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     // second stop reads as "the flag".
     const rule = memory.get(GAME_RULES, 'penaltyServedAtStop');
     const stopsServe = rule.length ? rule[rule.length - 1] === 1 : true;
-    const servedAt = timeS && !l.numPitStops && stopsServe ? 'stop' : 'flag';
+    const servedAt = timeS && !noStopRule && !l.numPitStops && stopsServe ? 'stop' : 'flag';
     const gapMs = behind ? behind.lapData.deltaToCarInFrontInMS : null;
     return {
       timeS,
@@ -478,7 +496,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       driveThroughs,
       stopGos,
       trackLimits: { count: cc, last: last || null, sameAgain: !!sameAgain },
-      flag: timeS && servedAt === 'flag' && behind && gapMs > 0 ? { name: nameOf(behind), gapMs, covered: gapMs > timeS * 1000 } : null,
+      // Under a safety car or red flag the gaps are bunched or zero: no verdict.
+      flag: timeS && servedAt === 'flag' && !neutralised && behind && gapMs > 0 ? { name: nameOf(behind), gapMs, covered: gapMs > timeS * 1000 } : null,
     };
   }
 
@@ -512,6 +531,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const playerIdx = fieldModel.playerIndex();
     const ordered = fieldModel.orderedByPosition();
     const session = fieldModel.getSession();
+    const weekend = session && session.weekendLinkIdentifier;
+    if (weekend && SHOOTOUT_TYPES.has(session.sessionType)) sprintWeekends.add(weekend);
+    const sprint = !!(weekend && session.sessionType === 15 && sprintWeekends.has(weekend));
+    noStopRule = sprint || !!(session && session.totalLaps > 0 && session.totalLaps <= SHORT_RACE_LAPS);
     for (const car of ordered) measurePitLosses(car, session);
     const loss = pitLoss(session);
 
@@ -520,8 +543,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       if (!car.pitEntryAtMs || seenPitEntry.get(car.carIndex) === car.pitEntryAtMs) continue;
       seenPitEntry.set(car.carIndex, car.pitEntryAtMs);
       const set = fittedSet(car);
-      // A stop under a safety car is opportunism, not the plan.
-      if (!neutralisedNow && car.carIndex !== playerIdx && !car.lapData.numPitStops && set && set.usableLife && car.status && DRY.has(car.status.visualTyreCompound) && !learnedFrom.has(car.carIndex)) {
+      // A stop under a safety car is opportunism, not the plan; one with no stop owed is damage.
+      if (!neutralisedNow && !noStopRule && car.carIndex !== playerIdx && !car.lapData.numPitStops && set && set.usableLife && car.status && DRY.has(car.status.visualTyreCompound) && !learnedFrom.has(car.carIndex)) {
         learnedFrom.add(car.carIndex);
         const share = car.status.tyresAgeLaps / set.usableLife;
         stopShares.push(share);
@@ -571,7 +594,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       else if (young && had.wear != null) had.wear = Math.min(had.wear, wear);
     }
     const startWearOf = (car) => (stintStart.get(car.carIndex) || {}).wear || 0;
-    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare, car.status ? stopWear[car.status.visualTyreCompound] : null, startWearOf(car))]));
+    const stopIn = new Map(ordered.map((car) => [car.carIndex, stopInLapsOf(car, session, dry, stopShare, car.status ? stopWear[car.status.visualTyreCompound] : null, startWearOf(car), noStopRule)]));
     const field = ordered.map((car, j) => {
       const pace = cleanPaceMs(car);
       const gap = gapBetweenMs(ordered, myPos, j);
@@ -655,7 +678,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
       : null;
 
     const temps = tyreTemps.update(player, !neutralisedNow && player.lapData.pitStatus === 0, session && session.trackLength);
-    const penalties = penaltiesFor({ player, behind: ordered[myPos + 1] || null, corners: fieldModel.getPlayerCorners() });
+    const penalties = penaltiesFor({ player, behind: ordered[myPos + 1] || null, corners: fieldModel.getPlayerCorners(), neutralised: neutralisedNow });
     // A time penalty served at the stop: you come out that much later -
     // in every stop prediction, so the cards agree.
     const stopPenaltyMs = penalties && penalties.servedAt === 'stop' ? penalties.timeS * 1000 : 0;
@@ -714,7 +737,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const lap = player.lapData.currentLapNum;
     const toLap = (k) => (k === 'stay' || k == null ? k : lap + k);
     const wingLossMs = damage && damage.lossPerLapMs > 0 ? Math.round(damage.lossPerLapMs * damage.fixableShare) : 0;
-    const timingInputs = { ordered, player, myPace, myDeg, tyreModel, lapsLeft: lapsLeftNow, pitLossMs: loss.ms + stopPenaltyMs, stopIn, wingLossMs };
+    const timingInputs = { ordered, player, myPace, myDeg, tyreModel, lapsLeft: lapsLeftNow, pitLossMs: loss.ms + stopPenaltyMs, stopIn, wingLossMs, noStopRule };
     let timing = !situation && dry && payback && rejoin && myPace != null && lapsLeftNow != null
       ? pitTimingFor({ ...timingInputs, prefer: pitPick === 'stay' ? 'stay' : pitPick != null ? pitPick - lap : null, hold: true })
       : null;
@@ -738,7 +761,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     // Before the start: one stop or two. Wear rates from this session, then
     // earlier sessions at the track (practice included), then a default.
     let racePlanNow = null;
-    if (session && RACE_SESSION_TYPES.has(session.sessionType) && player.lapData.currentLapNum <= 1 && dry) {
+    if (session && RACE_SESSION_TYPES.has(session.sessionType) && player.lapData.currentLapNum <= 1 && dry && !noStopRule) {
       const deg = {};
       for (const c of [16, 17, 18]) {
         const remembered = memory.get(session.trackId, `deg${c}`);

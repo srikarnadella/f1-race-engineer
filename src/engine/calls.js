@@ -23,6 +23,7 @@ function qualiCall(q) {
     if (q.lapInvalid) return { action: 'HOLD', reason: "Lap deleted - track limits, it won't count" };
     const p = q.projected;
     if (!p) return { action: 'PUSH', reason: q.bestMs ? `Push lap - ${standing(q)}` : 'First timed lap - get a time on the board' };
+    if (q.lapGone) return { action: 'PREP', reason: 'Lap gone - set up the next one' };
     return { action: 'PUSH', reason: `On for P${p.position} - ${thousandths(p.lapMs - q.bestMs)} ${p.improves ? 'up on' : 'down on'} your best` };
   }
   if (q.timeLeftS === 0) return { action: 'HOLD', reason: `Session over - ${standing(q)}` };
