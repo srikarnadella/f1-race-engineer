@@ -12,6 +12,8 @@ const { RACE_SESSION_TYPES } = require('../state/race');
 const { SESSION_TYPES, TRACKS } = require('../udp/gameIds');
 const { compareLaps, consistency } = require('../analysis/lapCompare');
 const { rivalAnalysis } = require('../analysis/rivals');
+const { auditCalls } = require('../analysis/callsAudit');
+const { createLapRecorder, createCallRecorder } = require('../data/laps');
 
 const KEEP_SESSIONS = 10;
 const KEEP_ON_DISK = 50; // older debriefs are deleted when a new one is saved
@@ -48,6 +50,8 @@ const RIVAL_CHOICES = 5; // rivals' best laps offered in lap compare
 function createDebrief(fieldModel, { dir = null } = {}) {
   const clock = fieldModel.clock || (() => Date.now());
   let current = null;
+  // In a race: every car's laps and each call, as the datasets record them, for the calls audit.
+  let recorders = null;
   const history = [];
   if (dir && fs.existsSync(dir)) {
     const files = fs.readdirSync(dir).filter((n) => n.endsWith('.json.gz')).sort().reverse().slice(0, KEEP_SESSIONS);
@@ -103,7 +107,13 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     };
   }
 
+  // The audit's rows go into the record itself, so a saved session keeps them.
+  function keepAuditRows(rec) {
+    if (rec === current && recorders) rec.auditRows = { laps: recorders.laps.rows(), calls: recorders.calls.rows() };
+  }
+
   function archive() {
+    keepAuditRows(current);
     if (current && current.laps.length) {
       save(current);
       history.unshift(current);
@@ -118,8 +128,13 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     if (!current || current.generation !== gen) {
       archive();
       current = start(gen, session);
+      recorders = null;
     }
     if (session && current.sessionType == null) Object.assign(current, { sessionType: session.sessionType, trackId: session.trackId, totalLaps: session.totalLaps });
+    if (!recorders && RACE_SESSION_TYPES.has(current.sessionType)) {
+      recorders = { laps: createLapRecorder(fieldModel, { raceId: null }), calls: createCallRecorder(fieldModel, { raceId: null }) };
+    }
+    if (recorders) recorders.laps.sync();
     if (session && session.trackLength) current.trackLength = session.trackLength;
     for (const trace of fieldModel.takePlayerLapTraces()) current.traces.set(trace.lapNum, trace);
     // Each rival's best clean lap from the line - one per car keeps a saved session small.
@@ -361,10 +376,29 @@ function createDebrief(fieldModel, { dir = null } = {}) {
   }
 
   // On shutdown: keep the session in progress too.
-  const flush = () => { if (current && current.laps.length) save(current); };
+  const flush = () => {
+    keepAuditRows(current);
+    if (current && current.laps.length) save(current);
+  };
+
+  // The call as the dashboard got it this tick (the snapshot is built after tick()).
+  function noteCall(snap) {
+    if (recorders) recorders.calls.sync(snap);
+  }
+
+  // Each call of a race graded against what then happened (analysis/callsAudit.js),
+  // as `npm run backtest` grades the recorded races.
+  function audit(id) {
+    const s = find(id);
+    if (!s) return { error: 'No such session' };
+    if (!RACE_SESSION_TYPES.has(s.sessionType)) return { error: 'Calls are graded in races only' };
+    keepAuditRows(s);
+    const rows = s.auditRows || { laps: [], calls: [] };
+    return auditCalls(rows.calls, rows.laps);
+  }
 
   // The raw record of the session in progress (the race store reads its lap traces).
-  return { tick, view, compare, rivals, flush, current: () => current };
+  return { tick, noteCall, view, compare, rivals, audit, flush, current: () => current };
 }
 
 module.exports = { RIVAL_ID, createDebrief };

@@ -98,6 +98,7 @@ const debriefSessions = (debrief, dir) => debrief.view().sessions.filter((x) => 
   write(`api/compare-${x.id}.json`, cmp, dir);
   for (const r of cmp.rivals || []) write(`api/compare-${x.id}-${r.id}.json`, debrief.compare(x.id, null, r.id), dir);
   write(`api/rivals-${x.id}.json`, debrief.rivals(x.id), dir);
+  write(`api/audit-${x.id}.json`, debrief.audit(x.id), dir);
   return { ...x, live: false };
 });
 

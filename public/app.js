@@ -42,6 +42,7 @@
       const p = u.searchParams;
       const file = u.pathname.endsWith('/api/models') ? 'models'
         : u.pathname.endsWith('/rivals') ? `rivals-${p.get('session')}`
+          : u.pathname.endsWith('/audit') ? `audit-${p.get('session')}`
           : u.pathname.endsWith('/compare') && !p.has('a') && !p.has('b') ? `compare-${p.get('session')}`
             // Your best lap against a rival's: saved for each rival lap offered.
             : u.pathname.endsWith('/compare') && !p.has('a') && /^r\d+$/.test(p.get('b') || '') ? `compare-${p.get('session')}-${p.get('b')}` : null;

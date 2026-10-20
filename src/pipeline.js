@@ -57,6 +57,7 @@ function createPipeline({ now = () => Date.now(), memory = createTrackMemory(), 
     const withDebrief = ++tickCount % 10 === 0;
     if (withDebrief) debriefView = debrief.view();
     latest = build(withDebrief);
+    debrief.noteCall(latest);
     if (recorder) recorder.sync(latest);
     return latest;
   }
