@@ -2,6 +2,7 @@
 interface Window {
   RaceWidgets: any;
   RaceAsk: any;
+  RaceVoice: any;
   SpeechRecognition?: any;
   webkitSpeechRecognition?: any;
 }

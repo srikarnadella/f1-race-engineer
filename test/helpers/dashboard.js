@@ -7,7 +7,7 @@ const { syntheticPackets, replay } = require('./synthetic');
 // The dashboard shell (public/app.js) in jsdom, connected to a fake bridge:
 // the page as a driver uses it - the link, the screens, the keys, auto-switch.
 const PUBLIC = path.join(__dirname, '..', '..', 'public');
-const SCRIPTS = ['widgets.js', 'debrief.js', 'ask.js', 'app.js'].map((f) => new vm.Script(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), { filename: path.join(PUBLIC, f) }));
+const SCRIPTS = ['widgets.js', 'debrief.js', 'ask.js', 'voice.js', 'app.js'].map((f) => new vm.Script(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), { filename: path.join(PUBLIC, f) }));
 const HTML = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8').replace(/<script[^>]*src=[^>]*><\/script>/g, '');
 
 let snapshots = null;
@@ -19,7 +19,8 @@ function raceSnapshots() {
   return snapshots;
 }
 
-function open(t, { storage = {}, url = 'http://192.168.1.5:8080/' } = {}) {
+// before(window): runs ahead of the page scripts (a fake speech engine, say).
+function open(t, { storage = {}, url = 'http://192.168.1.5:8080/', before = () => {} } = {}) {
   const dom = new JSDOM(HTML, { runScripts: 'outside-only', url, pretendToBeVisual: true });
   const { window } = dom;
   t.after(() => window.close());
@@ -39,6 +40,7 @@ function open(t, { storage = {}, url = 'http://192.168.1.5:8080/' } = {}) {
   window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   const errors = [];
   window.console.error = (...a) => errors.push(a.join(' '));
+  before(window);
   const ctx = dom.getInternalVMContext();
   for (const s of SCRIPTS) s.runInContext(ctx);
   const bridge = () => sockets[sockets.length - 1];

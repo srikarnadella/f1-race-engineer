@@ -116,3 +116,34 @@ test('app: the Models tab shows the overtake model the app runs - LightGBM, its 
   assert.ok(text.includes(`Gap to the car ahead (log)${Math.round(info.importance[0].share * 100)}%`), text);
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('app: Ask answers from the latest snapshot, and switching the voice on reads no backlog', async (t) => {
+  const { ask } = require('../public/ask');
+  const said = [];
+  const before = (w) => {
+    w.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+    w.speechSynthesis = { speaking: false, paused: false, speak(u) { said.push(u.text); setTimeout(() => u.onend && u.onend(), 0); }, cancel() {}, pause() {}, resume() {}, getVoices: () => [] };
+  };
+  const app = open(t, { before });
+  app.connect();
+  const snaps = raceSnapshots().filter((s) => s.player && (s.insights || []).length);
+  const first = snaps[0];
+  app.send(first);
+  // Ask: the gap behind, as ask.js reads it from what the dashboard last received.
+  app.$('ask').click();
+  [...app.$('ask-qs').children].find((b) => b.textContent === 'Gap behind?').click();
+  assert.strictEqual(app.$('ask-reply').textContent, ask('behind', first).reply);
+  app.$('ask-close').click();
+  await new Promise((r) => setTimeout(r, 20));
+  said.length = 0;
+  // Voice on (key calls): the radio check, not the cards already on screen.
+  app.$('voice').click();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepStrictEqual(said, ['Radio check. Key calls only.']);
+  // A new advisory call after that is said.
+  app.send({ ...first, insights: [...first.insights, { id: 'test-new', severity: 'advisory', category: 'strategy', message: 'Rain within 2 laps', createdAtMs: 1, textAtMs: 1 }] });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.strictEqual(said.length, 2, JSON.stringify(said));
+  assert.match(said[1], /Rain within 2 laps/);
+  assert.deepStrictEqual(app.errors, []);
+});
