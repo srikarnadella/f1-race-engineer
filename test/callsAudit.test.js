@@ -168,6 +168,18 @@ test('calls audit: BOX for slicks is wrong when the cars on inters are quicker (
   assert.strictEqual(c.verdict, 'wrong', c.why);
 });
 
+test('calls audit: a weather call with no reason (datasets/calls.csv) is read from the tyre you were on', () => {
+  // On slicks the call can only be for inters, on inters only for slicks.
+  const noReason = (lapNum) => ({ lapNum, action: 'BOX', kind: 'weather' });
+  const [toInters] = only(wetRace(), [noReason(10)]);
+  assert.strictEqual(toInters.verdict, 'right', toInters.why);
+  assert.match(toInters.why, /^Inters/);
+  const onInters = wetRace().map((r) => (r.isPlayer && r.lapNum >= 11 ? { ...r, compound: 7 } : r));
+  const [toSlicks] = only(onInters, [noReason(12)]);
+  assert.strictEqual(toSlicks.verdict, 'wrong', toSlicks.why);
+  assert.match(toSlicks.why, /^Slicks/);
+});
+
 test('calls audit: a weather call with nobody on the other tyre to compare is unclear', () => {
   const [c] = only(race(), [weatherCall(10, 'inters')]);
   assert.strictEqual(c.verdict, 'unclear');

@@ -111,7 +111,9 @@ function auditCalls(calls, laps) {
     }
     if (c.kind === 'weather') {
       // The tyre it called for against the other one, on the same laps.
-      const toWet = /inters/.test(c.reason);
+      // Dataset calls carry no reason: on slicks the call can only be for inters.
+      const onLap = mine.find((l) => l.lapNum === c.lapNum && l.compound != null);
+      const toWet = c.reason ? /inters/.test(c.reason) : !!onLap && !WET.has(onLap.compound);
       const gaps = [];
       for (let n = c.lapNum + 1; n <= c.lapNum + WEATHER_WINDOW; n++) {
         const lapsOn = (wet) => laps.filter((l) => l.lapNum === n && green(l) && l.compound != null && WET.has(l.compound) === wet).map((l) => l.lapMs);
