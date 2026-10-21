@@ -187,6 +187,31 @@ test('debrief summary in qualifying: timed laps and tyres, not race pace and sto
   assert.ok(q.includes('Timed laps') && q.includes('Tyres'), q.join(', '));
 });
 
+test('debrief summary: Download CSV gives one row per lap in raw units, ready for a spreadsheet', () => {
+  const p = replay(syntheticPackets());
+  let snap = p.tick();
+  while (!snap.debrief) snap = p.tick();
+  const d = dashboard();
+  const deb = d.mounted.find((w) => w.id === 'debrief');
+  const session = snap.debrief.sessions[0];
+  deb.update({ ...snap, debrief: { sessions: [{ ...session, track: 'Spa, "Belgium"' }] } });
+  const btn = deb.card.querySelector('button[data-csv]');
+  assert.ok(btn, 'a Download CSV button on the summary');
+  assert.strictEqual(btn.textContent, 'Download CSV');
+
+  const csv = d.window.RaceWidgets.widgets.debrief.lapsCsv(session);
+  const rows = csv.trim().split('\n');
+  assert.strictEqual(rows[0], 'lap,time_ms,s1_ms,s2_ms,s3_ms,position,compound,tyre_age,wear_pct,fuel_kg,battery_pct,pit,sc,invalid');
+  assert.strictEqual(rows.length, session.laps.length + 1);
+  const first = rows[1].split(',');
+  const l = session.laps[0];
+  assert.strictEqual(first[0], String(l.lap));
+  assert.strictEqual(first[1], String(l.timeMs));
+  assert.ok(!LEAKS.test(csv), 'no undefined/null/NaN in the file');
+  // The file is named after the session, safe for any file system.
+  assert.match(d.window.RaceWidgets.widgets.debrief.csvName({ ...session, track: 'Spa, "Belgium"' }), /^[\w-]+\.csv$/);
+});
+
 test('tyre card: the wear rate comes with its 90% range, e.g. "+0.090s (0.071-0.110)"', () => {
   const d = dashboard();
   const card = d.mounted.find((w) => w.id === 'tyrecall');

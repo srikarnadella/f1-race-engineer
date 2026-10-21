@@ -12,6 +12,16 @@
   // arrives once a second - and every game-sourced string is escaped.
   const sec = (ms) => (isNum(ms) && ms > 0 ? (ms / 1000).toFixed(3) : '–');
 
+  // The lap table as a CSV file, in raw units (ms, kg, %) for a spreadsheet.
+  const CSV_COLS = ['lap', 'time_ms', 's1_ms', 's2_ms', 's3_ms', 'position', 'compound', 'tyre_age', 'wear_pct', 'fuel_kg', 'battery_pct', 'pit', 'sc', 'invalid'];
+  function lapsCsv(d) {
+    const cell = (v) => (v == null || (typeof v === 'number' && !Number.isFinite(v)) ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+    const rows = d.laps.map((l) => [l.lap, l.timeMs, l.s1, l.s2, l.s3, l.position, COMPOUND_NAME[l.compound] || l.compound, l.tyreAge,
+      l.wearAvg != null ? Math.round(l.wearAvg) : null, l.fuelKg != null ? l.fuelKg.toFixed(1) : null, l.batteryPct, l.pit ? 1 : 0, l.neutralised ? 1 : 0, l.invalid ? 1 : 0].map(cell).join(','));
+    return `${[CSV_COLS.join(','), ...rows].join('\n')}\n`;
+  }
+  const csvName = (d) => `${[d.track, d.sessionName, d.id].filter(Boolean).join('-').replace(/[^\w-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'laps'}.csv`;
+
   function lapChart(laps, bestMs) {
     if (!laps.length || !bestMs) return '';
     const top = bestMs * 1.07; // slower than 7% off best is off the chart (pit / SC laps)
@@ -100,7 +110,7 @@
       <div class="w-deb__chart"><div class="w-label">Lap times <span class="w-deb__legend"><i class="pb"></i>best <i class="lg-pit"></i>pit <i class="lg-sc"></i>SC/VSC <i class="lg-inv"></i>invalid</span></div>${lapChart(d.laps, d.bestLap && d.bestLap.ms)}</div>
       ${positionChart(d.positionChart)}
       <div class="w-deb__cols">
-        <div class="w-deb__laps"><div class="w-label">Laps</div><table class="tbl"><thead><tr><th>Lap</th><th class="num">Time</th><th class="num">Δ best</th><th class="num">S1</th><th class="num">S2</th><th class="num">S3</th><th class="num">Pos</th><th>Tyre</th><th class="num">Wear</th><th class="num">Fuel</th><th class="num">ERS</th></tr></thead><tbody>${lapRows}</tbody></table></div>
+        <div class="w-deb__laps"><div class="w-label">Laps <button class="tool w-deb__csv" type="button" data-csv>Download CSV</button></div><table class="tbl"><thead><tr><th>Lap</th><th class="num">Time</th><th class="num">Δ best</th><th class="num">S1</th><th class="num">S2</th><th class="num">S3</th><th class="num">Pos</th><th>Tyre</th><th class="num">Wear</th><th class="num">Fuel</th><th class="num">ERS</th></tr></thead><tbody>${lapRows}</tbody></table></div>
         <div class="w-deb__field"><div class="w-label">Field</div><table class="tbl"><thead><tr><th></th><th>Driver</th><th class="num">Best</th><th>Tyres</th><th class="num">Stops</th></tr></thead><tbody>${fieldRows}</tbody></table></div>
       </div>`;
   }
@@ -263,6 +273,8 @@
     title: 'Debrief',
     description: 'After the session: recap, lap-vs-lap telemetry, where you lose time to rivals, and the models',
     tall: true,
+    lapsCsv,
+    csvName,
     mount(el) {
       el.innerHTML = `<div class="w-deb">
         <div class="w-deb__nav"><div class="w-deb__views"></div><select class="w-deb__session" aria-label="Session"></select></div>
@@ -304,6 +316,18 @@
         pick[which] = /^r\d+$/.test(e.target.value) ? e.target.value : Number(e.target.value);
         sig = '';
         draw();
+      });
+
+      body.addEventListener('click', (e) => {
+        if (!e.target.closest || !e.target.closest('[data-csv]')) return;
+        const sessions = (lastData && lastData.sessions) || [];
+        const d = sessions.find((x) => x.id === selected) || sessions[0];
+        if (!d) return;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([lapsCsv(d)], { type: 'text/csv' }));
+        a.download = csvName(d);
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       });
 
       async function load(url, key, render) {

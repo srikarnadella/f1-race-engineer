@@ -343,6 +343,8 @@ body {
 .w-deb .tbl th.num { text-align: right; }
 .w-deb .tbl tr.is-best td { background: rgba(180, 108, 255, 0.1); }
 .w-deb__laps, .w-deb__field { overflow-x: auto; }
+.w-deb__laps > .w-label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.w-deb__csv { padding: 6px 10px; background: var(--panel-2); font-size: 0.8rem; letter-spacing: 0; text-transform: none; }
 .w-deb__flag { margin-left: 6px; font-size: 0.62rem; font-weight: 750; padding: 1px 4px; border-radius: 3px; background: var(--watch); color: #000; }
 @media (max-width: 1100px) { .w-deb__cols { grid-template-columns: minmax(0, 1fr); } }
 
