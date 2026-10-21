@@ -129,7 +129,8 @@ function ersSuggestion({ pct, linePct = pct, trend, mode, gapAheadMs, gapBehindM
     return pct < FULL_PCT ? s('ERS: None', `${neutralised} - recharge, ${battery}`, `${neutralised} - ERS to None and recharge, ${battery}`) : null;
   }
   if (lapsLeft != null && lapsLeft <= LAST_LAP && pct >= LAST_LAP_MIN_PCT && mode !== OVERTAKE) {
-    return s(`ERS: ${top}`, `Last lap - empty it, ${battery}`, `Last lap - empty the battery, ${top} mode, ${battery}`);
+    const when = lapsLeft > 1 ? 'Last lap next' : 'Last lap';
+    return s(`ERS: ${top}`, `${when} - empty it, ${battery}`, `${when} - empty the battery, ${top} mode, ${battery}`);
   }
   if (gapBehindMs != null && gapBehindMs < DEFEND_GAP_MS && (gapAheadMs == null || gapBehindMs < gapAheadMs)) {
     if (linePct >= DEFEND_MIN_PCT && mode !== OVERTAKE) {

@@ -50,17 +50,17 @@ your phone or tablet. Full steps, options and voice setup: [docs/setup.md](docs/
 
 ## Does it actually work?
 
-I recorded 10 race sessions in F1 26 and replayed them through the engine, scoring each prediction against
+I recorded 11 race sessions in F1 26 and replayed them through the engine, scoring each prediction against
 what really happened, next to the obvious guess:
 
 | Prediction | Undercut | Obvious guess |
 |---|---|---|
-| Tyre wear per lap (1,649 laps) | **356 ms off** | 470 ms ("no wear") |
-| Where you rejoin after a stop (66 stops) | **3.26 places off** | 6.14 ("keep your place") |
-| A rival's battery at the line | **10.0 points off** | 14.6 ("stays where it is") |
-| Will the car behind pass in 10 s? (LightGBM, 10 race sessions) | **0.860 AUC** | 0.838 (gap only), better on 9 of 10 races |
+| Tyre wear per lap (1,893 laps) | **386 ms off** | 492 ms ("no wear") |
+| Where you rejoin after a stop (79 stops) | **3.13 places off** | 6.37 ("keep your place") |
+| A rival's battery at the line | **10.7 points off** | 14.7 ("stays where it is") |
+| Will the car behind pass in 10 s? (LightGBM, 11 race sessions) | **0.866 AUC** | 0.837 (gap only), better on all 11 races |
 
-Four of the six models I score beat the obvious guess and two don't yet, and the app says so
+Five of the six models I score beat the obvious guess and one doesn't yet, and the app says so
 instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md); the LightGBM comparison is in
 [docs/ml-overtake-lightgbm.md](docs/ml-overtake-lightgbm.md).
 

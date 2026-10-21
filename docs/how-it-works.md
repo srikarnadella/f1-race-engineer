@@ -72,8 +72,8 @@ Every prediction is scored against a naive baseline on real races by `npm run ac
   the surface is hotter after every slow corner and cooler on every straight. Comparing the same
   stretches of track on earlier laps brought it to 3.
 - **The first overtake model only tied the gap.** A logistic regression on 4 races scored 0.851 against
-  0.854 for the gap alone. Gradient-boosted trees (LightGBM) on 10 races beat it: 0.860 vs 0.838, better on
-  9 of 10 races held out ([report](ml-overtake-lightgbm.md)), and that's the model the app runs now. The
+  0.854 for the gap alone. Gradient-boosted trees (LightGBM) on 11 races beat it: 0.866 vs 0.837, better on
+  all 11 races held out ([report](ml-overtake-lightgbm.md)), and that's the model the app runs now. The
   attack forecast still ties the track's busiest passing corner, so it's worded as a "likely spot"; the
   Models tab prints each model's verdict and calibration.
 

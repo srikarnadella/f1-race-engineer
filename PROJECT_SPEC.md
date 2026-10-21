@@ -7,8 +7,8 @@ device (tablet, phone, laptop or second monitor) over the LAN. Two audiences, bo
 
 1. **The driver (primary user)** — needs reactive, glanceable, *relative-to-the-field* insights while
    actually driving: pit timing, tyre/fuel risk, pace trend vs. the cars around them.
-2. **Recruiters / other sim racers (distribution audience)** — will encounter this as a public GitHub
-   repo linked from LinkedIn. Most will never run the game. The project must demonstrate real
+2. **Visitors and other sim racers (distribution audience)** — will find this as a public GitHub
+   repo. Most will never run the game. The project must demonstrate real
    engineering (protocol parsing, real-time architecture, data pipeline, UX judgment) and be
    *experienceable* without installing anything, via a hosted demo replaying recorded data.
 
@@ -18,14 +18,15 @@ device (tablet, phone, laptop or second monitor) over the LAN. Two audiences, bo
   immediate threats exist (car behind closing, tyre cliff, fuel short, safety car).
 - Sharing: a stranger can clone the repo and have the dashboard running against their own F1 26 session
   in under 5 minutes, with no code changes.
-- Portfolio: a recruiter can click one link and see the dashboard live-updating with realistic data,
+- Shareable: anyone can click one link and see the dashboard live-updating with realistic data,
   with no install, no game, no explanation needed.
 
 ## 3. Non-goals (explicitly out of scope for v1)
 
 - Native iOS app (the LAN web-dashboard approach avoids iOS's multicast/UDP restrictions entirely —
   see "Why a bridge, not a native app" below).
-- Setup/car-tuning advice (Car Setups packet) — strategy and situational awareness only.
+- Full car-setup advice. The Car Setups packet is read only for in-race brake bias / diff tweaks;
+  otherwise strategy and situational awareness.
 - Multi-session cloud sync / accounts — local-only persistence (a file per session) for v1.
 
 ## 4. Architecture
@@ -242,7 +243,7 @@ a backend framework — plain HTML/CSS/JS is sufficient and keeps the "share wit
 - **Zero required config for the common case**: default UDP port 20777, default HTTP port 8080,
   auto-bind to all interfaces so the LAN IP just works.
 
-## 9. Packaging & distribution (the LinkedIn/recruiter requirement)
+## 9. Packaging & distribution
 
 - **Repo as the pitch**: README needs a hero GIF of the live dashboard, the architecture diagram above,
   a "Try the live demo" link, a 2-minute quick start, and a short "what this demonstrates" section
@@ -251,7 +252,7 @@ a backend framework — plain HTML/CSS/JS is sufficient and keeps the "share wit
 - **Public demo**: `demo/*.f1log` (one recorded real session, committed to the repo) + `npm run demo`
   replays it through the *real* pipeline into the *real* dashboard. The same demo build gets deployed
   to a public URL (static host + a small always-on replay process, or a serverless WebSocket) so a
-  recruiter clicks a link and sees it moving — no clone, no install. Hosting choice is an open decision,
+  visitor clicks a link and sees it moving — no clone, no install. Hosting choice is an open decision,
   flagged in §11.
 - **For other sim racers**: `npx` or packaged start script that auto-detects the LAN IP and prints/QR's
   the dashboard URL, so pairing a device doesn't require typing an IP address.
@@ -269,13 +270,13 @@ flowchart TD
     E --> F["Epic F: Debrief view\n(lap chart, stint Gantt, CSV export)"]
     D --> G["Epic G: Public hosting of the demo"]
     B --> H["Epic H: Packaging for other users\n(LAN IP autodetect, QR pairing, npx/exe)"]
-    G --> I["Epic I: README + LinkedIn launch assets\n(hero GIF, architecture diagram, pitch copy)"]
+    G --> I["Epic I: README + launch assets\n(hero GIF, architecture diagram, pitch copy)"]
     H --> I
     F -.optional, after launch.-> I
 ```
 
 **Critical path to "usable by me while driving": A → B.** (A and B done as of 2026-10-15; next: C - capture a real session.)
-**Critical path to "shareable on LinkedIn with a live demo": A → B → C → D → G → I.**
+**Critical path to "shareable with a live demo": A → B → C → D → G → I.**
 Epics E/F (persistence + debrief) are valuable but not on either critical path — sequence them after
 the live tool and the public demo both work, not before.
 

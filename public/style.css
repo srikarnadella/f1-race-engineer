@@ -71,12 +71,14 @@ body {
   gap: 10px;
   padding-block: var(--gap);
   min-height: 0;
+  /* Too short for every button: scroll, never draw the tools over the screen buttons. */
+  overflow-y: auto;
 }
 .rail__status { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0 2px; text-align: center; }
 .rail__pos { font-size: 2.1rem; font-weight: 750; letter-spacing: -0.02em; line-height: 1; }
 .rail__lap { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); white-space: nowrap; }
 .flag { padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 750; letter-spacing: 0.06em; background: var(--watch); color: #000; animation: pulse 1.2s ease-in-out infinite; }
-.tabs { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.tabs { flex: 1 0 auto; display: flex; flex-direction: column; gap: 8px; }
 .tabs__group { flex: none; font-size: 0.7rem; font-weight: 750; letter-spacing: 0.12em; text-transform: uppercase; color: var(--label); text-align: center; padding-top: 4px; }
 .tabs__group + .tab { margin-top: -2px; }
 .tab {
@@ -413,6 +415,13 @@ body {
 .w-drive__battle .w-battle__gap { font-size: clamp(2.6rem, min(42cqh, 30cqw), 11rem); font-weight: 800; }
 .w-drive__battle .w-battle__name { font-size: clamp(1rem, min(11cqh, 6cqw), 1.8rem); }
 .w-drive__battle .w-battle__trend { font-size: clamp(0.95rem, min(10cqh, 5.4cqw), 1.6rem); }
+/* Short screens (a 1366x768 laptop leaves ~650px): the name and trend lines have overflow: hidden, so flex
+   shrank them to nothing and the card showed a gap with no driver. Keep them; size the big number down instead. */
+.w-drive__battle .w-battle__side > * { flex-shrink: 0; }
+@media (max-height: 760px) {
+  .w-drive__battle .w-battle__gap { font-size: clamp(2.2rem, min(30cqh, 30cqw), 11rem); }
+  .tab { min-height: 48px; }
+}
 .w-drive__radio { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-radius: 4px; background: var(--panel); font-size: clamp(1rem, 3.4cqh, 1.6rem); font-weight: 750; border-left: 6px solid var(--line); min-width: 0; }
 .w-drive__radio[data-severity="info"] { border-left: 6px solid var(--info); }
 .w-drive__radio[data-severity="advisory"] { background: #241e08; border-left: 6px solid var(--watch); }

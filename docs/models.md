@@ -17,21 +17,21 @@ flowchart LR
 
 ## The results
 
-From the 10 race sessions I recorded. Run `npm run accuracy` to regenerate the full report, [accuracy.md](accuracy.md).
+From the 11 race sessions I recorded. Run `npm run accuracy` to regenerate the full report, [accuracy.md](accuracy.md).
 
 | Prediction | Undercut | Obvious guess | Verdict |
 |---|---|---|---|
-| Tyre wear per lap, each car predicted from the others (1,649 laps) | 356 ms off | 470 ms ("no wear") | Beats it on 7 of 8 races |
-| Where you rejoin after a stop (66 green-flag stops) | 3.26 places off | 6.14 ("keep your place") | Beats it; still 2.4 places pessimistic |
-| A rival's battery at the line (1,167 half-laps) | 10.0 points off | 14.6 ("stays where it is") | Beats it |
-| When an AI car stops (45 green-flag stops) | 1.04 laps off | 1.06 (fixed share of tyre life) | No real gain yet |
-| Will the car behind pass in 10 s? (held-out AUC, 10 races) | 0.860 | 0.838 (gap only) | Beats it on 9 of 10 races |
-| Which corner they'll attack (50 passes) | 7 of 50 | 7 of 50 (busiest corner) | Not yet, so it says "likely spot" |
+| Tyre wear per lap, each car predicted from the others (1,893 laps) | 386 ms off | 492 ms ("no wear") | Beats it on 8 of 9 races |
+| Where you rejoin after a stop (79 green-flag stops) | 3.13 places off | 6.37 ("keep your place") | Beats it; still 1.7 places pessimistic |
+| A rival's battery at the line (1,278 half-laps) | 10.7 points off | 14.7 ("stays where it is") | Beats it |
+| When an AI car stops (65 green-flag stops) | 1.31 laps off | 1.42 (fixed share of tyre life) | Beats it |
+| Will the car behind pass in 10 s? (held-out AUC, 11 races) | 0.866 | 0.837 (gap only) | Beats it on all 11 races |
+| Which corner they'll attack (75 passes) | 11 of 75 | 12 of 75 (busiest corner) | Not yet, so it says "likely spot" |
 
 The rejoin model was 4.2 places off, nearly all of it too far back. It had assumed every other car stays
 out, but AI cars stop in waves: on average 3 of the cars it put ahead were already in the pit lane, and
-more were due that lap. Charging both their stop took it to 2.71 places on those first 45 stops; on all 66 it's 3.26, still about
-2.4 places pessimistic ([roadmap](roadmap.md), M5).
+more were due that lap. Charging both their stop took it to 2.71 places on those first 45 stops; on all 79 it's 3.13, still about
+1.7 places pessimistic ([roadmap](roadmap.md), M5).
 
 ## The models
 
@@ -42,11 +42,11 @@ trained in Python (`ml/`) and run in the app from its exported trees (`src/ml/gb
   average, so fast and slow cars share one wear rate per compound, and the estimate firms up within a few
   laps instead of waiting for your own stint. Fuel burn is taken out using the measured burn rate. Each
   wear rate comes with a 90% range, from resampling the cars.
-- **Will the car behind pass in the next 10 seconds?** Gradient-boosted trees (LightGBM, 88 trees) over the
+- **Will the car behind pass in the next 10 seconds?** Gradient-boosted trees (LightGBM, 202 trees) over the
   gap, the closing rate, the pace difference, tyre age and compound, the battery difference and Overtake
-  mode. Trained in Python (`ml/overtake_lgbm.py`) on 10 recorded races, using the game's own overtake events
-  as the answers, and tested race by race on races each model never saw: AUC 0.860 against 0.838 for the gap
-  alone, better on 9 of 10 races, gain +0.014 to +0.030 (90% range over races). The app runs the exported
+  mode. Trained in Python (`ml/overtake_lgbm.py`) on 11 recorded races, using the game's own overtake events
+  as the answers, and tested race by race on races each model never saw: AUC 0.866 against 0.837 for the gap
+  alone, better on all 11 races, gain +0.021 to +0.035 (90% range over races). The app runs the exported
   trees in plain JavaScript (`src/ml/gbdt.js`; a test checks it matches Python to 1e-9). It is well
   calibrated up to 60%, so that's where the shown chance is capped. Report:
   [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md). The logistic regression it replaced, written from
@@ -57,7 +57,7 @@ trained in Python (`ml/`) and run in the app from its exported trees (`src/ml/gb
   lap is assumed to go like the same stretch of the last one.
 - **Where they'll attack.** Your braking zones, ranked by where passes actually happen: the places *you've*
   been passed this race first, then the track's usual passing spots. It beats picking a corner at random
-  (5.7 of 50), but not yet the simpler "busiest corner" rule (7 of 50 each).
+  (7.4 of 75), but not yet the simpler "busiest corner" rule (11 of 75 against 12).
 - **The race plan.** One stop or two, raced 1,000 times with the wear rates and pit loss drawn from their
   uncertainty, which takes a few milliseconds. The card says something like "wins 87% of 1,000 simulated races".
 
@@ -72,7 +72,7 @@ came after it:
 - **BOX under a safety car** claims the stop is cheaper than one under green.
 - **BOX for inters or slicks** claims that tyre is quicker: over the next 3 laps, the cars on it against the cars on the other one.
 
-On the recorded races: **13 right, 0 wrong, 20 that the laps can't judge** (mostly a call replaced by a
+On the recorded races: **16 right, 0 wrong, 20 that the laps can't judge** (mostly a call replaced by a
 safety car or a flashback before it could be checked). `npm run backtest` prints it.
 
 ## After the race

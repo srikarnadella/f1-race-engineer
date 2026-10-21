@@ -171,6 +171,22 @@ test('debrief: each view (summary, lap compare, rivals, calls, models) renders f
   }
 });
 
+test('debrief summary in qualifying: timed laps and tyres, not race pace and stops (Spa, 20 Oct 2026)', () => {
+  const p = replay(syntheticPackets());
+  let snap = p.tick();
+  while (!snap.debrief) snap = p.tick();
+  const tiles = (session) => {
+    const deb = dashboard().mounted.find((w) => w.id === 'debrief');
+    deb.update({ ...snap, debrief: { sessions: [session] } });
+    return [...deb.card.querySelectorAll('.w-deb__tile .w-label')].map((e) => e.textContent);
+  };
+  const race = snap.debrief.sessions[0];
+  assert.ok(tiles(race).includes('Race pace') && tiles(race).includes('Stops'));
+  const q = tiles({ ...race, isRace: false, sessionName: 'Short qualifying' });
+  assert.ok(!q.includes('Race pace') && !q.includes('Stops'), q.join(', '));
+  assert.ok(q.includes('Timed laps') && q.includes('Tyres'), q.join(', '));
+});
+
 test('tyre card: the wear rate comes with its 90% range, e.g. "+0.090s (0.071-0.110)"', () => {
   const d = dashboard();
   const card = d.mounted.find((w) => w.id === 'tyrecall');

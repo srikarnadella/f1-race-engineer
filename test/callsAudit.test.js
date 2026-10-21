@@ -40,6 +40,12 @@ test('calls audit: PUSH is wrong when two green laps in a row fall 1.5 s off the
   assert.match(c.why, /lap 12/);
 });
 
+test('calls audit: two slow laps that come back to pace on the same tyres were a fight, not the tyres (Spa, 20 Oct 2026)', () => {
+  // Laps 13-14 ~2.5 s off while wheel to wheel with HADJAR and VERSTAPPEN, then lap 15 quicker than before.
+  const [c] = only(race({ totalLaps: 15, player: (lap) => ({ lapMs: lap === 13 || lap === 14 ? PACE + 2500 : PACE }) }), [call(8, 'PUSH', 'ok')]);
+  assert.notStrictEqual(c.verdict, 'wrong', c.why);
+});
+
 test('calls audit: one slow lap (traffic, a mistake) does not make PUSH wrong', () => {
   const [c] = only(race({ player: (lap) => ({ lapMs: lap === 12 ? PACE + 3000 : PACE }) }), [call(1, 'PUSH', 'ok')]);
   assert.strictEqual(c.verdict, 'right', c.why);

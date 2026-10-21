@@ -31,8 +31,10 @@ const SAMPLE_MS = 500; // 2 snapshots a second - plenty for a demo, a fifth of t
 const FIELD_EACH_SIDE = 3; // the dashboard only shows the cars around you from `field`
 const RACE = 15; // sessionType
 
+// The game's name for the player's seat (LINDBLAD at Barcelona) means nothing to a visitor: "You".
+let playerName = null;
 // Floats to 3 decimals: the dashboard never shows more, and it halves the file.
-const round = (_k, v) => (typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
+const round = (_k, v) => (playerName && v === playerName ? 'You' : typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
 const write = (name, data, dir = OUT) => {
   fs.mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
   fs.writeFileSync(path.join(dir, name), JSON.stringify(data, round));
@@ -118,6 +120,8 @@ async function buildRace(raceDir, [from, to]) {
   // Open on track: a demo that starts in the pit lane reads as a frozen dashboard.
   const onTrack = live.frames.findIndex((fr) => !fr.s.player.pitStatus);
   if (onTrack > 0) live.frames.splice(0, onTrack);
+  const me = live.frames[0].s.field.find((c) => c.isPlayer);
+  playerName = me ? me.name : null;
   // From zero, with the game's pauses (menus, a flashback being picked)
   // squeezed out - nobody watches a frozen demo for a minute.
   let t = 0;

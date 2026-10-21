@@ -136,8 +136,8 @@ Each line: what it is, why it matters, and the acceptance test.
   33% observed) but doesn't beat the gap-only baseline yet.
 - **M3 Lap-time model.** Fuel + tyre age + traffic, with residual spread, feeding A1.
 - **M6 Gradient-boosted overtake model.** *Done:* LightGBM (Python, `ml/`) on the same samples from
-  10 races, held out race by race: AUC 0.860 against 0.838 for the gap alone, better on 9 of 10 races, gain
-  +0.014 to +0.030 (90% range over races). [Report](ml-overtake-lightgbm.md). The app runs the exported trees
+  11 races, held out race by race: AUC 0.866 against 0.837 for the gap alone, better on all 11 races, gain
+  +0.021 to +0.035 (90% range over races). [Report](ml-overtake-lightgbm.md). The app runs the exported trees
   (`src/ml/gbdt.js`): JS matches Python to 1e-9 on 200 real samples. On the 6 races the logistic model it
   replaced never saw, "pass likely" now comes before 32% of passes instead of 20%, right 38% of the time
   (was 41%). Calibrated to 60%, so the shown chance is capped there (was 50%).
@@ -148,7 +148,7 @@ Each line: what it is, why it matters, and the acceptance test.
   of the cars it put ahead were already in the pit lane (the game reads their gap as 0, so they kept the
   time of the car ahead on the road). Charging those, and the cars the rival-stop model has due this
   lap: 2.71 places off, 1.47 pessimistic. Due within one lap instead got the bias to 0.53 but the error
-  up to 3.24, so this lap it is; the half-place bias isn't met yet. On all 66 stops recorded since: 3.26 places off, 2.41 pessimistic.
+  up to 3.24, so this lap it is; the half-place bias isn't met yet. On all 79 stops recorded since: 3.13 places off, 1.66 pessimistic.
 - **M4 Backtest gate.** Every model scored per race in CI against its baseline; a change that makes
   a model worse than it was fails the build. *Done for the lap-level models:* the tyre model and
   rival-stop timing are scored on the committed dataset in CI against `datasets/scores.json`.
@@ -168,7 +168,7 @@ Each line: what it is, why it matters, and the acceptance test.
   laps. BOX for damage: the loss to the flag beats a stop. BOX under a safety car: the stop cost less
   than a green one (both measured against the cars that didn't stop). BOX for inters or slicks: the
   cars on that tyre are quicker over the next 3 laps. Following the rules isn't
-  graded. On the 6 recorded races: 13 right, 0 wrong, 20 can't be judged (mostly a call replaced
+  graded. On the 9 recorded races: 16 right, 0 wrong, 20 can't be judged (mostly a call replaced
   within its lap by a safety car or flashback). Pit-window and fuel calls aren't graded yet;
   nor is whether an offered undercut would have worked.
 - **A3 Confidence on calls.** Every call carries how sure it is, from M1/M2 intervals. *Partly

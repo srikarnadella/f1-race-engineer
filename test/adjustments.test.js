@@ -90,6 +90,8 @@ test('ERS: attack, defend, harvest, empty it on the last lap', () => {
   assert.strictEqual(ers({ player: player(30), gapAheadMs: 800 }).action, 'ERS: Medium');
   assert.match(ers({ player: player(50), gapBehindMs: 600 }).why, /^Defend/);
   assert.match(ers({ player: player(40), lapsLeft: 0.8 }).radio, /Last lap - empty the battery/);
+  // 1.1 laps left is the end of the lap before: it's the last lap next, not now (Barcelona lap 22 of 23 said "Last lap").
+  assert.match(ers({ player: player(40), lapsLeft: 1.1 }).radio, /^Last lap next - /);
   assert.match(ers({ player: player(60), neutralised: 'VSC' }).radio, /VSC - ERS to None and recharge/);
 });
 

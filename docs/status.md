@@ -30,13 +30,13 @@ flowchart LR
 ```
 
 - **More races for the models.** The attack forecast trails the busiest-corner rule. The rejoin prediction
-  beats its guess (3.26 places off against 6.14) but is still about 2.4 places pessimistic. (The overtake model needed them too: on 10 races LightGBM beats the
-  gap, AUC 0.860 vs 0.838, where a logistic regression on 4 had tied it.)
+  beats its guess (3.13 places off against 6.37) but is still about 1.7 places pessimistic. (The overtake model needed them too: on 11 races LightGBM beats the
+  gap, AUC 0.866 vs 0.837, where a logistic regression on 4 had tied it.)
 - **Scoring pit timing** needs races where the same stop was made on different laps.
 - **Damage cost on a full lap:** in every race so far I undid the damage with a flashback within a few
   corners, so this is only tested on made-up laps. The 6 s a nose change adds to a stop is a guess.
-- **When the AI stops:** learning from the stops already made in a race (1.04 laps off) is no better than
-  the fixed starting guess of 60% of rated tyre life (1.06), because the first stops a race sees are the early ones.
+- **When the AI stops:** learning from the stops already made in a race now beats the fixed starting guess of
+  60% of rated tyre life (1.31 laps off against 1.42 on 65 stops), but the first stops a race sees are the early ones.
 - **Online races** are untested: human drivers don't stop like the AI, and other cars' data may be hidden.
 - **Tyre temperature calls:** the 8 °C and 12 °C thresholds come from four races, not from tyre data.
 - **The race plan** looks at one and two stops; a full-distance race can need three.
@@ -60,4 +60,4 @@ The same list as the website's Next steps page; the full plan is in the [roadmap
   ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.
 - **The calls audit in the Debrief** *(done)*: every call graded against what happened after it, in the Calls tab.
 - **A sharper rejoin prediction** *(in progress)*: from 4.2 to 2.7 places off (first 45 stops) by counting the cars
-  already stopping and the ones due this lap. On all 66 stops: 3.26, still about 2.4 places pessimistic.
+  already stopping and the ones due this lap. On all 79 stops: 3.13, still about 1.7 places pessimistic.

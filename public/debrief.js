@@ -71,9 +71,12 @@
       result,
       best,
       tile('Theoretical best', d.theoreticalBestMs ? fmtLap(d.theoreticalBestMs) : '–', d.theoreticalBestMs && d.bestLap ? `${plus(d.theoreticalBestMs - d.bestLap.ms)} left on the table` : 'best sectors combined'),
-      tile('Race pace', d.medianPaceMs ? fmtLap(d.medianPaceMs) : '–', `median of ${d.cleanLaps} clean lap${d.cleanLaps === 1 ? '' : 's'}`),
+      // Qualifying / practice: no race pace or stops - the laps that counted, and the tyres used.
+      d.isRace
+        ? tile('Race pace', d.medianPaceMs ? fmtLap(d.medianPaceMs) : '–', `median of ${d.cleanLaps} clean lap${d.cleanLaps === 1 ? '' : 's'}`)
+        : tile('Timed laps', d.cleanLaps, 'clean, valid laps'),
       tile('Consistency', d.consistencyMs != null ? `±${(d.consistencyMs / 1000).toFixed(2)}s` : '–', 'spread of clean laps', d.consistencyMs != null ? (d.consistencyMs < 400 ? 'is-good' : d.consistencyMs > 1000 ? 'is-watch' : '') : ''),
-      tile('Stops', d.pitStops != null ? d.pitStops : '–', d.stints.map((s) => `${COMPOUND_NAME[s.compound] || '?'} ${s.laps} lap${s.laps === 1 ? '' : 's'}`).join(' → ')),
+      tile(d.isRace ? 'Stops' : 'Tyres', d.isRace ? (d.pitStops != null ? d.pitStops : '–') : d.stints.length || '–', d.stints.map((s) => `${COMPOUND_NAME[s.compound] || '?'} ${s.laps} lap${s.laps === 1 ? '' : 's'}`).join(' → ')),
       tile('Penalties', d.penalties.length, d.penalties.map((p) => esc(p.what)).join(', ') || 'clean', d.penalties.length ? 'is-watch' : 'is-good'),
       tile('Fastest lap', d.fastestLap && d.fastestLap.ms ? fmtLap(d.fastestLap.ms) : '–', d.fastestLap ? esc(d.fastestLap.name) : ''),
       sectorTile(d),

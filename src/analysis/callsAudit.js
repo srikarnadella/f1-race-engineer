@@ -70,7 +70,13 @@ function auditCalls(calls, laps) {
     if (PUSH_KINDS.has(c.kind)) {
       const span = mine.filter((l) => l.lapNum >= c.lapNum && l.lapNum <= endLap && green(l));
       if (!span.length) return { verdict: 'unclear', why: 'No green lap before the next call' };
-      const bad = span.find((l) => off(l) && span.some((n) => n.lapNum === l.lapNum + 1 && off(n) && stintOf.get(n.lapNum) === stintOf.get(l.lapNum)));
+      // Back on the pace later on the same set: the slow laps were a fight or traffic, not the tyres
+      // (Spa: 2.5 s off on laps 13-14 wheel to wheel, then quicker than before on lap 15).
+      const recovers = (l) => {
+        const base = l.lapMs - lost(l);
+        return stintOf.get(l.lapNum).laps.some((x) => x.lapNum > l.lapNum + 1 && green(x) && x.lapMs - base < OFF_MS);
+      };
+      const bad = span.find((l) => off(l) && !recovers(l) && span.some((n) => n.lapNum === l.lapNum + 1 && off(n) && stintOf.get(n.lapNum) === stintOf.get(l.lapNum)));
       // Damage called earlier on the same set explains slow laps; tyres can't be judged through it.
       const damaged = bad && calls.some((d) => d.kind === 'damage' && d.lapNum <= bad.lapNum && stintOf.get(d.lapNum) === stintOf.get(bad.lapNum));
       if (damaged) return { verdict: 'unclear', why: `From lap ${bad.lapNum} slow, but damage was called on this set` };
