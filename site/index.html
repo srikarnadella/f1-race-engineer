@@ -101,12 +101,12 @@
     .spec dd { margin-top: 10px; font: 900 clamp(1.8rem, 1rem + 2.4vw, 3.2rem)/1 var(--sans); letter-spacing: -0.01em; text-transform: uppercase; }
 
     /* The call board: the app's own call card and radio, at work. */
-    .board { position: absolute; z-index: 1; left: var(--gutter); bottom: 48px; width: min(400px, calc(100% - 2 * var(--gutter))); background: rgba(10, 10, 10, 0.92); border: 1px solid var(--line); }
+    .board { position: absolute; z-index: 1; left: var(--gutter); bottom: 48px; width: min(440px, calc(100% - 2 * var(--gutter))); background: rgba(10, 10, 10, 0.92); border: 1px solid var(--line); }
     .board-top { display: flex; align-items: center; gap: 0; border-bottom: 1px solid var(--line); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-    .board-top > span:first-child { padding: 0 14px; white-space: nowrap; }
+    .board-top > span:first-child { min-width: 0; padding: 0 14px; } /* wraps on narrow boards so Earlier/Later stay inside */
     .board-top b { color: var(--text); }
     .board-top .pos { margin-right: auto; color: var(--text); }
-    .board-ctl button { appearance: none; height: 44px; padding: 0 12px; border: 0; border-left: 1px solid var(--line); background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--text); cursor: pointer; }
+    .board-ctl button { flex: none; appearance: none; height: 44px; padding: 0 12px; border: 0; border-left: 1px solid var(--line); background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--text); cursor: pointer; }
     .board-ctl button:hover { background: var(--text); color: var(--bg); }
     .board-callrow { display: flex; align-items: baseline; gap: 20px; padding: 18px 16px 16px; border-bottom: 1px solid var(--line); }
     .board-call { font: 900 clamp(2.6rem, 1.8rem + 2.4vw, 4rem)/1 var(--sans); letter-spacing: -0.01em; color: var(--c, var(--go)); }
