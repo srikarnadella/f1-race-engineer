@@ -309,6 +309,8 @@ phrases the answer.
   process only, so phones on the Wi-Fi can't reach it. One change from the plan: within one answer the
   tool rounds keep the model warm for a minute (`keep_alive: "1m"`), so it doesn't reload from disk for
   every tool call, and every answer ends with `keep_alive: 0`, whether it finished, failed or was stopped.
+  Decided 3 Nov 2026: you install Ollama yourself (the app links to it). Setting it up from inside the
+  app (its standalone build, started only when asked) was weighed and left out for now.
 - **L3 Model picker and downloads.** A short list of small models that fit a 4 GB GPU (to start:
   Qwen3 1.7B and 4B, Llama 3.2 3B, Gemma 3 4B, Phi-4-mini), each with download size and licence,
   pulled through Ollama with progress, and deletable. The list is trimmed by L4's scores.
