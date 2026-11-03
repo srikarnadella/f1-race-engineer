@@ -9,14 +9,15 @@ for your Windows user only, with no admin rights. SmartScreen warns about an uns
 time: *More info → Run anyway*. Windows Firewall may ask whether Undercut can use the network: allow it
 on private networks, or phones (and the game on a console) can't reach it.
 
-It opens on **Home**: one large panel for the live race (it shows the current call once the game is
-connected), and panels for race analysis, the Library and Connect. The left rail still switches screens
-mid-race (keys **1–8**).
+It opens on **Home**, a full-window page with one bar into each part of the app: the live dashboard
+(position, lap and the current call once the game is connected), race analysis, Ask the race (coming
+soon), Storage and Connect. Inside a screen, the left rail switches screens mid-race (keys **1–8**) and
+has Home at the top; Connect and Storage appear in it while one of them is open.
 
 | Screen | What you do there |
 |---|---|
 | **Connect** | See whether F1 26 telemetry is arriving, with the game settings to change if not. Scan the QR code on a phone or tablet. Turn off sharing on the Wi-Fi, or turn on *Voice questions on phones* (below). **Record this session** saves every packet and call, like `npm run capture`; MARK appears while it records. |
-| **Library** | Every saved session (open it in the Debrief, or delete it) and every recording (replay it through the screens, analyze it to check each call, show the file, or delete it). Deletes ask first and can't be undone. |
+| **Storage** | Every saved session (open it in the Debrief, or delete it) and every recording (replay it through the screens, analyze it to check each call, show the file, or delete it). Deletes ask first and can't be undone. |
 | **Settings** | As before, plus the two ports and the data folder. |
 
 **Voice in the app window** uses Windows' own speech recognition, offline. It listens for the Ask
@@ -28,7 +29,7 @@ certificate the app makes for this PC. The first time, the phone warns that the 
 (no company signed it): tap *Advanced → Proceed*, and the microphone works after that.
 
 **Where things are:** race data in `%APPDATA%\Undercut\data` (`race.db`, `sessions/`, `tracks.json`,
-`captures/`). *Open data folder* in the Library or Settings opens it.
+`captures/`). *Open data folder* in Storage or Settings opens it.
 
 ## Try the demo (no game needed)
 

@@ -132,7 +132,8 @@
     let group = null;
     const all = screens();
     const keys = all.filter((s) => s.group !== 'home');
-    all.forEach((s) => {
+    // Connect and Storage are on Home: in the rail only while one is open, so it fits without scrolling.
+    all.filter((s) => s.group !== 'pc' || s.id === currentId).forEach((s) => {
       if (s.group !== group && GROUP_LABEL[s.group]) {
         group = s.group;
         const h = document.createElement('div');
@@ -229,6 +230,8 @@
     grid.style.gridTemplateColumns = m === 'wide' ? `repeat(${layout.cols}, minmax(0, 1fr))` : '';
     grid.style.gridTemplateRows = m === 'wide' ? layout.rows : '';
 
+    // Home fills the window on its own; the rail comes with the screens.
+    /** @type {HTMLElement} */ (document.querySelector('.rail')).hidden = currentId === 'home';
     $('editbar').hidden = !editing;
     if (editing) renderEditbar();
 

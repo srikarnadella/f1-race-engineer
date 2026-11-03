@@ -908,33 +908,76 @@ body {
 .pc-report h4 { margin-bottom: 4px !important; font-size: 1rem; }
 .pc-report .pc-btn { justify-self: start; align-self: flex-start; }
 
-/* Home: one way into each part of the app. The live race is the big one;
-   each panel shows what is there right now, so no two read alike. */
-.pc-home { grid-template-rows: auto 1fr; align-content: stretch; min-height: 100%; }
-.pc-home .pc-error { margin-top: 12px; }
-.pc-home__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 28px 32px; border-radius: 4px; background: var(--panel); }
-.pc-home__head h2 { font-size: clamp(2.6rem, 5vw, 5.2rem); font-weight: 800; line-height: 0.95; letter-spacing: -0.04em; }
-.pc-home__line { margin-top: 12px !important; font-size: 1.2rem; max-width: 60ch; }
-.pc-home__head .pc-actions { margin-top: 0; padding-top: 0; }
-.pc-home__grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(200px, 1fr) minmax(200px, 1fr); gap: var(--gap); }
-.pc-dest {
-  appearance: none; border: 0; border-radius: 4px; padding: 28px 30px; background: var(--panel); color: var(--text);
-  font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 10px; min-width: 0;
-  transition: background 0.12s, transform 0.08s;
+/* Home: the app's landing page. It covers the window on its own (app.js hides
+   the rail): a night race behind the name, one filled bar into each part of
+   the app. Every move below plays once on arrival; nothing loops, so an open
+   Home costs nothing while F1 26 runs. */
+.home {
+  position: fixed; inset: 0; z-index: 5; overflow: hidden;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "nav" "mark";
+  padding: 24px 28px 0; background: #06080b; color: var(--text);
 }
-.pc-dest:hover { background: #1b1b1b; }
-.pc-dest:active { transform: scale(0.99); }
-.pc-dest:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
-.pc-dest__name { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
-.pc-dest__state { font-size: clamp(1.6rem, 2.6vw, 2.6rem); font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; overflow-wrap: anywhere; }
-.pc-dest__detail { font-size: 1.05rem; line-height: 1.45; color: var(--text); max-width: 46ch; }
-.pc-dest__go { margin-top: auto; color: var(--muted); font-size: 0.95rem; font-weight: 650; }
-.pc-dest:hover .pc-dest__go { color: var(--info); }
-.pc-dest--live { grid-row: 1 / span 2; padding: 36px; }
-.pc-dest--live .pc-dest__name { font-size: 2rem; }
-.pc-dest--live .pc-dest__state { font-size: clamp(3rem, 7vw, 8.5rem); line-height: 0.9; letter-spacing: -0.045em; overflow-wrap: normal; }
-.pc-dest--live .pc-dest__detail { font-size: 1.3rem; }
-.pc-dest--analysis { grid-column: 2 / span 2; }
+.home__photo {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%;
+  will-change: opacity; /* the crossfade stays on the compositor: no repaint per frame */
+  opacity: 0; transition: opacity 0.7s ease;
+  animation: home-shutter 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.home__photo.is-on { opacity: 1; }
+/* A flat dark layer, not a filter on the photos: a filter repaints every frame of the crossfade (6% of a core idle). */
+.home::before { content: ''; position: absolute; inset: 0; z-index: 1; background: rgba(0, 0, 0, 0.52); pointer-events: none; }
+.home > :not(.home__photo) { position: relative; z-index: 2; }
+.home__top { grid-area: top; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.home__status { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; font-size: 1.05rem; font-weight: 650; }
+.home__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--watch); }
+.home__dot.is-good { background: var(--good); }
+.home__dot.is-info { background: var(--info); }
+.home__actions { display: flex; gap: 8px; }
+.home__btn.pc-btn { min-height: 44px; padding: 0 18px; border: 0; border-radius: 4px; background: rgba(10, 10, 10, 0.82); color: var(--text); font-size: 1rem; }
+.home__btn.pc-btn:hover { background: #1f1f1f; }
+.home__error { margin: 12px 0 0; }
+.home__nav {
+  grid-area: nav; align-self: start; display: flex; flex-direction: column; gap: 6px;
+  width: min(600px, 100%); margin-top: clamp(20px, 6vh, 64px);
+}
+.home__dest {
+  appearance: none; border: 0; border-radius: 4px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  min-height: clamp(56px, 8.4vh, 78px); padding: 0 24px;
+  background: #121212; color: var(--text); font: inherit; text-align: left;
+  transition: background 0.14s, transform 0.08s;
+  animation: home-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.home__dest:nth-child(2) { animation-delay: 70ms; }
+.home__dest:nth-child(3) { animation-delay: 140ms; }
+.home__dest:nth-child(4) { animation-delay: 210ms; }
+.home__dest:nth-child(5) { animation-delay: 280ms; }
+.home__dest:hover { background: #222; }
+.home__dest:active { transform: scale(0.99); }
+.home__dest:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.home__name { font-size: clamp(1.25rem, 1rem + 0.8vw, 1.6rem); font-weight: 750; letter-spacing: -0.015em; }
+.home__state { font-size: 1rem; font-weight: 600; color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home__dest--primary { background: var(--act); color: #0a0a0a; }
+.home__dest--primary .home__state { color: #0a0a0a; }
+.home__dest--primary:hover { background: #ff6d62; }
+.home__dest:disabled { cursor: default; color: #9a9a9a; }
+.home__dest:disabled:hover { background: #121212; }
+.home__dest:disabled .home__state { color: #9a9a9a; }
+.home__mark {
+  grid-area: mark; margin: 0 0 -0.11em -0.04em; font-size: clamp(96px, 21.6vw, 400px); font-weight: 800;
+  line-height: 1; letter-spacing: -0.055em; white-space: nowrap; color: var(--text);
+  animation: home-rise 0.8s 0.15s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.home__credit {
+  grid-area: nav; align-self: end; justify-self: end; margin: 0 0 14px; padding: 4px 8px; border-radius: 4px; background: rgba(10, 10, 10, 0.82);
+  font-size: 0.8125rem; color: var(--muted);
+}
+.home__credit a { color: inherit; }
+@keyframes home-shutter { from { clip-path: inset(0 0 0 100%); transform: scale(1.12); } to { clip-path: inset(0); transform: scale(1); } }
+@keyframes home-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .home__photo, .home__dest, .home__mark { animation: none; transition: none; }
+}
 
 /* Settings: this PC's ports and data folder. */
 .setting--pc { flex-direction: column; cursor: default; }
@@ -943,9 +986,6 @@ body {
 .pc-port { width: 130px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--text); font: inherit; font-size: 1rem; }
 
 @media (max-width: 1150px) {
-  .pc-home__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto; }
-  .pc-dest--live { grid-row: auto; grid-column: 1 / -1; }
-  .pc-dest--analysis { grid-column: 1 / -1; }
   .pc-connect { grid-template-columns: minmax(0, 1fr); grid-template-areas: "mode" "game" "rec" "share" "err"; }
   .pc-share__code { flex-direction: row; align-items: center; flex-wrap: wrap; }
   .pc-share__qr { width: 180px; }

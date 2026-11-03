@@ -49,6 +49,35 @@ flowchart LR
     U3[U3 Feed health badge]:::done
     U4[U4 Accessibility pass]:::done
   end
+  subgraph W[Desktop app]
+    W0[W0 Performance baseline]:::done
+    W1[W1 Efficiency wins]:::next
+    W2[W2 Home screen]:::done
+    W5[W5 Home slideshow: real races]:::done
+    W4[W4 Separate places, not dashboard tabs]:::next
+    W3[W3 Storage, its own place]
+  end
+  subgraph L[Ask the race: local LLM]
+    L1[L1 Read-only race tools]:::next
+    L2[L2 Ollama client with a lifecycle]:::next
+    L3[L3 Model picker and downloads]
+    L4[L4 Question set picks the models]
+    L5[L5 Ask the race screen]
+  end
+  subgraph R[Race analysis: its own place]
+    R1[R1 Session picker and race overview]
+    R2[R2 Pace: laps, stints, tyre wear]
+    R3[R3 Head to head with any rival]
+    R4[R4 Strategy review: calls, stops, what-if]
+    R5[R5 Across sessions: trends per track]
+  end
+  subgraph G[Quick gaps]
+    G1[G1 Shortcuts listed in Settings]:::next
+    G2[G2 Field CSV and Calls audit copy]:::next
+    G3[G3 Library shows every saved session]:::next
+    G4[G4 races.csv ends at the flag]:::next
+    G5[G5 Window opens without a blank frame]:::next
+  end
 
   T1 --> T2 --> T4
   T1 --> T3
@@ -65,6 +94,16 @@ flowchart LR
   M2 --> M6
   M1 & M2 --> A3 --> U2
   A1 --> U2
+  W0 --> W1
+  W2 --> W5
+  W2 --> W4 --> W3
+  W4 --> R1 --> R2 & R3 & R4
+  R2 & R3 --> R5
+  R1 --> L5
+  L2 --> L3
+  L1 & L3 --> L4
+  W2 & L4 --> L5
+  W0 --> L5
 ```
 
 Green: done. Blue: partly done. Amber: ready next.
@@ -185,6 +224,121 @@ Each line: what it is, why it matters, and the acceptance test.
   extra when the feed is fine. **U4 Accessibility** (*done*): every text colour on every background at
   4.5:1 or more (dashboard and website), every control on every screen named for a screen reader,
   tabs that say which is selected, and a new call (PUSH → BOX) announced, not only drawn.
+
+### Desktop app
+
+The app runs on the same PC as F1 26, so it must cost the game nothing: every node here is measured
+against W0, and none may raise the race numbers.
+
+- **W0 Performance baseline.** A script (`scripts/perf-app.js`) drives the installed app with the
+  synthetic session at 60 Hz and samples every Undercut process (main, window, GPU): CPU %, RAM, and
+  the same while idle (minimized, no game). Also startup time to a usable Home and installed size.
+  *Test:* the script prints one table; the numbers go in `docs/performance.md`; a second run lands
+  within 10% of the first. *Done:* [performance.md](performance.md). Idle 0.6-2% of one core, a race
+  7-10% with the dashboard showing and 3-5% minimized, ~350-400 MB, 0.8 s to Home. Idle repeats;
+  race phases vary ~20% run to run (Windows scheduling), so changes are compared over several runs.
+- **W1 Efficiency wins.** Cache `orderedByPosition()` once per Lap Data packet; skip the drawing steps
+  of `render()` while the window is hidden (the voice keeps speaking); load a desktop screen's data
+  only when it's opened; check Electron's `backgroundThrottling` and the snapshot size.
+  *Test:* `test/perf.test.js` stays green; a hidden page runs no widget update but still voices a
+  call; W0 re-run shows race and idle CPU no higher, idle lower.
+- **W2 Home screen.** A real landing page that fills the window: a race-themed background image
+  (our own or a free-licence photo; no F1 logos, team liveries or trademarks) and big tiles: Live
+  dashboard, Race analysis (Debrief), Ask the race (LLM), Storage, Connect / record, Settings. One
+  line of state per tile at most. The rail appears only inside the dashboard, with a way back Home;
+  the rail stops scrolling at 860 px. Built with the taste skill. *Test:* Home renders with no rail,
+  every tile routes to its screen and back; no horizontal scroll; screenshots at 1440x900 and
+  1100x760 checked; W0's idle number unchanged with Home open. *Done:* `test/desktopHome.test.js`;
+  a photograph behind the name (now the W5 slideshow); the rail
+  lists the race screens only (Connect and Storage join it while open) and fits at 860 px; Home idles
+  at 1.9% of one core, as before. Ask the race is shown disabled until L5.
+- **W5 Home photo.** The user asked for real F1 cars racing wheel to wheel, modern and famous, in
+  place of the Singapore skyline. Options (licences checked) are in `notes/home-photo-options/`
+  (batch3 is the modern set; A, Hamilton vs Verstappen at Austin 2021, CC BY 2.0, is the lead).
+  *Test:* the credit on Home matches the photo's Commons page; the cars stay clear of the bars at
+  1440x900 and 1100x760 (screenshots). *Done:* the user chose a slideshow of three: Verstappen vs
+  Leclerc (Austria 2023), Leclerc at Zandvoort 2024, Leclerc holding off Hamilton (Monza 2019), each
+  credited while it shows. A new one every 8 s with a 0.7 s crossfade under a flat dark layer (a CSS
+  filter repainted every frame: 6-7% of a core); it waits while the window is hidden and stops when
+  Home is left. Home idle 4.2% of one core against 1.9% with a still photo; minimized unchanged.
+- **W4 Separate places, not dashboard tabs.** A Home destination opens a place of its own that fills
+  the window, with its own navigation and a way back to Home, never a tab inside the dashboard:
+  Live dashboard is the dashboard (rail and all); Race analysis, Storage, Ask the race and Connect
+  each have their own layout. The dashboard rail stays race-only. *Test:* each destination except
+  Live dashboard opens with no dashboard rail and its own back-to-Home; the dashboard rail lists
+  only race screens; Back/Esc returns to Home; nothing mounted in a place keeps running after
+  leaving it (W0 idle unchanged).
+- **W3 Storage, its own place.** Built on W4, replacing the Library tab. Disk use per store (race.db, debriefs, captures, downloaded models) with
+  delete, using the existing `deleteSession()`. *Test:* the sizes shown add up to the folder size on
+  disk; deleting a session leaves no store mentioning its uid; deleting a model frees its bytes.
+
+### Ask the race: local LLM
+
+The model never runs while you race. The engine computes every number; the model only picks tools and
+phrases the answer.
+
+- **L1 Read-only race tools.** `sessions`, `lap_times`, `compare_laps`, `stints`, `gaps`, `calls`,
+  `events` over race.db and the debrief, each with a JSON schema; a read-only connection.
+  *Test:* each tool on a fixture session returns the known laps; a write through the connection
+  fails; no tool takes free SQL.
+- **L2 Ollama client with a lifecycle.** Talks to Ollama on `127.0.0.1:11434` (detect it, link to
+  the installer if missing). Every request sends `keep_alive: 0`, so the model leaves memory as soon
+  as the answer is done; a live session start sends an unload and blocks new requests until it ends;
+  a Stop button cancels a running answer. *Test:* against a fake Ollama server: every request carries
+  `keep_alive: 0`; a request during a live session is refused without reaching the server; a session
+  start unloads a loaded model; after an answer `/api/ps` lists nothing.
+- **L3 Model picker and downloads.** A short list of small models that fit a 4 GB GPU (to start:
+  Qwen3 1.7B and 4B, Llama 3.2 3B, Gemma 3 4B, Phi-4-mini), each with download size and licence,
+  pulled through Ollama with progress, and deletable. The list is trimmed by L4's scores.
+  *Test:* pull progress reaches 100% on the fake server; a cancelled pull leaves nothing listed;
+  delete removes the model; licences shown match the model cards.
+- **L4 Question set picks the models.** 20-40 questions from the recorded races with expected facts
+  ("where did I lose time on lap 21?", "was the lap 12 box call right?"). *Test:* `npm run llm-eval`
+  scores each model (facts right, laps cited, refuses what the data doesn't show) and time per
+  answer on this PC; the scores go in `docs/accuracy.md`; models under the bar leave the list.
+- **L5 Ask the race screen.** Its own place (W4), reached from Home and from Race analysis (R1). A clear notice: "Not for use
+  while racing - it uses the GPU the game needs"; the input is disabled while a session is live.
+  Answers cite laps or say the recording doesn't show it. A post-race summary only on request.
+  *Test:* the input is disabled and the notice shown while live; a W0 run with the screen open but
+  unused shows no model loaded and no extra CPU; every answer in L4's set cites a lap or refuses.
+
+### Race analysis: its own place
+
+The Debrief is a dashboard card sized for a tablet mid-session. Race analysis is the in-depth
+version, a place of its own on the PC (W4), built on the same saved sessions (debrief files and
+race.db), with the data presented properly: large charts, tables you can sort, everything per
+session and across sessions. Every chart is drawn from data the engine already saved; nothing is
+estimated on the page. Use the taste skill and the dataviz skill for every view.
+
+- **R1 Session picker and race overview.** Pick any saved session (track, type, date, result);
+  the overview shows result and grid, best lap, stints as a strip, the safety cars and the key
+  moments in order. *Test:* every saved session opens; the numbers match its debrief file.
+- **R2 Pace.** Lap times through the race with in/out laps and neutralised laps marked, stint pace
+  and tyre wear rate per stint, sector times, best and theoretical best. *Test:* on a recorded
+  race the chart's points equal laps.csv for that session.
+- **R3 Head to head.** Pick any rival: the gap lap by lap, where the time went by corner on any
+  lap pair (lapCompare), their stints next to yours. *Test:* the gap at each lap equals the
+  debrief's gap; the corner deltas add up to the lap delta.
+- **R4 Strategy review.** Every call with its grade (calls audit), the pit stops and what they
+  cost or gained, the rejoin predicted vs actual, and a what-if on the stop lap (A1). *Test:* the
+  grades equal `npm run backtest` for the session.
+- **R5 Across sessions.** Your pace per track over time, tyre wear learned per track, how often
+  the calls were right. *Test:* adding a session moves only that track's numbers.
+
+### Quick gaps
+
+Found reading the app on 3 Nov 2026; an hour or less each.
+
+- **G1** Settings lists the keyboard shortcuts (1-8 screens, M mark, Q ask, Esc close). *Test:* every
+  key with a handler appears in the list, and every listed key has a handler.
+- **G2** Debrief: CSV of the Field table and a copy button for the Calls audit (same pattern as
+  `lapsCsv`). *Test:* the CSV round-trips the table's rows; the copied text has every graded call.
+- **G3** Library shows every session on disk (50), not the 10 the debrief keeps in memory.
+  *Test:* with 12 saved sessions the Library lists 12.
+- **G4** `races.csv` `durationMin` ends at the chequered flag, not the results screen. *Test:* a
+  synthetic race with a 2-minute results screen reports its racing time only.
+- **G5** The window shows once the page is ready (`ready-to-show`), not as an empty frame.
+  *Test:* `show: false` until the first paint.
 
 ## What the tests found
 

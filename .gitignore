@@ -24,3 +24,4 @@ coverage/
 __pycache__/
 # Desktop installer output (npm run app:build).
 dist/
+.taste-skill/

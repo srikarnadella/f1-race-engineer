@@ -49,8 +49,8 @@ turn **UDP Telemetry On** (port **20777**, format **2025** or later). Scan the Q
 your phone or tablet. Full steps, options and voice setup: [docs/setup.md](docs/setup.md).
 
 **As a Windows app:** the installer (`npm run app:build` makes `dist/Undercut-Setup-<version>.exe`)
-puts Undercut on any Windows PC with no Node and no terminal. It opens on a **Home** screen with a way
-into each part: the live race, race analysis (the Debrief), the **Library** of saved sessions and
+puts Undercut on any Windows PC with no Node and no terminal. It opens on a full-window **Home** with a way
+into each part: the live dashboard, race analysis (the Debrief), **Storage** for saved sessions and
 recordings (replay, analyze, delete), and **Connect** (game setup, a QR code for phones and tablets,
 and a Record button). Voice questions work in the app window through Windows' own offline speech
 recognition, and on phones once *Voice questions on phones* is on. Everything stays on the PC, in

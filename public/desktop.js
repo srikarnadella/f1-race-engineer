@@ -458,30 +458,72 @@
   else mountSettings();
 
   // ---------- Home: where the app opens ----------
-  // One big way into each part of the app, each showing what's there right
-  // now: the live race and its call, the latest result, the library, and
-  // whether phones can connect. The rail still switches screens mid-race.
+  // Real races behind the name, from Wikimedia Commons; each is credited while it shows.
+  // pos keeps the cars clear of the bars on the left.
+  const HOME_PHOTOS = [
+    { src: 'img/home-austria-2023.jpg', w: 1920, h: 1080, pos: '50% 40%', alt: 'Verstappen\'s Red Bull chasing Leclerc\'s Ferrari through a corner at the 2023 Austrian Grand Prix',
+      title: 'Austria 2023', by: 'Lukas Raich', lic: 'CC BY-SA 4.0', licUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      page: 'https://commons.wikimedia.org/wiki/File:FIA_F1_Austria_2023_Race_(2).jpg' },
+    { src: 'img/home-zandvoort-2024.jpg', w: 1920, h: 1080, pos: '50% 50%', alt: 'Leclerc\'s Ferrari head-on through a banked corner at the 2024 Dutch Grand Prix in Zandvoort',
+      title: 'Zandvoort 2024', by: 'Steffen Prößdorf', lic: 'CC BY-SA 4.0', licUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      page: 'https://commons.wikimedia.org/wiki/File:2024-08-25_Motorsport,_Formel_1,_Gro%C3%9Fer_Preis_der_Niederlande_2024_STP_3912_by_Stepro.jpg' },
+    { src: 'img/home-monza-2019.jpg', w: 1583, h: 891, pos: '50% 50%', alt: 'Leclerc\'s Ferrari holding off Hamilton\'s Mercedes side by side at the 2019 Italian Grand Prix in Monza',
+      title: 'Monza 2019', by: 'Interceptor73', lic: 'CC BY 2.0', licUrl: 'https://creativecommons.org/licenses/by/2.0',
+      page: 'https://commons.wikimedia.org/wiki/File:Charles_Leclerc,_Ferrari_SF90_holds_off_Lewis_Hamilton,_Mercedes_F1_W10,_2019_Italian_Grand_Prix,_Monza,_8th_September.jpg' },
+  ];
+
+  // A landing page that fills the window: races behind the name, and
+  // one bar into each part of the app with one line of what's there now. The
+  // rail (app.js) only appears once you go into a screen.
   widgets.home = {
     title: 'Home',
-    description: 'Where the app opens: the live race, race analysis, the library and connecting devices',
+    description: 'Where the app opens: the live dashboard, race analysis, Ask the race, storage and connecting',
     tall: true,
     mount(el) {
-      const dest = (cls, name, onclick) => {
-        const parts = { state: h('span', { class: 'pc-dest__state' }), detail: h('span', { class: 'pc-dest__detail' }), go: h('span', { class: 'pc-dest__go' }) };
-        const node = h('button', { type: 'button', class: `pc-dest ${cls}`, onclick }, h('span', { class: 'pc-dest__name' }, name), parts.state, parts.detail, parts.go);
-        return { node, ...parts };
+      const dest = (name, onclick) => {
+        const state = h('span', { class: 'home__state' });
+        const node = h('button', { type: 'button', class: 'home__dest', onclick }, h('span', { class: 'home__name' }, name), state);
+        return { node, state };
       };
-      const live = dest('pc-dest--live', 'Live race', () => go('drive'));
-      const analysis = dest('pc-dest--analysis', 'Race analysis', () => go('debrief'));
-      const library = dest('pc-dest--library', 'Library', () => go('library'));
-      const connect = dest('pc-dest--connect', 'Connect and record', () => go('connect'));
-      const line = h('p', { class: 'pc-home__line' });
-      const demo = button('Watch the demo race', () => act(() => { keepScreen('drive'); return api.replay('demo'); }));
-      const back = button('Back to live', () => act(() => { keepScreen('home'); return api.live(); }), 'pc-btn--primary');
-      const error = h('p', { class: 'pc-error', role: 'alert', hidden: true });
-      el.replaceChildren(h('div', { class: 'pc pc-home' },
-        h('header', { class: 'pc-home__head' }, h('div', {}, h('h2', {}, 'Undercut'), line, error), h('div', { class: 'pc-actions' }, demo, back)),
-        h('div', { class: 'pc-home__grid' }, live.node, analysis.node, library.node, connect.node)));
+      const live = dest('Live dashboard', () => go('drive'));
+      const analysis = dest('Race analysis', () => go('debrief'));
+      const ask = dest('Ask the race', null);
+      ask.node.disabled = true; // roadmap L5: a local model, never run while racing
+      const storage = dest('Storage', () => go('library'));
+      const connect = dest('Connect and record', () => go('connect'));
+      live.node.classList.add('home__dest--primary');
+
+      const line = h('span', {});
+      const dot = h('span', { class: 'home__dot' });
+      const demo = button('Watch the demo race', () => act(() => { keepScreen('drive'); return api.replay('demo'); }), 'home__btn');
+      const back = button('Back to live', () => act(() => { keepScreen('home'); return api.live(); }), 'home__btn');
+      const settings = button('Settings', () => { const b = document.getElementById('settings'); if (b) b.click(); }, 'home__btn');
+      const error = h('p', { class: 'pc-error home__error', role: 'alert', hidden: true });
+      const photos = HOME_PHOTOS.map((p, i) => h('img', { class: `home__photo${i ? '' : ' is-on'}`, src: p.src, width: p.w, height: p.h, alt: p.alt, style: `object-position: ${p.pos}` }));
+      const credit = h('p', { class: 'home__credit' });
+      el.replaceChildren(h('div', { class: 'home' },
+        ...photos,
+        h('div', { class: 'home__top' }, h('div', {}, h('p', { class: 'home__status' }, dot, line), error), h('div', { class: 'home__actions' }, demo, back, settings)),
+        h('nav', { class: 'home__nav', 'aria-label': 'Parts of the app' }, live.node, analysis.node, ask.node, storage.node, connect.node),
+        h('h1', { class: 'home__mark' }, 'Undercut'),
+        credit));
+
+      // A new photograph every 8 s: a CSS crossfade, nothing redrawn in between. It waits while the
+      // window is hidden (behind the game, minimized) and stops for good once Home is left.
+      let photo = 0;
+      const showCredit = () => {
+        const p = HOME_PHOTOS[photo];
+        credit.replaceChildren('Photo: ', h('a', { href: p.page, target: '_blank', rel: 'noopener' }, p.title), ` by ${p.by}, `, h('a', { href: p.licUrl, target: '_blank', rel: 'noopener' }, p.lic));
+      };
+      showCredit();
+      const slideshow = setInterval(() => {
+        if (!el.isConnected) return clearInterval(slideshow);
+        if (document.hidden) return;
+        photos[photo].classList.remove('is-on');
+        photo = (photo + 1) % photos.length;
+        photos[photo].classList.add('is-on');
+        showCredit();
+      }, 8000);
 
       async function act(fn) {
         error.hidden = true;
@@ -497,51 +539,36 @@
 
       let sig = '';
       let last = null;
-      function draw(s) {
-        if (!status || !s) return;
+      function draw(snap) {
+        if (!status) return;
+        const s = snap || {};
         const replaying = status.mode === 'replay';
         const on = !!s.connected;
         const call = s.strategy && s.strategy.call;
         const p = s.player;
         const sessions = (s.debrief && s.debrief.sessions) || [];
-        const latest = sessions.find((d) => !d.live) || sessions[0] || null;
-        const key = JSON.stringify([replaying, on, call && [call.action, call.reason], p && [p.position, p.currentLapNum], latest && [latest.id, latest.laps.length], sessions.length, captures && captures.length, status.recording, status.pairUrl, status.clients, status.replay]);
+        const latest = sessions.find((d) => !d.live) || null;
+        const key = JSON.stringify([replaying, on, call && call.action, p && [p.position, p.currentLapNum], s.session && s.session.totalLaps, latest && [latest.id, latest.finish], sessions.length, captures && captures.length, status.recording, status.pairUrl, status.clients, status.replay]);
         if (key === sig) return;
         sig = key;
 
-        setText(line, replaying
-          ? `Replaying ${status.replay.label}. Nothing is saved while it plays.`
-          : on ? 'F1 26 is connected. The engineer is on.' : 'Waiting for F1 26. Turn on UDP telemetry in the game, or watch the demo race.');
+        setText(line, replaying ? `Replaying ${status.replay.label}. Nothing is saved while it plays.` : on ? 'F1 26 is connected' : 'Waiting for F1 26');
+        dot.className = `home__dot ${on ? 'is-good' : replaying ? 'is-info' : 'is-watch'}`;
         demo.hidden = on || replaying;
         back.hidden = !replaying;
 
-        // Live race: the call itself when there is one.
-        setText(live.state, on && call ? call.action : on ? 'On track' : replaying ? 'Replay' : 'Waiting');
-        live.state.className = `pc-dest__state ${on && call ? ({ PUSH: 'is-good', HOLD: 'is-watch', BOX: 'is-act', PIT: 'is-act', PREP: 'is-info' })[call.action] || '' : on ? 'is-good' : 'is-watch'}`;
         const where = p && p.position ? `P${p.position}${p.currentLapNum ? ` · lap ${p.currentLapNum}${s.session && s.session.totalLaps ? ` of ${s.session.totalLaps}` : ''}` : ''}` : null;
-        setText(live.detail, on ? [where, call && call.reason].filter(Boolean).join(' · ') : 'The calls, the fight either side, strategy and weather, as the race happens.');
-        setText(live.go, 'Drive · Battle · Strategy · Weather');
-
-        // Race analysis: the latest session's result.
-        setText(analysis.state, latest ? [latest.track, latest.sessionName].filter(Boolean).join(' ') : 'No sessions yet');
-        setText(analysis.detail, latest
-          ? [latest.finish ? `P${latest.finish}${latest.grid ? ` from P${latest.grid}` : ''}` : null, latest.bestLap ? `best ${lapTime(latest.bestLap.ms)}` : null, when(latest.startedAt)].filter(Boolean).join(' · ')
-          : 'The Debrief fills in lap by lap and keeps each session afterwards.');
-        setText(analysis.go, 'Result · laps · lap compare · rivals · calls');
-
+        setText(live.state, on ? [where, call && call.action].filter(Boolean).join(' · ') || 'On track' : replaying ? 'Replay running' : 'Turn on UDP telemetry in the game');
+        setText(analysis.state, latest ? [[latest.track, latest.sessionName].filter(Boolean).join(' '), latest.finish ? `P${latest.finish}` : null].filter(Boolean).join(' · ') : 'No sessions yet');
+        setText(ask.state, 'Coming soon');
         const nSessions = sessions.filter((d) => !d.live).length;
-        setText(library.state, captures ? `${plural(nSessions, 'session')}, ${plural(captures.length, 'recording')}` : plural(nSessions, 'session'));
-        setText(library.detail, 'Open any session, replay or analyze a recording, or delete it.');
-        setText(library.go, 'Everything stays on this PC');
-
-        setText(connect.state, status.recording ? 'Recording' : status.pairUrl ? 'Sharing' : 'This PC only');
-        connect.state.className = `pc-dest__state ${status.recording ? 'is-act' : status.pairUrl ? 'is-info' : ''}`;
+        setText(storage.state, captures ? `${plural(nSessions, 'session')} · ${plural(captures.length, 'recording')}` : plural(nSessions, 'session'));
         const others = Math.max(0, status.clients - 1);
-        setText(connect.detail, status.pairUrl ? `${status.pairUrl}${others ? ` · ${plural(others, 'device')} connected` : ''}` : 'Turn on sharing to use a phone or tablet.');
-        setText(connect.go, 'Game setup · phones and tablets · record a race');
+        setText(connect.state, status.recording ? 'Recording now' : status.pairUrl ? `Sharing${others ? ` · ${plural(others, 'device')}` : ''}` : 'This PC only');
       }
       const watch = () => draw(last);
       watchers.add(watch);
+      draw(null);
       return (s) => {
         last = s;
         if (!el.isConnected) watchers.delete(watch);
@@ -561,7 +588,7 @@
     screens: [
       { id: 'home', group: 'home', label: 'Home', layout: 'single', widgets: ['home'] },
       { id: 'connect', group: 'pc', label: 'Connect', layout: 'single', widgets: ['connect'] },
-      { id: 'library', group: 'pc', label: 'Library', layout: 'single', widgets: ['library'] },
+      { id: 'library', group: 'pc', label: 'Storage', layout: 'single', widgets: ['library'] },
     ],
   };
 })();

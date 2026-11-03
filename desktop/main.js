@@ -22,6 +22,9 @@ const { startRecognizer, grammarPhrases } = require('./speech');
 const UDP_HOST = '0.0.0.0'; // a console or second PC can send telemetry too
 const SPEECH_IDLE_MS = 2 * 60 * 1000;
 
+// A throwaway profile for measurements and checks (scripts/perf-app.js), so they never touch the user's races.
+if (process.env.UNDERCUT_USER_DATA) app.setPath('userData', process.env.UNDERCUT_USER_DATA);
+
 if (!app.requestSingleInstanceLock()) {
   app.quit(); // a second copy would only find both ports taken
 } else {
