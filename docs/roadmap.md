@@ -51,7 +51,7 @@ flowchart LR
   end
   subgraph W[Desktop app]
     W0[W0 Performance baseline]:::done
-    W1[W1 Efficiency wins]:::next
+    W1[W1 Efficiency wins]:::done
     W2[W2 Home screen]:::done
     W5[W5 Home slideshow: real races]:::done
     W4[W4 Separate places, not dashboard tabs]:::done
@@ -78,7 +78,7 @@ flowchart LR
     G2[G2 Field CSV and Calls audit copy]:::next
     G3[G3 Library shows every saved session]:::next
     G4[G4 races.csv ends at the flag]:::next
-    G5[G5 Window opens without a blank frame]:::next
+    G5[G5 Window opens without a blank frame]:::done
   end
 
   T1 --> T2 --> T4
@@ -245,7 +245,10 @@ against W0, and none may raise the race numbers.
   of `render()` while the window is hidden (the voice keeps speaking); load a desktop screen's data
   only when it's opened; check Electron's `backgroundThrottling` and the snapshot size.
   *Test:* `test/perf.test.js` stays green; a hidden page runs no widget update but still voices a
-  call; W0 re-run shows race and idle CPU no higher, idle lower.
+  call; W0 re-run shows race and idle CPU no higher, idle lower. *Done (partly as planned):* the
+  hidden page draws nothing and still speaks (`test/app.test.js`); W0 re-run: no measurable change
+  minimized (the engine, not drawing, is what is left). The running-order cache was dropped: see
+  performance.md. Desktop screens already load their data only when opened (places, W4).
 - **W2 Home screen.** A real landing page that fills the window: a race-themed background image
   (our own or a free-licence photo; no F1 logos, team liveries or trademarks) and big tiles: Live
   dashboard, Race analysis (Debrief), Ask the race (LLM), Storage, Connect / record, Settings. One

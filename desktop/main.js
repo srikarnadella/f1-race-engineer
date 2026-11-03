@@ -254,10 +254,12 @@ if (!app.requestSingleInstanceLock()) {
       minHeight: 600,
       backgroundColor: '#06080b',
       autoHideMenuBar: true,
+      show: false, // shown once the page has painted, not as an empty frame first
       icon: path.join(__dirname, '..', 'public', 'icon-512.png'),
       // The window is a dashboard client with a few named calls: no Node access.
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
+    win.once('ready-to-show', () => win.show());
     win.on('closed', () => { win = null; });
     // Links out (the website, GitHub) open in the browser, never inside the app...
     win.webContents.setWindowOpenHandler(({ url }) => {

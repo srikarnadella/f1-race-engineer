@@ -37,5 +37,10 @@ Ranges are over four runs (three of 30 s phases, one of 60 s). Other numbers:
   RAM). The slideshow (W5) raises Home's idle to 4.2% of one core while it is on screen: each
   0.7 s crossfade every 8 s is two full-window layers blending. It costs nothing minimized (it
   pauses), and nothing once you leave Home. A hard cut instead of a fade would remove it.
+- W1 (3 Nov): a hidden window now runs only the voice, and redraws the latest race when it comes
+  back; the window opens once painted. Re-measured: race minimized 3.9% of a core, inside the
+  earlier 3.2-4.8% range, so what is left minimized is the engine reading ~370 packets a second, not
+  drawing. Caching the running order (`orderedByPosition`, ~2.7% of a 0.6 ms tick) was left out: too
+  little to measure here for the risk of a shared, stale list.
 - Not measured yet: the game's frame rate with the app beside it, which needs F1 26
   running. This file gets that row when it has been measured.

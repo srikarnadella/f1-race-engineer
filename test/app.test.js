@@ -147,3 +147,37 @@ test('app: Ask answers from the latest snapshot, and switching the voice on read
   assert.match(said[1], /Rain within 2 laps/);
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('app: while the window is hidden nothing is drawn, the voice still calls, and coming back draws the latest', async (t) => {
+  const said = [];
+  const before = (w) => {
+    w.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+    w.speechSynthesis = { speaking: false, paused: false, speak(u) { said.push(u.text); setTimeout(() => u.onend && u.onend(), 0); }, cancel() {}, pause() {}, resume() {}, getVoices: () => [] };
+  };
+  const app = open(t, { before });
+  app.connect();
+  const snaps = raceSnapshots().filter((s) => s.player && (s.insights || []).length);
+  const first = snaps[0];
+  app.send(first);
+  app.$('voice').click();
+  await new Promise((r) => setTimeout(r, 20));
+  const grid = () => app.$('grid').innerHTML;
+  const drawn = grid();
+
+  let hidden = true;
+  Object.defineProperty(app.window.document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
+  Object.defineProperty(app.window.document, 'hidden', { configurable: true, get: () => hidden });
+  app.window.document.dispatchEvent(new app.window.Event('visibilitychange'));
+  said.length = 0;
+  app.send({ ...first, insights: [...first.insights, { id: 'hidden-call', severity: 'advisory', category: 'strategy', message: 'Rain within 2 laps', createdAtMs: 1, textAtMs: 1 }] });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.strictEqual(grid(), drawn, 'nothing redrawn behind the game');
+  assert.ok(said.some((x) => /Rain within 2 laps/.test(x)), `still spoken: ${JSON.stringify(said)}`);
+  app.send(snaps[snaps.length - 1]); // the race moves on while nobody is looking
+  assert.strictEqual(grid(), drawn);
+
+  hidden = false;
+  app.window.document.dispatchEvent(new app.window.Event('visibilitychange'));
+  assert.notStrictEqual(grid(), drawn, 'the latest race drawn on return');
+  assert.deepStrictEqual(app.errors, []);
+});

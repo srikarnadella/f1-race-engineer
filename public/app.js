@@ -596,7 +596,11 @@
       ['auto', () => { applyFocus(s); renderAutoChip(); }],
       ['link', renderLink],
     ];
+    // Hidden (minimized, behind the game, a locked tablet): only the voice runs. Drawing a screen
+    // nobody sees cost the PC as much as everything else together (docs/performance.md).
+    const hidden = document.visibilityState === 'hidden';
     for (const [name, step] of steps) {
+      if (hidden && name !== 'voice') continue;
       try {
         step();
       } catch (err) {
@@ -633,6 +637,8 @@
     }
   }
   document.addEventListener('visibilitychange', keepAwake);
+  // Back in view: draw the latest race straight away, not at the next snapshot.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && lastSnapshot) render(lastSnapshot); });
   document.addEventListener('pointerdown', keepAwake, { passive: true });
 
   let retryMs = 500;
