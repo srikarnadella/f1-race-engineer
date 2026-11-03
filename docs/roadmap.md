@@ -64,6 +64,7 @@ flowchart LR
     L3[L3 Model picker and downloads]:::done
     L4[L4 Question set picks the models]:::next
     L5[L5 Ask the race screen]:::done
+    L6[L6 Coaching: corners, lift and coast, bias, diff, battery]:::done
   end
   subgraph R[Race analysis: its own place]
     R1[R1 Session picker and race overview]:::done
@@ -107,6 +108,7 @@ flowchart LR
   L2 --> L3
   L1 & L3 --> L4
   W2 & L4 --> L5
+  L5 --> L6
   W0 --> L5
 ```
 
@@ -342,6 +344,21 @@ phrases the answer.
   a driver and two laps' speed, drawn by the engine with a one-line finding; the engine attaches one when
   the question is about it, the model can ask for one (`show_chart`), and the chart buttons draw them with
   no model at all.
+
+- **L6 Coaching.** Asked "where did I lose time through the lap, what can I do better, what about brake
+  bias, the differential, the battery, lift and coast" (3 Nov 2026). The engine's rules give the advice,
+  each with the number it rests on; the model explains it. *Done:* corner by corner against your best
+  lap (brake point, apex speed, full throttle after the apex, coasting; `lapCompare`, `lapCorners`,
+  `src/llm/coaching.js`); lift and coast (the braking zones after the longest flat-out runs, fuel a
+  lap); brake bias and differential from what the car did at each corner (locks, wheelspin, understeer,
+  now kept in race.db's `corner_issue` with the settings at the time, and `car_setting`), with the
+  live suggestions' rules; the battery (charge and deploy mode now in every telemetry point) with where
+  it was used and charged, the low point, and rules for empty, unused and misplaced deployment.
+  `npm run db -- --db <file>` re-processes recordings into the app's store so past races get it too.
+  *Test:* `test/lapCoaching.test.js`, `test/coaching.test.js`, `test/store.test.js`,
+  `test/llmTools.test.js`, `test/llmAsk.test.js`; qwen3:1.7b answered the coaching and lift-and-coast
+  questions right on all four races. Still open: the thresholds are first guesses, and setup advice is
+  rules of thumb, not an optimiser.
 
 ### Race analysis: its own place
 

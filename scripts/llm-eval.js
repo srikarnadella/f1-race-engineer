@@ -44,6 +44,15 @@ function questionsFor(tools, sid) {
   if (!coach.error && coach.advice.length) qs.push({ q: 'What can I do better?', expect: [new RegExp(`corner ${coach.advice[0].corner}\\b`, 'i')], tool: 'lap_coaching' });
   const coast = run('lift_and_coast');
   if (!coast.error && coast.candidates.length) qs.push({ q: 'Where should I lift and coast to save fuel?', expect: [new RegExp(`corner (${coast.candidates.map((c) => c.corner).join('|')})\\b`, 'i')], tool: 'lift_and_coast' });
+  // Brake bias and differential: the change the rules suggest, or that none is needed.
+  const bal = run('car_balance');
+  if (!bal.error) {
+    const change = bal.advice.length && /(\d+) to (\d+)%/.exec(bal.advice[0]);
+    qs.push({ q: 'Should I change my brake bias or differential?', expect: [change ? new RegExp(`\\b${change[2]}%`) : /\b(no change|nothing to change|no need|don't need|keep)\b/i], tool: 'car_balance' });
+  }
+  // The battery: what the lap started or ended with.
+  const bat = run('battery');
+  if (!bat.error) qs.push({ q: 'How did I use my battery?', expect: [new RegExp(`\\b(${bat.startPct}|${bat.endPct}|${bat.lowestPct})%`)], tool: 'battery' });
   // Needs a tool: where time went between two laps with telemetry.
   const traced = clean.filter((l) => l.has_telemetry && l.lap !== best.lap);
   if (best.has_telemetry && traced.length) {

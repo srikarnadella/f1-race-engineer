@@ -6,6 +6,7 @@
 // sessions to the same file as they finish.
 //
 //   npm run db [-- capture-folder ...]   (default: every folder in captures/)
+//   npm run db -- --db <race.db> [capture-folder ...]   (another store: the desktop app's, say)
 const path = require('path');
 const { readLog } = require('../src/capture/logFile');
 const { createPipeline } = require('../src/pipeline');
@@ -13,11 +14,14 @@ const { captureFiles } = require('../src/data/captures');
 const { openStore } = require('../src/data/store');
 
 const ROOT = path.resolve(__dirname, '..');
-const DB_FILE = path.join(ROOT, 'data', 'race.db');
+// --db <file>: write to that store instead (the app's is %APPDATA%\Undercut\data\race.db).
+const args = process.argv.slice(2);
+const dbAt = args.indexOf('--db');
+const DB_FILE = dbAt >= 0 ? path.resolve(args.splice(dbAt, 2)[1]) : path.join(ROOT, 'data', 'race.db');
 const TICK_EVERY_MS = 100; // the engine ticks at 10 Hz live
 
 async function main() {
-  const files = captureFiles(ROOT, process.argv.slice(2));
+  const files = captureFiles(ROOT, args);
   if (!files.length) {
     console.error('No captures found - record races with `npm run capture` first.');
     process.exit(1);
