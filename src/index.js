@@ -121,9 +121,16 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     store,
   });
   const { fieldModel, debrief, dispatch: onPacket } = pipeline;
+  // Ask the race (desktop app) unloads the local model when a live session starts (onSessionStart).
+  let sessionUID = null;
   const engineTick = setInterval(() => {
     try {
       const latest = pipeline.tick();
+      const uid = fieldModel.getSessionUID();
+      if (uid != null && uid !== sessionUID) {
+        sessionUID = uid;
+        if (!opts.demoFile && opts.onSessionStart) opts.onSessionStart();
+      }
       server.broadcast();
       if (capture) capture.logOutputs(latest);
     } catch (err) {
@@ -254,6 +261,8 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     record,
     stopRecording,
     recording: () => (capture ? capture.dir : null),
+    // The game is sending telemetry right now (a replay isn't racing).
+    live: () => !opts.demoFile && !!pipeline.snapshot().connected,
     deleteSession,
     stop,
   };

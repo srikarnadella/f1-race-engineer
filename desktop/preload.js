@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('undercut', {
   openDataFolder: call('openDataFolder'),
   openInBrowser: call('openInBrowser'),
   speech: { start: call('speech:start'), stop: call('speech:stop') },
+  llm: { status: call('llm:status'), models: call('llm:models'), ask: call('llm:ask'), stop: call('llm:stop') },
   // on('status' | 'speech', fn) -> unsubscribe
   on: (channel, fn) => {
     if (!EVENTS.has(channel)) return () => {};

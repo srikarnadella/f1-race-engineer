@@ -90,3 +90,23 @@ test('start: recording starts and stops while the bridge runs, without restartin
   assert.ok(fs.existsSync(path.join(dir, 'meta.json')));
   await bridge.stop();
 });
+
+test('start: the bridge says when telemetry is live and when a new session starts, for Ask the race (roadmap L2)', async (t) => {
+  quiet(t);
+  const dgram = require('dgram');
+  const { syntheticPackets } = require('./helpers/synthetic');
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'undercut-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  let started = 0;
+  const bridge = start({ httpPort: 0, udpPort: 0, udpHost: '127.0.0.1', dataDir, onSessionStart: () => { started++; } });
+  if (!bridge.server.listening) await once(bridge.server, 'listening');
+  try { bridge.udp.address(); } catch { await once(bridge.udp, 'listening'); }
+  assert.strictEqual(bridge.live(), false, 'no game yet');
+  const client = dgram.createSocket('udp4');
+  for (const p of syntheticPackets().slice(0, 300)) await new Promise((r) => client.send(p.buf, bridge.udp.address().port, '127.0.0.1', r));
+  await new Promise((r) => setTimeout(r, 400));
+  assert.strictEqual(bridge.live(), true);
+  assert.strictEqual(started, 1);
+  client.close();
+  await bridge.stop();
+});

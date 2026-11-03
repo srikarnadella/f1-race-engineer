@@ -60,8 +60,8 @@ flowchart LR
   end
   subgraph L[Ask the race: local LLM]
     L1[L1 Read-only race tools]:::done
-    L2[L2 Ollama client with a lifecycle]:::next
-    L3[L3 Model picker and downloads]
+    L2[L2 Ollama client with a lifecycle]:::done
+    L3[L3 Model picker and downloads]:::next
     L4[L4 Question set picks the models]
     L5[L5 Ask the race screen]
   end
@@ -304,7 +304,11 @@ phrases the answer.
   as the answer is done; a live session start sends an unload and blocks new requests until it ends;
   a Stop button cancels a running answer. *Test:* against a fake Ollama server: every request carries
   `keep_alive: 0`; a request during a live session is refused without reaching the server; a session
-  start unloads a loaded model; after an answer `/api/ps` lists nothing.
+  start unloads a loaded model; after an answer `/api/ps` lists nothing. *Done:* `src/llm/ollama.js`
+  (`test/ollama.test.js`, the bridge's `live()` and `onSessionStart` in `test/start.test.js`), in the app's main
+  process only, so phones on the Wi-Fi can't reach it. One change from the plan: within one answer the
+  tool rounds keep the model warm for a minute (`keep_alive: "1m"`), so it doesn't reload from disk for
+  every tool call, and every answer ends with `keep_alive: 0`, whether it finished, failed or was stopped.
 - **L3 Model picker and downloads.** A short list of small models that fit a 4 GB GPU (to start:
   Qwen3 1.7B and 4B, Llama 3.2 3B, Gemma 3 4B, Phi-4-mini), each with download size and licence,
   pulled through Ollama with progress, and deletable. The list is trimmed by L4's scores.

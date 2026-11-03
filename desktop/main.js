@@ -18,6 +18,8 @@ const { listCaptures, captureDir, deleteCapture, packetsFile, summarizeReport, d
 const { loadSettings, saveSettings, applySettings } = require('./settings');
 const { ensureCert } = require('./tls');
 const { startRecognizer, grammarPhrases } = require('./speech');
+const { createOllama } = require('../src/llm/ollama');
+const { createRaceTools } = require('../src/llm/tools');
 
 const UDP_HOST = '0.0.0.0'; // a console or second PC can send telemetry too
 const SPEECH_IDLE_MS = 2 * 60 * 1000;
@@ -92,6 +94,7 @@ if (!app.requestSingleInstanceLock()) {
       udpPort: settings.udpPort,
       udpHost: UDP_HOST,
       dataDir: paths.data(),
+      onSessionStart: () => ollama.sessionStarted(), // nothing of the model stays loaded while you race
       onPortInUse: (port) => {
         dialog.showErrorBox('Undercut can\'t start', `Port ${port} is already in use. Close the other copy of Undercut (or \`npm start\`), or pick another dashboard port in Settings.`);
         app.quit();
@@ -119,6 +122,9 @@ if (!app.requestSingleInstanceLock()) {
     });
     return switching.then(status);
   }
+
+  // Ask the race (roadmap L2): the local model through Ollama, never while the game is sending telemetry.
+  const ollama = createOllama({ isLive: () => !!(bridge && bridge.live()) });
 
   // Only this window, on the bridge's own page, may call the PC.
   function handle(channel, fn) {
@@ -196,6 +202,18 @@ if (!app.requestSingleInstanceLock()) {
     return shell.openPath(paths.data());
   });
   handle('openInBrowser', () => shell.openExternal(localUrl()));
+  handle('llm:status', async () => ({ ...(await ollama.detect()), live: !!(bridge && bridge.live()), busy: ollama.busy() }));
+  handle('llm:models', () => ollama.models());
+  handle('llm:ask', async (model, question) => {
+    if (typeof model !== 'string' || typeof question !== 'string' || !question.trim()) throw new Error('Ask a question');
+    const tools = createRaceTools(path.join(paths.data(), 'race.db')); // read-only, closed after the answer
+    try {
+      return await ollama.ask({ model, question: question.slice(0, 2000), tools });
+    } finally {
+      tools.close();
+    }
+  });
+  handle('llm:stop', () => ollama.stop());
 
   // Voice questions (speech.js): one recognizer, kept warm for a couple of
   // minutes after the last question so the next one starts at once.
@@ -279,6 +297,7 @@ if (!app.requestSingleInstanceLock()) {
   // Save the session (race.db, the debrief) and finish any recording before the process goes.
   app.on('will-quit', (e) => {
     if (recognizer) recognizer.stop();
+    ollama.stop(); // and unloads the model
     if (!bridge || quitting) return;
     e.preventDefault();
     quitting = true;
