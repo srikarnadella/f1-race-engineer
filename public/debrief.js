@@ -6,6 +6,10 @@
 
   const { widgets: W, esc, badge, plus, isNum, fmtLap, degText, COMPOUND_NAME } = window.RaceWidgets;
 
+  // The desktop Library's "Open in Debrief": the session the next Debrief opens on.
+  let openNext = null;
+  window.RaceDebrief = { openSession: (id) => { openNext = id; } };
+
   // ---------- Debrief: post-session recap ----------
   // The live session plus the last few finished ones (the bridge keeps them
   // after the game moves on). Rebuilt only when the data changes - it
@@ -284,7 +288,8 @@
       const body = el.querySelector('.w-deb__body');
       const VIEWS = [['summary', 'Summary'], ['compare', 'Lap compare'], ['rivals', 'Rivals'], ['calls', 'Calls'], ['models', 'Models']];
       let view = 'summary';
-      let selected = null;
+      let selected = openNext;
+      openNext = null;
       let pick = { a: null, b: null };
       let sig = '';
       let lastData = null;

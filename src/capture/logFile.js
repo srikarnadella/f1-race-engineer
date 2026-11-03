@@ -24,7 +24,7 @@ function openLogWriter(filePath) {
     write: (line) => gz.write(line + '\n'),
     close: () => new Promise((resolve) => {
       clearInterval(flusher);
-      file.on('close', resolve);
+      file.on('close', () => resolve());
       gz.end();
     }),
   };

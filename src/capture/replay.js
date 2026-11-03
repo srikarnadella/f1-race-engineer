@@ -5,7 +5,9 @@ const { readLog } = require('./logFile');
 // relative timing, then loops. This is what lets the public demo show a
 // live-moving dashboard with no game, no UDP socket, and no viewer setup at
 // all - it runs through the exact same parsePacket() the live listener uses.
-async function startReplay({ filePath, onPacket, onLoopStart, loop = true, speed = 1 }) {
+// signal (an AbortSignal) ends it: the desktop app goes back to live.
+async function startReplay({ filePath, onPacket, onLoopStart, loop = true, speed = 1, signal = null }) {
+  const aborted = () => !!(signal && signal.aborted);
   async function playOnce() {
     if (onLoopStart) onLoopStart();
     const stats = { badLines: 0, truncated: false };
@@ -16,7 +18,20 @@ async function startReplay({ filePath, onPacket, onLoopStart, loop = true, speed
 
     for await (const { tMs, buf } of readLog(filePath, stats)) {
       const wait = startedAt + tMs / speed - Date.now();
-      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      if (wait > 0) {
+        await new Promise((resolve) => {
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          const timer = setTimeout(() => {
+            if (signal) signal.removeEventListener('abort', onAbort);
+            resolve();
+          }, wait);
+          if (signal) signal.addEventListener('abort', onAbort, { once: true });
+        });
+      }
+      if (aborted()) return;
       try {
         const parsed = parsePacket(buf);
         if (parsed.data !== null) onPacket(parsed.header.packetId, parsed.header, parsed.data);
@@ -31,7 +46,7 @@ async function startReplay({ filePath, onPacket, onLoopStart, loop = true, speed
 
   do {
     await playOnce();
-  } while (loop);
+  } while (loop && !aborted());
 }
 
 module.exports = { startReplay };

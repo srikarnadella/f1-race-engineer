@@ -87,6 +87,8 @@
     { id: 'weather', group: 'live', label: 'Weather', layout: 'wide-side-3', widgets: ['tyrecall', 'call', 'weather', 'rejoin', 'radio'] },
     { id: 'debrief', group: 'after', label: 'Debrief', layout: 'single', widgets: ['debrief'] },
   ];
+  // In the desktop app (public/desktop.js): Connect and Library, last in the rail.
+  const PC_SCREENS = (window.RaceDesktop && window.RaceDesktop.screens) || [];
   // Screens from earlier versions, so a saved choice still lands somewhere sensible.
   const RENAMED = { engineer: 'drive', race: 'drive', adjust: 'drive', car: 'drive', timing: 'drive', pit: 'strategy' };
   const FILLER = ['battle', 'radio', 'call', 'rejoin', 'laptime', 'options', 'pittiming', 'tyrecall', 'adjust', 'weather', 'nearby', 'pace'];
@@ -100,10 +102,23 @@
     return { layout, widgets: chosen };
   }
   let custom = sanitizeCustom(load(STORE.custom, CUSTOM_DEFAULT));
-  // Custom sits with the live screens; Debrief last.
-  const screens = () => [...PRESETS.filter((p) => p.group === 'live'), { id: 'custom', group: 'live', label: 'Custom', ...custom }, ...PRESETS.filter((p) => p.group === 'after')];
+  // Custom sits with the live screens; Debrief after them. In the app, Home
+  // comes first and Connect and Library last.
+  const screens = () => [...PC_SCREENS.filter((p) => p.group === 'home'), ...PRESETS.filter((p) => p.group === 'live'), { id: 'custom', group: 'live', label: 'Custom', ...custom }, ...PRESETS.filter((p) => p.group === 'after'), ...PC_SCREENS.filter((p) => p.group === 'pc')];
+  // Number keys skip Home, so Drive is 1 in the app as in a browser.
+  const numbered = () => screens().filter((s) => s.group !== 'home');
   // The recorded demo always opens on Drive: a screen picked on an earlier visit isn't what a first-time visitor should land on.
-  let currentId = RECORDED ? 'drive' : load(STORE.screen, 'drive');
+  // The app opens on Home - or, after it reloaded itself (a replay, a settings change), where it was.
+  function appScreen() {
+    try {
+      const next = sessionStorage.getItem('raceEngineer.next');
+      sessionStorage.removeItem('raceEngineer.next');
+      return next || 'home';
+    } catch (_) {
+      return 'home';
+    }
+  }
+  let currentId = RECORDED ? 'drive' : PC_SCREENS.length ? appScreen() : load(STORE.screen, 'drive');
   currentId = RENAMED[currentId] || currentId;
   if (!screens().some((s) => s.id === currentId)) currentId = 'drive';
   let editing = false;
@@ -111,26 +126,28 @@
   let lastSnapshot = null;
 
   // ---------- Tabs ----------
-  const GROUP_LABEL = { live: 'Live', after: 'After the race' };
+  const GROUP_LABEL = { live: 'Live', after: 'After the race', pc: 'On this PC' };
   function renderTabs() {
     const items = [];
     let group = null;
-    screens().forEach((s, i) => {
-      if (s.group !== group) {
+    const all = screens();
+    const keys = all.filter((s) => s.group !== 'home');
+    all.forEach((s) => {
+      if (s.group !== group && GROUP_LABEL[s.group]) {
         group = s.group;
         const h = document.createElement('div');
         h.className = 'tabs__group';
         h.textContent = GROUP_LABEL[group];
         items.push(h);
       }
-      items.push(tabButton(s, i));
+      items.push(tabButton(s, keys.indexOf(s) + 1));
     });
     $('tabs').replaceChildren(...items);
     if (RECORDED && window.parent !== window) window.parent.postMessage({ type: 'screen', id: currentId, auto: autoOn }, location.origin);
     const btn = $('customize');
     setText(btn, currentId === 'custom' ? (editing ? 'Done' : 'Edit') : 'Customize');
     btn.classList.toggle('is-active', editing);
-    btn.hidden = currentId === 'debrief';
+    btn.hidden = (screens().find((s) => s.id === currentId) || {}).group !== 'live';
   }
 
   function tabButton(s, i) {
@@ -142,7 +159,7 @@
       b.setAttribute('aria-selected', String(s.id === currentId));
       const key = document.createElement('span');
       key.className = 'tab__key';
-      key.textContent = i + 1;
+      key.textContent = i ? String(i) : '';
       const label = document.createElement('span');
       label.textContent = s.label;
       b.append(key, label);
@@ -174,6 +191,9 @@
     renderTabs();
     renderScreen();
   }
+
+  // The desktop Library's "Open in Debrief".
+  document.addEventListener('undercut:show', (e) => showScreen(/** @type {CustomEvent} */ (e).detail));
 
   $('customize').addEventListener('click', () => {
     if (currentId === 'custom') {
@@ -241,7 +261,7 @@
   function updateWidgets(s) {
     for (const w of mounted) {
       // Widgets that need the player's car wait until it exists.
-      if (!s.player && !['radio', 'session', 'debrief'].includes(w.id)) continue;
+      if (!s.player && !['radio', 'session', 'debrief', 'home', 'connect', 'library'].includes(w.id)) continue;
       try {
         w.update(s);
       } catch (err) {
@@ -321,7 +341,7 @@
   // keys) beside the wheel, when the dashboard is on a PC monitor.
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || inField(e) || !$('settings-sheet').hidden) return;
-    const s = screens()[Number(e.key) - 1];
+    const s = numbered()[Number(e.key) - 1];
     if (s) showScreen(s.id);
   });
 
@@ -524,7 +544,7 @@
     let body = '';
     if (!socketOpen) {
       title = 'Bridge offline.';
-      body = 'Make sure npm start is running on the PC and this device is on the same network.';
+      body = window.undercut ? 'Close Undercut and open it again.' : 'Make sure Undercut is running on the PC and this device is on the same network.';
     } else if (!lastSnapshot || !lastSnapshot.player) {
       title = 'No telemetry.';
       body = 'In F1 26: Settings → Telemetry → UDP On, port 20777, format 2025 or later - then get on track.';
@@ -532,7 +552,8 @@
       title = 'Telemetry paused.';
       body = 'Nothing from the game for a few seconds - paused, in a menu, or the session ended. Showing the last data.';
     }
-    $('status-banner').hidden = !title;
+    // Home, Connect and Library say it themselves, in full.
+    $('status-banner').hidden = !title || ['pc', 'home'].includes((screens().find((x) => x.id === currentId) || {}).group);
     if (title) {
       setText($('status-title'), title);
       setText($('status-body'), body);

@@ -29,3 +29,14 @@ test('server: a WebSocket frame over 1 KB closes the connection', async (t) => {
   const [code] = await once(ws, 'close');
   assert.strictEqual(code, 1009); // message too big
 });
+
+test('server: bound to this PC only, it offers no pairing address and other devices cannot reach it', async (t) => {
+  const s = startServer({ httpPort: 0, host: '127.0.0.1', getSnapshot: () => ({ ok: true }) });
+  if (!s.server.listening) await once(s.server, 'listening');
+  t.after(s.close);
+  assert.strictEqual(s.server.address().address, '127.0.0.1');
+  const res = await new Promise((resolve) => http.get({ port: s.server.address().port, path: '/api/pair' }, resolve));
+  let body = '';
+  for await (const chunk of res) body += chunk;
+  assert.deepStrictEqual(JSON.parse(body), { url: null });
+});

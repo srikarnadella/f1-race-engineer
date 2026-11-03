@@ -822,3 +822,132 @@ body {
 .tab:focus-visible, .tool:focus-visible, .w-deb__tab:focus-visible, .auto-chip:focus-visible, .mark:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
 /* Archivo runs wider than the system font: the trend line stays on one line in the Drive panels. */
 .w-drive__battle .w-battle__trend { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Desktop app: Connect and Library (public/desktop.js) ----------
+   Only in the Undercut window. Full-screen cards on the page ground, built
+   from the same tone steps as the rest: panel blocks, panel-2 rows inside
+   them, colour for meaning only (green receiving, amber waiting, red
+   recording, blue the main action). */
+.card--home, .card--connect, .card--library { padding: 0; background: var(--bg); }
+.card--home .card__title, .card--connect .card__title, .card--library .card__title { display: none; }
+.card--home .card__body, .card--connect .card__body, .card--library .card__body { container-type: normal; overflow-y: auto; }
+.pc { display: grid; gap: var(--gap); align-content: start; padding-bottom: var(--gap); }
+.pc h2, .pc h3, .pc h4, .pc p { margin: 0; }
+.pc h3 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em; }
+.pc p { line-height: 1.5; }
+
+.pc-btn {
+  appearance: none; border: 0; border-radius: 4px; padding: 12px 18px;
+  background: #262626; color: var(--text); font: inherit; font-size: 1rem; font-weight: 750;
+  cursor: pointer; white-space: nowrap; touch-action: manipulation;
+  transition: background 0.12s, color 0.12s, transform 0.08s;
+}
+.pc-btn:hover { background: #333; }
+.pc-btn:active { transform: scale(0.97); }
+.pc-btn:focus-visible, .pc-toggle input:focus-visible, .pc-port:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.pc-btn--primary { background: var(--info); color: #001323; }
+.pc-btn--primary:hover { background: #93d6ff; }
+.pc-btn--quiet { color: var(--muted); }
+.pc-btn--quiet:hover { color: var(--text); }
+/* Red only while it records: at rest it's an ordinary button with the record dot. */
+.pc-btn--rec { justify-self: start; display: inline-flex; align-items: center; gap: 10px; padding: 16px 24px; font-size: 1.15rem; }
+.pc-btn--rec::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--act); }
+.pc-btn--rec.is-on { background: var(--act); color: #fff; }
+.pc-btn--rec.is-on::before { border-radius: 2px; background: #fff; }
+.pc-btn--rec.is-on:hover { background: #ff7268; }
+.pc-error { padding: 12px 16px; border-radius: 4px; background: #3a0d10; color: #ffd9d9; }
+
+/* Connect: the game's state is the headline; other devices beside it. */
+.pc-connect { grid-template-columns: minmax(0, 1.55fr) minmax(340px, 1fr); grid-template-areas: "mode mode" "game share" "rec share" "err err"; }
+.pc-connect .pc-error { grid-area: err; }
+.pc-mode { grid-area: mode; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-radius: 4px; background: #0d2233; }
+.pc-mode__text { font-size: 1.1rem; font-weight: 650; }
+.pc-game { grid-area: game; display: flex; flex-direction: column; gap: 16px; padding: 32px 36px; border-radius: 4px; background: var(--panel); }
+.pc-game__state { font-size: clamp(2.4rem, 4.8vw, 5rem); font-weight: 800; line-height: 0.95; letter-spacing: -0.035em; }
+.pc-game__lede { max-width: 54ch; font-size: 1.2rem; }
+.pc-steps { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 8px; font-size: 1.1rem; line-height: 1.45; max-width: 60ch; }
+.pc-steps li::marker { color: var(--label); font-weight: 800; }
+.pc-facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.pc-fact { display: flex; flex-direction: column; gap: 4px; min-width: 140px; padding: 14px 18px; border-radius: 4px; background: var(--panel-2); }
+.pc-fact b { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.01em; }
+.pc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 8px; }
+.pc-rec { grid-area: rec; display: grid; gap: 12px; padding: 26px 36px 30px; border-radius: 4px; background: var(--panel); }
+.pc-rec__head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.pc-rec__time { color: var(--act); font-size: 1.3rem; font-weight: 800; }
+.pc-rec__text { max-width: 62ch; font-size: 1.05rem; }
+.pc-share { grid-area: share; display: flex; flex-direction: column; gap: 16px; padding: 28px; border-radius: 4px; background: var(--panel); }
+.pc-share__code { display: flex; flex-direction: column; gap: 14px; }
+.pc-share__qr { width: min(240px, 100%); height: auto; aspect-ratio: 1; padding: 10px; border-radius: 4px; background: #fff; image-rendering: pixelated; }
+.pc-share__url { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.01em; overflow-wrap: anywhere; user-select: all; }
+.pc-share__devices { color: var(--muted); }
+.pc-share__off { font-size: 1.1rem; }
+.pc-share__note { padding: 12px 14px; border-radius: 4px; background: #1d1909; color: #ffeaa6; }
+.pc-toggle { display: flex; align-items: flex-start; gap: 14px; padding: 14px; border-radius: 4px; background: var(--panel-2); cursor: pointer; }
+.pc-toggle input { flex: none; width: 26px; height: 26px; margin: 0; accent-color: var(--info); }
+.pc-toggle input:disabled + span { opacity: 0.5; }
+.pc-toggle > span { display: flex; flex-direction: column; gap: 4px; line-height: 1.4; }
+
+/* Library: sessions and recordings side by side, a row each. */
+.pc-lib__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 28px 32px; border-radius: 4px; background: var(--panel); }
+.pc-lib__head h2 { font-size: clamp(2.2rem, 4vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: -0.035em; }
+.pc-lib__summary { margin-top: 10px !important; font-size: 1.15rem; }
+.pc-lib__cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: start; }
+.pc-lib__col { display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 4px; background: var(--panel); }
+.pc-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pc-list__empty { padding: 18px 0; }
+.pc-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 16px; padding: 14px 16px; border-radius: 4px; background: var(--panel-2); }
+.pc-row.is-recording { border-left: 5px solid var(--act); }
+.pc-row__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pc-row__title { font-size: 1.15rem; font-weight: 800; }
+.pc-row__meta { color: var(--muted); font-size: 0.95rem; }
+.pc-row__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.pc-row .pc-btn { padding: 9px 13px; font-size: 0.95rem; }
+.pc-row__busy { align-self: center; padding: 0 8px; color: var(--watch); font-weight: 750; }
+.pc-report { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 4px; background: var(--panel); }
+.pc-report ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 4px; line-height: 1.45; }
+.pc-report h4 { margin-bottom: 4px !important; font-size: 1rem; }
+.pc-report .pc-btn { justify-self: start; align-self: flex-start; }
+
+/* Home: one way into each part of the app. The live race is the big one;
+   each panel shows what is there right now, so no two read alike. */
+.pc-home { grid-template-rows: auto 1fr; align-content: stretch; min-height: 100%; }
+.pc-home .pc-error { margin-top: 12px; }
+.pc-home__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 28px 32px; border-radius: 4px; background: var(--panel); }
+.pc-home__head h2 { font-size: clamp(2.6rem, 5vw, 5.2rem); font-weight: 800; line-height: 0.95; letter-spacing: -0.04em; }
+.pc-home__line { margin-top: 12px !important; font-size: 1.2rem; max-width: 60ch; }
+.pc-home__head .pc-actions { margin-top: 0; padding-top: 0; }
+.pc-home__grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(200px, 1fr) minmax(200px, 1fr); gap: var(--gap); }
+.pc-dest {
+  appearance: none; border: 0; border-radius: 4px; padding: 28px 30px; background: var(--panel); color: var(--text);
+  font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  transition: background 0.12s, transform 0.08s;
+}
+.pc-dest:hover { background: #1b1b1b; }
+.pc-dest:active { transform: scale(0.99); }
+.pc-dest:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.pc-dest__name { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
+.pc-dest__state { font-size: clamp(1.6rem, 2.6vw, 2.6rem); font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.pc-dest__detail { font-size: 1.05rem; line-height: 1.45; color: var(--text); max-width: 46ch; }
+.pc-dest__go { margin-top: auto; color: var(--muted); font-size: 0.95rem; font-weight: 650; }
+.pc-dest:hover .pc-dest__go { color: var(--info); }
+.pc-dest--live { grid-row: 1 / span 2; padding: 36px; }
+.pc-dest--live .pc-dest__name { font-size: 2rem; }
+.pc-dest--live .pc-dest__state { font-size: clamp(3rem, 7vw, 8.5rem); line-height: 0.9; letter-spacing: -0.045em; overflow-wrap: normal; }
+.pc-dest--live .pc-dest__detail { font-size: 1.3rem; }
+.pc-dest--analysis { grid-column: 2 / span 2; }
+
+/* Settings: this PC's ports and data folder. */
+.setting--pc { flex-direction: column; cursor: default; }
+.pc-ports { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.pc-ports label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); }
+.pc-port { width: 130px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--text); font: inherit; font-size: 1rem; }
+
+@media (max-width: 1150px) {
+  .pc-home__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto; }
+  .pc-dest--live { grid-row: auto; grid-column: 1 / -1; }
+  .pc-dest--analysis { grid-column: 1 / -1; }
+  .pc-connect { grid-template-columns: minmax(0, 1fr); grid-template-areas: "mode" "game" "rec" "share" "err"; }
+  .pc-share__code { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .pc-share__qr { width: 180px; }
+  .pc-lib__cols { grid-template-columns: minmax(0, 1fr); }
+}

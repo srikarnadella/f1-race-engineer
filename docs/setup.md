@@ -2,9 +2,37 @@
 
 [← Back to the README](../README.md)
 
+## The Windows app
+
+Install it with `dist/Undercut-Setup-<version>.exe` (build it with `npm run app:build`). It installs
+for your Windows user only, with no admin rights. SmartScreen warns about an unsigned app the first
+time: *More info → Run anyway*. Windows Firewall may ask whether Undercut can use the network: allow it
+on private networks, or phones (and the game on a console) can't reach it.
+
+It opens on **Home**: one large panel for the live race (it shows the current call once the game is
+connected), and panels for race analysis, the Library and Connect. The left rail still switches screens
+mid-race (keys **1–8**).
+
+| Screen | What you do there |
+|---|---|
+| **Connect** | See whether F1 26 telemetry is arriving, with the game settings to change if not. Scan the QR code on a phone or tablet. Turn off sharing on the Wi-Fi, or turn on *Voice questions on phones* (below). **Record this session** saves every packet and call, like `npm run capture`; MARK appears while it records. |
+| **Library** | Every saved session (open it in the Debrief, or delete it) and every recording (replay it through the screens, analyze it to check each call, show the file, or delete it). Deletes ask first and can't be undone. |
+| **Settings** | As before, plus the two ports and the data folder. |
+
+**Voice in the app window** uses Windows' own speech recognition, offline. It listens for the Ask
+questions (and your own commands) by name, so "Engineer, gap behind?" is heard reliably, and nothing is
+sent anywhere. The engineer's spoken calls use the Windows voices.
+
+**Voice on phones:** *Voice questions on phones* (Connect) serves the dashboard over https with a
+certificate the app makes for this PC. The first time, the phone warns that the connection isn't private
+(no company signed it): tap *Advanced → Proceed*, and the microphone works after that.
+
+**Where things are:** race data in `%APPDATA%\Undercut\data` (`race.db`, `sessions/`, `tracks.json`,
+`captures/`). *Open data folder* in the Library or Settings opens it.
+
 ## Try the demo (no game needed)
 
-You need [Node.js](https://nodejs.org) 20 or newer.
+In the app: **Watch the demo race** on Home. From the code, you need [Node.js](https://nodejs.org) 22.13 or newer.
 
 ```bash
 git clone https://github.com/srikarnadella/f1-race-engineer.git

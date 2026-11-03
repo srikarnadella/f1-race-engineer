@@ -57,7 +57,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     const files = fs.readdirSync(dir).filter((n) => n.endsWith('.json.gz')).sort().reverse().slice(0, KEEP_SESSIONS);
     for (const n of files) {
       try {
-        history.push(fromFile(fs.readFileSync(path.join(dir, n))));
+        history.push({ ...fromFile(fs.readFileSync(path.join(dir, n))), file: n });
       } catch (err) {
         console.warn(`[debrief] skipping unreadable session ${n}: ${err.message}`);
       }
@@ -74,6 +74,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       fs.writeFileSync(path.join(dir, name + '.tmp'), toFile(rec));
       fs.renameSync(path.join(dir, name + '.tmp'), path.join(dir, name));
       rec.saved = true;
+      rec.file = name;
       // Names start with the start time, so the oldest sort first.
       const saved = fs.readdirSync(dir).filter((n) => n.endsWith('.json.gz')).sort();
       for (const n of saved.slice(0, -KEEP_ON_DISK)) fs.rmSync(path.join(dir, n), { force: true });
@@ -85,6 +86,8 @@ function createDebrief(fieldModel, { dir = null } = {}) {
   function start(generation, session) {
     return {
       id: `${clock().toString(36)}`,
+      // The game's session id, as the race store keys it (older saved sessions don't have it).
+      uid: fieldModel.getSessionUID ? String(fieldModel.getSessionUID()) : null,
       generation,
       startedAt: clock(),
       sessionType: session ? session.sessionType : null,
@@ -404,8 +407,19 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     return auditCalls(rows.calls, rows.laps);
   }
 
+  // The desktop Library's Delete: a finished session goes from the list and
+  // from disk. Returns its race-store id (null for older saves), or null if
+  // there's no such finished session - the one in progress can't be deleted.
+  function remove(id) {
+    const k = history.findIndex((s) => s.id === id);
+    if (k < 0) return null;
+    const [s] = history.splice(k, 1);
+    if (dir && s.file) fs.rmSync(path.join(dir, s.file), { force: true });
+    return { uid: s.uid || null };
+  }
+
   // The raw record of the session in progress (the race store reads its lap traces).
-  return { tick, noteCall, view, compare, rivals, audit, flush, current: () => current };
+  return { tick, noteCall, view, compare, rivals, audit, flush, remove, current: () => current };
 }
 
 module.exports = { RIVAL_ID, createDebrief };

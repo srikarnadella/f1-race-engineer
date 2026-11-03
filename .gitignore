@@ -22,3 +22,5 @@ coverage/
 # Python environment for ml/ (pip install -r ml/requirements.txt).
 .venv/
 __pycache__/
+# Desktop installer output (npm run app:build).
+dist/

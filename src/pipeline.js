@@ -15,6 +15,7 @@ const { createSessionRecorder } = require('./data/sessionRecorder');
 // `source` lets the dashboard label a replay - the public demo must never
 // pass itself off as a live session.
 // `store` (data/store.js) keeps every session in the race database; `captureName` is where it came from.
+// setCapture(name | null) starts or ends a recording without a restart (the desktop app's Record button).
 function createPipeline({ now = () => Date.now(), memory = createTrackMemory(), debriefDir = null, source = 'live', capturing = false, store = null, captureName = null } = {}) {
   const fieldModel = createFieldModel({ clock: now });
   const insightEngine = createInsightEngine(fieldModel);
@@ -49,6 +50,10 @@ function createPipeline({ now = () => Date.now(), memory = createTrackMemory(), 
   // rides along on every 10th tick - once a second at 10 Hz.
   let tickCount = 0;
   let debriefView = debrief.view();
+  function setCapture(name) {
+    capturing = !!name;
+    captureName = name || null;
+  }
   const build = (withDebrief) => ({ source, capturing, ...(withDebrief ? { debrief: debriefView } : {}), ...buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus) });
   let latest = build(true);
 
@@ -68,7 +73,7 @@ function createPipeline({ now = () => Date.now(), memory = createTrackMemory(), 
     if (recorder) recorder.flush();
   }
 
-  return { feed, dispatch, tick, snapshot: () => latest, flush, fieldModel, insightEngine, raceAnalysis, focus, debrief };
+  return { feed, dispatch, tick, snapshot: () => latest, flush, setCapture, fieldModel, insightEngine, raceAnalysis, focus, debrief };
 }
 
 module.exports = { createPipeline };

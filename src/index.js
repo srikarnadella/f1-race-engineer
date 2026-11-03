@@ -81,34 +81,28 @@ function parseCli(argv) {
   };
 }
 
-function main() {
-  let opts;
-  try {
-    opts = parseCli(process.argv.slice(2));
-  } catch (err) {
-    console.error(`${err.message}\n\n${USAGE}`);
-    process.exit(1);
-  }
-  if (opts.help) {
-    console.log(USAGE);
-    return;
-  }
-
+// Starts the bridge: the packet source (UDP or a replay), the engine and the
+// dashboard server. The command line (main below) and the desktop app
+// (desktop/main.js) both call it. opts: parseCli's result, plus dataDir (where
+// race.db, tracks.json and sessions/ go), onPortInUse (see startServer) and
+// onReplayError (a replay that can't be read; the command line exits).
+// Returns the running bridge (see the end); stop() resolves once the capture
+// files are written.
+function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = null, onReplayError = /** @type {(err: Error) => void} */ (() => process.exit(1)), ...opts }) {
   // Live and demo share everything from here down - only the packet source
   // differs, which is the whole point of the single parsePacket() path.
   // Live races teach the next race at the same track (pit loss, when the AI
   // stops); a demo replay would only teach it the same race again.
-  const memory = createTrackMemory(opts.demoFile ? null : path.resolve(__dirname, '..', 'data', 'tracks.json'));
-  const capture = opts.captureDir
-    ? createCaptureSession({ dir: opts.captureDir, meta: { version: require('../package.json').version, udpPort: opts.udpPort, node: process.version } })
-    : null;
-  // Every live session also goes to the race store (data/race.db, see data/store.js).
+  const memory = createTrackMemory(opts.demoFile ? null : path.join(dataDir, 'tracks.json'));
+  // The capture in progress (--capture, or the desktop app's Record button).
+  let capture = null;
+  // Every live session also goes to the race store (race.db, see data/store.js).
   // Without it the bridge still runs: the dashboard doesn't need it.
   let store = null;
   if (!opts.demoFile) {
     try {
-      fs.mkdirSync(path.resolve(__dirname, '..', 'data'), { recursive: true });
-      store = openStore(path.resolve(__dirname, '..', 'data', 'race.db'));
+      fs.mkdirSync(dataDir, { recursive: true });
+      store = openStore(path.join(dataDir, 'race.db'));
     } catch (err) {
       console.error(`[store] race database unavailable, sessions won't be stored: ${err.message}`);
     }
@@ -118,15 +112,13 @@ function main() {
   // connected - pit-loss measurement, wear history and weather memory must
   // keep going while a device sleeps. Clients only ever read the latest
   // result, so a reconnect can't trigger an extra, out-of-step evaluation.
-  // Live sessions' debriefs are saved to data/sessions (gitignored) and
-  // reloaded on the next start; a demo replay would only fill it with copies of itself.
+  // Live sessions' debriefs are saved to <dataDir>/sessions and reloaded on
+  // the next start; a demo replay would only fill it with copies of itself.
   const pipeline = createPipeline({
     memory,
-    debriefDir: opts.demoFile ? null : path.resolve(__dirname, '..', 'data', 'sessions'),
+    debriefDir: opts.demoFile ? null : path.join(dataDir, 'sessions'),
     source: opts.demoFile ? 'demo' : 'live',
-    capturing: !!capture,
     store,
-    captureName: capture ? path.basename(capture.dir) : null,
   });
   const { fieldModel, debrief, dispatch: onPacket } = pipeline;
   const engineTick = setInterval(() => {
@@ -177,52 +169,117 @@ function main() {
     return null;
   }
 
-  const server = startServer({ httpPort: opts.httpPort, getSnapshot: pipeline.snapshot, onClientMessage, api, tls: opts.tls });
+  const server = startServer({ httpPort: opts.httpPort, host: opts.httpHost, getSnapshot: pipeline.snapshot, onClientMessage, api, tls: opts.tls, onPortInUse });
 
   let socket = null;
   let recorder = null;
+  const replay = new AbortController();
+
+  // Live only: a replay has nothing new to record.
+  function record(dir) {
+    if (opts.demoFile) return null;
+    if (capture) return capture.dir;
+    capture = createCaptureSession({ dir, meta: { version: require('../package.json').version, udpPort: opts.udpPort, node: process.version } });
+    pipeline.setCapture(path.basename(dir));
+    console.log(`[capture] saving this session to ${capture.dir}`);
+    console.log('[capture] tap MARK on the dashboard (or press M) whenever a call looks wrong, is missing, or you lock up / spin');
+    return dir;
+  }
+  async function stopRecording() {
+    const c = capture;
+    if (!c) return;
+    capture = null;
+    pipeline.setCapture(null);
+    await c.close();
+    console.log(`[capture] saved ${c.dir}`);
+  }
 
   if (opts.demoFile) {
     console.log(`[demo] replaying ${opts.demoFile} (looping)`);
     // Each loop replays the same sessionUID, so FieldModel can't detect the
     // restart on its own - reset explicitly before every pass.
-    startReplay({ filePath: opts.demoFile, onPacket, onLoopStart: fieldModel.reset, speed: opts.speed }).catch((err) => {
+    startReplay({ filePath: opts.demoFile, onPacket, onLoopStart: fieldModel.reset, speed: opts.speed, signal: replay.signal }).catch((err) => {
       console.error(`[demo] replay failed: ${err.message}`);
-      process.exit(1);
+      onReplayError(err);
     });
   } else {
     if (opts.recordFile) {
       recorder = createRecorder(opts.recordFile);
       console.log(`[record] capturing raw packets to ${opts.recordFile}`);
     }
-    if (capture) {
-      console.log(`[capture] saving this session to ${capture.dir}`);
-      console.log('[capture] tap MARK on the dashboard (or press M) whenever a call looks wrong, is missing, or you lock up / spin');
-    }
+    if (opts.captureDir) record(opts.captureDir);
     socket = startUdpListener({
       port: opts.udpPort,
       host: opts.udpHost,
       onPacket,
-      onRawPacket: capture ? capture.recordPacket : recorder ? recorder.record : undefined,
+      onRawPacket: (buf) => {
+        if (capture) capture.recordPacket(buf);
+        else if (recorder) recorder.record(buf);
+      },
     });
   }
+
+  // The desktop Library's Delete: the session's debrief, and its rows in the race store.
+  function deleteSession(id) {
+    const gone = debrief.remove(id);
+    if (!gone) return false;
+    if (gone.uid && store) store.deleteSession(gone.uid);
+    return true;
+  }
+
+  let stopped = null;
+  function stop() {
+    if (stopped) return stopped;
+    clearInterval(engineTick);
+    replay.abort();
+    pipeline.flush();
+    if (store) store.close();
+    if (socket) socket.close();
+    server.close();
+    // The capture files finish writing (gzip trailer) before this resolves.
+    stopped = (async () => {
+      if (recorder) await recorder.close();
+      if (capture) await capture.close();
+    })();
+    return stopped;
+  }
+
+  return {
+    server: server.server,
+    udp: socket,
+    snapshot: pipeline.snapshot,
+    clients: server.clients,
+    record,
+    stopRecording,
+    recording: () => (capture ? capture.dir : null),
+    deleteSession,
+    stop,
+  };
+}
+
+function main() {
+  let opts;
+  try {
+    opts = parseCli(process.argv.slice(2));
+  } catch (err) {
+    console.error(`${err.message}\n\n${USAGE}`);
+    process.exit(1);
+  }
+  if (opts.help) {
+    console.log(USAGE);
+    return;
+  }
+  const bridge = start(opts);
 
   let shuttingDown = false;
   async function shutdown() {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log('\n[main] shutting down');
-    clearInterval(engineTick);
-    pipeline.flush();
-    if (store) store.close();
-    if (socket) socket.close();
-    server.close();
-    // Let the capture files finish writing (gzip trailer) before exiting.
     // Replay's pending setTimeout would otherwise keep the process alive.
     const exit = setTimeout(() => process.exit(0), 3000);
     try {
-      if (recorder) await recorder.close();
-      if (capture) await capture.close();
+      await bridge.stop();
     } finally {
       clearTimeout(exit);
       process.exit(0);
@@ -236,4 +293,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { parseCli };
+module.exports = { parseCli, start };

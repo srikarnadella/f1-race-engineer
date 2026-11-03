@@ -108,10 +108,13 @@ const MAX_QUEUED_BYTES = 1024 * 1024;
 // tls: { cert, key } (PEM) serves https - browsers only open the microphone
 // for voice questions on a secure page, and a tablet reaches the bridge by its
 // LAN address, which plain http can't make secure.
-function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api = null, tls = null }) {
+// onPortInUse(port): the desktop app shows it in a window; the command line exits.
+// host: '127.0.0.1' keeps the dashboard on this PC (the app's "Share with other devices" off).
+function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientMessage = null, api = null, tls = null, onPortInUse = null }) {
   const scheme = tls ? 'https' : 'http';
+  const localOnly = host === '127.0.0.1' || host === 'localhost';
   const pairUrl = () => {
-    const ip = pairAddress();
+    const ip = localOnly ? null : pairAddress();
     return ip ? `${scheme}://${ip}:${httpPort}` : null;
   };
   // Pairing (Settings): the LAN address and a QR code of it.
@@ -120,7 +123,7 @@ function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api
     return null;
   };
   const handler = (req, res) => {
-    if (req.method === 'GET' && req.url === '/api/qr') {
+    if (req.method === 'GET' && req.url.split('?')[0] === '/api/qr') {
       const url = pairUrl();
       res.writeHead(url ? 200 : 404, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-cache' });
       res.end(url ? qrSvg(url) : '');
@@ -178,6 +181,7 @@ function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api
   }
 
   server.on('error', (/** @type {NodeJS.ErrnoException} */ err) => {
+    if (err.code === 'EADDRINUSE' && onPortInUse) return onPortInUse(httpPort);
     if (err.code === 'EADDRINUSE') {
       console.error(`[server] port ${httpPort} is already in use - is another copy running? Try --port <n>.`);
       process.exit(1);
@@ -185,8 +189,8 @@ function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api
     throw err;
   });
 
-  server.listen(httpPort, () => {
-    const urls = lanAddresses().map((ip) => `${scheme}://${ip}:${httpPort}`);
+  server.listen(httpPort, host, () => {
+    const urls = localOnly ? [] : lanAddresses().map((ip) => `${scheme}://${ip}:${httpPort}`);
     console.log(`[server] dashboard: ${scheme}://localhost:${httpPort}`);
     for (const url of urls) console.log(`[server] on other devices (same Wi-Fi): ${url}`);
     const pair = pairUrl();
@@ -199,6 +203,7 @@ function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api
   return {
     broadcast,
     server,
+    clients: () => wss.clients.size,
     close: () => {
       wss.close();
       server.close();
@@ -206,4 +211,4 @@ function startServer({ httpPort = 8080, getSnapshot, onClientMessage = null, api
   };
 }
 
-module.exports = { startServer };
+module.exports = { startServer, lanAddresses, pairAddress };

@@ -14,7 +14,7 @@
 // stops). Writing it again (same game session UID) replaces it, so re-running
 // the ingest never duplicates anything. Times are integers in ms unless named
 // _s; booleans are 0/1. The views (v_*) are the readable way in.
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const { TRACKS, SESSION_TYPES } = require('../udp/gameIds');
 const { RACE_SESSION_TYPES } = require('../state/race');
 
@@ -175,15 +175,15 @@ const b = (v) => (v == null ? null : v ? 1 : 0);
 
 // file: a path, or ':memory:' (tests).
 function openStore(file) {
-  const db = new Database(file);
-  db.pragma('journal_mode = WAL'); // readers (an LLM tool, a notebook) don't block the bridge's writes
-  db.pragma('synchronous = NORMAL');
-  db.pragma('foreign_keys = ON');
-  const version = db.pragma('user_version', { simple: true });
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA journal_mode = WAL'); // readers (an LLM tool, a notebook) don't block the bridge's writes
+  db.exec('PRAGMA synchronous = NORMAL');
+  db.exec('PRAGMA foreign_keys = ON');
+  const version = Number(db.prepare('PRAGMA user_version').get().user_version);
   if (version > SCHEMA_VERSION) throw new Error(`${file} is schema v${version}; this code knows v${SCHEMA_VERSION}`);
   db.exec(SCHEMA);
   db.exec(VIEWS);
-  db.pragma(`user_version = ${SCHEMA_VERSION}`);
+  db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 
   const sql = {
     capture: db.prepare('INSERT INTO capture (name) VALUES (?) ON CONFLICT (name) DO UPDATE SET name = name RETURNING capture_id'),
@@ -202,11 +202,14 @@ function openStore(file) {
     radio: db.prepare('INSERT INTO radio_message VALUES (?, ?, ?, ?, ?, ?, ?)'),
     weather: db.prepare('INSERT OR REPLACE INTO weather_sample VALUES (?, ?, ?, ?, ?, ?, ?)'),
   };
+  // Car and lap rows carry fields the tables don't keep (raceId, ...).
+  sql.car.setAllowUnknownNamedParameters(true);
+  sql.lap.setAllowUnknownNamedParameters(true);
 
   // s: a finished session from data/sessionRecorder.js.
-  const writeSession = db.transaction((s) => {
+  const write = (s) => {
     sql.dropSession.run(s.uid);
-    const captureId = sql.capture.pluck().get(s.capture || 'live');
+    const captureId = sql.capture.get(s.capture || 'live').capture_id;
     const sid = sql.session.run({
       uid: s.uid, captureId, trackId: s.session.trackId, track: TRACKS[s.session.trackId] || null,
       sessionType: s.session.sessionType, sessionName: SESSION_TYPES[s.session.sessionType] || null,
@@ -222,9 +225,24 @@ function openStore(file) {
     s.radio.forEach((r, k) => sql.radio.run(sid, k + 1, r.sessionTime, r.lapNum, r.topic, r.severity, r.message));
     for (const w of s.weather) sql.weather.run(sid, w.sessionTime, w.lapNum, w.weather, w.trackTemp, w.airTemp, w.rainPct);
     return sid;
-  });
+  };
+  // One transaction per session: all of it is stored, or none.
+  function writeSession(s) {
+    db.exec('BEGIN');
+    try {
+      const sid = write(s);
+      db.exec('COMMIT');
+      return sid;
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+  }
 
-  return { db, writeSession, close: () => db.close() };
+  // Every child row goes with it (ON DELETE CASCADE). False if there was no such session.
+  const deleteSession = (uid) => sql.dropSession.run(String(uid)).changes > 0;
+
+  return { db, writeSession, deleteSession, close: () => db.close() };
 }
 
 module.exports = { openStore, SCHEMA_VERSION };

@@ -75,3 +75,28 @@ test('analyzer: checks the format, reads fuel and forecast meaning, and puts mar
   assert.ok(r.calibration.brakingFrontSlip.n > 0);
   assert.match(toMarkdown(r), /### 0:20 · wrong-call - test/);
 });
+
+test('replay: an aborted replay stops feeding packets and resolves', async () => {
+  const { startReplay } = require('../src/capture/replay');
+  const { createRecorder } = require('../src/capture/recorder');
+  const { syntheticPackets } = require('./helpers/synthetic');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'replay-'));
+  try {
+    const file = path.join(dir, 'packets.f1log');
+    const rec = createRecorder(file);
+    for (const p of syntheticPackets().slice(0, 50)) rec.record(p.buf);
+    await rec.close();
+    const ac = new AbortController();
+    let fed = 0;
+    // Slow enough that the loop is still running when it's aborted.
+    const done = startReplay({ filePath: file, speed: 0.001, signal: ac.signal, onPacket: () => { fed++; } });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    ac.abort();
+    await done;
+    const after = fed;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.strictEqual(fed, after);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

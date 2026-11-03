@@ -20,7 +20,7 @@ function syntheticStore() {
   pipeline.flush();
   return { store, db: store.db, lapRows: laps.rows(), pipeline };
 }
-const one = (db, sql, ...a) => db.prepare(sql).pluck().get(...a);
+const one = (db, sql, ...a) => Object.values(db.prepare(sql).get(...a))[0];
 
 test('store: a replayed race is one session, its cars and every completed lap', () => {
   const { db, lapRows } = syntheticStore();
@@ -62,8 +62,8 @@ test('store: the session holds what happened, not only the laps', () => {
 
 test('store: keys hold, and writing the same session again replaces it', () => {
   const { store, db, pipeline } = syntheticStore();
-  assert.deepStrictEqual(db.pragma('foreign_key_check'), []);
-  assert.strictEqual(db.pragma('integrity_check', { simple: true }), 'ok');
+  assert.deepStrictEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+  assert.strictEqual(one(db, 'PRAGMA integrity_check'), 'ok');
   const count = () => ['session', 'car', 'lap', 'stint', 'event', 'engineer_call', 'radio_message', 'trace_point'].map((t) => one(db, `SELECT count(*) FROM ${t}`));
   const before = count();
   // A second write of the same session (shutdown after the results screen) replaces it, quietly.
@@ -121,4 +121,14 @@ test('store: a stop for the same compound starts a new stint', () => {
   rec.sync({});
   rec.flush();
   assert.deepStrictEqual(written[0].stints.map((t) => [t.stintNum, t.compound, t.startLap, t.endLap]), [[1, 17, 1, 3], [2, 17, 4, 6]]);
+});
+
+test('store: deleting a session removes it and everything under it', () => {
+  const { store, db } = syntheticStore();
+  const [{ session_uid: uid }] = db.prepare('SELECT session_uid FROM session').all();
+  assert.strictEqual(store.deleteSession(uid), true);
+  for (const t of ['session', 'car', 'lap', 'stint', 'event', 'engineer_call', 'radio_message', 'trace_point', 'weather_sample']) {
+    assert.strictEqual(one(db, `SELECT count(*) FROM ${t}`), 0, t);
+  }
+  assert.strictEqual(store.deleteSession(uid), false);
 });

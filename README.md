@@ -33,7 +33,7 @@ works out things like pit loss, tyre wear and who is about to stop, and turns th
 
 ## Try it
 
-You need [Node.js](https://nodejs.org) 20 or newer.
+You need [Node.js](https://nodejs.org) 22.13 or newer.
 
 ```bash
 git clone https://github.com/srikarnadella/f1-race-engineer.git
@@ -47,6 +47,15 @@ Then open **http://localhost:8080**. Keys **1–6** switch screens.
 **With the game:** run `npm start` instead, then in F1 26 go to *Settings → Telemetry Settings* and
 turn **UDP Telemetry On** (port **20777**, format **2025** or later). Scan the QR code it prints with
 your phone or tablet. Full steps, options and voice setup: [docs/setup.md](docs/setup.md).
+
+**As a Windows app:** the installer (`npm run app:build` makes `dist/Undercut-Setup-<version>.exe`)
+puts Undercut on any Windows PC with no Node and no terminal. It opens on a **Home** screen with a way
+into each part: the live race, race analysis (the Debrief), the **Library** of saved sessions and
+recordings (replay, analyze, delete), and **Connect** (game setup, a QR code for phones and tablets,
+and a Record button). Voice questions work in the app window through Windows' own offline speech
+recognition, and on phones once *Voice questions on phones* is on. Everything stays on the PC, in
+`%APPDATA%\Undercut\data`. `npm run app` runs it from the code. The installer isn't code-signed yet, so
+Windows SmartScreen asks first: *More info → Run anyway*. More in [docs/setup.md](docs/setup.md#the-windows-app).
 
 ## Does it actually work?
 
@@ -79,7 +88,7 @@ instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md); 
 
 ## Built with
 
-Node.js (no framework, no build step), WebSockets, SQLite, and plain HTML/CSS/JavaScript for the
+Node.js (no framework, no build step), Electron for the Windows app, WebSockets, SQLite, and plain HTML/CSS/JavaScript for the
 dashboard. The models are written from scratch in JavaScript, except the overtake model: LightGBM, trained in
 Python and run in the app from its exported trees. 300+ tests, ESLint and a TypeScript check run on every push.
 

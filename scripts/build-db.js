@@ -45,9 +45,9 @@ async function main() {
       FROM session s JOIN capture USING (capture_id) WHERE capture.name = ? ORDER BY started_at_ms`).all(captureName);
     console.log(`  ${captureName}: ${sessions.map((s) => `${s.track} ${s.session_name} (${s.laps} laps)`).join(', ') || 'no sessions'}`);
   }
-  const count = (table) => store.db.prepare(`SELECT count(*) FROM ${table}`).pluck().get();
+  const count = (table) => store.db.prepare(`SELECT count(*) n FROM ${table}`).get().n;
   console.log(`\n${count('session')} sessions, ${count('lap')} laps, ${count('event')} events, ${count('trace_point')} trace points -> ${path.relative(ROOT, DB_FILE)}`);
-  store.db.pragma('optimize');
+  store.db.exec('PRAGMA optimize');
   store.close();
 }
 

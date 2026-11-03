@@ -134,3 +134,20 @@ test('debrief: a penalty a flashback undid is not on the record (Barcelona, 17 O
   d.tick();
   assert.deepStrictEqual(d.current().penalties, []);
 });
+
+test('debrief: removing a session drops it from the list and from disk, and names its race-store session', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'debrief-'));
+  try {
+    const field = { ...fakeField({ classified: true }), getSessionUID: () => 42n };
+    const d = createDebrief(field, { dir });
+    d.tick(); // the classification ends the session: saved
+    const reloaded = createDebrief(fakeField({ classified: false }), { dir });
+    const [s] = reloaded.view().sessions;
+    assert.deepStrictEqual(reloaded.remove(s.id), { uid: '42' });
+    assert.strictEqual(reloaded.view().sessions.length, 0);
+    assert.deepStrictEqual(fs.readdirSync(dir), []);
+    assert.strictEqual(reloaded.remove('nope'), null);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
