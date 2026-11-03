@@ -56,7 +56,7 @@ flowchart LR
     W5[W5 Home slideshow: real races]:::done
     W4[W4 Separate places, not dashboard tabs]:::done
     W3[W3 Storage, its own place]:::next
-    W6[W6 Settings laid out across the window]:::next
+    W6[W6 Settings laid out across the window]:::done
   end
   subgraph L[Ask the race: local LLM]
     L1[L1 Read-only race tools]:::next
@@ -278,7 +278,8 @@ against W0, and none may raise the race numbers.
   read horizontally, not as one tall column. In the app, Settings uses the window's width (groups
   side by side: this PC, voice, auto-switch, devices) instead of a narrow sheet you scroll down.
   *Test:* at 1440x900 every setting is visible without scrolling; at 1100x760 at most one scroll;
-  every control keeps its label; phones and browsers keep today's sheet.
+  every control keeps its label; phones and browsers keep today's sheet. *Done:* three columns
+  (on/off settings, voice commands, this PC), each its own stack; no scroll at 1100x760.
 - **W3 Storage, its own place.** Built on W4, replacing the Library tab. Disk use per store (race.db, debriefs, captures, downloaded models) with
   delete, using the existing `deleteSession()`. *Test:* the sizes shown add up to the folder size on
   disk; deleting a session leaves no store mentioning its uid; deleting a model frees its bytes.

@@ -458,6 +458,16 @@
         h('span', { class: 'dim' }, 'The game sends telemetry to the telemetry port; phones open the dashboard port. Change them only if another program uses them.')),
       h('div', { class: 'pc-ports' }, h('label', {}, 'Dashboard port', http), h('label', {}, 'Telemetry port', udp), save, note),
       h('div', { class: 'pc-ports' }, button('Open data folder', () => api.openDataFolder(), 'pc-btn--quiet'), version)));
+    // On the PC's screen Settings reads across the window, in three columns, instead of one tall sheet.
+    sheet.closest('.sheet').classList.add('sheet--wide');
+    // Each column its own stack, so a tall one never pushes the others' settings down.
+    const cols = { toggles: h('div', { class: 'sheet__col' }), voice: h('div', { class: 'sheet__col' }), pc: h('div', { class: 'sheet__col' }) };
+    for (const s of /** @type {NodeListOf<HTMLElement>} */ (sheet.querySelectorAll('.setting'))) {
+      s.dataset.col = s.classList.contains('setting--cmds') ? 'voice' : s.classList.contains('setting--pc') || s.classList.contains('setting--pair') ? 'pc' : 'toggles';
+      cols[s.dataset.col].append(s);
+    }
+    cols.pc.append(...[...cols.pc.children].reverse()); // This PC first, the phone QR code (when sharing) under it
+    sheet.append(cols.toggles, cols.voice, cols.pc);
     watchers.add((s) => {
       if (document.activeElement !== http) http.value = s.settings.httpPort;
       if (document.activeElement !== udp) udp.value = s.settings.udpPort;

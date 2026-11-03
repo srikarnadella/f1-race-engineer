@@ -1123,6 +1123,24 @@ body {
 .lvl__why { color: var(--muted); }
 .lvl__notes { margin: 12px 0 0; padding-left: 1.1em; color: var(--muted); line-height: 1.5; }
 
+/* Settings in the app (desktop.js puts each group in its own column): across the window in three
+   columns, the on/off settings, your voice commands, and this PC, instead of one tall sheet. */
+.sheet--wide .sheet__panel {
+  width: min(1280px, 100%); padding: 28px 32px 32px; gap: 18px 40px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); align-items: start;
+}
+.sheet--wide .sheet__head { grid-column: 1 / -1; }
+.sheet--wide .sheet__head h2 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+.sheet__col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.sheet--wide .setting { padding: 14px 12px; margin: 0 -12px; background: none; transition: background 0.12s; }
+.sheet--wide .setting:hover { background: #222; }
+.sheet--wide .setting--cmds:hover, .sheet--wide .setting--pc:hover, .sheet--wide .setting--pair:hover { background: none; }
+.sheet--wide .setting--pc .dim { overflow-wrap: anywhere; }
+@media (max-width: 1000px) {
+  .sheet--wide .sheet__panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sheet--wide .sheet__col:last-child { grid-column: 1 / -1; }
+}
+
 /* Settings: this PC's ports and data folder. */
 .setting--pc { flex-direction: column; cursor: default; }
 .pc-ports { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }

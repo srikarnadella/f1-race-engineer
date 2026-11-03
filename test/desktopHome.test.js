@@ -64,6 +64,15 @@ test('home: a phone or browser on the Wi-Fi gets the dashboard, no Home', (t) =>
   const app = open(t);
   assert.strictEqual(app.window.document.querySelector('.home'), null);
   assert.strictEqual(app.window.document.querySelector('.rail').hidden, false);
+  assert.ok(!app.$('settings-sheet').classList.contains('sheet--wide'), 'phones keep the narrow Settings sheet');
+});
+
+test('home: in the app, Settings is laid out across the window: toggles, voice commands and this PC side by side', async (t) => {
+  const app = await openApp(t);
+  const sheet = app.$('settings-sheet');
+  assert.ok(sheet.classList.contains('sheet--wide'));
+  const col = (el) => el.dataset.col;
+  assert.deepStrictEqual([...sheet.querySelectorAll('.setting')].filter((s) => !s.hidden).map(col), ['toggles', 'toggles', 'voice', 'pc']);
 });
 
 test('home: the background is a slideshow of real races, each credited while it shows, and it stops when you leave', async (t) => {
