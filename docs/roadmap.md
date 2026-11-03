@@ -56,6 +56,7 @@ flowchart LR
     W5[W5 Home slideshow: real races]:::done
     W4[W4 Separate places, not dashboard tabs]:::done
     W3[W3 Storage, its own place]:::next
+    W6[W6 Settings laid out across the window]:::next
   end
   subgraph L[Ask the race: local LLM]
     L1[L1 Read-only race tools]:::next
@@ -70,6 +71,7 @@ flowchart LR
     R3[R3 Head to head with any rival]:::next
     R4[R4 Strategy review: calls, stops, what-if]:::next
     R5[R5 Across sessions: trends per track]
+    R6[R6 Lap vs lap telemetry]:::done
   end
   subgraph G[Quick gaps]
     G1[G1 Shortcuts listed in Settings]:::next
@@ -99,6 +101,8 @@ flowchart LR
   W2 --> W4 --> W3
   W4 --> R1 --> R2 & R3 & R4
   R2 & R3 --> R5
+  R1 --> R6
+  W2 --> W6
   R1 --> L5
   L2 --> L3
   L1 & L3 --> L4
@@ -270,6 +274,11 @@ against W0, and none may raise the race numbers.
   leaving it (W0 idle unchanged). *Done:* `test/desktopHome.test.js`. Race analysis, Storage and
   Connect open as places (Race analysis shows the Debrief until R1); the rail is Home + the six race
   screens; Esc and ← Home return; auto-switch never pulls you out of Home or a place.
+- **W6 Settings laid out across the window.** The user (3 Nov): Settings opened from Home should
+  read horizontally, not as one tall column. In the app, Settings uses the window's width (groups
+  side by side: this PC, voice, auto-switch, devices) instead of a narrow sheet you scroll down.
+  *Test:* at 1440x900 every setting is visible without scrolling; at 1100x760 at most one scroll;
+  every control keeps its label; phones and browsers keep today's sheet.
 - **W3 Storage, its own place.** Built on W4, replacing the Library tab. Disk use per store (race.db, debriefs, captures, downloaded models) with
   delete, using the existing `deleteSession()`. *Test:* the sizes shown add up to the folder size on
   disk; deleting a session leaves no store mentioning its uid; deleting a model frees its bytes.
@@ -330,6 +339,14 @@ estimated on the page. Use the taste skill and the dataviz skill for every view.
 - **R4 Strategy review.** Every call with its grade (calls audit), the pit stops and what they
   cost or gained, the rejoin predicted vs actual, and a what-if on the stop lap (A1). *Test:* the
   grades equal `npm run backtest` for the session.
+- **R6 Lap vs lap telemetry.** Any of your laps against another, or against a rival's best: the time
+  gap, speed, throttle, brake, gear and steering on one distance axis with one crosshair across them
+  all, the verdict in a sentence, and the corners ranked by time lost (click one to zoom every
+  chart to it). From the traces the app already saves (lapCompare). *Test:* the pickers map to the
+  bridge's reference/explained laps; every channel has both laps; the corner zoom and the whole-lap
+  reset hold the same range on every chart; a compare the bridge can't make says why.
+  *Done:* `test/desktopLapCompare.test.js`; steering added to the comparison (`test/analysis.test.js`).
+  The two laps' colours pass the dataviz palette checks on the dark ground (CVD ΔE 24).
 - **R5 Across sessions.** Your pace per track over time, tyre wear learned per track, how often
   the calls were right. *Test:* adding a session moves only that track's numbers.
 

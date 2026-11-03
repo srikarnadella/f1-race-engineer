@@ -133,6 +133,157 @@
       list.length ? h('section', {}, h('h3', {}, 'Key moments'), h('ol', { class: 'ana__moments' }, list.map((m) => h('li', { class: 'ana__moment' }, h('b', {}, m.at), h('span', {}, m.text))))) : null);
   }
 
+  // ---------- Lap vs lap: two laps on one distance axis ----------
+  // The bridge compares A (the reference) with B (the lap it explains): + means B lost time. Here
+  // "your lap" is always the one explained and "against" the reference, another lap or a rival's best.
+  const REF = '#2a8fd4'; // reference lap; this pair passes the dataviz checks on the dark ground
+  const MINE = '#d9740a'; // your lap
+  const pct = (v) => (v == null ? '–' : `${Math.round(v * 100)}%`);
+  const steerTxt = (v) => (v == null ? '–' : Math.abs(v) < 0.02 ? 'straight' : `${Math.round(Math.abs(v) * 100)}% ${v < 0 ? 'left' : 'right'}`);
+  const signedS = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(3)} s`;
+
+  function lapVsLap(d) {
+    const root = h('div', { class: 'lvl' }, h('p', { class: 'ana__empty' }, 'Loading the two laps…'));
+    let c = null;
+    let range = null; // [fromM, toM] while zoomed into a corner
+    let cursor = null; // index on the distance grid under the pointer
+    let charts = [];
+    let readout = null;
+
+    async function load(query) {
+      try {
+        const res = await fetch(`/api/debrief/compare?session=${encodeURIComponent(d.id)}${query}`);
+        c = await res.json();
+      } catch (_) {
+        c = { error: 'Couldn\'t reach the bridge.' };
+      }
+      range = null;
+      cursor = null;
+      render();
+    }
+
+    function picked() {
+      const mine = root.querySelector('.lvl__pick[data-pick="mine"]').value;
+      const ref = root.querySelector('.lvl__pick[data-pick="ref"]').value;
+      // Against a rival the bridge takes your lap as a; against another lap, a is the reference.
+      load(/^r\d+$/.test(ref) ? `&a=${mine}&b=${ref}` : `&a=${ref}&b=${mine}`);
+    }
+
+    function chart(label, series, { min, max, zero = false, height = 90, note = null }) {
+      const W = 1000;
+      const t = c.trace;
+      const [k0, k1] = window_();
+      const x = (k) => ((k - k0) / Math.max(1, k1 - k0)) * W;
+      const y = (v) => height - 6 - ((Math.max(min, Math.min(max, v)) - min) / (max - min || 1)) * (height - 12);
+      const svg = s('svg', { viewBox: `0 0 ${W} ${height}`, preserveAspectRatio: 'none', role: 'img', 'aria-label': label, 'data-from': t.d[k0], 'data-to': t.d[k1] });
+      if (zero) svg.append(s('line', { class: 'lvl__zero', x1: 0, x2: W, y1: y(0), y2: y(0) }));
+      for (const sr of series) {
+        const pts = [];
+        for (let k = k0; k <= k1; k++) pts.push(`${x(k).toFixed(1)},${y(sr.values[k]).toFixed(1)}`);
+        svg.append(s('polyline', { class: 'lvl__line', points: pts.join(' '), stroke: sr.color, 'vector-effect': 'non-scaling-stroke' }));
+      }
+      const cross = s('line', { class: 'lvl__cross', y1: 0, y2: height, visibility: 'hidden', 'vector-effect': 'non-scaling-stroke' });
+      svg.append(cross);
+      const pick = (e) => {
+        const box = svg.getBoundingClientRect();
+        if (!box.width) return;
+        setCursor(Math.round(k0 + ((e.clientX - box.left) / box.width) * (k1 - k0)));
+      };
+      svg.addEventListener('pointermove', pick);
+      svg.addEventListener('pointerleave', () => setCursor(null));
+      charts.push({ cross, x, k0, k1 });
+      return h('div', { class: 'lvl__chart' }, h('div', { class: 'lvl__chart-head' }, h('span', { class: 'lvl__chart-name' }, label), note ? h('small', {}, note) : null), svg);
+    }
+
+    // The grid indices on screen: the whole lap, or one corner with 50 m either side.
+    function window_() {
+      const t = c.trace;
+      if (!range) return [0, t.d.length - 1];
+      const k0 = Math.max(0, t.d.findIndex((m) => m >= range[0]));
+      let k1 = t.d.length - 1;
+      while (k1 > k0 && t.d[k1] > range[1]) k1--;
+      return [k0, k1];
+    }
+
+    function setCursor(k) {
+      cursor = k;
+      for (const ch of charts) {
+        const on = k != null && k >= ch.k0 && k <= ch.k1;
+        ch.cross.setAttribute('visibility', on ? 'visible' : 'hidden');
+        if (on) for (const a of ['x1', 'x2']) ch.cross.setAttribute(a, String(ch.x(k)));
+      }
+      if (!readout) return;
+      const t = c.trace;
+      if (k == null) {
+        readout.textContent = 'Point at any chart to read both laps at that spot.';
+        return;
+      }
+      const both = (ch, f) => `${f(t.b[ch][k])} / ${f(t.a[ch][k])}`;
+      readout.textContent = [`${(t.d[k] / 1000).toFixed(2)} km`, `gap ${signedS(t.delta[k])}`, `speed ${both('speed', (v) => `${Math.round(v)}`)} km/h`, `throttle ${both('throttle', pct)}`, `brake ${both('brake', pct)}`, `gear ${both('gear', String)}`, `steering ${both('steer', steerTxt)}`].join(' · ');
+    }
+
+    function render() {
+      charts = [];
+      if (!c || c.error) {
+        root.replaceChildren(h('p', { class: 'ana__empty' }, (c && c.error) || 'Nothing to compare yet.'));
+        return;
+      }
+      const vsRival = !!c.lapA.rival;
+      const refName = vsRival ? `${c.lapA.rival}'s best` : `lap ${c.lapA.lapNum}`;
+      const mineName = `Lap ${c.lapB.lapNum}`;
+      const lapOpt = (l, sel) => h('option', { value: l.lap, selected: l.lap === sel }, `Lap ${l.lap} · ${fmtLap(l.timeMs)}${l.neutralised ? ' · SC' : ''}`);
+      const mineSel = h('select', { class: 'lvl__pick', 'data-pick': 'mine', 'aria-label': 'Your lap', onchange: picked }, c.laps.map((l) => lapOpt(l, c.lapB.lapNum)));
+      const refSel = h('select', { class: 'lvl__pick', 'data-pick': 'ref', 'aria-label': 'Against', onchange: picked },
+        c.laps.map((l) => lapOpt(l, vsRival ? null : c.lapA.lapNum)),
+        (c.rivals || []).length ? h('optgroup', { label: 'Best laps in the field' }, c.rivals.map((r) => h('option', { value: r.id, selected: r.id === c.lapA.id }, `${r.name} · ${fmtLap(r.timeMs)}`))) : null);
+      const total = c.totalS;
+      const verdict = h('p', { class: 'lvl__verdict' }, `${mineName} was ${Math.abs(total).toFixed(3)} s ${total > 0 ? 'slower' : 'faster'} than ${refName}`);
+      const legend = h('p', { class: 'lvl__legend' },
+        h('span', {}, h('i', { style: `background: ${MINE}` }), `${mineName} (yours)`),
+        h('span', {}, h('i', { style: `background: ${REF}` }), `${refName.charAt(0).toUpperCase()}${refName.slice(1)}`));
+
+      const t = c.trace;
+      const both = (ch) => [{ values: t.a[ch], color: REF }, { values: t.b[ch], color: MINE }];
+      const [k0, k1] = window_();
+      const gaps = t.delta.slice(k0, k1 + 1);
+      const gMin = Math.min(0, ...gaps);
+      const gMax = Math.max(0, ...gaps);
+      const gPad = Math.max(0.05, (gMax - gMin) * 0.1);
+      const top = Math.max(...t.a.speed.slice(k0, k1 + 1), ...t.b.speed.slice(k0, k1 + 1));
+      const stack = h('div', { class: 'lvl__charts' },
+        chart('Time gap', [{ values: t.delta, color: 'var(--text)' }], { min: gMin - gPad, max: gMax + gPad, zero: true, height: 120, note: 'up = your lap behind' }),
+        chart('Speed', both('speed'), { min: 0, max: Math.max(100, top * 1.05), height: 170 }),
+        chart('Throttle', both('throttle'), { min: 0, max: 1, height: 70 }),
+        chart('Brake', both('brake'), { min: 0, max: 1, height: 70 }),
+        chart('Gear', both('gear'), { min: 0, max: 8, height: 80 }),
+        chart('Steering', both('steer'), { min: -1, max: 1, zero: true, height: 80 }));
+      readout = h('p', { class: 'lvl__readout', 'aria-live': 'off' });
+
+      // Where the time went: corners by time lost, then anything lost away from a corner.
+      const corners = [...c.corners].sort((a, b) => b.timeS - a.timeS);
+      const detail = (k) => (k.summary.includes(' - ') ? k.summary.slice(k.summary.indexOf(' - ') + 3) : '');
+      const list = h('ol', { class: 'lvl__corners' }, corners.map((k) => h('li', {},
+        h('button', { type: 'button', class: 'lvl__corner', onclick: () => { range = [Math.max(0, k.fromM - 50), Math.min(t.d[t.d.length - 1], k.toM + 50)]; render(); } },
+          h('b', {}, `Corner ${k.corner}`), h('span', { class: 'lvl__at' }, `${(k.atM / 1000).toFixed(1)} km`),
+          h('span', { class: k.timeS > 0.03 ? 'lvl__lost' : k.timeS < -0.03 ? 'lvl__gained' : 'lvl__even' }, k.timeS > 0.03 ? `lost ${k.timeS.toFixed(2)} s` : k.timeS < -0.03 ? `gained ${(-k.timeS).toFixed(2)} s` : 'even'),
+          h('span', { class: 'lvl__why' }, detail(k))))));
+      const offCorner = c.headline.filter((x) => !/^Corner /.test(x));
+
+      root.replaceChildren(
+        h('div', { class: 'lvl__bar' }, h('label', {}, 'Your lap', mineSel), h('label', {}, 'against', refSel)),
+        verdict,
+        h('div', { class: 'lvl__tools' }, legend, h('button', { type: 'button', class: 'lvl__whole', hidden: !range, onclick: () => { range = null; render(); } }, 'Whole lap')),
+        stack,
+        readout,
+        h('section', {}, h('h3', {}, 'Where the time went'), corners.length ? list : h('p', { class: 'ana__empty' }, 'No braking zones to compare on these laps.'),
+          offCorner.length ? h('ul', { class: 'lvl__notes' }, offCorner.map((x) => h('li', {}, x))) : null));
+      setCursor(cursor);
+    }
+
+    load('');
+    return root;
+  }
+
   widgets.analysis = {
     title: 'Race analysis',
     description: 'Every saved session in depth',
@@ -152,7 +303,8 @@
       let last = null;
       let sig = '';
       let debriefUpdate = null;
-      const VIEWS = [['overview', 'Overview'], ['debrief', 'Full debrief']];
+      let lapView = null; // { id, node }: kept across redraws, so a new lap doesn't refetch the comparison
+      const VIEWS = [['overview', 'Overview'], ['laps', 'Lap vs lap'], ['debrief', 'Full debrief']];
 
       function draw() {
         const d = sessions.find((x) => x.id === selected) || sessions[0] || null;
@@ -177,6 +329,9 @@
         debriefUpdate = null;
         if (view === 'overview') {
           body.replaceChildren(overview(d));
+        } else if (view === 'laps') {
+          if (!lapView || lapView.id !== d.id) lapView = { id: d.id, node: lapVsLap(d) };
+          if (!body.contains(lapView.node)) body.replaceChildren(lapView.node);
         } else {
           // The Debrief's own views (lap compare, rivals, calls), on this session, until R2-R4 replace them here.
           const host = h('div', { class: 'ana__debrief' });

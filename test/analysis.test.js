@@ -43,6 +43,18 @@ test('lap compare: explains a corner - earlier braking and a slower apex', () =>
   assert.strictEqual(c.miniSectors.length, 25);
 });
 
+test('lap compare: both laps\' channels on one distance grid, steering included (Race analysis draws them)', () => {
+  const a = lap(2);
+  const b = lap(3);
+  b.points = b.points.map((p) => (p[0] >= 1000 && p[0] < 1200 ? [...p.slice(0, 5), -0.4, p[6]] : p));
+  const c = compareLaps(a, b);
+  for (const side of ['a', 'b']) {
+    for (const ch of ['speed', 'throttle', 'brake', 'gear', 'steer']) assert.strictEqual(c.trace[side][ch].length, c.trace.d.length, `${side}.${ch}`);
+  }
+  const k = c.trace.d.indexOf(1100);
+  assert.deepStrictEqual([c.trace.a.steer[k], c.trace.b.steer[k]], [0, -0.4]);
+});
+
 test('lap compare: a loss away from any braking zone is still named', () => {
   const c = compareLaps(lap(2), lap(3, { slowAfter: [1500, 1700] }));
   assert.match(c.headline[0], /km: lost \d\.\d\ds away from a braking zone/);

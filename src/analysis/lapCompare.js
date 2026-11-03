@@ -144,8 +144,8 @@ function compareLaps(a, b) {
     trace: {
       d: ra.d,
       delta: delta.map((v) => round(v, 3)),
-      a: { speed: ra.speed.map((v) => round(v)), throttle: ra.throttle.map((v) => round(v, 2)), brake: ra.brake.map((v) => round(v, 2)), gear: ra.gear },
-      b: { speed: rb.speed.map((v) => round(v)), throttle: rb.throttle.map((v) => round(v, 2)), brake: rb.brake.map((v) => round(v, 2)), gear: rb.gear },
+      a: { speed: ra.speed.map((v) => round(v)), throttle: ra.throttle.map((v) => round(v, 2)), brake: ra.brake.map((v) => round(v, 2)), gear: ra.gear, steer: ra.steer.map((v) => round(v, 2)) },
+      b: { speed: rb.speed.map((v) => round(v)), throttle: rb.throttle.map((v) => round(v, 2)), brake: rb.brake.map((v) => round(v, 2)), gear: rb.gear, steer: rb.steer.map((v) => round(v, 2)) },
     },
     miniSectors,
     corners,
