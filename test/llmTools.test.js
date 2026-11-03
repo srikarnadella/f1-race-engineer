@@ -31,7 +31,7 @@ function open(t) {
 test('llm tools: each one is a named function with a JSON schema, and none takes SQL', (t) => {
   const tools = open(t);
   const names = tools.schemas.map((s) => s.function.name);
-  assert.deepStrictEqual(names.sort(), ['calls', 'compare_laps', 'events', 'gaps', 'lap_times', 'sessions', 'stints']);
+  assert.deepStrictEqual(names.sort(), ['calls', 'compare_laps', 'events', 'gaps', 'lap_times', 'results', 'sessions', 'stints']);
   for (const s of tools.schemas) {
     assert.strictEqual(s.type, 'function');
     assert.ok(s.function.description.length > 20, s.function.name);
@@ -93,4 +93,46 @@ test('llm tools: the connection is read-only, and bad arguments are refused befo
   assert.deepStrictEqual(tools.run('lap_times', { session_id: '1; DROP TABLE lap' }), { error: 'lap_times: session_id must be an integer' });
   assert.deepStrictEqual(tools.run('lap_times', {}), { error: 'lap_times needs session_id' });
   assert.deepStrictEqual(tools.run('shell', {}), { error: 'No tool called shell' });
+});
+
+test('llm tools: a session ingested from a recording is dated by the recording, not 1970', () => {
+  const { sessionStart } = require('../src/llm/tools');
+  // Recorded sessions keep their start as an offset into the capture, named by its local start time.
+  const t = sessionStart(1284104, '2026-10-15_182546');
+  assert.strictEqual(new Date(t).getFullYear(), 2026);
+  assert.strictEqual(new Date(t).getDate(), 15);
+  assert.strictEqual(sessionStart(1792446224692, 'live'), 1792446224692, 'a live session has a real time already');
+  assert.strictEqual(sessionStart(5000, 'live'), null, 'no way to tell');
+});
+
+test('llm tools: tyres by name, times in seconds, so a small model needs no lookup table', (t) => {
+  const tools = open(t);
+  const sid = tools.run('sessions', {}).sessions[0].session_id;
+  const lap = tools.run('lap_times', { session_id: sid }).laps[1];
+  assert.match(lap.tyre, /^(soft|medium|hard|inter|wet)$/);
+  // The synthetic race has no sector times; when there are, they're in seconds.
+  assert.ok(lap.s1 == null || (lap.s1 > 1 && lap.s1 < 200), 'seconds, not ms');
+  const car = tools.run('gaps', { session_id: sid, lap: lap.lap }).cars[1];
+  assert.strictEqual(typeof car.gap_to_leader_s, 'number');
+  assert.match(tools.run('stints', { session_id: sid }).stints[0].tyre, /^(soft|medium|hard|inter|wet)$/);
+});
+
+test('llm tools: events are what happened to you and the race, not every speed trap and start light', (t) => {
+  const tools = open(t);
+  const sid = tools.run('sessions', {}).sessions[0].session_id;
+  const { events } = tools.run('events', { session_id: sid });
+  for (const e of events) {
+    assert.ok(!['SPTP', 'STLG', 'LGOT', 'SSTA', 'SEND', 'BUTN'].includes(e.code), e.code);
+    assert.ok(e.involves_you || ['SCAR', 'RDFL', 'CHQF', 'FLBK', 'FTLP'].includes(e.code), JSON.stringify(e));
+  }
+});
+
+test('llm tools: bound to one session, no tool asks for a session_id', (t) => {
+  const tools = open(t);
+  const sid = tools.run('sessions', {}).sessions[0].session_id;
+  const bound = tools.bind(sid);
+  assert.ok(!bound.schemas.some((s) => s.function.name === 'sessions'));
+  for (const s of bound.schemas) assert.ok(!('session_id' in s.function.parameters.properties), s.function.name);
+  assert.deepStrictEqual(bound.run('lap_times', {}), tools.run('lap_times', { session_id: sid }));
+  assert.deepStrictEqual(bound.run('lap_times', { session_id: 99 }), { error: 'lap_times takes no argument "session_id"' });
 });

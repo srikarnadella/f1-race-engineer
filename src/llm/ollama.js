@@ -31,7 +31,8 @@ function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, t
   const models = async () => (await request('/api/tags')).models || [];
 
   // tools: { schemas, run(name, args) } (src/llm/tools.js). Returns { answer, toolCalls }.
-  function ask({ model, question, tools = null, system = null }) {
+  // think: false for models that reason out loud by default (Qwen3); options: Ollama's (temperature...).
+  function ask({ model, question, tools = null, system = null, think = undefined, options = undefined }) {
     if (isLive()) return Promise.reject(new Error('Ask the race is not while you race: it uses the GPU the game needs. Ask after the session.'));
     if (current) return Promise.reject(new Error('Already answering a question'));
     used = true;
@@ -43,7 +44,7 @@ function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, t
       try {
         for (let round = 0; ; round++) {
           const last = round === MAX_ROUNDS - 1;
-          const res = await request('/api/chat', { model, messages, stream: false, keep_alive: WARM_WITHIN_ANSWER, ...(tools && !last ? { tools: tools.schemas } : {}) }, signal);
+          const res = await request('/api/chat', { model, messages, stream: false, keep_alive: WARM_WITHIN_ANSWER, ...(think != null ? { think } : {}), ...(options ? { options } : {}), ...(tools && !last ? { tools: tools.schemas } : {}) }, signal);
           const msg = res.message || {};
           const calls = msg.tool_calls || [];
           if (!calls.length || last) return { answer: msg.content || '', toolCalls };

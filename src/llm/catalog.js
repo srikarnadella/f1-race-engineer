@@ -4,12 +4,12 @@
 // Sizes are Ollama's download sizes (the default 4-bit builds).
 const MODELS = [
   {
-    id: 'qwen3:1.7b', name: 'Qwen3 1.7B', maker: 'Alibaba Qwen', sizeBytes: 1.4e9,
+    id: 'qwen3:1.7b', name: 'Qwen3 1.7B', maker: 'Alibaba Qwen', sizeBytes: 1.4e9, thinks: true,
     licence: 'Apache 2.0', licenceUrl: 'https://huggingface.co/Qwen/Qwen3-1.7B/blob/main/LICENSE',
     note: 'The quickest. Fine for "what was my best lap?", weaker on why.',
   },
   {
-    id: 'qwen3:4b', name: 'Qwen3 4B', maker: 'Alibaba Qwen', sizeBytes: 2.5e9,
+    id: 'qwen3:4b', name: 'Qwen3 4B', maker: 'Alibaba Qwen', sizeBytes: 2.5e9, thinks: true,
     licence: 'Apache 2.0', licenceUrl: 'https://huggingface.co/Qwen/Qwen3-4B/blob/main/LICENSE',
     note: 'The best answers that fit in 4 GB, a little slower.',
   },
