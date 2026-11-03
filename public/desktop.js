@@ -463,7 +463,7 @@
     // Each column its own stack, so a tall one never pushes the others' settings down.
     const cols = { toggles: h('div', { class: 'sheet__col' }), voice: h('div', { class: 'sheet__col' }), pc: h('div', { class: 'sheet__col' }) };
     for (const s of /** @type {NodeListOf<HTMLElement>} */ (sheet.querySelectorAll('.setting'))) {
-      s.dataset.col = s.classList.contains('setting--cmds') ? 'voice' : s.classList.contains('setting--pc') || s.classList.contains('setting--pair') ? 'pc' : 'toggles';
+      s.dataset.col = s.classList.contains('setting--cmds') ? 'voice' : s.classList.contains('setting--pc') || s.classList.contains('setting--pair') || s.classList.contains('setting--keys') ? 'pc' : 'toggles';
       cols[s.dataset.col].append(s);
     }
     cols.pc.append(...[...cols.pc.children].reverse()); // This PC first, the phone QR code (when sharing) under it

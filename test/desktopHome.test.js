@@ -72,7 +72,7 @@ test('home: in the app, Settings is laid out across the window: toggles, voice c
   const sheet = app.$('settings-sheet');
   assert.ok(sheet.classList.contains('sheet--wide'));
   const col = (el) => el.dataset.col;
-  assert.deepStrictEqual([...sheet.querySelectorAll('.setting')].filter((s) => !s.hidden).map(col), ['toggles', 'toggles', 'voice', 'pc']);
+  assert.deepStrictEqual([...sheet.querySelectorAll('.setting')].filter((s) => !s.hidden).map(col), ['toggles', 'toggles', 'voice', 'pc', 'pc'], 'auto-switch, hands-free; voice commands; this PC, then the keyboard');
 });
 
 test('home: the background is a slideshow of real races, each credited while it shows, and it stops when you leave', async (t) => {

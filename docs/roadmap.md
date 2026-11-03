@@ -74,7 +74,7 @@ flowchart LR
     R6[R6 Lap vs lap telemetry]:::done
   end
   subgraph G[Quick gaps]
-    G1[G1 Shortcuts listed in Settings]:::next
+    G1[G1 Shortcuts listed in Settings]:::done
     G2[G2 Field CSV and Calls audit copy]:::next
     G3[G3 Library shows every saved session]:::next
     G4[G4 races.csv ends at the flag]:::next

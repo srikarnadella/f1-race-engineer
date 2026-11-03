@@ -1220,3 +1220,9 @@ body {
   .pc-share__qr { width: 180px; }
   .pc-lib__cols { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Settings: the keyboard shortcuts. */
+.setting--keys { flex-direction: column; cursor: default; }
+.keys { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; line-height: 1.4; }
+.keys li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #262626; color: var(--text); font: inherit; font-weight: 800; font-size: 0.95rem; }

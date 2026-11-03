@@ -181,3 +181,22 @@ test('app: while the window is hidden nothing is drawn, the voice still calls, a
   assert.notStrictEqual(grid(), drawn, 'the latest race drawn on return');
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('app: Settings lists the keyboard shortcuts, and each listed key does what it says', (t) => {
+  const app = open(t);
+  app.connect();
+  app.send(raceSnapshots()[200]);
+  const rows = [...app.window.document.querySelectorAll('#shortcuts li')].map((li) => [li.querySelector('kbd').textContent, li.textContent]);
+  assert.deepStrictEqual(rows.map(([k]) => k), ['1–6', 'Q', 'M', 'Esc']);
+  // 1-6: the six race screens, in order.
+  app.press('6');
+  assert.strictEqual(app.activeTab(), 'Debrief');
+  app.press('1');
+  assert.strictEqual(app.activeTab(), 'Drive');
+  // Q opens Ask; Esc closes it.
+  app.press('q');
+  assert.strictEqual(app.$('ask-sheet').hidden, false);
+  app.press('Escape');
+  assert.strictEqual(app.$('ask-sheet').hidden, true);
+  assert.match(rows[2][1], /while recording/, 'M only does something while a session is recorded');
+});
