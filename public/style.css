@@ -832,16 +832,6 @@ body {
 .card--home .card__title, .card--connect .card__title, .card--library .card__title, .card--analysis .card__title { display: none; }
 .card--home .card__body, .card--connect .card__body, .card--library .card__body, .card--analysis .card__body { container-type: normal; overflow-y: auto; }
 
-/* A place of its own (Race analysis, Storage, Connect): the whole window, its own heading and a
-   way back Home. The dashboard rail is hidden (app.js). */
-.place { position: fixed; inset: 0; z-index: 5; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 24px 28px 32px; background: var(--bg); }
-.place__head { display: flex; align-items: center; gap: 20px; }
-.place__back { appearance: none; border: 0; border-radius: 4px; min-height: 44px; padding: 0 18px; background: var(--panel); color: var(--text); font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; }
-.place__back:hover { background: #222; }
-.place__back:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
-.place__title { margin: 0; font-size: clamp(2rem, 1.4rem + 2.4vw, 3.4rem); font-weight: 800; line-height: 1; letter-spacing: -0.035em; }
-.place__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.place__body > * { flex: 1; }
 .pc { display: grid; gap: var(--gap); align-content: start; padding-bottom: var(--gap); }
 .pc h2, .pc h3, .pc h4, .pc p { margin: 0; }
 .pc h3 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em; }
@@ -990,57 +980,114 @@ body {
   .home__photo, .home__dest, .home__mark { animation: none; transition: none; }
 }
 
+
+/* ---------- The app's places: Race analysis, Storage, Connect ----------
+   One ground, no panels. Sections are set apart by space and a heading, rows by a little space
+   and a tone step on hover; the accent marks only the one thing that matters on the page. */
+.place { position: fixed; inset: 0; z-index: 5; overflow-y: auto; padding: 28px clamp(24px, 3.4vw, 56px) 72px; background: var(--bg); }
+.place > * { max-width: 1360px; }
+.place__head { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+.place__back { appearance: none; border: 0; border-radius: 4px; min-height: 44px; padding: 0 14px 0 10px; margin-left: -10px; background: none; color: var(--muted); font: inherit; font-size: 1rem; font-weight: 650; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.place__back:hover { background: #181818; color: var(--text); }
+.place__back:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.place__title { margin: 0; font-size: clamp(1.6rem, 1.2rem + 1vw, 2.1rem); font-weight: 750; letter-spacing: -0.02em; color: var(--muted); }
+.place__body { display: flex; flex-direction: column; }
+
+/* Buttons in a place: text you can press, not blocks. */
+.place .pc-btn { padding: 10px 14px; background: none; color: var(--muted); font-weight: 700; }
+.place .pc-btn:hover { background: #1c1c1c; color: var(--text); }
+.place .pc-btn--primary { background: var(--text); color: #0a0a0a; }
+.place .pc-btn--primary:hover { background: #fff; color: #000; }
+.place .pc-btn--rec { padding: 14px 22px; background: #1c1c1c; color: var(--text); }
+.place .pc-btn--rec.is-on { background: var(--act); color: #fff; }
+.place .pc { gap: 0; }
+.place .pc-actions { margin-left: -14px; } /* text buttons keep their padding: line their words up with the text above */
+.place .pc h3 { font-size: 1.3rem; font-weight: 750; letter-spacing: -0.01em; }
+
+/* Storage */
+.place .pc-lib__head { padding: 0 0 48px; background: none; align-items: center; }
+.place .pc-lib__summary { margin: 0 !important; font-size: clamp(1.4rem, 1.1rem + 0.9vw, 2rem); font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; max-width: 32ch; }
+.place .pc-lib__cols { gap: 72px; }
+.place .pc-lib__col { padding: 0; background: none; gap: 6px; }
+.place .pc-lib__col > p.dim { margin-bottom: 14px; max-width: 52ch; }
+.place .pc-list { gap: 2px; margin: 0; }
+.place .pc-row { padding: 14px 12px; margin: 0 -12px; background: none; transition: background 0.12s; }
+.place .pc-row:hover, .place .pc-row:focus-within { background: #141414; }
+.place .pc-row.is-recording { border-left: 0; box-shadow: inset 4px 0 0 var(--act); }
+.place .pc-row__title { font-size: 1.15rem; font-weight: 750; }
+.place .pc-row__actions { gap: 2px; }
+.place .pc-row .pc-btn { padding: 8px 10px; font-size: 0.95rem; }
+.place .pc-row .pc-btn--primary { background: none; color: var(--text); }
+.place .pc-row .pc-btn--primary:hover { background: var(--text); color: #0a0a0a; }
+.place .pc-report { padding: 8px 0 4px; background: none; }
+
+/* Connect */
+.place .pc-connect { gap: 56px 80px; }
+.place .pc-mode { margin-bottom: -24px; padding: 14px 18px; background: #0d2233; }
+.place .pc-game { padding: 0; background: none; gap: 20px; }
+.place .pc-game__state { font-size: clamp(2.6rem, 2rem + 3vw, 4.6rem); }
+.place .pc-facts { gap: 40px; padding: 8px 0; }
+.place .pc-fact { padding: 0; min-width: 0; background: none; }
+.place .pc-fact b { font-size: 2rem; }
+.place .pc-rec { padding: 0; background: none; }
+.place .pc-share { padding: 0; background: none; gap: 14px; }
+.place .pc-toggle { padding: 14px 12px; margin: 0 -12px; background: none; transition: background 0.12s; }
+.place .pc-toggle:hover { background: #141414; }
+
 /* Race analysis (analysis.js): saved sessions on the left, one session in depth on the right. */
-.ana { flex: 1; display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 28px; align-items: start; }
-.ana__list { display: flex; flex-direction: column; gap: 6px; position: sticky; top: 0; }
-.ana__session { appearance: none; border: 0; border-radius: 4px; padding: 14px 16px; background: var(--panel); color: var(--muted); font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: background 0.12s; }
-.ana__session:hover { background: #1f1f1f; color: var(--text); }
+.ana { display: grid; grid-template-columns: minmax(200px, 270px) minmax(0, 1fr); gap: clamp(32px, 4vw, 72px); align-items: start; }
+.ana__list { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; }
+.ana__session { appearance: none; border: 0; border-radius: 4px; padding: 12px 14px; background: none; color: var(--muted); font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: background 0.12s, color 0.12s; }
+.ana__session:hover { background: #141414; color: var(--text); }
 .ana__session:focus-visible, .ana__view:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
-.ana__session[aria-current="true"] { background: var(--text); color: #0a0a0a; }
-.ana__session-name { font-size: 1.1rem; font-weight: 750; }
-.ana__session-meta { font-size: 0.95rem; font-weight: 600; opacity: 0.85; }
-.ana__main { min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.ana__session[aria-current="true"] { background: #161616; color: var(--text); box-shadow: inset 4px 0 0 var(--act); }
+.ana__session-name { font-size: 1.05rem; font-weight: 700; }
+.ana__session-meta { font-size: 0.9rem; font-weight: 550; color: var(--label); }
+.ana__main { min-width: 0; display: flex; flex-direction: column; gap: 40px; }
 .ana__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.ana__title { margin: 0; font-size: clamp(1.8rem, 1.2rem + 1.6vw, 2.6rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
-.ana__meta { margin: 6px 0 0; color: var(--muted); font-size: 1rem; }
-.ana__views { display: flex; gap: 6px; }
-.ana__view { appearance: none; border: 0; border-radius: 4px; min-height: 44px; padding: 0 18px; background: var(--panel); color: var(--muted); font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; }
-.ana__view:hover { color: var(--text); }
-.ana__view[aria-selected="true"] { background: var(--text); color: #0a0a0a; }
+.ana__title { margin: 0; font-size: clamp(2.4rem, 1.6rem + 2.6vw, 4.2rem); font-weight: 800; letter-spacing: -0.04em; line-height: 0.95; }
+.ana__meta { margin: 10px 0 0; color: var(--muted); font-size: 1.05rem; }
+.ana__views { display: flex; gap: 4px; }
+.ana__view { appearance: none; border: 0; border-radius: 4px; min-height: 44px; padding: 0 16px; background: none; color: var(--muted); font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.ana__view:hover { background: #161616; color: var(--text); }
+.ana__view[aria-selected="true"] { background: #1c1c1c; color: var(--text); }
 .ana__body { min-width: 0; }
-.ana__empty { margin: 48px 0; font-size: 1.15rem; color: var(--muted); max-width: 52ch; }
-.ana__overview { display: flex; flex-direction: column; gap: 32px; }
-.ana__overview h3 { margin: 0 0 12px; font-size: 1.15rem; font-weight: 750; }
-.ana__top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 32px; align-items: center; }
-.ana__result { display: flex; flex-direction: column; gap: 6px; }
-.ana__pos-big { font-size: clamp(4rem, 3rem + 4vw, 7.5rem); font-weight: 800; line-height: 0.9; letter-spacing: -0.05em; }
-.ana__result span { font-size: 1.15rem; font-weight: 650; color: var(--muted); }
-.ana__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.ana__stat { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 4px; background: var(--panel); min-width: 0; }
-.ana__stat-label { font-size: 0.95rem; font-weight: 650; color: var(--label); }
-.ana__stat b { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
-.ana__stat-sub { font-size: 0.9rem; color: var(--muted); overflow-wrap: anywhere; }
-.ana__stints { display: flex; gap: 2px; min-height: 64px; }
-.ana__stint { flex-basis: 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 12px; border-radius: 4px; background: var(--panel-2); color: #0a0a0a; overflow: hidden; white-space: nowrap; }
-.ana__stint b { font-size: 1.05rem; font-weight: 800; }
-.ana__stint span { font-size: 0.9rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
-.ana__stint[data-c="soft"] { background: var(--soft); }
-.ana__stint[data-c="medium"] { background: var(--medium); }
-.ana__stint[data-c="hard"] { background: var(--hard); }
-.ana__stint[data-c="inter"] { background: var(--inter); }
-.ana__stint[data-c="wet"] { background: var(--wet); }
+.ana__empty { margin: 24px 0; font-size: 1.2rem; color: var(--muted); max-width: 52ch; line-height: 1.5; }
+.ana__overview { display: flex; flex-direction: column; gap: 56px; }
+.ana__overview h3 { margin: 0 0 18px; font-size: 1.2rem; font-weight: 750; color: var(--muted); }
+.ana__top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(32px, 4vw, 72px); align-items: center; }
+.ana__result { display: flex; flex-direction: column; gap: 8px; }
+.ana__pos-big { font-size: clamp(5rem, 3.6rem + 5vw, 9rem); font-weight: 800; line-height: 0.85; letter-spacing: -0.06em; }
+.ana__result span { font-size: 1.2rem; font-weight: 650; color: var(--muted); }
+.ana__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 40px; }
+.ana__stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ana__stat-label { font-size: 0.95rem; font-weight: 600; color: var(--label); }
+.ana__stat b { font-size: clamp(1.6rem, 1.2rem + 1vw, 2.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.ana__stat-sub { font-size: 0.95rem; color: var(--muted); overflow-wrap: anywhere; }
+/* Stints: a slim strip to scale, each named underneath (never colour alone). */
+.ana__stints { display: flex; gap: 4px; }
+.ana__stint { --c: var(--panel-2); flex-basis: 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: var(--text); white-space: nowrap; }
+.ana__stint::before { content: ""; height: 12px; margin-bottom: 10px; border-radius: 3px; background: var(--c); }
+.ana__stint b { font-size: 1.05rem; font-weight: 750; }
+.ana__stint span { font-size: 0.95rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.ana__stint[data-c="soft"] { --c: var(--soft); }
+.ana__stint[data-c="medium"] { --c: var(--medium); }
+.ana__stint[data-c="hard"] { --c: var(--hard); }
+.ana__stint[data-c="inter"] { --c: var(--inter); }
+.ana__stint[data-c="wet"] { --c: var(--wet); }
 .ana__chart { position: relative; }
 .ana__pos { display: block; width: 100%; height: auto; }
-.ana__grid { stroke: #222; stroke-width: 1; }
-.ana__tick { fill: var(--label); font-size: 14px; font-weight: 600; }
-.ana__them { fill: none; stroke: #3c3c3c; stroke-width: 1.5; stroke-linejoin: round; }
+.ana__grid { stroke: #1a1a1a; stroke-width: 1; }
+.ana__tick { fill: var(--label); font-size: 19px; font-weight: 600; } /* viewBox units: ~13 px at an 1100 px window */
+.ana__them { fill: none; stroke: #343434; stroke-width: 1.5; stroke-linejoin: round; }
 .ana__me { fill: none; stroke: var(--good); stroke-width: 3; stroke-linejoin: round; }
 .ana__cross { stroke: var(--muted); stroke-width: 1; }
 .ana__dot { fill: var(--good); stroke: var(--bg); stroke-width: 2; }
 .ana__tip { position: absolute; top: 0; transform: translateX(-50%); padding: 6px 10px; border-radius: 4px; background: var(--text); color: #0a0a0a; font-size: 0.95rem; font-weight: 700; pointer-events: none; white-space: nowrap; }
-.ana__moments { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.ana__moment { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; padding: 12px 16px; border-radius: 4px; background: var(--panel); font-size: 1.05rem; }
-.ana__moment b { color: var(--label); font-weight: 700; }
+/* Key moments: a timeline read down the page. */
+.ana__moments { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.ana__moment { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 20px; padding: 10px 0; font-size: 1.1rem; line-height: 1.4; }
+.ana__moment b { color: var(--label); font-weight: 650; font-variant-numeric: tabular-nums; }
 .ana .w-deb__session { display: none; }
 
 /* Settings: this PC's ports and data folder. */
