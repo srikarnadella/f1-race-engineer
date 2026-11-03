@@ -364,7 +364,7 @@
         h('p', { class: 'h2h__verdict lvl__verdict' }, verdict),
         facts,
         h('section', {}, h('div', { class: 'pace__head' }, h('h3', {}, 'Lap by lap'), h('p', { class: 'pace__key' }, h('span', {}, h('i', { class: 'h2h__key is-lost' }), 'you slower'), h('span', {}, h('i', { class: 'h2h__key is-gained' }), 'you faster'), h('span', {}, h('i', { class: 'h2h__key is-out' }), 'not counted'))), lapSvg),
-        both.length ? h('section', {}, h('h3', {}, 'Where on the lap'), sliceSvg, ranked.length ? worst : h('p', { class: 'pace__note' }, 'Level everywhere: no part of the lap differs by more than 0.02 s.')) : null);
+        both.length ? h('section', {}, h('h3', {}, 'Where on the lap'), sliceSvg, ranked.length ? worst : h('p', { class: 'pace__note' }, 'Level everywhere: no part of the lap differs by more than 0.02 s.')) : '');
     }
 
     fetch(`/api/debrief/field?session=${encodeURIComponent(d.id)}`)
@@ -483,7 +483,7 @@
         : t.graded
         ? `${t.right} of ${t.graded} graded call${t.graded === 1 ? ' was' : 's were'} right${t.wrong ? `, ${t.wrong} wrong` : ''}${t.unclear ? `, ${t.unclear} unclear` : ''}`
         : 'No calls to grade: every call this race followed the rules (pits, safety car, penalties).';
-      root.replaceChildren(h('p', { class: 'str__verdict lvl__verdict' }, verdict), stopsSection(), audit.calls.length ? callsSection() : null);
+      root.replaceChildren(...[h('p', { class: 'str__verdict lvl__verdict' }, verdict), stopsSection(), audit.calls.length ? callsSection() : null].filter(Boolean));
     }
 
     fetch(`/api/debrief/audit?session=${encodeURIComponent(d.id)}`)

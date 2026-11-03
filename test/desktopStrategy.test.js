@@ -114,4 +114,5 @@ test('strategy: a race saved before calls were kept with it says so, and still s
   const stop = doc.querySelector('.str__stop').textContent;
   assert.match(stop, /P8 → P11/);
   assert.match(stop, /saved before/);
+  assert.doesNotMatch(doc.querySelector(".str").textContent, /null|undefined/);
 });
