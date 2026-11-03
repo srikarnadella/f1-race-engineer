@@ -64,6 +64,23 @@ test('debrief in qualifying: each best is the game best valid lap, not the laps 
   assert.strictEqual(rival.bestMs, 78500);
 });
 
+test('debrief: every car\'s laps for the head to head, each lap\'s time the sum of its mini-sectors', () => {
+  const f = fakeField({ classified: true });
+  f.getCar(0).miniSectors = [{ lapNum: 2, splits: [20000, 30000, 29000] }, { lapNum: 3, splits: [20100, 30100, 29100] }];
+  f.getCar(1).miniSectors = [{ lapNum: 2, splits: [19900, 29900, 28900] }];
+  const d = createDebrief(f);
+  d.tick();
+  const id = d.view().sessions[0].id;
+  const out = d.fieldLaps(id);
+  assert.strictEqual(out.trackLength, 5800);
+  const me = out.cars.find((c) => c.isPlayer);
+  const rival = out.cars.find((c) => c.name === 'RIVAL');
+  assert.deepStrictEqual(me.laps.map((l) => [l.lap, l.ms]), [[2, 79000], [3, 79300]]);
+  assert.deepStrictEqual(rival.laps, [{ lap: 2, ms: 78700, splits: [19900, 29900, 28900] }]);
+  assert.deepStrictEqual([rival.position, rival.carIndex, rival.isPlayer], [1, 1, false]);
+  assert.deepStrictEqual(d.fieldLaps('nope'), { error: 'No such session' });
+});
+
 test('debrief: nothing is written without a directory', () => {
   const d = createDebrief(fakeField({ classified: true }));
   d.tick();

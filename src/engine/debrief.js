@@ -385,6 +385,18 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     return r || { error: 'No mini-sector times yet - they fill in from the first full lap' };
   }
 
+  // Every car's laps for Race analysis' head to head: each lap's mini-sector splits, whose sum
+  // is the lap time. Only laps a car completed with timing (none across a flashback or the pits).
+  function fieldLaps(id) {
+    const s = find(id);
+    if (!s) return { error: 'No such session' };
+    const cars = [...s.field.entries()].map(([carIndex, f]) => ({
+      carIndex, name: f.name, position: f.position, isPlayer: !!f.isPlayer, stops: f.stops, compounds: f.compounds, bestMs: f.bestMs,
+      laps: (f.miniSectors || []).map((l) => ({ lap: l.lapNum, ms: l.splits.reduce((x, y) => x + y, 0), splits: l.splits })),
+    }));
+    return { trackLength: s.trackLength, cars };
+  }
+
   // On shutdown: keep the session in progress too.
   const flush = () => {
     keepAuditRows(current);
@@ -419,7 +431,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
   }
 
   // The raw record of the session in progress (the race store reads its lap traces).
-  return { tick, noteCall, view, compare, rivals, audit, flush, remove, current: () => current };
+  return { tick, noteCall, view, compare, rivals, audit, fieldLaps, flush, remove, current: () => current };
 }
 
 module.exports = { RIVAL_ID, createDebrief };

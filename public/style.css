@@ -1187,6 +1187,27 @@ body {
 .pace__csv { appearance: none; border: 0; border-radius: 4px; min-height: 40px; padding: 0 14px; background: #1c1c1c; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
 .pace__csv:hover { background: #262626; }
 
+/* Head to head (analysis.js): you against one car. Lost / gained in words and colour. */
+.h2h { display: flex; flex-direction: column; gap: 32px; }
+.h2h h3 { margin: 0 0 14px; font-size: 1.2rem; font-weight: 750; color: var(--muted); }
+.h2h__facts { max-width: 640px; font-size: 1.05rem; }
+.h2h__facts th { padding: 0 0.6em 10px; font-size: 0.95rem; font-weight: 650; color: var(--label); text-align: left; }
+.h2h__facts th.num { text-align: right; }
+.h2h__facts tbody th { padding: 10px 0.6em; font-size: 1rem; }
+.h2h__facts td { padding: 10px 0.6em; border-top: 0; font-weight: 700; }
+.h2h__facts tbody tr:nth-child(odd) > * { background: #101010; }
+.h2h__chart { display: block; width: 100%; height: auto; }
+.h2h__lap.is-lost, .h2h__slice.is-lost { fill: var(--act); }
+.h2h__lap.is-gained, .h2h__slice.is-gained { fill: var(--good); }
+.h2h__lap.is-out { fill: #3a3a3a; }
+.h2h__key { width: 12px; height: 12px; border-radius: 2px; }
+.h2h__key.is-lost { background: var(--act); }
+.h2h__key.is-gained { background: var(--good); }
+.h2h__key.is-out { background: #3a3a3a; }
+.h2h__worst { margin: 18px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.h2h__worst li { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; padding: 9px 0; font-size: 1.05rem; }
+.h2h__worst b { color: var(--label); font-weight: 650; font-variant-numeric: tabular-nums; }
+
 /* Settings: this PC's ports and data folder. */
 .setting--pc { flex-direction: column; cursor: default; }
 .pc-ports { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }

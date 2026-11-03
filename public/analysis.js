@@ -269,6 +269,111 @@
     return root;
   }
 
+  // ---------- Head to head: you against any car, lap by lap and slice by slice ----------
+  // From every car's mini-sector splits (/api/debrief/field). Only laps you both completed count;
+  // a lap more than 7% off a car's own typical lap (a stop, a safety car, a spin) is left out of the
+  // pace, so a pit lap doesn't decide who was quicker.
+  function headToHead(d) {
+    const root = h('div', { class: 'h2h' }, h('p', { class: 'ana__empty' }, 'Loading every car\'s laps…'));
+    let field = null;
+    let rivalIdx = null;
+
+    function clean(car) {
+      const typical = car.laps.length ? median(car.laps.map((l) => l.ms)) : 0;
+      return new Map(car.laps.filter((l) => l.ms <= typical * 1.07).map((l) => [l.lap, l]));
+    }
+
+    function render() {
+      if (!field || field.error) {
+        root.replaceChildren(h('p', { class: 'ana__empty' }, (field && field.error) || 'Couldn\'t reach the bridge.'));
+        return;
+      }
+      const me = field.cars.find((c) => c.isPlayer);
+      const others = field.cars.filter((c) => !c.isPlayer && c.laps.length).sort((a, b) => (a.position || 99) - (b.position || 99));
+      if (!me || !me.laps.length || !others.length) {
+        root.replaceChildren(h('p', { class: 'ana__empty' }, 'This session has no lap timing for the other cars to compare with.'));
+        return;
+      }
+      if (rivalIdx == null || !others.some((c) => c.carIndex === rivalIdx)) {
+        const ahead = others.find((c) => c.position === me.position - 1) || others.find((c) => c.position === me.position + 1) || others[0];
+        rivalIdx = ahead.carIndex;
+      }
+      const them = others.find((c) => c.carIndex === rivalIdx);
+      const pick = h('select', { class: 'h2h__pick lvl__pick', 'aria-label': 'Car to compare with', onchange: (e) => { rivalIdx = Number(e.target.value); render(); } },
+        others.map((c) => h('option', { value: c.carIndex, selected: c.carIndex === rivalIdx }, `${c.position ? `P${c.position} ` : ''}${c.name}`)));
+
+      const theirs = new Map(them.laps.map((l) => [l.lap, l]));
+      const common = me.laps.filter((l) => theirs.has(l.lap));
+      const myClean = clean(me);
+      const theirClean = clean(them);
+      const both = common.filter((l) => myClean.has(l.lap) && theirClean.has(l.lap));
+      const diffs = both.map((l) => l.ms - theirs.get(l.lap).ms); // + = you slower
+      const typical = diffs.length ? median(diffs) : null;
+      const verdict = typical == null
+        ? `No laps you and ${them.name} both ran cleanly to compare.`
+        : `${them.name} was ${(Math.abs(typical) / 1000).toFixed(3)} s a lap ${typical > 0 ? 'faster' : 'slower'} than you over ${both.length} lap${both.length === 1 ? '' : 's'}`;
+
+      const fact = (label, mine, theirsTxt) => h('tr', {}, h('th', {}, label), h('td', { class: 'num' }, theirsTxt), h('td', { class: 'num' }, mine));
+      const facts = h('table', { class: 'tbl h2h__facts' },
+        h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', { class: 'num' }, them.name), h('th', { class: 'num' }, 'You'))),
+        h('tbody', {},
+          fact('Finished', me.position ? `P${me.position}` : '–', them.position ? `P${them.position}` : '–'),
+          fact('Best lap', fmtLap(me.bestMs) || '–', fmtLap(them.bestMs) || '–'),
+          fact('Stops', String(me.stops ?? '–'), String(them.stops ?? '–')),
+          fact('Tyres', (me.compounds || []).map(tyre).join(' → '), (them.compounds || []).map(tyre).join(' → '))));
+
+      // Lap by lap: up = you were slower that lap.
+      const W = 1000;
+      const H = 220;
+      const mid = H / 2;
+      const cap = Math.max(300, ...diffs.map(Math.abs));
+      const lapSvg = s('svg', { class: 'h2h__chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Lap by lap against ${them.name}` });
+      lapSvg.append(s('line', { class: 'lvl__zero', x1: 0, x2: W, y1: mid, y2: mid }));
+      const bw = W / Math.max(1, common.length);
+      common.forEach((l, i) => {
+        const diff = l.ms - theirs.get(l.lap).ms;
+        const out = !(myClean.has(l.lap) && theirClean.has(l.lap));
+        const hgt = (Math.min(Math.abs(diff), cap) / cap) * (mid - 18);
+        const bar = s('rect', { class: `h2h__lap ${out ? 'is-out' : diff > 0 ? 'is-lost' : 'is-gained'}`, 'data-lap': l.lap, 'data-diff': diff, x: i * bw + bw * 0.18, width: bw * 0.64, y: diff > 0 ? mid - hgt : mid, height: Math.max(1, hgt), rx: 2 });
+        bar.append(s('title', {}, `Lap ${l.lap}: ${signedS(diff / 1000)}${out ? ' (a stop, safety car or incident: not counted)' : ''}`));
+        lapSvg.append(bar);
+        if (common.length <= 30 || i % 2 === 0) lapSvg.append(s('text', { class: 'ana__tick', x: i * bw + bw / 2, y: H - 2, 'text-anchor': 'middle' }, String(l.lap)));
+      });
+
+      // Where on the lap: each slice's typical difference over the clean laps.
+      const n = both.length ? both[0].splits.length : 0;
+      const sliceM = n ? field.trackLength / n : 0;
+      const slices = Array.from({ length: n }, (_, k) => median(both.map((l) => l.splits[k] - theirs.get(l.lap).splits[k])));
+      const sCap = Math.max(50, ...slices.map(Math.abs));
+      const sliceSvg = s('svg', { class: 'h2h__chart h2h__chart--slices', viewBox: `0 0 ${W} 140`, role: 'img', 'aria-label': `Where on the lap, against ${them.name}` });
+      sliceSvg.append(s('line', { class: 'lvl__zero', x1: 0, x2: W, y1: 60, y2: 60 }));
+      slices.forEach((v, k) => {
+        const hgt = (Math.abs(v) / sCap) * 52;
+        const bar = s('rect', { class: `h2h__slice ${v > 0 ? 'is-lost' : 'is-gained'}`, x: (k / n) * W + 1, width: W / n - 2, y: v > 0 ? 60 - hgt : 60, height: Math.max(1, hgt), rx: 2 });
+        bar.append(s('title', {}, `${((k * sliceM) / 1000).toFixed(1)}–${(((k + 1) * sliceM) / 1000).toFixed(1)} km: ${signedS(v / 1000)} a lap`));
+        sliceSvg.append(bar);
+      });
+      for (let km = 0; km <= field.trackLength / 1000; km++) sliceSvg.append(s('text', { class: 'ana__tick', x: Math.min(W - 12, ((km * 1000) / field.trackLength) * W + (km ? 0 : 12)), y: 132, 'text-anchor': 'middle' }, `${km} km`));
+      const ranked = slices.map((v, k) => ({ v, k })).filter((x2) => Math.abs(x2.v) >= 20).sort((a, b) => b.v - a.v);
+      const worst = h('ol', { class: 'h2h__worst' }, ranked.map(({ v, k }) => h('li', {},
+        h('b', {}, `${((k * sliceM) / 1000).toFixed(1)}–${(((k + 1) * sliceM) / 1000).toFixed(1)} km`),
+        h('span', { class: v > 0 ? 'lvl__lost' : 'lvl__gained' }, `you ${v > 0 ? 'lose' : 'gain'} ${(Math.abs(v) / 1000).toFixed(2)} s a lap`))));
+
+      root.replaceChildren(
+        h('div', { class: 'lvl__bar' }, h('label', {}, 'You against', pick)),
+        h('p', { class: 'h2h__verdict lvl__verdict' }, verdict),
+        facts,
+        h('section', {}, h('div', { class: 'pace__head' }, h('h3', {}, 'Lap by lap'), h('p', { class: 'pace__key' }, h('span', {}, h('i', { class: 'h2h__key is-lost' }), 'you slower'), h('span', {}, h('i', { class: 'h2h__key is-gained' }), 'you faster'), h('span', {}, h('i', { class: 'h2h__key is-out' }), 'not counted'))), lapSvg),
+        both.length ? h('section', {}, h('h3', {}, 'Where on the lap'), sliceSvg, ranked.length ? worst : h('p', { class: 'pace__note' }, 'Level everywhere: no part of the lap differs by more than 0.02 s.')) : null);
+    }
+
+    fetch(`/api/debrief/field?session=${encodeURIComponent(d.id)}`)
+      .then((r) => r.json())
+      .then((j) => { field = j; }, () => { field = null; })
+      .then(render);
+    return root;
+  }
+
   // ---------- Lap vs lap: two laps on one distance axis ----------
   // The bridge compares A (the reference) with B (the lap it explains): + means B lost time. Here
   // "your lap" is always the one explained and "against" the reference, another lap or a rival's best.
@@ -440,7 +545,8 @@
       let sig = '';
       let debriefUpdate = null;
       let lapView = null; // { id, node }: kept across redraws, so a new lap doesn't refetch the comparison
-      const VIEWS = [['overview', 'Overview'], ['pace', 'Pace'], ['laps', 'Lap vs lap'], ['debrief', 'Full debrief']];
+      let h2hView = null; // the same for Head to head
+      const VIEWS = [['overview', 'Overview'], ['pace', 'Pace'], ['laps', 'Lap vs lap'], ['h2h', 'Head to head'], ['debrief', 'Full debrief']];
 
       function draw() {
         const d = sessions.find((x) => x.id === selected) || sessions[0] || null;
@@ -467,6 +573,9 @@
           body.replaceChildren(overview(d));
         } else if (view === 'pace') {
           body.replaceChildren(pace(d));
+        } else if (view === 'h2h') {
+          if (!h2hView || h2hView.id !== d.id) h2hView = { id: d.id, node: headToHead(d) };
+          if (!body.contains(h2hView.node)) body.replaceChildren(h2hView.node);
         } else if (view === 'laps') {
           if (!lapView || lapView.id !== d.id) lapView = { id: d.id, node: lapVsLap(d) };
           if (!body.contains(lapView.node)) body.replaceChildren(lapView.node);

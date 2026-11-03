@@ -164,6 +164,7 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     if (pathname === '/api/debrief/compare') return debrief.compare(params.get('session'), lap('a'), b && RIVAL_ID.test(b) ? b : lap('b'));
     if (pathname === '/api/debrief/rivals') return debrief.rivals(params.get('session'));
     if (pathname === '/api/debrief/audit') return debrief.audit(params.get('session'));
+    if (pathname === '/api/debrief/field') return debrief.fieldLaps(params.get('session'));
     const { analysis } = pipeline.snapshot();
     if (pathname === '/api/models') return { ...MODEL_INFO, tyre: analysis ? analysis.tyreModel : null };
     return null;

@@ -68,7 +68,7 @@ flowchart LR
   subgraph R[Race analysis: its own place]
     R1[R1 Session picker and race overview]:::done
     R2[R2 Pace: laps, stints, tyre wear]:::done
-    R3[R3 Head to head with any rival]:::next
+    R3[R3 Head to head with any rival]:::done
     R4[R4 Strategy review: calls, stops, what-if]:::next
     R5[R5 Across sessions: trends per track]
     R6[R6 Lap vs lap telemetry]:::done
@@ -340,7 +340,12 @@ estimated on the page. Use the taste skill and the dataviz skill for every view.
   wear": fuel burn speeds the car up over a stint, so the fit is the net of both.
 - **R3 Head to head.** Pick any rival: the gap lap by lap, where the time went by corner on any
   lap pair (lapCompare), their stints next to yours. *Test:* the gap at each lap equals the
-  debrief's gap; the corner deltas add up to the lap delta.
+  debrief's gap; the corner deltas add up to the lap delta. *Done:* `test/desktopHeadToHead.test.js`,
+  `/api/debrief/field` (`test/debrief.test.js`): every car's laps as the sum of its mini-sector splits
+  (they add up exactly to the official lap times on the recorded races); against any car, the typical
+  difference a lap over the laps you both ran cleanly (a lap 7% off a car's own typical is left out),
+  each lap's difference, and where on the lap the time goes, slice by slice. Corner by corner against a
+  rival's best lap is in Lap vs lap (R6).
 - **R4 Strategy review.** Every call with its grade (calls audit), the pit stops and what they
   cost or gained, the rejoin predicted vs actual, and a what-if on the stop lap (A1). *Test:* the
   grades equal `npm run backtest` for the session.
