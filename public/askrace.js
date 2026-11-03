@@ -76,10 +76,17 @@
       svg.append(sv('line', { class: 'llm__grid', x1: pad.l, x2: W - pad.r, y1: Y(v), y2: Y(v) }), sv('text', { class: 'llm__tick', x: pad.l - 8, y: Y(v) + 4, 'text-anchor': 'end' }, c.y.invert ? `P${v}` : fmt(v)));
     }
     if (c.y.zero) svg.append(sv('line', { class: 'llm__zero', x1: pad.l, x2: W - pad.r, y1: Y(0), y2: Y(0) }));
-    for (const v of ticks(x0, x1, 10)) svg.append(sv('text', { class: 'llm__tick', x: X(v), y: H - 12, 'text-anchor': 'middle' }, String(Math.round(v))));
+    // Laps are whole numbers: no 2.5 rounded to a second "3".
+    const wholeX = xs.every(Number.isInteger);
+    for (const v of ticks(x0, x1, 10).filter((v) => !wholeX || Number.isInteger(v))) svg.append(sv('text', { class: 'llm__tick', x: X(v), y: H - 12, 'text-anchor': 'middle' }, String(Math.round(v))));
     svg.append(sv('text', { class: 'llm__tick', x: W - pad.r, y: H - 1, 'text-anchor': 'end' }, c.x.label));
-    for (const m of c.marks || []) {
-      svg.append(sv('line', { class: 'llm__mark', x1: X(m.x), x2: X(m.x), y1: pad.t, y2: H - pad.b }), sv('text', { class: 'llm__mark-label', x: X(m.x) + 4, y: pad.t + 10 }, m.label));
+    // Labels close together step down a line instead of overlapping.
+    let lastX = -Infinity;
+    let row = 0;
+    for (const m of [...(c.marks || [])].sort((p, q) => p.x - q.x)) {
+      row = X(m.x) - lastX < 150 ? row + 1 : 0;
+      lastX = X(m.x);
+      svg.append(sv('line', { class: 'llm__mark', x1: X(m.x), x2: X(m.x), y1: pad.t, y2: H - pad.b }), sv('text', { class: 'llm__mark-label', x: X(m.x) + 4, y: pad.t + 10 + (row % 3) * 16 }, m.label));
     }
     const lines = c.series.map((s, i) => {
       const color = s.you ? 'is-you' : i === 0 || c.series.length === 2 ? 'is-ref' : 'is-other';
@@ -113,24 +120,26 @@
       svg, readout);
   }
 
+  // The conversation outlives the page: leave Ask the race and come back, and it's still there.
+  const chatState = { thread: null, sessionId: null };
+
   widgets.askrace = {
     title: 'Ask the race',
     description: 'Questions about your saved races, answered by a local model',
     tall: true,
     mount(el) {
       const frame = desk.placeFrame(el, 'Ask the race');
-      const notice = h('p', { class: 'llm__notice' }, 'Not for use while racing. The model runs on the graphics card the game needs, so questions and downloads are off while F1 26 is sending telemetry, and the model leaves memory as soon as it has answered.');
-      const live = h('p', { class: 'llm__live', role: 'status', hidden: true }, 'The game is sending telemetry. Come back after the session.');
-      const error = h('p', { class: 'pc-error', role: 'alert', hidden: true });
-      const body = h('div', { class: 'llm__body' }, h('p', { class: 'ana__empty' }, 'Looking for Ollama…'));
-      const manager = h('aside', { class: 'llm__dls', 'aria-label': 'Downloads' });
-      frame.replaceChildren(h('div', { class: 'llm' }, h('div', { class: 'llm__main' }, notice, live, error, body), manager));
+      const error = h('p', { class: 'pc-error llm__error', role: 'alert', hidden: true });
 
       let status = null;
       let catalog = [];
       let have = new Set();
       let downloads = []; // the app's list: { model, state, fraction, completed, total, error }
       let isLive = false;
+      let sessions = [];
+      let busy = false;
+      let model = null; // the model answering
+      let view = null; // 'chat' | 'models'
 
       async function act(fn) {
         error.hidden = true;
@@ -144,78 +153,170 @@
       }
       const nameOf = (id) => (catalog.find((m) => m.id === id) || { name: id }).name;
       const downloading = (id) => downloads.find((d) => d.model === id && d.state === 'downloading');
+      const mine = () => catalog.filter((m) => have.has(m.id));
 
-      // ---------- Asking (L5): built once, kept across redraws so answers survive download updates ----------
-      let sessions = [];
-      let drivers = [];
-      const askbox = h('section', { class: 'llm__askbox', 'aria-label': 'Ask about a session' });
-      const thread = h('ol', { class: 'llm__thread' });
-      const sessionPick = h('select', { class: 'llm__session lvl__pick', 'aria-label': 'Session', onchange: () => loadDrivers() });
-      const modelPick = h('select', { class: 'llm__pick-model lvl__pick', 'aria-label': 'Model', onchange: () => { try { localStorage.setItem('undercut.llmModel', modelPick.value); } catch (_) { /* fine */ } } });
-      const question = h('textarea', { class: 'llm__question', rows: 2, maxlength: 2000, placeholder: 'Ask about this session, e.g. "Where did I lose time on lap 12?"', 'aria-label': 'Question' });
-      const askBtn = h('button', { type: 'button', class: 'pc-btn pc-btn--primary llm__ask', onclick: () => ask(question.value) }, 'Ask');
-      const stopBtn = h('button', { type: 'button', class: 'pc-btn pc-btn--quiet llm__stop', hidden: true, onclick: () => act(() => api.llm.stop()) }, 'Stop');
-      const gapPick = h('select', { class: 'llm__gap-driver lvl__pick', 'aria-label': 'Driver for the gap chart' });
+      // ---------- The chat ----------
+      const sessionPick = h('select', { class: 'llm__session', 'aria-label': 'Session to ask about', onchange: () => sessionChanged() });
+      const modelBtn = h('button', { type: 'button', class: 'llm__model-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => toggleMenu() });
+      const menu = h('div', { class: 'llm__menu', role: 'menu', hidden: true });
+      const bar = h('div', { class: 'llm__bar' },
+        h('label', { class: 'llm__ctx' }, h('span', {}, 'Asking about'), sessionPick),
+        h('div', { class: 'llm__switch' }, modelBtn, menu));
+      const notice = h('p', { class: 'llm__notice' }, 'Not for use while racing: the model runs on the graphics card the game needs. It loads only to answer, and leaves memory straight after.');
+      const live = h('p', { class: 'llm__live', role: 'status', hidden: true }, 'F1 26 is sending telemetry, so questions are off. Ask after the session.');
+      const thread = chatState.thread || (chatState.thread = h('ol', { class: 'llm__thread', 'aria-live': 'polite' }));
+      const empty = h('div', { class: 'llm__empty' });
+      const question = h('textarea', { class: 'llm__question', rows: 1, maxlength: 2000, placeholder: 'Ask about this session', 'aria-label': 'Question' });
+      const askBtn = h('button', { type: 'button', class: 'llm__ask', onclick: () => ask(question.value) }, 'Send');
+      const stopBtn = h('button', { type: 'button', class: 'llm__stop', hidden: true, onclick: () => act(() => api.llm.stop()) }, 'Stop');
+      const gapPick = h('select', { class: 'llm__gap-driver', 'aria-label': 'Driver for the gap chart' });
+      const chip = (label, onclick, cls = '') => h('button', { type: 'button', class: `llm__chip ${cls}`.trim(), onclick }, label);
+      const charts = h('div', { class: 'llm__chips llm__chips--charts', role: 'group', 'aria-label': 'Charts' },
+        h('span', { class: 'llm__chips-label' }, 'Charts'),
+        chip('Lap times', () => chart('lap_times', {}), 'llm__chip--chart'),
+        chip('Positions', () => chart('positions', {}), 'llm__chip--chart'),
+        h('span', { class: 'llm__gap' }, chip('Gap to', () => chart('gap_to_driver', { driver: gapPick.value }), 'llm__chip--chart'), gapPick),
+        chip('Best vs slowest lap', () => ask('Where did I lose time on my slowest clean lap compared with my best lap?'), 'llm__chip--chart'));
+      const composer = h('div', { class: 'llm__composer' },
+        charts,
+        h('div', { class: 'llm__input' }, question, askBtn, stopBtn),
+        h('p', { class: 'llm__fine' }, 'Answers come only from this session\'s recording. Anything in an answer the recording doesn\'t show is flagged.'));
       question.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           ask(question.value);
         }
       });
-      let busy = false;
-      const sid = () => Number(sessionPick.value);
-      const SUGGESTED = ['What was my best lap?', 'When did I pit, and what tyres did I go onto?', 'How did my position change through the race?', 'Who finished right behind me?'];
-      const chip = (label, onclick, cls = '') => h('button', { type: 'button', class: `llm__chip ${cls}`.trim(), onclick }, label);
-      const controls = h('div', { class: 'llm__ask-ui' },
-        h('div', { class: 'llm__row' }, h('label', {}, 'Session ', sessionPick), h('label', {}, 'Model ', modelPick)),
-        h('div', { class: 'llm__qrow' }, question, askBtn, stopBtn),
-        h('div', { class: 'llm__chips', 'aria-label': 'Suggested questions' }, SUGGESTED.map((q) => chip(q, () => ask(q)))),
-        h('div', { class: 'llm__chips', 'aria-label': 'Charts' },
-          h('span', { class: 'llm__chips-label' }, 'Charts'),
-          chip('Lap times', () => chart('lap_times', {}), 'llm__chip--chart'),
-          chip('Positions', () => chart('positions', {}), 'llm__chip--chart'),
-          h('span', { class: 'llm__gap' }, chip('Gap to', () => chart('gap_to_driver', { driver: gapPick.value }), 'llm__chip--chart'), gapPick),
-          chip('Best vs slowest lap', () => ask('Where did I lose time on my slowest clean lap compared with my best lap?'), 'llm__chip--chart')));
+      // The box grows with the question, up to a few lines.
+      question.addEventListener('input', () => {
+        question.style.height = 'auto';
+        question.style.height = `${Math.min(question.scrollHeight, 180)}px`;
+      });
+      const chatView = h('section', { class: 'llm__chat', 'aria-label': 'Ask about a session' }, bar, notice, live, thread, empty, composer);
 
-      function updateAsk() {
-        const mine = catalog.filter((m) => have.has(m.id));
-        if (!mine.length) {
-          askbox.replaceChildren(h('h2', { class: 'llm__head' }, 'Ask about a session'), h('p', { class: 'llm__lede' }, 'Download a model below to ask about your races.'));
-          return;
+      // ---------- Manage models ----------
+      const modelsBody = h('div', { class: 'llm__models-body' }, h('p', { class: 'ana__empty' }, 'Looking for Ollama…'));
+      const manager = h('aside', { class: 'llm__dls', 'aria-label': 'Downloads' });
+      const backBtn = h('button', { type: 'button', class: 'llm__back', onclick: () => show('chat') }, '← Back to chat');
+      const manageView = h('section', { class: 'llm__manage', 'aria-label': 'Manage models', hidden: true },
+        backBtn, h('div', { class: 'llm' }, h('div', { class: 'llm__main' }, modelsBody), manager));
+
+      frame.replaceChildren(h('div', { class: 'llm-page' }, error, chatView, manageView));
+
+      function show(v) {
+        view = v;
+        chatView.hidden = v !== 'chat';
+        manageView.hidden = v !== 'models';
+        menu.hidden = true;
+        modelBtn.setAttribute('aria-expanded', 'false');
+        draw();
+      }
+
+      // The model switcher: your downloaded models, the one answering ticked, and Manage models.
+      function toggleMenu(open = menu.hidden) {
+        menu.hidden = !open;
+        modelBtn.setAttribute('aria-expanded', String(open));
+        if (open) {
+          const first = menu.querySelector('button');
+          if (first) first.focus();
         }
-        let saved = null;
-        try { saved = localStorage.getItem('undercut.llmModel'); } catch (_) { /* fine */ }
-        const keep = modelPick.value || saved;
-        modelPick.replaceChildren(...mine.map((m) => h('option', { value: m.id }, m.name)));
-        if (mine.some((m) => m.id === keep)) modelPick.value = keep;
-        askBtn.disabled = isLive || busy || !sessions.length;
-        for (const b of controls.querySelectorAll('.llm__chip')) b.disabled = isLive || busy || !sessions.length;
-        if (!askbox.contains(controls)) askbox.replaceChildren(h('h2', { class: 'llm__head' }, 'Ask about a session'), controls, thread);
+      }
+      menu.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        e.stopPropagation(); // Esc closes the menu, not the place
+        toggleMenu(false);
+        modelBtn.focus();
+      });
+      document.addEventListener('click', (e) => {
+        if (!menu.hidden && !menu.contains(/** @type {Node} */ (e.target)) && e.target !== modelBtn) toggleMenu(false);
+      });
+      function pickModel(id) {
+        model = id;
+        try { localStorage.setItem('undercut.llmModel', id); } catch (_) { /* fine */ }
+        toggleMenu(false);
+        drawChat();
+      }
+      function drawMenu() {
+        menu.replaceChildren(
+          ...mine().map((m) => h('button', { type: 'button', role: 'menuitemradio', class: 'llm__model-option', 'aria-checked': String(m.id === model), onclick: () => pickModel(m.id) },
+            h('span', { class: 'llm__option-name' }, m.name), h('span', { class: 'llm__option-note' }, m.note))),
+          h('button', { type: 'button', role: 'menuitem', class: 'llm__manage-btn', onclick: () => show('models') }, 'Manage models'));
+      }
+
+      const sessionName = (x) => (x ? `${x.track} ${x.type}` : '');
+      const current = () => sessions.find((x) => x.session_id === Number(sessionPick.value)) || null;
+      const SUGGESTED = ['What was my best lap?', 'When did I pit, and what tyres did I go onto?', 'How did my position change through the race?', 'Who finished right behind me?'];
+
+      function drawChat() {
+        const ready = mine().length > 0;
+        if (ready && !mine().some((m) => m.id === model)) {
+          let saved = null;
+          try { saved = localStorage.getItem('undercut.llmModel'); } catch (_) { /* fine */ }
+          model = mine().some((m) => m.id === saved) ? saved : mine()[0].id;
+        }
+        modelBtn.textContent = ready ? nameOf(model) : 'No model';
+        drawMenu();
+        live.hidden = !isLive;
+        composer.hidden = !ready;
+        const off = isLive || busy || !sessions.length;
+        askBtn.disabled = off;
+        askBtn.hidden = busy;
+        stopBtn.hidden = !busy;
+        question.disabled = isLive;
+        for (const b of composer.querySelectorAll('.llm__chip')) b.disabled = off;
+        // The empty state: what you can ask, until there's a conversation.
+        empty.hidden = thread.children.length > 0;
+        if (!ready) {
+          empty.hidden = false;
+          empty.replaceChildren(
+            h('h2', { class: 'llm__hello' }, 'Download a model to start'),
+            h('p', { class: 'llm__lede' }, status && !status.installed
+              ? 'Ask the race runs its models through Ollama, a free app. Set it up once, then pick a model.'
+              : 'Pick a small model that runs on this PC. It stays here until you delete it.'),
+            h('button', { type: 'button', class: 'pc-btn pc-btn--primary', onclick: () => show('models') }, 'Manage models'));
+        } else if (!empty.hidden) {
+          empty.replaceChildren(
+            h('h2', { class: 'llm__hello' }, sessions.length ? `Ask about ${sessionName(current())}` : 'No races saved yet'),
+            h('p', { class: 'llm__lede' }, sessions.length
+              ? 'Every answer comes from this session\'s recording, with the chart and the evidence underneath.'
+              : 'Drive a session with the game\'s telemetry on; it is saved here when it ends.'),
+            sessions.length ? h('div', { class: 'llm__suggest', role: 'group', 'aria-label': 'Suggested questions' }, SUGGESTED.map((q) => chip(q, () => ask(q), 'llm__chip--ask'))) : null);
+          for (const b of empty.querySelectorAll('.llm__chip')) b.disabled = off;
+        }
       }
 
       async function loadSessions() {
         sessions = (await act(() => api.llm.sessions())) || [];
-        // The newest race first, then the rest newest first.
-        const first = sessions.find((x) => x.is_race) || sessions[0];
-        sessionPick.replaceChildren(...sessions.map((x) => h('option', { value: x.session_id }, `${x.track} ${x.type}${x.date ? ` · ${x.date}` : ''}${x.finish ? ` · P${x.finish}` : ''}`)));
-        if (first) sessionPick.value = String(first.session_id);
+        sessionPick.replaceChildren(...sessions.map((x) => h('option', { value: x.session_id }, `${sessionName(x)}${x.date ? ` · ${x.date}` : ''}${x.finish ? ` · P${x.finish}` : ''}`)));
+        // Back to the session the conversation was about, else the newest race.
+        const keep = sessions.find((x) => x.session_id === chatState.sessionId) || sessions.find((x) => x.is_race) || sessions[0];
+        if (keep) sessionPick.value = String(keep.session_id);
+        chatState.sessionId = keep ? keep.session_id : null;
         await loadDrivers();
-        updateAsk();
       }
       async function loadDrivers() {
         if (!sessions.length) return;
-        const all = (await act(() => api.llm.results(sid()))) || [];
+        const all = (await act(() => api.llm.results(Number(sessionPick.value)))) || [];
         const me = all.find((r) => r.you);
-        drivers = all.filter((r) => !r.you).sort((a, b) => (me ? Math.abs(a.position - me.position) - Math.abs(b.position - me.position) : a.position - b.position) || a.position - b.position);
-        gapPick.replaceChildren(...drivers.map((r) => h('option', { value: r.driver }, `P${r.position} ${r.driver}`)));
+        const others = all.filter((r) => !r.you).sort((a, b) => (me ? Math.abs(a.position - me.position) - Math.abs(b.position - me.position) : 0) || a.position - b.position);
+        gapPick.replaceChildren(...others.map((r) => h('option', { value: r.driver }, `P${r.position} ${r.driver}`)));
+      }
+      // A new session mid-conversation: said in the thread, so earlier answers keep their context.
+      async function sessionChanged() {
+        chatState.sessionId = Number(sessionPick.value);
+        if (thread.children.length) thread.append(h('li', { class: 'llm__switched' }, `Now asking about ${sessionName(current())}`));
+        await loadDrivers();
+        drawChat();
       }
 
-      // One entry in the thread: the question, then the answer, its charts and what it was worked out from.
-      function entry(title) {
+      // One exchange: your question, then the answer with its charts and what it was worked out from.
+      function exchange(title) {
         const a = h('div', { class: 'llm__a' }, h('span', { class: 'llm__thinking' }, 'Working it out…'));
         const li = h('li', { class: 'llm__answer' }, h('p', { class: 'llm__q' }, title), a);
-        thread.prepend(li);
-        return { li, a };
+        thread.append(li);
+        drawChat();
+        if (li.scrollIntoView) li.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        return a;
       }
       function fill(a, out, took) {
         const kids = [];
@@ -223,37 +324,36 @@
         if (out.unsupported && out.unsupported.length) kids.push(h('p', { class: 'llm__unsupported' }, `Check this: not in your data: ${out.unsupported.join(', ')}. The model wrote it; the recording doesn't show it.`));
         for (const c of out.charts || []) kids.push(chartView(c));
         if (out.evidence && out.evidence.length) kids.push(h('details', { class: 'llm__why' }, h('summary', {}, 'How this was worked out'), h('ul', { class: 'llm__evidence' }, out.evidence.map((e) => h('li', {}, e)))));
-        if (took != null) kids.push(h('p', { class: 'llm__meta' }, `${(took / 1000).toFixed(1)} s${out.model ? ` · ${out.model}` : ''}`));
+        if (took != null) kids.push(h('p', { class: 'llm__meta' }, `${out.model ? `${out.model} · ` : ''}${(took / 1000).toFixed(1)} s`));
         a.replaceChildren(...kids);
       }
 
       async function ask(text) {
         const q = String(text || '').trim();
-        if (!q || busy || isLive || !sessions.length || !modelPick.value) return;
+        if (!q || busy || isLive || !sessions.length || !model) return;
         busy = true;
-        stopBtn.hidden = false;
-        updateAsk();
-        const { a } = entry(q);
+        question.value = '';
+        question.style.height = '';
+        const a = exchange(q);
         const t0 = Date.now();
         try {
-          const out = await api.llm.ask(modelPick.value, sid(), q);
-          fill(a, { ...out, model: (catalog.find((m) => m.id === modelPick.value) || {}).name }, Date.now() - t0);
-          question.value = '';
+          const out = await api.llm.ask(model, Number(sessionPick.value), q);
+          fill(a, { ...out, model: nameOf(model) }, Date.now() - t0);
         } catch (err) {
           a.replaceChildren(h('p', { class: 'pc-error' }, reason(err)));
         } finally {
           busy = false;
-          stopBtn.hidden = true;
-          updateAsk();
+          drawChat();
+          question.focus();
         }
       }
 
       // A chart command: straight from the data, no model.
       async function chart(kind, args) {
         if (isLive || !sessions.length) return;
-        const { a } = entry(`Chart: ${kind === 'gap_to_driver' ? `gap to ${args.driver}` : kind.replace('_', ' ')}`);
+        const a = exchange(kind === 'gap_to_driver' ? `Chart: gap to ${args.driver}` : `Chart: ${kind.replace('_', ' ')}`);
         try {
-          const c = await api.llm.chart(sid(), kind, args);
+          const c = await api.llm.chart(Number(sessionPick.value), kind, args);
           if (c.error) a.replaceChildren(h('p', { class: 'llm__reply' }, c.error));
           else fill(a, { charts: [c] }, null);
         } catch (err) {
@@ -261,21 +361,7 @@
         }
       }
 
-      async function refresh() {
-        if (!api || !api.llm) {
-          body.replaceChildren(h('p', { class: 'ana__empty' }, 'Ask the race needs the Windows app.'));
-          return;
-        }
-        status = await act(() => api.llm.status());
-        if (status && status.installed) {
-          catalog = (await act(() => api.llm.catalog())) || [];
-          have = new Set(((await act(() => api.llm.models())) || []).map((m) => m.name));
-          downloads = (await act(() => api.llm.downloads())) || [];
-          await loadSessions();
-        }
-        draw();
-      }
-
+      // ---------- Models and downloads ----------
       function startDownload(id) {
         error.hidden = true;
         // How it goes shows in the manager; only a refusal before it starts (racing) is an error here.
@@ -292,7 +378,7 @@
         if (d) {
           actions = [h('progress', { class: 'llm__progress', max: 1, value: d.fraction }), h('span', { class: 'llm__pct' }, pct(d.fraction))];
         } else if (have.has(m.id)) {
-          actions = [h('span', { class: 'llm__have' }, 'Downloaded'), h('button', {
+          actions = [h('span', { class: 'llm__have' }, m.id === model ? 'Answering' : 'Downloaded'), h('button', {
             type: 'button',
             class: 'pc-btn pc-btn--quiet',
             onclick: () => act(async () => {
@@ -330,13 +416,12 @@
             : h('p', { class: 'llm__dl-empty' }, 'Nothing downloading. Downloads keep going if you leave this page.'));
       }
 
-      function draw() {
-        live.hidden = !isLive;
+      function drawModels() {
         drawManager();
         if (!status) return;
         if (!status.installed) {
           manager.hidden = true;
-          body.replaceChildren(
+          modelsBody.replaceChildren(
             h('h2', { class: 'llm__head' }, 'Get Ollama first'),
             h('p', { class: 'llm__lede' }, 'Ask the race runs its models through Ollama, a free app that downloads and runs them on this PC. Install it once, then come back here to pick a model.'),
             h('div', { class: 'llm__row' },
@@ -345,12 +430,36 @@
           return;
         }
         manager.hidden = false;
-        updateAsk();
-        body.replaceChildren(
-          askbox,
-          h('h2', { class: 'llm__head llm__head--models' }, 'Models'),
-          h('p', { class: 'llm__lede' }, `Small models that run on a 4 GB graphics card, through Ollama ${status.version}. Download one or more; each stays on this PC until you delete it.`),
+        modelsBody.replaceChildren(
+          h('h2', { class: 'llm__head' }, 'Models'),
+          h('p', { class: 'llm__lede' }, `Small models that run on a 4 GB graphics card, through Ollama ${status.version}. Download one or more; each stays on this PC until you delete it. Pick which one answers from the switcher in the chat.`),
+          isLive ? h('p', { class: 'llm__live' }, 'F1 26 is sending telemetry, so downloads wait until the session ends.') : null,
           h('ol', { class: 'llm__models' }, catalog.map(modelRow)));
+      }
+
+      function draw() {
+        drawChat();
+        drawModels();
+        backBtn.hidden = !mine().length;
+      }
+
+      async function refresh() {
+        if (!api || !api.llm) {
+          chatView.hidden = true;
+          manageView.hidden = false;
+          modelsBody.replaceChildren(h('p', { class: 'ana__empty' }, 'Ask the race needs the Windows app.'));
+          return;
+        }
+        status = await act(() => api.llm.status());
+        if (status && status.installed) {
+          catalog = (await act(() => api.llm.catalog())) || [];
+          have = new Set(((await act(() => api.llm.models())) || []).map((m) => m.name));
+          downloads = (await act(() => api.llm.downloads())) || [];
+          await loadSessions();
+        }
+        // Straight to the models when there's nothing to ask with yet.
+        if (!view) show(status && status.installed && mine().length ? 'chat' : 'models');
+        else draw();
       }
 
       const off = !api || !api.llm ? () => {} : api.on('llm', (msg) => {

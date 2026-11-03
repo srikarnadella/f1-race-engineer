@@ -1259,7 +1259,7 @@ body {
 .llm { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 28px 64px; align-items: start; }
 .llm__main { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
 /* The download manager: on the right, staying in view as the models scroll. */
-.llm__dls { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 12px; padding-left: 28px; box-shadow: inset 1px 0 0 #222; }
+.llm__dls { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 12px; padding: 20px 22px; border-radius: 6px; background: #101010; }
 .llm__dls-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .llm__dls-head .llm__head { margin: 0; }
 .llm__dl-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 18px; }
@@ -1275,10 +1275,8 @@ body {
 .llm__dl-empty { margin: 0; color: var(--muted); line-height: 1.45; }
 @media (max-width: 1100px) {
   .llm { grid-template-columns: 1fr; }
-  .llm__dls { position: static; padding-left: 0; box-shadow: none; }
 }
-.llm__notice { margin: 0; max-width: 70ch; padding-left: 14px; box-shadow: inset 4px 0 0 var(--watch); font-size: 1.15rem; font-weight: 700; line-height: 1.4; }
-.llm__live { margin: 0; padding-left: 14px; box-shadow: inset 4px 0 0 var(--watch); color: var(--watch); font-size: 1.1rem; font-weight: 700; }
+.llm__live { margin: 0; padding: 10px 14px; border-radius: 4px; background: #241f0a; color: #ffe08a; font-size: 1.05rem; font-weight: 700; }
 .llm__head { margin: 12px 0 6px; font-size: 1.2rem; font-weight: 750; color: var(--muted); }
 .llm__lede { margin: 0 0 12px; max-width: 62ch; color: var(--muted); font-size: 1.05rem; line-height: 1.45; }
 .llm__row { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -1298,13 +1296,6 @@ body {
 @media (max-width: 760px) { .llm__model { grid-template-columns: 1fr; } }
 
 /* Asking (L5): the box, the chips, then the answers newest first, each with its chart and evidence. */
-.llm__askbox { display: flex; flex-direction: column; gap: 14px; }
-.llm__head--models { margin-top: 28px; }
-.llm__ask-ui { display: flex; flex-direction: column; gap: 14px; }
-.llm__ask-ui label { display: flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 650; }
-.llm__qrow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: stretch; }
-.llm__question { min-height: 56px; padding: 12px 14px; border: 0; border-radius: 4px; background: #181818; color: var(--text); font: inherit; font-size: 1.1rem; line-height: 1.4; resize: vertical; }
-.llm__question:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
 .llm__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .llm__chips-label { color: var(--label); font-weight: 700; margin-right: 4px; }
 .llm__chip { appearance: none; border: 0; border-radius: 4px; min-height: 38px; padding: 0 12px; background: #161616; color: var(--muted); font: inherit; font-weight: 650; cursor: pointer; transition: background 0.12s, color 0.12s; }
@@ -1320,7 +1311,7 @@ body {
 .llm__a { display: flex; flex-direction: column; gap: 12px; }
 .llm__reply { margin: 0; max-width: 70ch; font-size: 1.2rem; font-weight: 650; line-height: 1.45; }
 .llm__thinking { color: var(--muted); }
-.llm__unsupported { margin: 0; padding-left: 12px; box-shadow: inset 4px 0 0 var(--watch); color: var(--watch); font-weight: 650; }
+.llm__unsupported { margin: 0; padding: 10px 14px; border-radius: 4px; background: #241f0a; color: #ffe08a; font-weight: 650; }
 .llm__meta { margin: 0; color: var(--label); font-size: 0.9rem; }
 .llm__why summary { cursor: pointer; color: var(--muted); font-weight: 650; }
 .llm__evidence { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; color: var(--muted); line-height: 1.4; }
@@ -1349,7 +1340,60 @@ body {
 .llm__key.is-you { background: #d9740a; }
 .llm__key.is-ref { background: #2a8fd4; }
 .llm__key.is-other { background: #8a8a8a; }
-@media (max-width: 760px) { .llm__qrow { grid-template-columns: 1fr 1fr; } .llm__question { grid-column: 1 / -1; } }
+
+/* Ask the race as a chat: a bar (session, model switcher), the conversation, the composer pinned at the bottom. */
+.llm-page { display: flex; flex-direction: column; gap: 12px; }
+.llm__error { max-width: 860px; margin: 0 auto; width: 100%; }
+.llm__chat { width: 100%; max-width: 860px; margin: 0 auto; min-height: calc(100vh - 112px); display: flex; flex-direction: column; gap: 18px; }
+/* The place scrolls with 28px of padding on top: the bar sticks over it, flush with the window's edge. */
+.llm__bar { position: sticky; top: -28px; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0 10px; margin-top: -12px; background: var(--bg); }
+/* No bottom padding on this place, so the composer sits on the bottom edge. */
+.place:has(.llm-page) { padding-bottom: 0; }
+.llm__ctx { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--label); font-weight: 650; }
+.llm__session, .llm__gap-driver { min-height: 40px; max-width: 100%; padding: 0 12px; border: 0; border-radius: 4px; background: #161616; color: var(--text); font: inherit; font-weight: 700; }
+.llm__switch { position: relative; flex: none; }
+.llm__model-btn { appearance: none; border: 0; border-radius: 4px; min-height: 40px; padding: 0 14px; background: #161616; color: var(--text); font: inherit; font-weight: 750; cursor: pointer; }
+.llm__model-btn::after { content: ' \25BE'; color: var(--label); }
+.llm__model-btn:hover, .llm__model-btn[aria-expanded="true"] { background: #222; }
+.llm__menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 4; width: 320px; padding: 6px; border-radius: 6px; background: #1b1b1b; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); display: flex; flex-direction: column; gap: 2px; } /* taste-skill-ignore: a menu that floats */
+.llm__model-option, .llm__manage-btn { appearance: none; border: 0; border-radius: 4px; padding: 10px 12px; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.llm__model-option:hover, .llm__manage-btn:hover, .llm__model-option:focus-visible, .llm__manage-btn:focus-visible { background: #262626; outline: none; }
+.llm__option-name { font-weight: 750; }
+.llm__model-option[aria-checked="true"] .llm__option-name::after { content: '  \2713'; color: var(--good); }
+.llm__option-note { color: var(--muted); font-size: 0.9rem; }
+.llm__manage-btn { margin-top: 4px; background: #222; font-weight: 750; }
+.llm__notice { margin: 0; max-width: none; color: var(--muted); font-size: 0.95rem; font-weight: 600; line-height: 1.4; }
+.llm__thread { flex: 1 1 auto; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 40px; }
+.llm__thread:empty { display: none; }
+.llm__answer { display: flex; flex-direction: column; gap: 16px; }
+.llm__q { align-self: flex-end; max-width: 75%; margin: 0; padding: 12px 18px; border-radius: 18px; background: #1d1d1d; color: var(--text); font-size: 1.05rem; font-weight: 550; line-height: 1.45; overflow-wrap: anywhere; }
+.llm__reply { font-size: 1.15rem; }
+.llm__switched { align-self: center; color: var(--label); font-size: 0.95rem; font-weight: 650; }
+.llm__empty { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 6vh 0; }
+.llm__hello { margin: 0; font-size: clamp(1.9rem, 1.2rem + 2.2vw, 3rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.llm__suggest { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.llm__chip--ask { min-height: 44px; padding: 0 16px; font-size: 1rem; color: var(--text); }
+.llm__composer { position: sticky; bottom: 0; z-index: 2; display: flex; flex-direction: column; gap: 10px; padding: 12px 0 18px; background: var(--bg); }
+.llm__chips--charts { gap: 6px; }
+.llm__chips--charts .llm__chip { min-height: 34px; padding: 0 11px; font-size: 0.95rem; }
+.llm__gap-driver { min-height: 34px; font-size: 0.95rem; }
+.llm__input { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; padding: 8px 8px 8px 18px; border-radius: 26px; background: #1a1a1a; }
+.llm__input:focus-within { outline: 2px solid var(--info); outline-offset: 2px; }
+.llm__question { min-height: 26px; max-height: 180px; padding: 9px 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 1.1rem; line-height: 1.4; resize: none; outline: none; }
+.llm__question::placeholder { color: var(--label); }
+.llm__ask, .llm__stop { appearance: none; border: 0; border-radius: 999px; min-height: 44px; padding: 0 20px; font: inherit; font-weight: 800; cursor: pointer; transition: background 0.12s, opacity 0.12s; }
+.llm__ask { background: var(--text); color: var(--bg); }
+.llm__ask:disabled { opacity: 0.35; cursor: default; }
+.llm__stop { background: #333; color: var(--text); }
+.llm__ask:focus-visible, .llm__stop:focus-visible, .llm__model-btn:focus-visible, .llm__back:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.llm__fine { margin: 0; color: var(--label); font-size: 0.85rem; }
+.llm__manage { width: 100%; max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.llm__back { appearance: none; align-self: flex-start; border: 0; border-radius: 4px; min-height: 40px; padding: 0 12px; background: #161616; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.llm__back:hover { background: #222; }
+@media (max-width: 760px) {
+  .llm__bar { flex-wrap: wrap; }
+  .llm__q { max-width: 90%; }
+}
 
 /* Settings: this PC's ports and data folder. */
 .setting--pc { flex-direction: column; cursor: default; }

@@ -149,7 +149,7 @@ test('ask the race: the download manager cancels a download and clears the finis
 
 test('ask the race: while the game is sending telemetry, downloads wait and it says why', async (t) => {
   const app = await openAsk(t, {}, { source: 'live', connected: true, debrief: { sessions: [] } });
-  assert.match(app.doc.querySelector('.llm__live').textContent, /The game is sending telemetry/);
+  assert.match(app.doc.querySelector('.llm__manage .llm__live').textContent, /sending telemetry/);
   assert.strictEqual(app.btn('llama3.2:3b', 'Download').disabled, true);
 });
 
@@ -157,7 +157,7 @@ test('ask the race: with a model downloaded, ask about the newest race and get t
   const app = await openAsk(t);
   const pick = app.doc.querySelector('.llm__session');
   assert.strictEqual(pick.value, '19', 'the newest race, not the qualifying after it');
-  assert.deepStrictEqual([...app.doc.querySelector('.llm__pick-model').options].map((o) => o.value), ['qwen3:4b']);
+  assert.strictEqual(app.doc.querySelector('.llm__model-btn').textContent, 'Qwen3 4B', 'the switcher shows the model answering');
   const box = app.doc.querySelector('.llm__question');
   box.value = 'How did my position change?';
   app.doc.querySelector('.llm__ask').click();
@@ -194,8 +194,56 @@ test('ask the race: the chart buttons draw straight from the data, no model invo
 
 test('ask the race: no question box until a model is downloaded, and none while you race', async (t) => {
   const none = await openAsk(t, { models: [] });
-  assert.strictEqual(none.doc.querySelector('.llm__question'), null);
-  assert.match(none.doc.querySelector('.llm__askbox').textContent, /Download a model/);
+  assert.strictEqual(none.doc.querySelector('.llm__composer').hidden, true, 'nothing to type into');
+  assert.match(none.doc.querySelector('.llm__chat').textContent, /Download a model to start/);
+  assert.strictEqual(none.doc.querySelector('.llm__manage').hidden, false, 'it opens on the models');
   const live = await openAsk(t, {}, { source: 'live', connected: true, debrief: { sessions: [] } });
   assert.strictEqual(live.doc.querySelector('.llm__ask').disabled, true);
+});
+
+test('ask the race: a chat - the question as your message, the answer under it, newest at the bottom', async (t) => {
+  const app = await openAsk(t);
+  assert.match(app.doc.querySelector('.llm__empty').textContent, /Ask about Silverstone Race/);
+  for (const q of ['First?', 'Second?']) {
+    app.doc.querySelector('.llm__question').value = q;
+    app.doc.querySelector('.llm__ask').click();
+    await settle();
+  }
+  assert.deepStrictEqual([...app.doc.querySelectorAll('.llm__answer .llm__q')].map((x) => x.textContent), ['First?', 'Second?']);
+  assert.strictEqual(app.doc.querySelector('.llm__empty').hidden, true, 'the suggestions give way to the conversation');
+  assert.strictEqual(app.doc.querySelector('.llm__question').value, '', 'the box clears for the next question');
+});
+
+test('ask the race: the model switcher lists your models, switches the one answering, and opens Manage models', async (t) => {
+  const app = await openAsk(t, { models: ['qwen3:4b', 'llama3.2:3b'] });
+  const btn = app.doc.querySelector('.llm__model-btn');
+  btn.click();
+  const options = [...app.doc.querySelectorAll('.llm__model-option')];
+  assert.deepStrictEqual(options.map((o) => o.querySelector('.llm__option-name').textContent), ['Qwen3 4B', 'Llama 3.2 3B'], 'in the catalog order');
+  assert.strictEqual(options[0].getAttribute('aria-checked'), 'true');
+  options[1].click();
+  assert.strictEqual(btn.textContent, 'Llama 3.2 3B');
+  app.doc.querySelector('.llm__question').value = 'Best lap?';
+  app.doc.querySelector('.llm__ask').click();
+  await settle();
+  assert.strictEqual(app.fake.calls.find((c) => c[0] === 'ask')[1], 'llama3.2:3b');
+  btn.click();
+  app.doc.querySelector('.llm__manage-btn').click();
+  assert.strictEqual(app.doc.querySelector('.llm__chat').hidden, true);
+  assert.strictEqual(app.doc.querySelector('.llm__manage').hidden, false, 'the full models and downloads view');
+  assert.ok(app.doc.querySelector('.llm__manage .llm__dls'), 'with the download manager');
+  app.doc.querySelector('.llm__back').click();
+  assert.strictEqual(app.doc.querySelector('.llm__chat').hidden, false);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('ask the race: the conversation is still there after going Home and back', async (t) => {
+  const app = await openAsk(t);
+  app.doc.querySelector('.llm__question').value = 'Remember me?';
+  app.doc.querySelector('.llm__ask').click();
+  await settle();
+  app.doc.querySelector('.place__back').click();
+  app.go('Ask the race');
+  await settle();
+  assert.deepStrictEqual([...app.doc.querySelectorAll('.llm__answer .llm__q')].map((x) => x.textContent).slice(-1), ['Remember me?']);
 });
