@@ -9,7 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const { readLog } = require('../src/capture/logFile');
-const { parseHeader } = require('../src/udp/parsers/header');
+const { parseHeader, HEADER_LENGTH } = require('../src/udp/parsers/header');
 const { createPipeline } = require('../src/pipeline');
 const { createLapRecorder, createCallRecorder, toCsv, CALL_SCHEMA } = require('../src/data/laps');
 const { captureFiles } = require('../src/data/captures');
@@ -21,6 +21,7 @@ const OUT = path.join(ROOT, 'datasets');
 const SYNC_EVERY_MS = 1000;
 const TICK_EVERY_MS = 100; // the engine ticks at 10 Hz live
 const MIN_LAPS = 3; // fewer is an aborted start, not a race
+const EVENT_PACKET = 3;
 
 const RACE_COLUMNS = ['raceId', 'capture', 'track', 'sessionType', 'totalLaps', 'lapsRun', 'cars', 'laps', 'stops', 'neutralisedLaps', 'durationMin', 'feedRateHz', 'feedLossPct'];
 
@@ -63,6 +64,8 @@ async function buildCapture(file) {
     if (!race && session && RACE_SESSION_TYPES.has(session.sessionType)) {
       race = { raceId: `${capture}#${races.length + 1}`, capture, session, rec: createLapRecorder(pipeline.fieldModel, { raceId: `${capture}#${races.length + 1}` }), calls: createCallRecorder(pipeline.fieldModel, { raceId: `${capture}#${races.length + 1}` }), firstT: tMs, feed: [] };
     }
+    // The race ends at the chequered flag (an Event packet); the results screen after it isn't racing time.
+    if (race && race.flagT == null && header.packetId === EVENT_PACKET && buf.toString('utf8', HEADER_LENGTH, HEADER_LENGTH + 4) === 'CHQF') race.flagT = tMs;
     if (race && tMs - lastTick >= TICK_EVERY_MS) {
       lastTick = tMs;
       race.calls.sync(pipeline.tick());
@@ -89,7 +92,7 @@ function raceRow(r) {
   return {
     raceId: r.raceId, capture: r.capture, track: r.rows[0].track, sessionType: r.session.sessionType, totalLaps: r.session.totalLaps,
     lapsRun: r.lapsRun, cars: byCar.size, laps: r.rows.length, stops, neutralisedLaps: leaderLaps.size,
-    durationMin: round((r.lastT - r.firstT) / 60000), feedRateHz: round(mean(r.feed.map((f) => f.rateHz)), 0), feedLossPct: round(mean(r.feed.map((f) => f.lossPct))),
+    durationMin: round(((r.flagT != null ? r.flagT : r.lastT) - r.firstT) / 60000), feedRateHz: round(mean(r.feed.map((f) => f.rateHz)), 0), feedLossPct: round(mean(r.feed.map((f) => f.lossPct))),
   };
 }
 
@@ -115,7 +118,11 @@ async function main() {
   log(`\n${races.length} races, ${laps.length} laps -> ${path.relative(ROOT, OUT)}/`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+module.exports = { raceRow };
