@@ -63,8 +63,12 @@ One parse function, two feeders (`listener.js`, `capture/replay.js`).
 
 ```
 f1-race-engineer/
-├── package.json                      [DONE] deps: ws, qrcode-terminal. Scripts: start, record, capture, analyze, accuracy,
-│                                            train:overtake, demo, demo:regenerate, test
+├── package.json                      [DONE] deps: ws, qrcode-terminal, selfsigned. Scripts: start, app, app:build, record,
+│                                            capture, analyze, accuracy, train:overtake, demo, dataset, db, backtest, test
+├── desktop/                          [DONE] the Windows app (Electron): main.js (window, the bridge, recording, replay),
+│                                            preload.js (the only calls the window may make), library.js, settings.js,
+│                                            tls.js (https for phone voice), speech.js (Windows speech recognition),
+│                                            analyzeWorker.js
 ├── PROJECT_SPEC.md                   [DONE] this file
 ├── README.md                         [DONE, v1] quick start, game settings, architecture, pitch. Needs hero GIF (Epic I)
 ├── LICENSE                           [DONE] MIT
@@ -92,20 +96,27 @@ f1-race-engineer/
 │   │       ├── finalClassification.js [DONE] the official result (Debrief; ends the session)
 │   │       ├── sessionHistory.js     [DONE] one car per packet: every lap and sector time (field best sectors)
 │   │       └── lapPositions.js       [DONE] every car's position at the start of each lap (position chart)
+│   ├── pipeline.js                   [DONE] the engine wired once: packets in, the snapshot out (live, replay, tests)
 │   ├── state/
 │   │   ├── fieldModel.js             [DONE] per-car state; resets on new sessionUID or replay loop;
 │   │   │                                    game-time gap history; latched pit entry; staleness
 │   │   ├── lapDelta.js               [DONE] live delta to the player's PB lap (distance/time trace)
 │   │   ├── lapTrace.js               [DONE] inputs vs distance per lap, every car (feeds lap compare)
-│   │   ├── raceAnalysis.js           [DONE] clean-lap pace, gap trends, measured pit loss, rejoin prediction
 │   │   ├── race.js                   [DONE] shared race-distance helpers
-│   │   ├── weather.js                [DONE] forecast -> laps; drying track; inters/slicks crossover
 │   │   ├── carBalance.js             [DONE] per-corner lockup / wheelspin / understeer memory
+│   │   ├── feedHealth.js             [DONE] packets a second and packets lost
+│   │   └── trackMemory.js            [DONE] per-track pit loss, AI stop timing and wear rates; tracks.json
+│   ├── engine/
+│   │   ├── raceAnalysis.js           [DONE] clean-lap pace, gap trends, measured pit loss, rejoin prediction
+│   │   ├── weather.js                [DONE] forecast -> laps; drying track; inters/slicks crossover
 │   │   ├── adjustments.js            [DONE] brake bias / diff / ERS suggestions
-│   │   ├── debrief.js                [DONE] lap-by-lap record kept after the session; saved to data/sessions/
-│   │   ├── trackMemory.js            [DONE] per-track pit loss, AI stop timing and wear rates; data/tracks.json
+│   │   ├── debrief.js                [DONE] lap-by-lap record kept after the session; saved to sessions/
 │   │   ├── focus.js                  [DONE] which screen matters now, for auto-switch (with hold times)
-│   │   └── insightEngine.js          [DONE] radio-call rules + strategy summary (PUSH/HOLD/BOX)
+│   │   ├── insightEngine.js          [DONE] radio-call rules + strategy summary (PUSH/HOLD/BOX)
+│   │   └── rules/                    [DONE] one rule set per topic (strategy, tyres, fuel, battle, flags, ...)
+│   ├── data/                         [DONE] the race store (store.js: race.db, node:sqlite), sessionRecorder,
+│   │                                        the lap/call datasets and the backtest
+│   ├── lib/                          [DONE] shared formatting, lap and stats helpers
 │   ├── analysis/                     [DONE] battleCall, attackForecast, batteryProjection, strategyOptions (SC/VSC),
 │   │                                        pitTiming (which lap to box on), rivalStops (when each car boxes),
 │   │                                        damageLoss (what damage costs, from mini-sectors),
@@ -132,6 +143,7 @@ f1-race-engineer/
 │   ├── widgets.js                           the live widgets (drive, battle, radio, call, rejoin, options, ...); formatting only
 │   ├── debrief.js                           the Debrief widget: recap, lap compare, rivals, models
 │   ├── voice.js                             radio calls read aloud, Ask the engineer, voice commands, hands-free
+│   ├── desktop.js                           the app's own screens (Home, Connect, Library); does nothing in a browser
 │   ├── app.js                               6 screens + layouts, custom screen, auto-switch, settings, voice + Ask, WebSocket client
 │   └── style.css                            dark cockpit theme; every card a size container, cq-scaled type
 ├── scripts/
@@ -139,14 +151,16 @@ f1-race-engineer/
 │   ├── analyze-capture.js            [DONE] npm run analyze
 │   ├── train-overtake.js             [DONE] npm run train:overtake (from captures/)
 │   ├── accuracy.js                   [DONE] npm run accuracy: predictions vs what happened -> docs/accuracy.md
+│   ├── build-dataset.js, build-db.js, backtest.js  [DONE] npm run dataset / db / backtest
 │   └── build-demo-site.js            [DONE] npm run site: records the engine's snapshots for the demo website
-├── docs/                             how-it-works, ux, accuracy, ml-overtake-model
+├── docs/                             setup, dashboard, models, accuracy, how-it-works, race-store, roadmap, status, ux
 ├── site/                             demo website: index.html (landing page) + race-data/ (a real race: the live screens and the Debrief)
 ├── .github/workflows/pages.yml       tests, builds the recording (npm run site), publishes to GitHub Pages
 ├── test/                             [DONE] node:test - parser round-trips, state + insight rules
-├── demo/                             [PARTIAL] synthetic session generated on demand; real capture still TODO (Epic C)
+├── demo/                             synthetic session generated on demand (gitignored); the website replays a real race
 ├── captures/                         npm run capture output (gitignored)
-└── data/sessions/                    saved Debrief sessions, one .json.gz each (gitignored)
+└── data/                             race.db, sessions/ (saved Debriefs), tracks.json - from npm start (gitignored);
+                                      the desktop app keeps the same in %APPDATA%\Undercut\data
 ```
 
 `scripts/record-session.js` from the original plan was replaced by `npm run record -- <file>` (the
@@ -254,8 +268,9 @@ a backend framework — plain HTML/CSS/JS is sufficient and keeps the "share wit
   to a public URL (static host + a small always-on replay process, or a serverless WebSocket) so a
   visitor clicks a link and sees it moving — no clone, no install. Hosting choice is an open decision,
   flagged in §11.
-- **For other sim racers**: `npx` or packaged start script that auto-detects the LAN IP and prints/QR's
-  the dashboard URL, so pairing a device doesn't require typing an IP address.
+- **For other sim racers**: a Windows installer (`npm run app:build`, Electron) - no Node, no terminal.
+  The app finds the LAN address and shows a QR code, so pairing a device doesn't require typing an IP
+  address. Still to come: a GitHub Release to download it from, code signing, auto-update.
 - **License**: MIT, so "download and use it yourself" is frictionless.
 
 ## 10. Build order / dependency graph

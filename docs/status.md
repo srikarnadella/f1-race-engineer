@@ -47,7 +47,8 @@ flowchart LR
 - **Wet races:** pit timing and undercut calls are dry-only, there's no model of how inters wear, and I've
   recorded one wet race (Austria, 19 Oct 2026) plus 7 minutes of rain in an earlier session. The tyre-wear and rival-stop scores aren't built for
   rain yet, so that race isn't in the committed dataset.
-- **An in-game overlay** needs a desktop wrapper; I parked it in favor of voice.
+- **An in-game overlay** (drawn over the game itself) is parked in favor of voice; the Windows app is a
+  separate window, for a second monitor or between sessions.
 
 ## Coming soon
 

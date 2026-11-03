@@ -58,7 +58,9 @@ edit a test just to make it pass. A test only counts once it catches a bug I pla
 ## Commands
 
 ```bash
-npm start                # the live tool
+npm run app              # the Windows app, from the code
+npm run app:build        # build the Windows installer into dist/
+npm start                # the live tool, in a terminal
 npm run demo             # replay the made-up demo race
 npm run capture          # live, saving a full capture to captures/
 npm test                 # all tests

@@ -22,7 +22,7 @@ jobs:
       - run: npm run typecheck
 
   test:
-    # Windows too: that's where most players run the bridge, and better-sqlite3 is native code.
+    # Windows too: that's where players run the app, and the speech and file-path code is Windows-specific.
     strategy:
       fail-fast: false
       matrix:
