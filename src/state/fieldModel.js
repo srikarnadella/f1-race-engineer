@@ -258,7 +258,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
 
       if (i === playerCarIndex) {
         playerDelta.update(c, session && session.trackLength);
-        playerTrace.update(c, car.telemetry);
+        playerTrace.update(c, car.telemetry, car.status);
       } else if (car.telemetry) {
         if (!rivalTraces.has(i)) rivalTraces.set(i, createLapTraceRecorder());
         rivalTraces.get(i).update(c, car.telemetry);

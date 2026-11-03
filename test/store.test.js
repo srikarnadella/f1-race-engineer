@@ -147,3 +147,33 @@ test('store: what the car did at each corner (locks, wheelspin, understeer) and 
   assert.ok(setting.length >= 1);
   assert.deepStrictEqual([setting[0].brake_bias, setting[0].diff_on_throttle], [56, 60]);
 });
+
+test('store: every telemetry point also keeps the battery charge and the deploy mode (coaching, step 3)', () => {
+  const { db } = syntheticStore();
+  const pts = db.prepare('SELECT ers_pct, ers_mode FROM trace_point JOIN car USING (session_id, car_idx) WHERE is_player = 1').all();
+  assert.ok(pts.length > 100);
+  assert.ok(pts.every((p) => p.ers_pct >= 0 && p.ers_pct <= 100), 'a percentage of the 4 MJ store');
+  assert.ok(new Set(pts.map((p) => Math.round(p.ers_pct))).size > 3, 'it moves round the lap');
+  assert.ok(pts.every((p) => Number.isInteger(p.ers_mode)));
+});
+
+test('store: an existing race.db gains the battery columns when it is opened', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { DatabaseSync } = require('node:sqlite');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'store-old-'));
+  const file = path.join(dir, 'race.db');
+  try {
+    // A trace_point table as it was before the battery columns.
+    const old = new DatabaseSync(file);
+    old.exec('CREATE TABLE trace_point (session_id INTEGER NOT NULL, car_idx INTEGER NOT NULL, lap_num INTEGER NOT NULL, distance_m REAL NOT NULL, lap_time_ms INTEGER NOT NULL, speed_kmh INTEGER NOT NULL, throttle REAL NOT NULL, brake REAL NOT NULL, steer REAL NOT NULL, gear INTEGER NOT NULL, PRIMARY KEY (session_id, car_idx, lap_num, distance_m)) WITHOUT ROWID');
+    old.close();
+    const store = openStore(file);
+    const cols = store.db.prepare('PRAGMA table_info(trace_point)').all().map((c) => c.name);
+    store.close();
+    assert.ok(cols.includes('ers_pct') && cols.includes('ers_mode'), cols.join(','));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

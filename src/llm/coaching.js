@@ -102,4 +102,61 @@ function balanceAdvice(rows, { corners = [], racingLaps, bias = null, diff = nul
   };
 }
 
-module.exports = { adviseCorners, liftAndCoast, balanceAdvice };
+// The battery round one lap, from the telemetry's charge (% of the 4 MJ store): where it was used
+// and where it came back, the low point, what was left at the line, and rules on top: an empty
+// battery, laps ending with more than they started, and the longest flat-out run getting less than a
+// shorter one. points: [d, t, speed, throttle, brake, steer, gear, ersPct, ersMode]; zones: lapCorners'.
+const TREND_M = 50; // the charge read every 50 m
+const MIN_SWING = 3; // a use or a gain under 3 points of charge isn't worth a line
+function batteryLap(points, zones, { lap }) {
+  const pts = points.filter((p) => p[7] != null);
+  if (pts.length < 10) return { error: `No battery data on lap ${lap}: it was saved before Undercut kept the battery in the lap telemetry.` };
+  const at = (d) => {
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(p[0] - d) < Math.abs(best[0] - d)) best = p;
+    return best[7];
+  };
+  const endD = pts[pts.length - 1][0];
+  const grid = [];
+  for (let d = pts[0][0]; d <= endD; d += TREND_M) grid.push([d, at(d)]);
+  // Runs of falling (deploying) or rising (harvesting) charge; a flat stretch keeps the run going.
+  const runs = [];
+  let cur = null;
+  for (let k = 1; k < grid.length; k++) {
+    const diff = grid[k][1] - grid[k - 1][1];
+    const dir = Math.abs(diff) < 0.2 ? 0 : Math.sign(diff);
+    if (cur && (dir === 0 || dir === cur.dir)) {
+      if (dir) cur.to = k;
+      continue;
+    }
+    if (dir === 0) continue;
+    cur = { dir, from: k - 1, to: k };
+    runs.push(cur);
+  }
+  const seg = (r) => ({ fromKm: +(grid[r.from][0] / 1000).toFixed(1), toKm: +(grid[r.to][0] / 1000).toFixed(1), pct: +Math.abs(grid[r.to][1] - grid[r.from][1]).toFixed(0) });
+  const deployed = runs.filter((r) => r.dir < 0).map(seg).filter((s) => s.pct >= MIN_SWING);
+  const harvested = runs.filter((r) => r.dir > 0).map(seg).filter((s) => s.pct >= MIN_SWING);
+  const startPct = Math.round(pts[0][7]);
+  const endPct = Math.round(pts[pts.length - 1][7]);
+  const low = pts.reduce((a, p) => (p[7] < a[7] ? p : a));
+
+  const advice = [];
+  const empty = pts.find((p) => p[7] <= 1);
+  if (empty) advice.push(`You ran the battery empty at ${(empty[0] / 1000).toFixed(1)} km on lap ${lap}: keep some back for the longest straights, where an empty battery costs the most, and deploy less on the short ones.`);
+  if (endPct - startPct >= 10 && endPct >= 50) advice.push(`You ended the lap with ${endPct}% having started with ${startPct}%: you can deploy more, on the longest straights first.`);
+  // Each flat-out run before a braking zone: how much of the battery it used.
+  const runsBefore = zones.filter((z) => z.flatOutM >= 150).map((z) => ({ ...z, used: Math.round(at(z.atM - z.flatOutM) - at(z.atM)) }));
+  const longest = [...runsBefore].sort((a, b) => b.flatOutM - a.flatOutM)[0];
+  const better = longest && runsBefore.filter((z) => z !== longest && z.used - longest.used >= 8).sort((a, b) => b.used - a.used)[0];
+  if (longest && better && longest.used < 5) {
+    advice.push(`Before corner ${longest.corner} (${longest.flatOutM} m flat out, the longest run) you used ${Math.max(0, longest.used)}% of the battery, but before corner ${better.corner} (${better.flatOutM} m) ${better.used}%: move some of it to the longer straight.`);
+  }
+  return {
+    lap, startPct, endPct, lowestPct: Math.round(low[7]), lowestAtKm: +(low[0] / 1000).toFixed(1),
+    deployed, harvested,
+    straights: runsBefore.map((z) => ({ corner: z.corner, flatOutM: z.flatOutM, usedPct: z.used })),
+    advice,
+  };
+}
+
+module.exports = { adviseCorners, liftAndCoast, balanceAdvice, batteryLap };

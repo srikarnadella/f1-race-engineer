@@ -149,3 +149,12 @@ test('ask: brake bias and differential questions are looked up by the engine (ca
     assert.deepStrictEqual(lookups(bound, q).map((x) => x.name), ['car_balance'], q);
   }
 });
+
+test('ask: battery questions are looked up by the engine', (t) => {
+  const { lookups } = require('../src/llm/ask');
+  const tl = tools(t);
+  const bound = tl.bind(tl.run('sessions', {}).sessions[0].session_id);
+  for (const q of ['When should I deploy my battery?', 'How was my ERS use?', 'Where did I harvest?']) {
+    assert.deepStrictEqual(lookups(bound, q).map((x) => x.name), ['battery'], q);
+  }
+});

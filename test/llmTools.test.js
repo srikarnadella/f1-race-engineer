@@ -31,7 +31,7 @@ function open(t) {
 test('llm tools: each one is a named function with a JSON schema, and none takes SQL', (t) => {
   const tools = open(t);
   const names = tools.schemas.map((s) => s.function.name);
-  assert.deepStrictEqual(names.sort(), ['calls', 'car_balance', 'compare_laps', 'events', 'gaps', 'lap_coaching', 'lap_times', 'lift_and_coast', 'results', 'sessions', 'stints']);
+  assert.deepStrictEqual(names.sort(), ['battery', 'calls', 'car_balance', 'compare_laps', 'events', 'gaps', 'lap_coaching', 'lap_times', 'lift_and_coast', 'results', 'sessions', 'stints']);
   for (const s of tools.schemas) {
     assert.strictEqual(s.type, 'function');
     assert.ok(s.function.description.length > 20, s.function.name);
@@ -145,4 +145,13 @@ test('llm tools: car_balance - what the car did at each corner, the bias and dif
   assert.ok(b.advice.some((a) => /FL locks into .*56 to 54%/.test(a)), JSON.stringify(b.advice));
   assert.ok(b.advice.some((a) => /Wheelspin out of .*60 to 55%/.test(a)), JSON.stringify(b.advice));
   assert.ok(b.corners.length >= 2);
+});
+
+test('llm tools: battery - where a lap used and got back its charge, and what to change', (t) => {
+  const tools = open(t);
+  const sid = tools.run('sessions', {}).sessions[0].session_id;
+  const b = tools.run('battery', { session_id: sid });
+  assert.ok(!b.error, b.error);
+  assert.ok(b.startPct >= 0 && b.endPct >= 0 && b.lap > 1);
+  assert.ok(Array.isArray(b.deployed) && Array.isArray(b.harvested) && Array.isArray(b.advice));
 });

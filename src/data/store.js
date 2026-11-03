@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS trace_point (
   brake         REAL NOT NULL,                 -- 0..1
   steer         REAL NOT NULL,                 -- -1 (left) .. 1
   gear          INTEGER NOT NULL,
+  ers_pct       REAL,                          -- the battery, % of the 4 MJ store (the player's laps)
+  ers_mode      INTEGER,                       -- deploy mode: 0 none, 1 medium, 2 hotlap, 3 overtake / boost
   PRIMARY KEY (session_id, car_idx, lap_num, distance_m),
   FOREIGN KEY (session_id, car_idx) REFERENCES car ON DELETE CASCADE
 ) WITHOUT ROWID;
@@ -204,6 +206,10 @@ function openStore(file) {
   const version = Number(db.prepare('PRAGMA user_version').get().user_version);
   if (version > SCHEMA_VERSION) throw new Error(`${file} is schema v${version}; this code knows v${SCHEMA_VERSION}`);
   db.exec(SCHEMA);
+  // Columns added since a file was made (CREATE TABLE IF NOT EXISTS leaves an old table as it was).
+  const has = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
+  if (!has('trace_point', 'ers_pct')) db.exec('ALTER TABLE trace_point ADD COLUMN ers_pct REAL');
+  if (!has('trace_point', 'ers_mode')) db.exec('ALTER TABLE trace_point ADD COLUMN ers_mode INTEGER');
   db.exec(VIEWS);
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 
@@ -218,7 +224,7 @@ function openStore(file) {
     lap: db.prepare(`INSERT INTO lap VALUES (@sid, @carIndex, @lapNum, @lapMs, @s1, @s2, @s3, @valid, @pit, @neutralised, @compound, @tyreAge,
       @fuelKg, @position, @gapToLeaderMs, @numPitStops, @wearMax)`),
     stint: db.prepare('INSERT INTO stint VALUES (?, ?, ?, ?, ?, ?)'),
-    point: db.prepare('INSERT OR IGNORE INTO trace_point VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
+    point: db.prepare('INSERT OR IGNORE INTO trace_point (session_id, car_idx, lap_num, distance_m, lap_time_ms, speed_kmh, throttle, brake, steer, gear, ers_pct, ers_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
     event: db.prepare('INSERT INTO event (session_id, session_time_s, lap_num, code, description, car_idx, other_car_idx, value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
     call: db.prepare('INSERT INTO engineer_call VALUES (?, ?, ?, ?, ?, ?, ?)'),
     radio: db.prepare('INSERT INTO radio_message VALUES (?, ?, ?, ?, ?, ?, ?)'),
@@ -243,7 +249,7 @@ function openStore(file) {
     for (const c of s.cars) sql.car.run({ sid, ...c, isPlayer: b(c.isPlayer), isAi: b(c.isAi) });
     for (const l of s.laps) sql.lap.run({ sid, ...l, valid: b(l.valid), pit: b(l.pit), neutralised: b(l.neutralised) });
     for (const t of s.stints) sql.stint.run(sid, t.carIdx, t.stintNum, t.compound, t.startLap, t.endLap);
-    for (const t of s.traces) for (const p of t.points) sql.point.run(sid, t.carIdx, t.lapNum, ...p);
+    for (const t of s.traces) for (const p of t.points) sql.point.run(sid, t.carIdx, t.lapNum, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7] ?? null, p[8] ?? null);
     for (const e of s.events) sql.event.run(sid, e.sessionTime, e.lapNum, e.code, e.description, e.carIdx, e.otherCarIdx, e.value);
     s.calls.forEach((c, k) => sql.call.run(sid, k + 1, c.sessionTime, c.lapNum, c.action, c.kind, c.reason));
     s.radio.forEach((r, k) => sql.radio.run(sid, k + 1, r.sessionTime, r.lapNum, r.topic, r.severity, r.message));

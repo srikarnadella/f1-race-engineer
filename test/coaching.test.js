@@ -70,3 +70,38 @@ test('balance: once is a mistake, not the car: no advice for one lap in many', (
   assert.deepStrictEqual(out.advice, []);
   assert.strictEqual(out.corners[0].issues[0].laps.length, 1, 'still listed as what happened');
 });
+
+const { batteryLap } = require('../src/llm/coaching');
+// A lap as [d, t, speed, throttle, brake, steer, gear, ersPct, ersMode], a point every 10 m, with the
+// battery given as a function of distance.
+const ersLap = (pctAt, len = 5000) => Array.from({ length: len / 10 + 1 }, (_, k) => [k * 10, k * 100, 250, 1, 0, 0, 7, pctAt(k * 10), 1]);
+const zones2 = [{ corner: 1, atM: 1200, flatOutM: 1100, entryKmh: 320 }, { corner: 2, atM: 3000, flatOutM: 400, entryKmh: 280 }];
+
+test('battery: where it was used and where it came back, and what was left at the line', () => {
+  // Spent 40 points on the long straight, got 30 back in the corner after, flat elsewhere.
+  const b = batteryLap(ersLap((d) => (d < 100 ? 80 : d < 1100 ? 80 - ((d - 100) / 1000) * 40 : d < 1600 ? 40 + ((d - 1100) / 500) * 30 : 70)), zones2, { lap: 7 });
+  assert.strictEqual(b.startPct, 80);
+  assert.strictEqual(b.endPct, 70);
+  assert.ok(b.deployed.some((s) => s.fromKm <= 0.2 && s.toKm >= 1.0 && Math.abs(s.pct - 40) <= 2), JSON.stringify(b.deployed));
+  assert.ok(b.harvested.some((s) => Math.abs(s.pct - 30) <= 2), JSON.stringify(b.harvested));
+});
+
+test('battery: running it empty is called out, with where', () => {
+  const b = batteryLap(ersLap((d) => Math.max(0, 60 - d / 40)), zones2, { lap: 7 });
+  assert.match(b.advice.join(' '), /ran the battery empty at 2\.4 km/);
+});
+
+test('battery: finishing the lap with more than it started says deploy more', () => {
+  const b = batteryLap(ersLap((d) => 60 + d / 250), zones2, { lap: 7 });
+  assert.match(b.advice.join(' '), /ended the lap with 80%.*started with 60%.*deploy more/);
+});
+
+test('battery: the longest flat-out run used less than a shorter one: move it there', () => {
+  // 2 points on the 1100 m run before corner 1, 20 on the 400 m run before corner 2.
+  const b = batteryLap(ersLap((d) => (d < 1200 ? 70 - (d / 1200) * 2 : d < 2600 ? 68 : d < 3000 ? 68 - ((d - 2600) / 400) * 20 : 48)), zones2, { lap: 7 });
+  assert.match(b.advice.join(' '), /before corner 1.*1100 m flat out.*2%.*before corner 2.*20%/i);
+});
+
+test('battery: a lap without battery data says so', () => {
+  assert.match(batteryLap([[0, 0, 200, 1, 0, 0, 7]], zones2, { lap: 3 }).error, /battery/);
+});

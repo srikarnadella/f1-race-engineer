@@ -3,6 +3,8 @@
 // earlier into turn 1, 6 km/h slower at the apex"). A completed lap's trace
 // is handed over once; the debrief keeps it.
 
+const { ERS_MAX_J } = require('../analysis/batteryProjection');
+
 const SAMPLE_EVERY_M = 2;
 const FLASHBACK_REWIND_M = 30;
 // Uncollected laps kept (a replay without a debrief never collects them).
@@ -10,12 +12,12 @@ const MAX_PENDING = 3;
 
 function createLapTraceRecorder() {
   let lapNum = null;
-  let points = []; // [d, tMs, speed, throttle, brake, steer, gear]
+  let points = []; // [d, tMs, speed, throttle, brake, steer, gear, ersPct, ersMode] (the battery when Car Status is known)
   let startedAtLine = false;
   let invalid = false;
   const completed = []; // traces waiting to be collected
 
-  function update(lap, tel) {
+  function update(lap, tel, status = null) {
     if (!lap || !tel) return;
     if (lapNum !== null && lap.currentLapNum !== lapNum) {
       // Only a lap completed going forwards; a flashback back across the
@@ -39,7 +41,10 @@ function createLapTraceRecorder() {
     if (!points.length) startedAtLine = d < 60;
     const tail = points[points.length - 1];
     if (!tail || d - tail[0] >= SAMPLE_EVERY_M) {
-      points.push([Math.round(d * 10) / 10, lap.currentLapTimeInMS, tel.speed, +tel.throttle.toFixed(3), +tel.brake.toFixed(3), +tel.steer.toFixed(3), tel.gear]);
+      const p = [Math.round(d * 10) / 10, lap.currentLapTimeInMS, tel.speed, +tel.throttle.toFixed(3), +tel.brake.toFixed(3), +tel.steer.toFixed(3), tel.gear];
+      // The battery: charge as a % of the 4 MJ store, and the deploy mode.
+      if (status && status.ersStoreEnergy != null) p.push(+Math.max(0, Math.min(100, (status.ersStoreEnergy / ERS_MAX_J) * 100)).toFixed(1), status.ersDeployMode ?? null);
+      points.push(p);
     }
   }
 

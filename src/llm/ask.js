@@ -16,7 +16,8 @@ Answer in one to three short sentences, plainly. "You" is the driver. Lap times 
 Tools: compare_laps for where time went between two of your laps (corners, braking, speed);
 lap_times with a driver for another car's laps; gaps for the order and gaps at the end of a lap;
 events for overtakes, collisions and penalties; results for the finishing order; lap_coaching for what to
-do better corner by corner; lift_and_coast for where to save fuel.
+do better corner by corner; lift_and_coast for where to save fuel; car_balance for brake bias and the
+differential (locking, wheelspin, understeer); battery for where to deploy and where it charged.
 When coaching lines are given, pass on that advice with its numbers; don't invent other advice.
 Talk about brake bias, the differential or battery deployment only if the facts below include them.`;
 
@@ -141,7 +142,9 @@ function lookups(bound, question) {
   const add = (name, args) => out.push({ name, args, result: bound.run(name, args) });
   const named = [...question.matchAll(/\blaps? (\d{1,3})(?:\s*(?:and|&|vs\.?|versus|to)\s*(?:lap )?(\d{1,3}))?/gi)].flatMap((m) => [m[1], m[2]]);
   const laps = [...new Set(named.filter(Boolean).map(Number))];
-  if (BALANCE_WORDS.test(question)) {
+  if (BATTERY_WORDS.test(question)) {
+    add('battery', laps.length ? { lap: laps[0] } : {});
+  } else if (BALANCE_WORDS.test(question)) {
     add('car_balance', {});
   } else if (COAST_WORDS.test(question)) {
     add('lift_and_coast', laps.length ? { lap: laps[0] } : {});
@@ -178,6 +181,18 @@ function coachingText(c) {
 function coastText(c) {
   if (c.error) return `lift_and_coast: ${c.error}`;
   return `Lift and coast (from lap ${c.lap}): ${c.summary}\n${c.candidates.map((x) => `- ${x.text}`).join('\n')}`;
+}
+
+const BATTERY_WORDS = /\b(battery|ers|deploy\w*|harvest\w*|energy|boost|overtake mode)\b/i;
+function batteryText(b) {
+  if (b.error) return `battery: ${b.error}`;
+  const list = (xs, verb) => (xs.length ? xs.map((s) => `${s.fromKm}-${s.toKm} km ${verb} ${s.pct}%`).join(', ') : 'nowhere');
+  return [
+    `Battery on lap ${b.lap}: started the lap at ${b.startPct}%, ended at ${b.endPct}%, lowest ${b.lowestPct}% at ${b.lowestAtKm} km.`,
+    `Deployed: ${list(b.deployed, 'used')}. Charged back: ${list(b.harvested, 'gained')}.`,
+    b.straights.length ? `Battery used on each flat-out run: ${b.straights.map((z) => `before corner ${z.corner} (${z.flatOutM} m) ${Math.max(0, z.usedPct)}%`).join('; ')}.` : '',
+    b.advice.length ? `What to change:\n${b.advice.map((a) => `- ${a}`).join('\n')}` : 'Nothing to change: the battery was never empty, and used where the long runs are.',
+  ].filter(Boolean).join('\n');
 }
 
 function balanceText(c) {
@@ -228,6 +243,7 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
       : x.name === 'lap_coaching' ? coachingText(x.result)
         : x.name === 'lift_and_coast' ? coastText(x.result)
           : x.name === 'car_balance' ? balanceText(x.result)
+            : x.name === 'battery' ? batteryText(x.result)
             : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
   ].filter(Boolean).map((x, i) => (i ? x : `\n\nLooked up for this question:\n${x}`)).join('\n');
 
@@ -271,6 +287,7 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
     ...found.flatMap((x) => (x.name === 'compare_laps' && !x.result.error ? [comparisonText(x.result).split('\n').slice(0, 2).join(' ')]
       : x.name === 'lap_coaching' && !x.result.error ? [`${x.result.verdict}.`, ...x.result.advice.map((a) => a.text)]
         : x.name === 'lift_and_coast' && !x.result.error ? x.result.candidates.map((c) => c.text)
+          : x.name === 'battery' && !x.result.error ? [batteryText(x.result).split('\n')[0], ...x.result.advice]
           : x.name === 'car_balance' && !x.result.error ? (x.result.advice.length ? x.result.advice : [balanceText(x.result).split('\n')[1]])
           : [evidenceLine(x)])),
     ...charts.map((c) => `${c.title}: ${c.finding}`),
