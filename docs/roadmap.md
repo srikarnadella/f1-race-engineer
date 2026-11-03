@@ -59,7 +59,7 @@ flowchart LR
     W6[W6 Settings laid out across the window]:::done
   end
   subgraph L[Ask the race: local LLM]
-    L1[L1 Read-only race tools]:::next
+    L1[L1 Read-only race tools]:::done
     L2[L2 Ollama client with a lifecycle]:::next
     L3[L3 Model picker and downloads]
     L4[L4 Question set picks the models]
@@ -297,7 +297,8 @@ phrases the answer.
 - **L1 Read-only race tools.** `sessions`, `lap_times`, `compare_laps`, `stints`, `gaps`, `calls`,
   `events` over race.db and the debrief, each with a JSON schema; a read-only connection.
   *Test:* each tool on a fixture session returns the known laps; a write through the connection
-  fails; no tool takes free SQL.
+  fails; no tool takes free SQL. *Done:* `src/llm/tools.js` (`test/llmTools.test.js`): seven tools, arguments checked
+  against each schema before any query, compare_laps reusing lapCompare on the stored traces.
 - **L2 Ollama client with a lifecycle.** Talks to Ollama on `127.0.0.1:11434` (detect it, link to
   the installer if missing). Every request sends `keep_alive: 0`, so the model leaves memory as soon
   as the answer is done; a live session start sends an unload and blocks new requests until it ends;
