@@ -155,3 +155,47 @@ test('home: the dashboard rail is race screens only, and auto-switch never pulls
   assert.strictEqual(placeTitle(app), 'Storage');
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('storage: every saved session on disk is listed, not just the 10 in memory, and an older one can be deleted (roadmap G3)', async (t) => {
+  const s = (id, track, day) => ({ id, live: false, startedAt: Date.UTC(2026, 9, day), track, sessionName: 'Race', finish: 5, grid: 8, laps: [], bestLap: null });
+  const inMemory = Array.from({ length: 10 }, (_, k) => s(`m${k}`, 'Spa', 20 - k));
+  const older = [s('o1', 'Monza', 5), s('o2', 'Imola', 4)];
+  const deleted = [];
+  const intervals = [];
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = { ...fakeApi(), deleteSession: async (id) => { deleted.push(id); return true; } };
+      recordIntervals(w, intervals);
+      w.fetch = async (url) => (String(url).endsWith('/api/debrief/older')
+        ? { ok: true, json: async () => ({ sessions: older.filter((x) => !deleted.includes(x.id)) }) }
+        : { ok: false, json: async () => ({}) });
+    },
+  });
+  await settle();
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: inMemory } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.querySelector('.home__name').textContent === 'Storage').click();
+  await settle();
+  const titles = () => [...doc.querySelectorAll('.pc-row__title')].map((b) => b.textContent).filter((x) => /Race$/.test(x));
+  assert.strictEqual(titles().length, 12);
+  assert.deepStrictEqual(titles().slice(-2), ['Monza Race', 'Imola Race']);
+  const row = [...doc.querySelectorAll('.pc-row')].find((r) => r.textContent.includes('Imola'));
+  [...row.querySelectorAll('button')].find((b) => b.textContent === 'Delete').click();
+  await settle();
+  assert.deepStrictEqual(deleted, ['o2']);
+  assert.strictEqual(titles().length, 11);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('storage: Open in Race analysis opens that session, not the newest', async (t) => {
+  const s = (id, track, day) => ({ id, live: false, startedAt: Date.UTC(2026, 9, day), track, sessionName: 'Race', isRace: true, finish: 5, grid: 8, laps: [], bestLap: null, stints: [], penalties: [], positionChart: null, field: [], comparable: [] });
+  const app = await openApp(t);
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: [s('a', 'Spa', 20), s('b', 'Monza', 10)] } });
+  app.dest('Storage').click();
+  const row = [...app.doc.querySelectorAll('.pc-row')].find((r) => r.textContent.includes('Monza'));
+  [...row.querySelectorAll('button')].find((b) => b.textContent === 'Open in Race analysis').click();
+  assert.match(app.doc.querySelector('.ana__title').textContent, /Monza/);
+  assert.deepStrictEqual(app.errors, []);
+});

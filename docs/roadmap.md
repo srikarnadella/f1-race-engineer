@@ -76,7 +76,7 @@ flowchart LR
   subgraph G[Quick gaps]
     G1[G1 Shortcuts listed in Settings]:::done
     G2[G2 Field CSV and Calls audit copy]:::next
-    G3[G3 Library shows every saved session]:::next
+    G3[G3 Library shows every saved session]:::done
     G4[G4 races.csv ends at the flag]:::next
     G5[G5 Window opens without a blank frame]:::done
   end
@@ -372,7 +372,12 @@ Found reading the app on 3 Nov 2026; an hour or less each.
 - **G2** Debrief: CSV of the Field table and a copy button for the Calls audit (same pattern as
   `lapsCsv`). *Test:* the CSV round-trips the table's rows; the copied text has every graded call.
 - **G3** Library shows every session on disk (50), not the 10 the debrief keeps in memory.
-  *Test:* with 12 saved sessions the Library lists 12.
+  *Test:* with 12 saved sessions the Library lists 12. *Done:* `/api/debrief/older` summarizes each
+  session on disk past the 10 in memory once (cached by file) and opens one in full on demand; Storage
+  and Race analysis list them after the newer ten (`test/debrief.test.js`, `test/desktopHome.test.js`,
+  `test/desktopAnalysis.test.js`). The snapshot still carries 10, so the once-a-second debrief stays
+  small. Found on the way: Storage's "Open in Race analysis" opened the newest session, not the one
+  clicked; fixed. Full debrief is offered only for the 10 in memory (the card reads the snapshot).
 - **G4** `races.csv` `durationMin` ends at the chequered flag, not the results screen. *Test:* a
   synthetic race with a 2-minute results screen reports its racing time only.
 - **G5** The window shows once the page is ready (`ready-to-show`), not as an empty frame.

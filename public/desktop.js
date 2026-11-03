@@ -131,6 +131,19 @@
     return body;
   }
 
+  // Saved sessions on disk past the 10 the snapshot carries (G3), newest first; [] if the bridge can't say.
+  async function olderSessions() {
+    try {
+      const res = await fetch('/api/debrief/older');
+      const out = res.ok ? await res.json() : null;
+      return (out && out.sessions) || [];
+    } catch (_) {
+      return [];
+    }
+  }
+  // The snapshot's sessions, then the older ones it doesn't already have.
+  const withOlder = (list, older) => list.concat(older.filter((o) => !list.some((x) => x.id === o.id)));
+
   // ---------- Connect ----------
   widgets.connect = {
     title: 'Connect',
@@ -304,6 +317,9 @@
 
       let captures = null;
       let sessions = [];
+      let older = [];
+      let lastList = [];
+      let lastReplaying = false;
       const open = new Set(); // recordings with their report shown
       async function act(fn) {
         st.error.hidden = true;
@@ -328,7 +344,9 @@
 
       let sessionSig = '';
       function drawSessions(list, replaying) {
-        sessions = list.filter((d) => !d.live);
+        lastList = list;
+        lastReplaying = replaying;
+        sessions = (replaying ? list : withOlder(list, older)).filter((d) => !d.live);
         const key = JSON.stringify([replaying, sessions.map((d) => [d.id, d.finish, d.laps.length])]);
         if (key === sessionSig) return;
         sessionSig = key;
@@ -346,6 +364,7 @@
               h('span', { class: 'pc-row__meta' }, [when(d.startedAt), result, plural(d.laps.length, 'lap'), best].filter(Boolean).join(' · '))),
             h('div', { class: 'pc-row__actions' },
               button('Open in Race analysis', () => {
+                window.RaceDesktop.analysisSession = d.id; // analysis.js opens on it
                 window.RaceDebrief.openSession(d.id);
                 go('analysis');
               }, 'pc-btn--primary'),
@@ -353,7 +372,9 @@
                 if (await api.deleteSession(d.id, `${title}, ${when(d.startedAt)}`)) {
                   sessionSig = '';
                   sessions = sessions.filter((x) => x.id !== d.id);
+                  older = older.filter((x) => x.id !== d.id);
                   drawSummary();
+                  drawSessions(lastList.filter((x) => x.id !== d.id), lastReplaying);
                 }
               }), 'pc-btn--quiet')));
         }));
@@ -424,6 +445,10 @@
       };
       watchers.add(watch);
       loadCaptures();
+      olderSessions().then((list) => {
+        older = list;
+        drawSessions(lastList, lastReplaying);
+      });
       return (snap) => {
         if (!el.isConnected) {
           watchers.delete(watch);
@@ -611,6 +636,8 @@
   // Race analysis (analysis.js) builds its place with the same frame.
   window.RaceDesktop = {
     placeFrame,
+    olderSessions,
+    withOlder,
     screens: [
       { id: 'home', group: 'home', label: 'Home', layout: 'single', widgets: ['home'] },
       { id: 'analysis', group: 'place', label: 'Race analysis', layout: 'single', widgets: ['analysis'] },

@@ -539,6 +539,7 @@
       frame.replaceChildren(h('div', { class: 'ana' }, list, h('section', { class: 'ana__main' }, h('header', { class: 'ana__head' }, h('div', {}, title, meta), views), body)));
 
       let sessions = [];
+      let older = []; // saved sessions past the 10 the snapshot carries
       let selected = null;
       let view = 'overview';
       let last = null;
@@ -549,13 +550,20 @@
       const VIEWS = [['overview', 'Overview'], ['pace', 'Pace'], ['laps', 'Lap vs lap'], ['h2h', 'Head to head'], ['debrief', 'Full debrief']];
 
       function draw() {
+        if (desk.analysisSession && sessions.some((x) => x.id === desk.analysisSession)) {
+          selected = desk.analysisSession; // Storage's "Open in Race analysis"
+          desk.analysisSession = null;
+        }
         const d = sessions.find((x) => x.id === selected) || sessions[0] || null;
         selected = d ? d.id : null;
         list.replaceChildren(...sessions.map((x) => h('button', {
           type: 'button', class: 'ana__session', 'aria-current': x.id === selected ? 'true' : 'false',
           onclick: () => { selected = x.id; sig = ''; draw(); },
         }, h('span', { class: 'ana__session-name' }, name(x)), h('span', { class: 'ana__session-meta' }, [x.live ? 'Now' : day(x.startedAt), x.finish ? `P${x.finish}` : null].filter(Boolean).join(' · ')))));
-        views.replaceChildren(...VIEWS.map(([id, label]) => h('button', {
+        // The Debrief card only has the sessions in the snapshot.
+        const inSnap = !!(last && (last.debrief.sessions || []).some((x) => x.id === selected));
+        if (view === 'debrief' && !inSnap) view = 'overview';
+        views.replaceChildren(...VIEWS.filter(([id]) => id !== 'debrief' || inSnap).map(([id, label]) => h('button', {
           type: 'button', role: 'tab', class: 'ana__view', 'aria-selected': String(id === view),
           onclick: () => { view = id; sig = ''; draw(); },
         }, label)));
@@ -589,10 +597,18 @@
         }
       }
 
+      desk.olderSessions().then((list) => {
+        older = list;
+        if (!last) return;
+        sessions = desk.withOlder(last.debrief.sessions || [], older);
+        sig = '';
+        draw();
+      });
+
       return (snap) => {
         if (!snap.debrief) return;
         last = snap;
-        sessions = snap.debrief.sessions || [];
+        sessions = desk.withOlder(snap.debrief.sessions || [], older);
         // Redraw only when the saved sessions change; the Debrief inside keeps itself current.
         const next = JSON.stringify(sessions.map((x) => [x.id, x.laps.length, x.finish, x.live]));
         if (next !== sig) {

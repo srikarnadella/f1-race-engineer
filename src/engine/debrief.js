@@ -334,7 +334,36 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     return { sessions };
   }
 
-  const find = (id) => (current && current.id === id ? current : history.find((s) => s.id === id)) || null;
+  // Saved sessions past the 10 in memory (G3): summarized from disk once each, opened on demand.
+  const olderSummaries = new Map(); // file -> summary
+  let opened = null; // the one older session opened in full
+  function olderFiles() {
+    if (!dir || !fs.existsSync(dir)) return [];
+    const inMemory = new Set(history.map((h) => h.file));
+    return fs.readdirSync(dir).filter((n) => n.endsWith('.json.gz') && !inMemory.has(n)).sort().reverse();
+  }
+  const load = (n) => ({ ...fromFile(fs.readFileSync(path.join(dir, n))), file: n });
+  function older() {
+    const sessions = [];
+    for (const n of olderFiles()) {
+      try {
+        if (!olderSummaries.has(n)) olderSummaries.set(n, summarize(load(n)));
+        sessions.push(olderSummaries.get(n));
+      } catch (err) {
+        console.warn(`[debrief] skipping unreadable session ${n}: ${err.message}`);
+      }
+    }
+    return { sessions };
+  }
+
+  function find(id) {
+    const s = (current && current.id === id ? current : history.find((h) => h.id === id)) || (opened && opened.id === id ? opened : null);
+    if (s) return s;
+    for (const [n, sum] of olderSummaries) {
+      if (sum.id === id && fs.existsSync(path.join(dir, n))) return (opened = load(n));
+    }
+    return null;
+  }
 
   // A lap is comparable if it was recorded from the line, wasn't a pit or
   // invalid lap, and its trace exists.
@@ -423,15 +452,17 @@ function createDebrief(fieldModel, { dir = null } = {}) {
   // from disk. Returns its race-store id (null for older saves), or null if
   // there's no such finished session - the one in progress can't be deleted.
   function remove(id) {
-    const k = history.findIndex((s) => s.id === id);
-    if (k < 0) return null;
-    const [s] = history.splice(k, 1);
+    const k = history.findIndex((h) => h.id === id);
+    const s = k >= 0 ? history.splice(k, 1)[0] : find(id);
+    if (!s || s === current) return null;
+    if (s === opened) opened = null;
+    if (s.file) olderSummaries.delete(s.file);
     if (dir && s.file) fs.rmSync(path.join(dir, s.file), { force: true });
     return { uid: s.uid || null };
   }
 
   // The raw record of the session in progress (the race store reads its lap traces).
-  return { tick, noteCall, view, compare, rivals, audit, fieldLaps, flush, remove, current: () => current };
+  return { tick, noteCall, view, older, compare, rivals, audit, fieldLaps, flush, remove, current: () => current };
 }
 
 module.exports = { RIVAL_ID, createDebrief };

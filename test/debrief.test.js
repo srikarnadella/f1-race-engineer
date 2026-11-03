@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const zlib = require('zlib');
 const { createDebrief } = require('../src/engine/debrief');
 
 // Just the FieldModel surface the debrief reads: the player (car 0) and one
@@ -128,6 +129,36 @@ test('debrief: the session store keeps the newest 50 on disk (roadmap D5)', () =
     assert.match(sessions[49], /_Suzuka_Race\.json\.gz$/); // the new one is kept
     assert.strictEqual(sessions[0], '2020-01-01-00-00-06_Old_Race.json.gz'); // the six oldest went
     assert.ok(fs.existsSync(path.join(dir, 'notes.txt')));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('debrief: every saved session is listed and opens, not just the 10 kept in memory (roadmap G3)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'debrief-'));
+  try {
+    const f = fakeField({ classified: true });
+    f.getCar(0).miniSectors = [{ lapNum: 2, splits: [20000, 30000, 29000] }];
+    createDebrief(f, { dir }).tick();
+    // Eleven more copies, each its own session (id and start time), as twelve races saved over a week.
+    const [file] = fs.readdirSync(dir);
+    const rec = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dir, file))).toString());
+    for (let k = 1; k < 12; k++) {
+      fs.writeFileSync(path.join(dir, `2026-10-${String(10 + k).padStart(2, '0')}-00-00-00_Suzuka_Race.json.gz`), zlib.gzipSync(JSON.stringify({ ...rec, id: `s${k}`, startedAt: rec.startedAt - k * 864e5 })));
+    }
+    const d = createDebrief(fakeField({ classified: false }), { dir });
+    const inMemory = d.view().sessions.map((s) => s.id);
+    const older = d.older().sessions;
+    assert.strictEqual(inMemory.length, 10);
+    assert.strictEqual(older.length, 2);
+    assert.deepStrictEqual(new Set([...inMemory, ...older.map((s) => s.id)]).size, 12);
+    // An older session opens like any other, and can be deleted.
+    const old = older[older.length - 1];
+    assert.strictEqual(old.track, 'Suzuka');
+    assert.strictEqual(d.fieldLaps(old.id).cars.find((c) => c.isPlayer).laps[0].ms, 79000);
+    assert.deepStrictEqual(d.remove(old.id), { uid: null });
+    assert.strictEqual(d.older().sessions.length, 1);
+    assert.strictEqual(fs.readdirSync(dir).length, 11);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

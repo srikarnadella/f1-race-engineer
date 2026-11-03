@@ -111,3 +111,25 @@ test('analysis: a stop flagged on both the in-lap and the out-lap is one pit sto
   assert.strictEqual(stops.length, 1, JSON.stringify(stops));
   assert.match(stops[0], /Lap 5.*Medium → Hard/);
 });
+
+test('analysis: sessions on disk past the 10 in memory are listed too, oldest last, without Full debrief (roadmap G3)', async (t) => {
+  const monza = { ...barcelona, id: 'old1', startedAt: Date.UTC(2026, 8, 1), track: 'Monza' };
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = fakeApi();
+      w.fetch = async (url) => (String(url).endsWith('/api/debrief/older') ? { ok: true, json: async () => ({ sessions: [monza, barcelona] }) } : { ok: false, json: async () => ({}) });
+    },
+  });
+  await new Promise((r) => setTimeout(r, 10));
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: [barcelona, spa] } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.textContent.startsWith('Race analysis')).click();
+  await new Promise((r) => setTimeout(r, 20));
+  const names = [...doc.querySelectorAll('.ana__session-name')].map((n) => n.textContent);
+  assert.deepStrictEqual(names, ['Barcelona · Race', 'Spa · Qualifying 3', 'Monza · Race']);
+  [...doc.querySelectorAll('.ana__session')][2].click();
+  assert.match(doc.querySelector('.ana__title').textContent, /Monza/);
+  assert.ok(![...doc.querySelectorAll('.ana__view')].some((b) => b.textContent === 'Full debrief'), 'the Debrief card only has the sessions in memory');
+  assert.deepStrictEqual(app.errors, []);
+});
