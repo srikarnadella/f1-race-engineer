@@ -37,11 +37,11 @@ test('home: the app opens on Home, filling the window with no rail, one way into
   assert.deepStrictEqual(app.errors, []);
 });
 
-test('home: Settings opens from Home; Ask the race waits until it is built', async (t) => {
+test('home: Settings opens from Home; Ask the race is one of the places (roadmap L3)', async (t) => {
   const app = await openApp(t);
   [...app.doc.querySelectorAll('.home button')].find((b) => b.textContent === 'Settings').click();
   assert.strictEqual(app.$('settings-sheet').hidden, false);
-  assert.strictEqual(app.dest('Ask the race').disabled, true);
+  assert.strictEqual(app.dest('Ask the race').disabled, false);
 });
 
 test('home: one short line of state per destination; the live race shows position, lap and the call', async (t) => {
@@ -113,7 +113,7 @@ const placeTitle = (app) => place(app) && place(app).querySelector('.place__titl
 
 test('home: every destination but Live dashboard opens a place of its own: the whole window, no dashboard rail, a way back Home', async (t) => {
   const app = await openApp(t);
-  for (const name of ['Race analysis', 'Storage', 'Connect and record']) {
+  for (const name of ['Race analysis', 'Ask the race', 'Storage', 'Connect and record']) {
     app.dest(name).click();
     assert.strictEqual(app.doc.querySelector('.home'), null, `${name}: Home is gone`);
     assert.strictEqual(placeTitle(app), name);

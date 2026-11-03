@@ -61,7 +61,7 @@ flowchart LR
   subgraph L[Ask the race: local LLM]
     L1[L1 Read-only race tools]:::done
     L2[L2 Ollama client with a lifecycle]:::done
-    L3[L3 Model picker and downloads]:::next
+    L3[L3 Model picker and downloads]:::done
     L4[L4 Question set picks the models]
     L5[L5 Ask the race screen]
   end
@@ -313,7 +313,11 @@ phrases the answer.
   Qwen3 1.7B and 4B, Llama 3.2 3B, Gemma 3 4B, Phi-4-mini), each with download size and licence,
   pulled through Ollama with progress, and deletable. The list is trimmed by L4's scores.
   *Test:* pull progress reaches 100% on the fake server; a cancelled pull leaves nothing listed;
-  delete removes the model; licences shown match the model cards.
+  delete removes the model; licences shown match the model cards. *Done:* the Ask the race place
+  (`public/askrace.js`, `test/desktopAskRace.test.js`): the not-while-racing notice, Get Ollama when it is
+  missing, and the models from `src/llm/catalog.js` with size, licence, download progress, cancel and
+  delete; downloads refused while the game sends telemetry (`test/ollama.test.js`). Gemma 3 left out: no
+  tool calling in Ollama. Still to do: model sizes in Storage, and checking the list against real Ollama.
 - **L4 Question set picks the models.** 20-40 questions from the recorded races with expected facts
   ("where did I lose time on lap 21?", "was the lap 12 box call right?"). *Test:* `npm run llm-eval`
   scores each model (facts right, laps cited, refuses what the data doesn't show) and time per

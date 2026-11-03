@@ -1255,6 +1255,28 @@ body {
   .str__call-why { grid-column: 1 / -1; }
 }
 
+/* Ask the race (askrace.js): the notice first, then Ollama and the models, a row each. */
+.llm { display: flex; flex-direction: column; gap: 28px; max-width: 1100px; }
+.llm__notice { margin: 0; max-width: 46ch; font-size: clamp(1.4rem, 1.1rem + 0.9vw, 2rem); font-weight: 750; letter-spacing: -0.02em; line-height: 1.25; }
+.llm__live { margin: 0; padding-left: 14px; box-shadow: inset 4px 0 0 var(--watch); color: var(--watch); font-size: 1.1rem; font-weight: 700; }
+.llm__head { margin: 12px 0 6px; font-size: 1.2rem; font-weight: 750; color: var(--muted); }
+.llm__lede { margin: 0 0 12px; max-width: 62ch; color: var(--muted); font-size: 1.05rem; line-height: 1.45; }
+.llm__row { display: flex; flex-wrap: wrap; gap: 10px; }
+.llm__get { text-decoration: none; }
+.llm__models { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.llm__model { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 24px; padding: 16px 12px; margin: 0 -12px; border-radius: 4px; transition: background 0.12s; }
+.llm__model:hover, .llm__model:focus-within { background: #141414; }
+.llm__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.llm__name { font-size: 1.2rem; font-weight: 800; }
+.llm__meta { color: var(--muted); font-size: 0.95rem; }
+.llm__licence { color: inherit; }
+.llm__note { font-size: 1rem; }
+.llm__actions { display: flex; align-items: center; gap: 10px; }
+.llm__have { color: var(--good); font-weight: 700; }
+.llm__progress { width: 160px; height: 10px; accent-color: var(--info); }
+.llm__pct { min-width: 3.5ch; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .llm__model { grid-template-columns: 1fr; } }
+
 /* Settings: this PC's ports and data folder. */
 .setting--pc { flex-direction: column; cursor: default; }
 .pc-ports { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }

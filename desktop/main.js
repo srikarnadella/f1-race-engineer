@@ -20,6 +20,7 @@ const { ensureCert } = require('./tls');
 const { startRecognizer, grammarPhrases } = require('./speech');
 const { createOllama } = require('../src/llm/ollama');
 const { createRaceTools } = require('../src/llm/tools');
+const { MODELS, isOffered } = require('../src/llm/catalog');
 
 const UDP_HOST = '0.0.0.0'; // a console or second PC can send telemetry too
 const SPEECH_IDLE_MS = 2 * 60 * 1000;
@@ -204,8 +205,25 @@ if (!app.requestSingleInstanceLock()) {
   handle('openInBrowser', () => shell.openExternal(localUrl()));
   handle('llm:status', async () => ({ ...(await ollama.detect()), live: !!(bridge && bridge.live()), busy: ollama.busy() }));
   handle('llm:models', () => ollama.models());
+  handle('llm:catalog', () => MODELS);
+  // Only the models the app offers can be downloaded, asked or deleted from here.
+  const offered = (id) => {
+    if (!isOffered(id)) throw new Error('Not a model this app offers');
+    return id;
+  };
+  handle('llm:pull', (id) => ollama.pull(offered(id), (p) => {
+    if (win && !win.isDestroyed()) win.webContents.send('llm', { kind: 'pull', model: id, ...p });
+  }).then(() => true));
+  handle('llm:cancelPull', (id) => ollama.cancelPull(offered(id)));
+  handle('llm:delete', async (id) => {
+    const m = MODELS.find((x) => x.id === offered(id));
+    if (!(await confirm(`Delete ${m.name}?`, 'It is removed from this PC; you can download it again.'))) return false;
+    await ollama.remove(id);
+    return true;
+  });
   handle('llm:ask', async (model, question) => {
-    if (typeof model !== 'string' || typeof question !== 'string' || !question.trim()) throw new Error('Ask a question');
+    if (typeof question !== 'string' || !question.trim()) throw new Error('Ask a question');
+    offered(model);
     const tools = createRaceTools(path.join(paths.data(), 'race.db')); // read-only, closed after the answer
     try {
       return await ollama.ask({ model, question: question.slice(0, 2000), tools });

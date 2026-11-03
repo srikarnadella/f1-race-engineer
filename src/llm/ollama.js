@@ -91,7 +91,60 @@ function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, t
     } catch { /* Ollama not running: nothing loaded */ }
   }
 
-  return { detect, models, ask, stop, sessionStarted, busy: () => !!current, installUrl: INSTALL_URL };
+  // Downloads (L3) through Ollama: progress as a fraction of every layer's bytes; cancel by name.
+  const pulls = new Map(); // model -> AbortController
+  async function pull(model, onProgress) {
+    if (isLive()) throw new Error('Downloads are not while you race: they use the disk and network the game needs. Download after the session.');
+    if (pulls.has(model)) throw new Error('Already downloading');
+    const controller = new AbortController();
+    pulls.set(model, controller);
+    const layers = new Map(); // digest -> { total, completed }
+    let last = 0;
+    try {
+      const res = await fetch(`${host}/api/pull`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, stream: true }), signal: controller.signal });
+      if (!res.ok || !res.body) throw new Error(`Ollama /api/pull: HTTP ${res.status}`);
+      const decoder = new TextDecoder();
+      let buf = '';
+      for await (const chunk of res.body) {
+        buf += decoder.decode(chunk, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          const m = JSON.parse(line);
+          if (m.error) throw new Error(m.error);
+          if (m.digest && m.total) layers.set(m.digest, { total: m.total, completed: m.completed || 0 });
+          let total = 0;
+          let done = 0;
+          for (const l of layers.values()) {
+            total += l.total;
+            done += l.completed;
+          }
+          // A layer met later adds to the total; the bar never moves back for it.
+          const fraction = m.status === 'success' ? 1 : Math.max(last, total ? Math.min(0.99, done / total) : 0);
+          last = fraction;
+          onProgress({ status: m.status, fraction, completed: done, total });
+        }
+      }
+      if (last !== 1) throw new Error('The download ended early');
+    } catch (err) {
+      if (controller.signal.aborted) throw new Error('Download cancelled');
+      throw err;
+    } finally {
+      pulls.delete(model);
+    }
+  }
+  const cancelPull = (model) => {
+    const c = pulls.get(model);
+    if (c) c.abort();
+  };
+  async function remove(model) {
+    const res = await fetch(`${host}/api/delete`, { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model }) });
+    if (!res.ok && res.status !== 404) throw new Error(`Ollama /api/delete: HTTP ${res.status}`);
+  }
+
+  return { detect, models, ask, stop, sessionStarted, pull, cancelPull, remove, busy: () => !!current, installUrl: INSTALL_URL };
 }
 
 module.exports = { createOllama, INSTALL_URL };

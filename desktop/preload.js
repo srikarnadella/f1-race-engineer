@@ -5,7 +5,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const call = (channel) => (...args) => ipcRenderer.invoke(channel, ...args);
-const EVENTS = new Set(['status', 'speech']);
+const EVENTS = new Set(['status', 'speech', 'llm']);
 
 contextBridge.exposeInMainWorld('undercut', {
   status: call('status'),
@@ -24,7 +24,10 @@ contextBridge.exposeInMainWorld('undercut', {
   openDataFolder: call('openDataFolder'),
   openInBrowser: call('openInBrowser'),
   speech: { start: call('speech:start'), stop: call('speech:stop') },
-  llm: { status: call('llm:status'), models: call('llm:models'), ask: call('llm:ask'), stop: call('llm:stop') },
+  llm: {
+    status: call('llm:status'), models: call('llm:models'), catalog: call('llm:catalog'), ask: call('llm:ask'), stop: call('llm:stop'),
+    pull: call('llm:pull'), cancelPull: call('llm:cancelPull'), remove: call('llm:delete'),
+  },
   // on('status' | 'speech', fn) -> unsubscribe
   on: (channel, fn) => {
     if (!EVENTS.has(channel)) return () => {};

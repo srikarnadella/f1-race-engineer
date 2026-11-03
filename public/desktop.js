@@ -557,8 +557,7 @@
       };
       const live = dest('Live dashboard', () => go('drive'));
       const analysis = dest('Race analysis', () => go('analysis'));
-      const ask = dest('Ask the race', null);
-      ask.node.disabled = true; // roadmap L5: a local model, never run while racing
+      const ask = dest('Ask the race', () => go('askrace'));
       const storage = dest('Storage', () => go('library'));
       const connect = dest('Connect and record', () => go('connect'));
       live.node.classList.add('home__dest--primary');
@@ -630,7 +629,7 @@
         const where = p && p.position ? `P${p.position}${p.currentLapNum ? ` · lap ${p.currentLapNum}${s.session && s.session.totalLaps ? ` of ${s.session.totalLaps}` : ''}` : ''}` : null;
         setText(live.state, on ? [where, call && call.action].filter(Boolean).join(' · ') || 'On track' : replaying ? 'Replay running' : 'Turn on UDP telemetry in the game');
         setText(analysis.state, latest ? [[latest.track, latest.sessionName].filter(Boolean).join(' '), latest.finish ? `P${latest.finish}` : null].filter(Boolean).join(' · ') : 'No sessions yet');
-        setText(ask.state, 'Coming soon');
+        setText(ask.state, on ? 'After the session' : 'A local model, on this PC');
         const nSessions = sessions.filter((d) => !d.live).length;
         setText(storage.state, captures ? `${plural(nSessions, 'session')} · ${plural(captures.length, 'recording')}` : plural(nSessions, 'session'));
         const others = Math.max(0, status.clients - 1);
@@ -664,6 +663,7 @@
       { id: 'analysis', group: 'place', label: 'Race analysis', layout: 'single', widgets: ['analysis'] },
       { id: 'connect', group: 'place', label: 'Connect', layout: 'single', widgets: ['connect'] },
       { id: 'library', group: 'place', label: 'Storage', layout: 'single', widgets: ['library'] },
+      { id: 'askrace', group: 'place', label: 'Ask the race', layout: 'single', widgets: ['askrace'] },
     ],
   };
 })();
