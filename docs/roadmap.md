@@ -65,10 +65,10 @@ flowchart LR
     L5[L5 Ask the race screen]
   end
   subgraph R[Race analysis: its own place]
-    R1[R1 Session picker and race overview]:::next
-    R2[R2 Pace: laps, stints, tyre wear]
-    R3[R3 Head to head with any rival]
-    R4[R4 Strategy review: calls, stops, what-if]
+    R1[R1 Session picker and race overview]:::done
+    R2[R2 Pace: laps, stints, tyre wear]:::next
+    R3[R3 Head to head with any rival]:::next
+    R4[R4 Strategy review: calls, stops, what-if]:::next
     R5[R5 Across sessions: trends per track]
   end
   subgraph G[Quick gaps]
@@ -315,6 +315,12 @@ estimated on the page. Use the taste skill and the dataviz skill for every view.
 - **R1 Session picker and race overview.** Pick any saved session (track, type, date, result);
   the overview shows result and grid, best lap, stints as a strip, the safety cars and the key
   moments in order. *Test:* every saved session opens; the numbers match its debrief file.
+  *Done:* `public/analysis.js`, `test/desktopAnalysis.test.js`: sessions down the left, the result in
+  large type, six stats, stints to scale, positions lap by lap with a hover crosshair, key moments
+  (start, penalties, stops, safety cars, best lap, finish) in lap order; Full debrief on the same
+  session. Real data caught two bugs the fixture didn't: the place stayed blank with no game
+  running, and a stop flagged on the in-lap and out-lap showed as two. The list is the 10 sessions
+  the debrief keeps in memory (G3 covers the rest on disk).
 - **R2 Pace.** Lap times through the race with in/out laps and neutralised laps marked, stint pace
   and tyre wear rate per stint, sector times, best and theoretical best. *Test:* on a recorded
   race the chart's points equal laps.csv for that session.

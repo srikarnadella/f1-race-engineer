@@ -990,6 +990,59 @@ body {
   .home__photo, .home__dest, .home__mark { animation: none; transition: none; }
 }
 
+/* Race analysis (analysis.js): saved sessions on the left, one session in depth on the right. */
+.ana { flex: 1; display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 28px; align-items: start; }
+.ana__list { display: flex; flex-direction: column; gap: 6px; position: sticky; top: 0; }
+.ana__session { appearance: none; border: 0; border-radius: 4px; padding: 14px 16px; background: var(--panel); color: var(--muted); font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: background 0.12s; }
+.ana__session:hover { background: #1f1f1f; color: var(--text); }
+.ana__session:focus-visible, .ana__view:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.ana__session[aria-current="true"] { background: var(--text); color: #0a0a0a; }
+.ana__session-name { font-size: 1.1rem; font-weight: 750; }
+.ana__session-meta { font-size: 0.95rem; font-weight: 600; opacity: 0.85; }
+.ana__main { min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.ana__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ana__title { margin: 0; font-size: clamp(1.8rem, 1.2rem + 1.6vw, 2.6rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.ana__meta { margin: 6px 0 0; color: var(--muted); font-size: 1rem; }
+.ana__views { display: flex; gap: 6px; }
+.ana__view { appearance: none; border: 0; border-radius: 4px; min-height: 44px; padding: 0 18px; background: var(--panel); color: var(--muted); font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; }
+.ana__view:hover { color: var(--text); }
+.ana__view[aria-selected="true"] { background: var(--text); color: #0a0a0a; }
+.ana__body { min-width: 0; }
+.ana__empty { margin: 48px 0; font-size: 1.15rem; color: var(--muted); max-width: 52ch; }
+.ana__overview { display: flex; flex-direction: column; gap: 32px; }
+.ana__overview h3 { margin: 0 0 12px; font-size: 1.15rem; font-weight: 750; }
+.ana__top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 32px; align-items: center; }
+.ana__result { display: flex; flex-direction: column; gap: 6px; }
+.ana__pos-big { font-size: clamp(4rem, 3rem + 4vw, 7.5rem); font-weight: 800; line-height: 0.9; letter-spacing: -0.05em; }
+.ana__result span { font-size: 1.15rem; font-weight: 650; color: var(--muted); }
+.ana__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ana__stat { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 4px; background: var(--panel); min-width: 0; }
+.ana__stat-label { font-size: 0.95rem; font-weight: 650; color: var(--label); }
+.ana__stat b { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+.ana__stat-sub { font-size: 0.9rem; color: var(--muted); overflow-wrap: anywhere; }
+.ana__stints { display: flex; gap: 2px; min-height: 64px; }
+.ana__stint { flex-basis: 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 12px; border-radius: 4px; background: var(--panel-2); color: #0a0a0a; overflow: hidden; white-space: nowrap; }
+.ana__stint b { font-size: 1.05rem; font-weight: 800; }
+.ana__stint span { font-size: 0.9rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
+.ana__stint[data-c="soft"] { background: var(--soft); }
+.ana__stint[data-c="medium"] { background: var(--medium); }
+.ana__stint[data-c="hard"] { background: var(--hard); }
+.ana__stint[data-c="inter"] { background: var(--inter); }
+.ana__stint[data-c="wet"] { background: var(--wet); }
+.ana__chart { position: relative; }
+.ana__pos { display: block; width: 100%; height: auto; }
+.ana__grid { stroke: #222; stroke-width: 1; }
+.ana__tick { fill: var(--label); font-size: 14px; font-weight: 600; }
+.ana__them { fill: none; stroke: #3c3c3c; stroke-width: 1.5; stroke-linejoin: round; }
+.ana__me { fill: none; stroke: var(--good); stroke-width: 3; stroke-linejoin: round; }
+.ana__cross { stroke: var(--muted); stroke-width: 1; }
+.ana__dot { fill: var(--good); stroke: var(--bg); stroke-width: 2; }
+.ana__tip { position: absolute; top: 0; transform: translateX(-50%); padding: 6px 10px; border-radius: 4px; background: var(--text); color: #0a0a0a; font-size: 0.95rem; font-weight: 700; pointer-events: none; white-space: nowrap; }
+.ana__moments { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ana__moment { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; padding: 12px 16px; border-radius: 4px; background: var(--panel); font-size: 1.05rem; }
+.ana__moment b { color: var(--label); font-weight: 700; }
+.ana .w-deb__session { display: none; }
+
 /* Settings: this PC's ports and data folder. */
 .setting--pc { flex-direction: column; cursor: default; }
 .pc-ports { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }

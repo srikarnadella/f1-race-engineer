@@ -264,7 +264,7 @@
   function updateWidgets(s) {
     for (const w of mounted) {
       // Widgets that need the player's car wait until it exists.
-      if (!s.player && !['radio', 'session', 'debrief', 'home', 'connect', 'library'].includes(w.id)) continue;
+      if (!s.player && !['radio', 'session', 'debrief', 'home', 'connect', 'library', 'analysis'].includes(w.id)) continue;
       try {
         w.update(s);
       } catch (err) {

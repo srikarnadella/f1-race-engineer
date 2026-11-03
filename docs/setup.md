@@ -18,7 +18,7 @@ button; Esc goes back too.
 | Screen | What you do there |
 |---|---|
 | **Connect** | See whether F1 26 telemetry is arriving, with the game settings to change if not. Scan the QR code on a phone or tablet. Turn off sharing on the Wi-Fi, or turn on *Voice questions on phones* (below). **Record this session** saves every packet and call, like `npm run capture`; MARK appears while it records. |
-| **Race analysis** | Every saved session in depth. For now the Debrief at full size (Summary, Lap compare, Rivals, Calls, Models); more views are on the roadmap. |
+| **Race analysis** | Every saved session, listed down the left. **Overview**: the result, best and theoretical lap, race pace, consistency, stops and penalties, your stints to scale, your position lap by lap (hover for any lap) and the key moments in order. **Full debrief**: lap compare, rivals, the calls audit and the models for the same session. |
 | **Storage** | Every saved session (open it in Race analysis, or delete it) and every recording (replay it through the screens, analyze it to check each call, show the file, or delete it). Deletes ask first and can't be undone. |
 | **Settings** | As before, plus the two ports and the data folder. |
 

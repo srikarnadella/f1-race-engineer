@@ -471,15 +471,6 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountSettings);
   else mountSettings();
 
-  // ---------- Race analysis: its own place ----------
-  // For now the Debrief at full size; roadmap R1-R5 build the in-depth views here.
-  widgets.analysis = {
-    title: 'Race analysis',
-    description: 'Every saved session in depth',
-    tall: true,
-    mount: (el) => widgets.debrief.mount(placeFrame(el, 'Race analysis')),
-  };
-
   // ---------- Home: where the app opens ----------
   // Real races behind the name, from Wikimedia Commons; each is credited while it shows.
   // pos keeps the cars clear of the bars on the left.
@@ -607,7 +598,9 @@
     } catch (_) { /* storage off: the app opens on Home */ }
   }
 
+  // Race analysis (analysis.js) builds its place with the same frame.
   window.RaceDesktop = {
+    placeFrame,
     screens: [
       { id: 'home', group: 'home', label: 'Home', layout: 'single', widgets: ['home'] },
       { id: 'analysis', group: 'place', label: 'Race analysis', layout: 'single', widgets: ['analysis'] },
