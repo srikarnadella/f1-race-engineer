@@ -100,4 +100,30 @@ async function deleteCapture(root, name) {
   await fs.promises.rm(captureDir(root, name), { recursive: true, force: true });
 }
 
-module.exports = { listCaptures, captureDir, deleteCapture, packetsFile, summarizeReport };
+// Storage (W3): bytes on disk per store in the data folder. The race store is race.db and its
+// SQLite side files; anything else (the demo race, track notes) is "other".
+async function diskUse(dataDir) {
+  const use = { raceDb: 0, sessions: 0, captures: 0, other: 0, total: 0 };
+  async function walk(dir, store) {
+    let entries;
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch {
+      return; // not there yet
+    }
+    for (const e of entries) {
+      const p = path.join(dir, e.name);
+      const k = store || (e.name === 'sessions' || e.name === 'captures' ? e.name : /^race.db/.test(e.name) ? 'raceDb' : 'other');
+      if (e.isDirectory()) await walk(p, k);
+      else if (e.isFile()) {
+        const { size } = await fs.promises.stat(p);
+        use[k] += size;
+        use.total += size;
+      }
+    }
+  }
+  await walk(dataDir, null);
+  return use;
+}
+
+module.exports = { listCaptures, captureDir, deleteCapture, packetsFile, summarizeReport, diskUse };

@@ -55,7 +55,7 @@ flowchart LR
     W2[W2 Home screen]:::done
     W5[W5 Home slideshow: real races]:::done
     W4[W4 Separate places, not dashboard tabs]:::done
-    W3[W3 Storage, its own place]:::next
+    W3[W3 Storage, its own place]:::done
     W6[W6 Settings laid out across the window]:::done
   end
   subgraph L[Ask the race: local LLM]
@@ -285,7 +285,9 @@ against W0, and none may raise the race numbers.
   (on/off settings, voice commands, this PC), each its own stack; no scroll at 1100x760.
 - **W3 Storage, its own place.** Built on W4, replacing the Library tab. Disk use per store (race.db, debriefs, captures, downloaded models) with
   delete, using the existing `deleteSession()`. *Test:* the sizes shown add up to the folder size on
-  disk; deleting a session leaves no store mentioning its uid; deleting a model frees its bytes.
+  disk; deleting a session leaves no store mentioning its uid; deleting a model frees its bytes. *Done
+  (but models, which come with L3):* `diskUse` in desktop/library.js (`test/desktopLibrary.test.js`) and
+  Storage's rows per store, largest first, refreshed after each delete (`test/desktopHome.test.js`).
 
 ### Ask the race: local LLM
 

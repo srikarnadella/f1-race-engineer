@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const { X509Certificate } = require('crypto');
 const { createCaptureSession } = require('../src/capture/session');
-const { listCaptures, captureDir, deleteCapture } = require('../desktop/library');
+const { listCaptures, captureDir, deleteCapture, diskUse } = require('../desktop/library');
 const { ensureCert } = require('../desktop/tls');
 const { syntheticPackets } = require('./helpers/synthetic');
 
@@ -40,6 +40,24 @@ test('library: a name that leaves the recordings folder is refused, and delete r
   fs.writeFileSync(path.join(root, 'gone', 'packets.f1log'), 'x');
   await deleteCapture(root, 'gone');
   assert.deepStrictEqual(fs.readdirSync(root), ['keep']);
+});
+
+test('storage: disk use per store, adding up to the whole data folder (roadmap W3)', async (t) => {
+  const root = tmp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const put = (rel, n) => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), Buffer.alloc(n)); };
+  put('race.db', 1000);
+  put('race.db-wal', 200); // SQLite's write-ahead log is the race store too
+  put('sessions/a.json.gz', 300);
+  put('sessions/b.json.gz', 400);
+  put('captures/2026-10-01/packets.f1log.gz', 5000);
+  put('captures/2026-10-01/report.json', 50);
+  put('demo/synthetic-session.f1log.gz', 70);
+  put('tracks.json', 8);
+  const use = await diskUse(root);
+  assert.deepStrictEqual(use, { raceDb: 1200, sessions: 700, captures: 5050, other: 78, total: 7028 });
+  // A first start: nothing on disk yet.
+  assert.deepStrictEqual(await diskUse(path.join(root, 'missing')), { raceDb: 0, sessions: 0, captures: 0, other: 0, total: 0 });
 });
 
 test('tls: a certificate for this PC names its addresses, is reused, and is remade when an address changes', async (t) => {

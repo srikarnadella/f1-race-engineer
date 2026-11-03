@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('undercut', {
   replay: call('replay'),
   live: call('live'),
   captures: call('captures'),
+  diskUse: call('diskUse'),
   analyze: call('analyze'),
   deleteCapture: call('deleteCapture'),
   deleteSession: call('deleteSession'),

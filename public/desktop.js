@@ -305,12 +305,14 @@
         captures: h('ul', { class: 'pc-list' }),
         capturesNote: h('p', { class: 'pc-list__empty dim' }),
         error: h('p', { class: 'pc-error', role: 'alert', hidden: true }),
+        disk: h('section', { class: 'disk', 'aria-label': 'Disk use' }),
       };
       el.replaceChildren(h('div', { class: 'pc pc-lib' },
         h('header', { class: 'pc-lib__head' },
           h('div', {}, st.summary),
           button('Open data folder', () => act(() => api.openDataFolder()), 'pc-btn--quiet')),
         st.error,
+        st.disk,
         h('div', { class: 'pc-lib__cols' },
           h('section', { class: 'pc-lib__col' }, h('h3', {}, 'Saved sessions'), h('p', { class: 'dim' }, 'Each one opens in Race analysis: the result, every lap, lap compare and the calls audit.'), st.sessionsNote, st.sessions),
           h('section', { class: 'pc-lib__col' }, h('h3', {}, 'Recordings'), h('p', { class: 'dim' }, 'Every packet of a session. Replay one through the screens, or analyze it to check each call.'), st.capturesNote, st.captures))));
@@ -331,6 +333,22 @@
           return null;
         }
       }
+      // Disk use per store (W3), largest first; a store with nothing in it drops out.
+      const STORES = [['captures', 'Recordings', 'every packet of each recorded session'], ['raceDb', 'Race store', 'the laps of every car in every session'], ['sessions', 'Saved sessions', 'the debriefs Race analysis opens'], ['other', 'Other', 'the demo race and track notes']];
+      async function loadDisk() {
+        if (!api.diskUse) return;
+        const use = await act(() => api.diskUse());
+        if (!use) return;
+        const rows = STORES.filter(([k]) => use[k] > 0).sort((a, b) => use[b[0]] - use[a[0]]);
+        st.disk.replaceChildren(
+          h('p', { class: 'disk__total' }, `${bytes(use.total)} on this PC`),
+          h('ul', { class: 'disk__rows' }, rows.map(([k, label, what]) => h('li', { class: 'disk__row' },
+            h('b', { class: 'disk__name' }, label),
+            h('span', { class: 'disk__what' }, what),
+            h('span', { class: 'disk__bar', 'aria-hidden': 'true' }, h('i', { style: `width: ${Math.max(0.5, (use[k] / Math.max(1, use.total)) * 100)}%` })),
+            h('span', { class: 'disk__size' }, bytes(use[k]))))));
+      }
+
       async function loadCaptures() {
         captures = (await act(() => api.captures())) || captures || [];
         drawCaptures();
@@ -375,6 +393,7 @@
                   older = older.filter((x) => x.id !== d.id);
                   drawSummary();
                   drawSessions(lastList.filter((x) => x.id !== d.id), lastReplaying);
+                  loadDisk();
                 }
               }), 'pc-btn--quiet')));
         }));
@@ -416,6 +435,7 @@
                   captures = captures.filter((x) => x.name !== c.name);
                   drawCaptures();
                   drawSummary();
+                  loadDisk();
                 }
               }), 'pc-btn--quiet')));
           if (c.report && open.has(c.name)) row.append(reportView(c));
@@ -445,6 +465,7 @@
       };
       watchers.add(watch);
       loadCaptures();
+      loadDisk();
       olderSessions().then((list) => {
         older = list;
         drawSessions(lastList, lastReplaying);

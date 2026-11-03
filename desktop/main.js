@@ -14,7 +14,7 @@ const { app, BrowserWindow, dialog, shell, ipcMain } = require('electron');
 const { start } = require('../src/index');
 const { defaultCaptureDir } = require('../src/capture/session');
 const { lanAddresses, pairAddress } = require('../src/server/httpServer');
-const { listCaptures, captureDir, deleteCapture, packetsFile, summarizeReport } = require('./library');
+const { listCaptures, captureDir, deleteCapture, packetsFile, summarizeReport, diskUse } = require('./library');
 const { loadSettings, saveSettings, applySettings } = require('./settings');
 const { ensureCert } = require('./tls');
 const { startRecognizer, grammarPhrases } = require('./speech');
@@ -154,6 +154,7 @@ if (!app.requestSingleInstanceLock()) {
   });
   handle('live', () => (replay ? switchTo(null) : status()));
   handle('captures', () => listCaptures(paths.captures()));
+  handle('diskUse', () => diskUse(paths.data()));
   handle('analyze', (name) => {
     const dir = captureDir(paths.captures(), name);
     if (analyzing.has(name)) throw new Error('Already analyzing');

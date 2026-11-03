@@ -1010,6 +1010,20 @@ body {
 .place .pc-lib__cols { gap: 72px; }
 .place .pc-lib__col { padding: 0; background: none; gap: 6px; }
 .place .pc-lib__col > p.dim { margin-bottom: 14px; max-width: 52ch; }
+/* Disk use per store (W3): one row each, a bar to scale against the whole folder. */
+.disk { margin: 0 0 56px; }
+.disk__total { margin: 0 0 14px; color: var(--muted); font-size: 1.05rem; font-weight: 650; }
+.disk__rows { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.disk__row { display: grid; grid-template-columns: 160px minmax(0, 1fr) minmax(120px, 28%) 80px; gap: 20px; align-items: center; padding: 8px 0; }
+.disk__name { font-size: 1.1rem; font-weight: 750; }
+.disk__what { color: var(--muted); }
+.disk__bar { height: 10px; border-radius: 4px; background: #161616; overflow: hidden; }
+.disk__bar i { display: block; height: 100%; border-radius: 4px; background: var(--muted); }
+.disk__size { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+@media (max-width: 900px) {
+  .disk__row { grid-template-columns: 1fr 80px; }
+  .disk__what, .disk__bar { grid-column: 1 / -1; }
+}
 .place .pc-list { gap: 2px; margin: 0; }
 .place .pc-row { padding: 14px 12px; margin: 0 -12px; background: none; transition: background 0.12s; }
 .place .pc-row:hover, .place .pc-row:focus-within { background: #141414; }

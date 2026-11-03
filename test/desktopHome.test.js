@@ -199,3 +199,31 @@ test('storage: Open in Race analysis opens that session, not the newest', async 
   assert.match(app.doc.querySelector('.ana__title').textContent, /Monza/);
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('storage: disk use per store, largest first, and it updates after a delete (roadmap W3)', async (t) => {
+  let use = { raceDb: 19.6e6, sessions: 2.2e6, captures: 410e6, other: 70e3, total: 19.6e6 + 2.2e6 + 410e6 + 70e3 };
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = {
+        ...fakeApi(),
+        diskUse: async () => use,
+        captures: async () => [{ name: 'rec1', bytes: 410e6, startedAt: Date.UTC(2026, 9, 1), marks: 0, track: 'Spa', session: 'Race', report: null }],
+        deleteCapture: async () => { use = { ...use, captures: 0, total: use.total - use.captures }; return true; },
+      };
+    },
+  });
+  await settle();
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: [] } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.querySelector('.home__name').textContent === 'Storage').click();
+  await settle();
+  const rows = () => [...doc.querySelectorAll('.disk__row')].map((r) => [r.querySelector('.disk__name').textContent, r.querySelector('.disk__size').textContent]);
+  assert.deepStrictEqual(rows(), [['Recordings', '410 MB'], ['Race store', '20 MB'], ['Saved sessions', '2 MB'], ['Other', '70 KB']]);
+  assert.match(doc.querySelector('.disk__total').textContent, /432 MB/);
+  const rec = [...doc.querySelectorAll('.pc-row')].find((r) => r.textContent.includes('Spa'));
+  [...rec.querySelectorAll('button')].find((b) => b.textContent === 'Delete').click();
+  await settle();
+  assert.deepStrictEqual(rows().map((r) => r[0]), ['Race store', 'Saved sessions', 'Other'], 'an empty store drops out');
+  assert.deepStrictEqual(app.errors, []);
+});
