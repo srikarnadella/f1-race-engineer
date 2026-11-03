@@ -5,7 +5,9 @@
 // Written for small models: tyres by name, times in seconds, events filtered to what happened to you
 // and to the race, and bind(sessionId) to answer about one session without a session_id argument.
 const { DatabaseSync } = require('node:sqlite');
-const { compareLaps, describeCorner } = require('../analysis/lapCompare');
+const { compareLaps, describeCorner, lapCorners } = require('../analysis/lapCompare');
+const { adviseCorners, liftAndCoast } = require('./coaching');
+const { median } = require('../lib/stats');
 
 const TYRE = { 16: 'soft', 17: 'medium', 18: 'hard', 7: 'inter', 8: 'wet' };
 const tyre = (c) => TYRE[c] || (c == null ? null : 'unknown');
@@ -27,6 +29,8 @@ const TOOLS = {
   results: { description: 'The finishing order: position, driver, grid, pit stops, best lap, penalties, and whether they finished.', props: { session_id: SID }, required: ['session_id'] },
   calls: { description: 'The race engineer calls (PUSH, HOLD, BOX...) in the session, with the lap and the reason.', props: { session_id: SID }, required: ['session_id'] },
   events: { description: 'What happened to you and to the race, in order: overtakes, collisions, penalties, safety cars, retirements, fastest laps. Optionally only between two laps, or about another driver.', props: { session_id: SID, lap_from: int('first lap'), lap_to: int('last lap'), driver: DRIVER }, required: ['session_id'] },
+  lap_coaching: { description: 'What to do better, corner by corner: one of your laps against your best lap (braking point, apex speed, getting back to full throttle, coasting), biggest loss first. Leave lap out for a typical lap of yours.', props: { session_id: SID, lap: int('your lap to coach; leave out for a typical one') }, required: ['session_id'] },
+  lift_and_coast: { description: 'Where to lift and coast to save fuel: the braking zones after your longest flat-out runs, where you coast now, and your fuel use a lap.', props: { session_id: SID, lap: int('lap to read; leave out for your best lap') }, required: ['session_id'] },
   compare_laps: { description: 'Two of your laps with telemetry, corner by corner: where lap_b lost or gained time on lap_a, and why (braking, apex and exit speed).', props: { session_id: SID, lap_a: int('reference lap'), lap_b: int('lap to explain') }, required: ['session_id', 'lap_a', 'lap_b'] },
 };
 
@@ -63,6 +67,13 @@ function createRaceTools(file) {
       WHERE e.session_id = ? AND e.lap_num BETWEEN ? AND ? AND e.code IN (${codes}) ORDER BY e.session_time_s`),
     trace: q('SELECT distance_m, lap_time_ms, speed_kmh, throttle, brake, steer, gear FROM trace_point WHERE session_id = ? AND car_idx = ? AND lap_num = ? ORDER BY distance_m'),
   };
+  // A lap's telemetry as lapCompare reads it, or null.
+  function traceOf(sid, car, n, rows) {
+    const row = rows.find((l) => l.lap_num === n);
+    if (!row) return null;
+    const points = sql.trace.all(sid, car, n).map((p) => [p.distance_m, p.lap_time_ms, p.speed_kmh, p.throttle, p.brake, p.steer, p.gear]);
+    return points.length > 10 ? { lapNum: n, lapMs: row.lap_ms, points } : null;
+  }
   const carOf = (sid, driver) => {
     const r = sql.car.get(sid, driver ?? null, driver ?? null);
     return r ? r.car_idx : null;
@@ -117,6 +128,48 @@ function createRaceTools(file) {
           by_you: e.car_idx === me, // the overtaker, the one penalised
         })),
       };
+    },
+    lap_coaching: ({ session_id: sid, lap }) => {
+      const car = carOf(sid, null);
+      if (car == null) return noCar(null);
+      const rows = /** @type {any[]} */ (sql.laps.all(sid, car));
+      const traced = rows.filter((l) => l.lap_num > 1 && !l.pit && !l.neutralised && l.valid !== 0 && traceOf(sid, car, l.lap_num, rows));
+      if (traced.length < 2) return { error: 'Needs two clean laps with telemetry' };
+      const best = traced.reduce((a, b) => (b.lap_ms < a.lap_ms ? b : a));
+      // A typical lap: the one closest to your median clean lap, not the best.
+      const mid = median(traced.map((l) => l.lap_ms));
+      const which = lap ?? traced.filter((l) => l !== best).reduce((a, b) => (Math.abs(b.lap_ms - mid) < Math.abs(a.lap_ms - mid) ? b : a)).lap_num;
+      if (which === best.lap_num) return { error: `Lap ${which} is your best lap: there's nothing faster of yours to coach it against` };
+      const la = traceOf(sid, car, best.lap_num, rows);
+      const lb = traceOf(sid, car, which, rows);
+      if (!lb) return { error: `No telemetry for lap ${which}` };
+      const c = compareLaps(la, lb);
+      const lost = c.corners.filter((k) => k.timeS > 0).reduce((a, k) => a + k.timeS, 0);
+      return {
+        lap: which, best_lap: best.lap_num, typical: lap == null,
+        verdict: `Lap ${which} (${lapTime(lb.lapMs)}) was ${Math.abs(c.totalS).toFixed(3)} s ${c.totalS >= 0 ? 'slower' : 'faster'} than your best, lap ${best.lap_num} (${lapTime(la.lapMs)})`,
+        in_corners_s: +lost.toFixed(2),
+        between_corners_s: +Math.max(0, c.totalS - lost).toFixed(2),
+        advice: adviseCorners(c.corners, { best: best.lap_num, lap: which }).slice(0, 5),
+      };
+    },
+    lift_and_coast: ({ session_id: sid, lap }) => {
+      const car = carOf(sid, null);
+      if (car == null) return noCar(null);
+      const rows = /** @type {any[]} */ (sql.laps.all(sid, car));
+      const clean = rows.filter((l) => l.lap_num > 1 && !l.pit && !l.neutralised && l.valid !== 0);
+      const best = clean.filter((l) => traceOf(sid, car, l.lap_num, rows)).reduce((a, b) => (!a || b.lap_ms < a.lap_ms ? b : a), null);
+      const which = lap ?? (best && best.lap_num);
+      const t = which != null && traceOf(sid, car, which, rows);
+      if (!t) return { error: `No telemetry for lap ${which ?? '(none)'}` };
+      // Fuel a lap: the median drop in the tank between consecutive clean laps.
+      const drops = [];
+      for (let i = 1; i < rows.length; i++) {
+        const a = rows[i - 1];
+        const b = rows[i];
+        if (b.lap_num === a.lap_num + 1 && a.fuel_kg != null && b.fuel_kg != null && !b.pit && !a.pit && a.fuel_kg > b.fuel_kg) drops.push(a.fuel_kg - b.fuel_kg);
+      }
+      return liftAndCoast(lapCorners(t.points), { lap: which, fuelPerLapKg: drops.length ? median(drops) : null });
     },
     compare_laps: ({ session_id: sid, lap_a: a, lap_b: b }) => {
       const car = carOf(sid, null);

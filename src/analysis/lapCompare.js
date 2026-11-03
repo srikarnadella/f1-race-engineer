@@ -61,6 +61,26 @@ function brakingZones(r) {
 }
 
 const round = (v, dp = 0) => Math.round(v * 10 ** dp) / 10 ** dp;
+
+// Coaching measures on a resampled lap. Coasting: off both pedals right before the brakes go on
+// (lift and coast). Full throttle: how far after the apex the throttle is fully open again.
+const FULL = 0.95;
+function coastBefore(r, k) {
+  let n = 0;
+  for (let m = k - 1; m >= 0 && r.throttle[m] < 0.1 && r.brake[m] < 0.05 && n * STEP_M < 400; m--) n++;
+  return n * STEP_M;
+}
+function fullThrottleAfter(r, apex) {
+  for (let m = apex; m < r.d.length && (m - apex) * STEP_M <= 500; m++) if (r.throttle[m] >= FULL) return (m - apex) * STEP_M;
+  return null;
+}
+function flatOutBefore(r, k) {
+  let m = k - 1;
+  while (m >= 0 && r.throttle[m] < FULL) m--; // back past the lift
+  let n = 0;
+  for (; m >= 0 && r.throttle[m] >= FULL; m--) n++;
+  return n * STEP_M;
+}
 const at = (arr, k) => arr[Math.max(0, Math.min(arr.length - 1, k))];
 
 // Pairs each reference corner with the other lap's braking zone, mutual
@@ -117,9 +137,16 @@ function compareLaps(a, b) {
       brakePointM: null, // + = B braked later
       refApexKmh: round(ra.speed[za.apex]),
     };
+    c.refCoastM = coastBefore(ra, za.start);
+    c.coastM = null;
+    c.throttleM = null; // + = B back on full throttle later after the apex
     if (mb) {
       c.brakePointM = round(rb.d[mb.start] - ra.d[za.start]);
       c.apexKmh = round(rb.speed[mb.apex] - ra.speed[za.apex]);
+      c.coastM = coastBefore(rb, mb.start);
+      const fa = fullThrottleAfter(ra, za.apex);
+      const fb = fullThrottleAfter(rb, mb.apex);
+      if (fa != null && fb != null) c.throttleM = fb - fa;
     }
     c.summary = describeCorner(c);
     return c;
@@ -159,6 +186,8 @@ function describeCorner(c) {
   if (c.brakePointM != null && Math.abs(c.brakePointM) >= 5) why.push(`braked ${Math.abs(c.brakePointM)} m ${c.brakePointM < 0 ? 'earlier' : 'later'}`);
   if (c.apexKmh != null && Math.abs(c.apexKmh) >= 3) why.push(`${Math.abs(c.apexKmh)} km/h ${c.apexKmh < 0 ? 'slower' : 'faster'} at the apex`);
   if (Math.abs(c.exitKmh) >= 4) why.push(`${Math.abs(c.exitKmh)} km/h ${c.exitKmh < 0 ? 'down' : 'up'} on exit`);
+  if (c.throttleM != null && Math.abs(c.throttleM) >= 10) why.push(`full throttle ${Math.abs(c.throttleM)} m ${c.throttleM > 0 ? 'later' : 'sooner'}`);
+  if (c.coastM != null && c.coastM >= 20 && c.coastM - (c.refCoastM || 0) >= 15) why.push(`coasted ${c.coastM} m before braking`);
   const verb = c.timeS >= 0 ? `lost ${c.timeS.toFixed(2)}s` : `gained ${Math.abs(c.timeS).toFixed(2)}s`;
   return `Corner ${c.corner} (${(c.atM / 1000).toFixed(1)} km): ${verb}${why.length ? ` - ${why.join(', ')}` : ''}`;
 }
@@ -197,4 +226,22 @@ function consistency(traces) {
   });
 }
 
-module.exports = { compareLaps, consistency, resample, brakingZones, describeCorner, STEP_M };
+// One lap's braking zones for coaching: where each starts, the flat-out run before it, any
+// coasting, entry and apex speed, and how soon after the apex the throttle is full again.
+function lapCorners(points) {
+  const pts = rising(points);
+  if (pts.length < 10) return [];
+  const r = resample(pts, pts[pts.length - 1][COL.d]);
+  return brakingZones(r).map((z, i) => ({
+    corner: i + 1,
+    atM: r.d[z.start],
+    coastM: coastBefore(r, z.start),
+    flatOutM: flatOutBefore(r, z.start),
+    entryKmh: round(r.speed[z.start]),
+    apexKmh: round(r.speed[z.apex]),
+    apexAtM: r.d[z.apex],
+    fullThrottleAfterM: fullThrottleAfter(r, z.apex),
+  }));
+}
+
+module.exports = { lapCorners, compareLaps, consistency, resample, brakingZones, describeCorner, STEP_M };

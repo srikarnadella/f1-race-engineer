@@ -15,7 +15,10 @@ Only if the facts and the tools can't show the answer, reply exactly: "The recor
 Answer in one to three short sentences, plainly. "You" is the driver. Lap times look like 1:30.948.
 Tools: compare_laps for where time went between two of your laps (corners, braking, speed);
 lap_times with a driver for another car's laps; gaps for the order and gaps at the end of a lap;
-events for overtakes, collisions and penalties; results for the finishing order.`;
+events for overtakes, collisions and penalties; results for the finishing order; lap_coaching for what to
+do better corner by corner; lift_and_coast for where to save fuel.
+When coaching lines are given, pass on that advice with its numbers; don't invent other advice.
+Talk about brake bias, the differential or battery deployment only if the facts below include them.`;
 
 const list = (xs) => (xs.length ? xs.join(', ') : 'none');
 
@@ -130,12 +133,19 @@ function checkGrounding(answer, facts) {
 // and incidents. The brief already answers the rest.
 const TIME_WORDS = /\b(lose|lost|losing|gain|gained|faster|slower|quicker|compare|compared|difference|why|where)\b/i;
 const ORDER_WORDS = /\b(ahead|behind|gap|order|leader|leading|front)\b/i;
+const COACH_WORDS = /\b(better|improve|improving|advice|tips?|coach\w*|work on|mistakes?)\b|throughout the lap|through the lap|around the lap/i;
+const COAST_WORDS = /\blift(ing)? and coast|\bcoast\w*|\bsave fuel|\bfuel sav\w*/i;
 function lookups(bound, question) {
   const out = [];
   const add = (name, args) => out.push({ name, args, result: bound.run(name, args) });
   const named = [...question.matchAll(/\blaps? (\d{1,3})(?:\s*(?:and|&|vs\.?|versus|to)\s*(?:lap )?(\d{1,3}))?/gi)].flatMap((m) => [m[1], m[2]]);
   const laps = [...new Set(named.filter(Boolean).map(Number))];
-  if (TIME_WORDS.test(question) && laps.length) {
+  if (COAST_WORDS.test(question)) {
+    add('lift_and_coast', laps.length ? { lap: laps[0] } : {});
+  } else if (COACH_WORDS.test(question) || (TIME_WORDS.test(question) && !laps.length)) {
+    // What to do better, or where time went with no lap named: a typical lap against your best.
+    add('lap_coaching', laps.length === 1 ? { lap: laps[0] } : {});
+  } else if (TIME_WORDS.test(question) && laps.length) {
     const { laps: mine = [] } = bound.run('lap_times', {});
     const clean = mine.filter((l) => l.lap > 1 && !l.pit && !l.safety_car && l.valid !== false);
     const best = clean.length ? clean.reduce((a, b) => (b.ms < a.ms ? b : a)) : null;
@@ -153,6 +163,18 @@ function lookups(bound, question) {
     add('events', { driver: r.driver });
   }
   return out;
+}
+
+// Coaching and lift-and-coast results as sentences to answer from.
+function coachingText(c) {
+  if (c.error) return `lap_coaching: ${c.error}`;
+  const lines = [`Coaching${c.typical ? ` on a typical lap of yours (lap ${c.lap})` : ''}: ${c.verdict}. Of that, ${c.in_corners_s.toFixed(2)} s went in the braking zones and ${c.between_corners_s.toFixed(2)} s between corners.`];
+  lines.push(c.advice.length ? `What to do better, biggest loss first:\n${c.advice.map((a) => `- ${a.text}`).join('\n')}` : 'No corner lost enough time to advise on.');
+  return lines.join('\n');
+}
+function coastText(c) {
+  if (c.error) return `lift_and_coast: ${c.error}`;
+  return `Lift and coast (from lap ${c.lap}): ${c.summary}\n${c.candidates.map((x) => `- ${x.text}`).join('\n')}`;
 }
 
 // A lap comparison as sentences to answer from: the overall gap, the corner that cost most, the
@@ -187,13 +209,18 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
   const focus = named.map((n) => mine.find((l) => l.lap === n)).filter(Boolean).map((l) => `At the end of lap ${l.lap} you were P${l.position}, on ${l.tyre} tyres ${l.tyre_age} laps old; the lap took ${l.time}${l.pit ? ', a pit lap' : ''}${l.safety_car ? ', under the safety car' : ''}.`);
   const looked = [
     focus.length ? `The lap${focus.length > 1 ? 's' : ''} asked about:\n${focus.join('\n')}` : '',
-    ...found.map((x) => (x.name === 'compare_laps' && !x.result.error ? comparisonText(x.result) : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
+    ...found.map((x) => (x.name === 'compare_laps' && !x.result.error ? comparisonText(x.result)
+      : x.name === 'lap_coaching' ? coachingText(x.result)
+        : x.name === 'lift_and_coast' ? coastText(x.result)
+          : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
   ].filter(Boolean).map((x, i) => (i ? x : `\n\nLooked up for this question:\n${x}`)).join('\n');
 
   // The chart the question is about, drawn by the engine; its finding goes in front of the model too.
   const charts = [];
   const rival = (found.find((x) => x.name === 'lap_times' && x.args.driver) || { args: {} }).args.driver || null;
-  const pick = chartFor(question, { rival });
+  // Coaching shows the two laps' speed; otherwise the chart the question is about.
+  const coached = found.find((x) => x.name === 'lap_coaching' && !x.result.error);
+  const pick = coached ? { kind: 'lap_compare', args: { lap_a: coached.result.best_lap, lap_b: coached.result.lap } } : chartFor(question, { rival });
   if (pick) {
     const c = buildChart(tools, sessionId, pick.kind, pick.args);
     if (!c.error) charts.push(c);
@@ -225,7 +252,10 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
   // What the answer was worked out from, in words, shown under it.
   const evidence = [
     ...focus,
-    ...found.map((x) => (x.name === 'compare_laps' && !x.result.error ? comparisonText(x.result).split('\n').slice(0, 2).join(' ') : evidenceLine(x))),
+    ...found.flatMap((x) => (x.name === 'compare_laps' && !x.result.error ? [comparisonText(x.result).split('\n').slice(0, 2).join(' ')]
+      : x.name === 'lap_coaching' && !x.result.error ? [`${x.result.verdict}.`, ...x.result.advice.map((a) => a.text)]
+        : x.name === 'lift_and_coast' && !x.result.error ? x.result.candidates.map((c) => c.text)
+          : [evidenceLine(x)])),
     ...charts.map((c) => `${c.title}: ${c.finding}`),
   ].filter(Boolean);
   return { ...out, lookedUp: found.map((x) => x.name), ...checkGrounding(out.answer, facts), charts, evidence, session: { id: s.session_id, track: s.track, type: s.type, date: s.date } };

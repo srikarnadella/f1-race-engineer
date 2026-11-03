@@ -122,3 +122,21 @@ test('ask: the model can put up a chart itself, from the built-in kinds only', a
   const out = await askRace({ ollama, tools: tl, sessionId: s.session_id, model: 'qwen3:1.7b', question: 'Anything else?' });
   assert.deepStrictEqual(out.charts.map((c) => c.kind), ['lap_times']);
 });
+
+test('ask: "what can I do better" and "lift and coast" are looked up by the engine, with their rules', (t) => {
+  const { lookups } = require('../src/llm/ask');
+  const tl = tools(t);
+  const s = tl.run('sessions', {}).sessions[0];
+  const bound = tl.bind(s.session_id);
+  assert.deepStrictEqual(lookups(bound, 'What can I do better?').map((x) => x.name), ['lap_coaching']);
+  assert.deepStrictEqual(lookups(bound, 'Where did I lose time throughout the lap?').map((x) => x.name), ['lap_coaching']);
+  const traced = tl.run('lap_times', { session_id: s.session_id }).laps.filter((l) => l.has_telemetry).map((l) => l.lap);
+  assert.deepStrictEqual(lookups(bound, `Any tips for lap ${traced[1]}?`)[0].args, { lap: traced[1] });
+  assert.deepStrictEqual(lookups(bound, 'Where should I lift and coast to save fuel?').map((x) => x.name), ['lift_and_coast']);
+});
+
+test('ask: the model is told not to make up setup advice the recording has no data for', () => {
+  const { RULES } = require('../src/llm/ask');
+  assert.match(RULES, /brake bias|differential|battery/i);
+  assert.match(RULES, /only (if|when)/i);
+});

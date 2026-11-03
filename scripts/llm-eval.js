@@ -39,6 +39,11 @@ function questionsFor(tools, sid) {
     behind ? { q: 'Who finished right behind me?', expect: [new RegExp(behind.driver, 'i')] } : null,
     { q: 'What was the track temperature?', expect: [/doesn't show|does not show|not in the|no (data|record)/i] },
   ].filter(Boolean);
+  // Coaching: the corner the engine's rules rank first; lift and coast: one of its candidate corners.
+  const coach = run('lap_coaching');
+  if (!coach.error && coach.advice.length) qs.push({ q: 'What can I do better?', expect: [new RegExp(`corner ${coach.advice[0].corner}\\b`, 'i')], tool: 'lap_coaching' });
+  const coast = run('lift_and_coast');
+  if (!coast.error && coast.candidates.length) qs.push({ q: 'Where should I lift and coast to save fuel?', expect: [new RegExp(`corner (${coast.candidates.map((c) => c.corner).join('|')})\\b`, 'i')], tool: 'lift_and_coast' });
   // Needs a tool: where time went between two laps with telemetry.
   const traced = clean.filter((l) => l.has_telemetry && l.lap !== best.lap);
   if (best.has_telemetry && traced.length) {
