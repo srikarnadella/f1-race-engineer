@@ -21,6 +21,8 @@ const { startRecognizer, grammarPhrases } = require('./speech');
 const { createOllama } = require('../src/llm/ollama');
 const { createRaceTools } = require('../src/llm/tools');
 const { MODELS, isOffered } = require('../src/llm/catalog');
+const { askRace } = require('../src/llm/ask');
+const { buildChart, CHART_KINDS } = require('../src/llm/charts');
 
 const UDP_HOST = '0.0.0.0'; // a console or second PC can send telemetry too
 const SPEECH_IDLE_MS = 2 * 60 * 1000;
@@ -229,15 +231,36 @@ if (!app.requestSingleInstanceLock()) {
     await ollama.remove(id);
     return true;
   });
-  handle('llm:ask', async (model, question) => {
-    if (typeof question !== 'string' || !question.trim()) throw new Error('Ask a question');
-    offered(model);
-    const tools = createRaceTools(path.join(paths.data(), 'race.db')); // read-only, closed after the answer
+  // race.db read-only, opened for the one call and closed after it.
+  const withRaceDb = async (fn) => {
+    const file = path.join(paths.data(), 'race.db');
+    if (!fs.existsSync(file)) throw new Error('No races saved yet');
+    const tools = createRaceTools(file);
     try {
-      return await ollama.ask({ model, question: question.slice(0, 2000), tools });
+      return await fn(tools);
     } finally {
       tools.close();
     }
+  };
+  const sessionIdOf = (id) => {
+    if (!Number.isInteger(id) || id < 1) throw new Error('Pick a session');
+    return id;
+  };
+  handle('llm:sessions', () => withRaceDb((t) => t.run('sessions', {}).sessions));
+  handle('llm:results', (id) => withRaceDb((t) => t.run('results', { session_id: sessionIdOf(id) }).results || []));
+  handle('llm:ask', (model, id, question) => {
+    if (typeof question !== 'string' || !question.trim()) throw new Error('Ask a question');
+    offered(model);
+    return withRaceDb((tools) => askRace({ ollama, tools, sessionId: sessionIdOf(id), model, question: question.slice(0, 2000) }));
+  });
+  // Chart commands: drawn from the data, no model. Only the built-in kinds and plain arguments.
+  handle('llm:chart', (id, kind, args) => {
+    if (!CHART_KINDS.includes(kind)) throw new Error('Not a chart this app draws');
+    const a = args && typeof args === 'object' ? args : {};
+    const clean = {};
+    if (typeof a.driver === 'string' && a.driver.length <= 60) clean.driver = a.driver;
+    for (const k of ['lap_a', 'lap_b']) if (Number.isInteger(a[k])) clean[k] = a[k];
+    return withRaceDb((tools) => buildChart(tools, sessionIdOf(id), kind, clean));
   });
   handle('llm:stop', () => ollama.stop());
 

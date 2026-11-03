@@ -4,6 +4,7 @@
 // Afterwards every lap time, lap number and position in the answer is checked against the brief
 // and the tool results: one that isn't there is flagged, never shown as if it were the record.
 const { MODELS } = require('./catalog');
+const { buildChart, chartFor, CHART_KINDS } = require('./charts');
 
 const RULES = `You are Undercut's race engineer, answering a driver's question after an F1 26 session.
 Use only the session facts below and what the tools return. Every lap time, lap number, position and
@@ -188,17 +189,78 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
     focus.length ? `The lap${focus.length > 1 ? 's' : ''} asked about:\n${focus.join('\n')}` : '',
     ...found.map((x) => (x.name === 'compare_laps' && !x.result.error ? comparisonText(x.result) : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
   ].filter(Boolean).map((x, i) => (i ? x : `\n\nLooked up for this question:\n${x}`)).join('\n');
+
+  // The chart the question is about, drawn by the engine; its finding goes in front of the model too.
+  const charts = [];
+  const rival = (found.find((x) => x.name === 'lap_times' && x.args.driver) || { args: {} }).args.driver || null;
+  const pick = chartFor(question, { rival });
+  if (pick) {
+    const c = buildChart(tools, sessionId, pick.kind, pick.args);
+    if (!c.error) charts.push(c);
+  }
+  const shownText = charts.length ? `\n\nShown with your answer: a chart, "${charts[0].title}". ${charts[0].finding}` : '';
+  // The model may put up a chart itself: only the built-in kinds, drawn by the engine.
+  const withCharts = {
+    schemas: [...bound.schemas, SHOW_CHART],
+    run: (name, args) => {
+      if (name !== 'show_chart') return bound.run(name, args);
+      const { kind, ...rest } = args || {};
+      const c = buildChart(tools, sessionId, String(kind), rest);
+      if (c.error) return c;
+      if (!charts.some((x) => x.title === c.title)) charts.push(c);
+      return { shown: c.title, finding: c.finding };
+    },
+  };
+
   const out = await ollama.ask({
     model,
     question,
-    system: `${RULES}\n\nSession facts:\n${brief.text}${looked}`,
-    tools: bound,
+    system: `${RULES}\n\nSession facts:\n${brief.text}${looked}${shownText}`,
+    tools: withCharts,
     ...(thinks(model) ? { think: false } : {}), // quicker, and no reasoning text to strip
     options: { temperature: 0.2 },
   });
-  const facts = `${brief.facts}${looked}\n${JSON.stringify((out.toolCalls || []).map((c) => c.result))}`;
+  const facts = `${brief.facts}${looked}${shownText}\n${JSON.stringify((out.toolCalls || []).map((c) => c.result))}`;
   const s = brief.session;
-  return { ...out, lookedUp: found.map((x) => x.name), ...checkGrounding(out.answer, facts), session: { id: s.session_id, track: s.track, type: s.type, date: s.date } };
+  // What the answer was worked out from, in words, shown under it.
+  const evidence = [
+    ...focus,
+    ...found.map((x) => (x.name === 'compare_laps' && !x.result.error ? comparisonText(x.result).split('\n').slice(0, 2).join(' ') : evidenceLine(x))),
+    ...charts.map((c) => `${c.title}: ${c.finding}`),
+  ].filter(Boolean);
+  return { ...out, lookedUp: found.map((x) => x.name), ...checkGrounding(out.answer, facts), charts, evidence, session: { id: s.session_id, track: s.track, type: s.type, date: s.date } };
+}
+
+const SHOW_CHART = {
+  type: 'function',
+  function: {
+    name: 'show_chart',
+    description: `Put a chart up next to your answer, drawn from the recording: lap_times (your lap times, or with a driver beside yours), positions (lap by lap, optionally with a driver), gap_to_driver (needs driver), lap_compare (speed over two of your laps: lap_a the reference, lap_b the lap to explain).`,
+    parameters: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: CHART_KINDS, description: 'Which chart' },
+        driver: { type: 'string', description: 'Another driver, for lap_times, positions or gap_to_driver' },
+        lap_a: { type: 'integer', description: 'lap_compare: the reference lap' },
+        lap_b: { type: 'integer', description: 'lap_compare: the lap to explain' },
+      },
+      required: ['kind'],
+      additionalProperties: false,
+    },
+  },
+};
+
+// A looked-up result in one readable line for the evidence list.
+function evidenceLine(x) {
+  const r = x.result;
+  if (r.error) return `${x.name}: ${r.error}`;
+  if (x.name === 'gaps') return `Order at the end of lap ${r.lap}: ${r.cars.slice(0, 5).map((c) => `P${c.position} ${c.you ? 'you' : c.driver}`).join(', ')}${r.cars.some((c) => c.you && c.position > 5) ? `; you P${r.cars.find((c) => c.you).position}` : ''}.`;
+  if (x.name === 'lap_times') {
+    const best = (r.laps || []).filter((l) => l.lap > 1 && !l.pit && !l.safety_car).reduce((a, b) => (!a || b.ms < a.ms ? b : a), null);
+    return `${x.args.driver}'s laps: ${r.laps.length}${best ? `, best lap ${best.lap} (${best.time})` : ''}.`;
+  }
+  if (x.name === 'events') return `${x.args.driver}'s incidents: ${(r.events || []).length ? r.events.slice(0, 4).map((e) => `lap ${e.lap} ${e.what.toLowerCase()}`).join(', ') : 'none'}.`;
+  return null;
 }
 
 module.exports = { sessionBrief, checkGrounding, askRace, lookups, RULES };

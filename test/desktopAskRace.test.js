@@ -28,8 +28,12 @@ function fakeApi({ installed = true, models = ['qwen3:4b'] } = {}) {
     downloads: async () => downloads.map((d) => ({ ...d })),
     clearDownloads: async () => { downloads = downloads.filter((d) => d.state === 'downloading'); emit(); },
     remove: async (id) => { calls.push(['remove', id]); have = have.filter((x) => x !== id); return true; },
-    ask: ok,
-    stop: ok,
+    // Questions (L5): the sessions in race.db, the answer with its chart and evidence, chart commands.
+    sessions: async () => SESSIONS,
+    results: async () => [{ position: 3, driver: 'LECLERC', you: false }, { position: 4, driver: 'YOU', you: true }, { position: 5, driver: 'ANTONELLI', you: false }],
+    ask: async (model, sessionId, question) => { calls.push(['ask', model, sessionId, question]); return answer(question); },
+    chart: async (sessionId, kind, args) => { calls.push(['chart', sessionId, kind, args]); return { ...CHART, kind, title: `Chart ${kind}` }; },
+    stop: async () => { calls.push(['stop']); },
   };
   return {
     api: { status: ok, setSettings: ok, record: ok, stopRecording: ok, replay: ok, live: ok, captures: async () => [], analyze: ok, deleteCapture: ok, deleteSession: ok, showCapture: ok, openReport: ok, openDataFolder: ok, openInBrowser: ok, speech: { start: ok, stop: ok }, llm, on: (ch, fn) => { handlers[ch] = fn; return () => {}; } },
@@ -40,6 +44,19 @@ function fakeApi({ installed = true, models = ['qwen3:4b'] } = {}) {
   };
 }
 const settle = () => new Promise((r) => setTimeout(r, 15));
+
+const SESSIONS = [
+  { session_id: 21, track: 'Spa', type: 'Short qualifying', is_race: false, date: '2026-10-20', finish: 19 },
+  { session_id: 19, track: 'Silverstone', type: 'Race', is_race: true, date: '2026-10-19', grid: 10, finish: 4 },
+];
+const CHART = {
+  kind: 'positions', title: 'Your position, lap by lap', x: { label: 'Lap' }, y: { label: 'Position', invert: true },
+  series: [{ name: 'You', you: true, points: [[1, 4], [2, 3], [3, 3], [4, 4]] }, { name: 'LECLERC', points: [[1, 3], [2, 4], [3, 4], [4, 3]] }],
+  marks: [{ x: 3, label: 'Pit' }], finding: 'P4 to P4 from lap 1 to lap 4; highest P3 (lap 2).',
+};
+const answer = (q) => (/invent/.test(q)
+  ? { answer: 'Your best was 1:29.000.', grounded: false, unsupported: ['1:29.000'], charts: [], evidence: ['Best lap: lap 2, 1:30.948.'], toolCalls: [] }
+  : { answer: 'You went from P4 to P3 on lap 2, then back to P4.', grounded: true, unsupported: [], charts: [CHART], evidence: ['At the end of lap 2 you were P3.', `${CHART.title}: ${CHART.finding}`], toolCalls: [] });
 
 async function openAsk(t, opts, snap = { source: 'live', connected: false, debrief: { sessions: [] } }) {
   const fake = fakeApi(opts);
@@ -134,4 +151,51 @@ test('ask the race: while the game is sending telemetry, downloads wait and it s
   const app = await openAsk(t, {}, { source: 'live', connected: true, debrief: { sessions: [] } });
   assert.match(app.doc.querySelector('.llm__live').textContent, /The game is sending telemetry/);
   assert.strictEqual(app.btn('llama3.2:3b', 'Download').disabled, true);
+});
+
+test('ask the race: with a model downloaded, ask about the newest race and get the answer, its chart and its evidence (roadmap L5)', async (t) => {
+  const app = await openAsk(t);
+  const pick = app.doc.querySelector('.llm__session');
+  assert.strictEqual(pick.value, '19', 'the newest race, not the qualifying after it');
+  assert.deepStrictEqual([...app.doc.querySelector('.llm__pick-model').options].map((o) => o.value), ['qwen3:4b']);
+  const box = app.doc.querySelector('.llm__question');
+  box.value = 'How did my position change?';
+  app.doc.querySelector('.llm__ask').click();
+  await settle();
+  assert.deepStrictEqual(app.fake.calls.find((c) => c[0] === 'ask'), ['ask', 'qwen3:4b', 19, 'How did my position change?']);
+  const item = app.doc.querySelector('.llm__answer');
+  assert.match(item.querySelector('.llm__q').textContent, /How did my position change/);
+  assert.match(item.querySelector('.llm__a').textContent, /P4 to P3 on lap 2/);
+  assert.ok(item.querySelector('svg.llm__chart'), 'the chart, drawn');
+  assert.match(item.querySelector('.llm__finding').textContent, /highest P3/);
+  assert.strictEqual(item.querySelectorAll('.llm__evidence li').length, 2);
+  assert.strictEqual(item.querySelector('.llm__unsupported'), null);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('ask the race: an answer with something not in your data says so plainly', async (t) => {
+  const app = await openAsk(t);
+  app.doc.querySelector('.llm__question').value = 'invent something';
+  app.doc.querySelector('.llm__ask').click();
+  await settle();
+  assert.match(app.doc.querySelector('.llm__unsupported').textContent, /not in your data: 1:29.000/i);
+});
+
+test('ask the race: the chart buttons draw straight from the data, no model involved', async (t) => {
+  const app = await openAsk(t);
+  [...app.doc.querySelectorAll('.llm__chip--chart')].find((b) => b.textContent === 'Positions').click();
+  await settle();
+  assert.deepStrictEqual(app.fake.calls.filter((c) => c[0] === 'ask'), []);
+  assert.strictEqual(JSON.stringify(app.fake.calls.find((c) => c[0] === 'chart')), JSON.stringify(['chart', 19, 'positions', {}])); // the page's {} is another window's object
+  assert.ok(app.doc.querySelector('.llm__answer svg.llm__chart'));
+  const gap = app.doc.querySelector('.llm__gap-driver');
+  assert.deepStrictEqual([...gap.options].map((o) => o.textContent), ['P3 LECLERC', 'P5 ANTONELLI'], 'gap to: the other cars, nearest first');
+});
+
+test('ask the race: no question box until a model is downloaded, and none while you race', async (t) => {
+  const none = await openAsk(t, { models: [] });
+  assert.strictEqual(none.doc.querySelector('.llm__question'), null);
+  assert.match(none.doc.querySelector('.llm__askbox').textContent, /Download a model/);
+  const live = await openAsk(t, {}, { source: 'live', connected: true, debrief: { sessions: [] } });
+  assert.strictEqual(live.doc.querySelector('.llm__ask').disabled, true);
 });

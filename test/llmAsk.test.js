@@ -64,7 +64,7 @@ test('ask: the model gets the brief, rules to stay on it, and tools bound to the
   assert.match(sent.system, new RegExp(`${s.track} ${s.type}`));
   assert.ok(!sent.tools.schemas.some((x) => x.function.name === 'sessions'), 'bound to the session');
   assert.strictEqual(sent.think, false, 'Qwen3 answers without thinking out loud: quicker');
-  assert.deepStrictEqual(out, { answer: 'The recording doesn\'t show that.', toolCalls: [], lookedUp: [], grounded: true, unsupported: [], session: { id: s.session_id, track: s.track, type: s.type, date: s.date } });
+  assert.deepStrictEqual(out, { answer: 'The recording doesn\'t show that.', toolCalls: [], lookedUp: [], charts: [], evidence: [], grounded: true, unsupported: [], session: { id: s.session_id, track: s.track, type: s.type, date: s.date } });
 });
 
 test('ask: a seconds figure the data never gave is caught too (a small model does its own sums wrong)', () => {
@@ -95,4 +95,30 @@ test('ask: the engine looks up what the question is about, so a small model need
   const someone = tl.run('results', { session_id: s.session_id }).results.find((r) => !r.you).driver;
   assert.ok(lookups(bound, `How did ${someone.toLowerCase()} do?`).some((x) => x.name === 'lap_times' && x.args.driver === someone));
   assert.deepStrictEqual(lookups(bound, 'What was my best lap?'), [], 'the brief has it');
+});
+
+test('ask: a question about something chartable comes back with the chart, and the model is told what it shows', async (t) => {
+  const tl = tools(t);
+  const s = tl.run('sessions', {}).sessions[0];
+  let sent = null;
+  const ollama = { ask: async (req) => { sent = req; return { answer: 'You moved up.', toolCalls: [] }; } };
+  const out = await askRace({ ollama, tools: tl, sessionId: s.session_id, model: 'qwen3:1.7b', question: 'How did my position change through the race?' });
+  assert.deepStrictEqual(out.charts.map((c) => c.kind), ['positions']);
+  assert.ok(sent.system.includes(out.charts[0].finding), 'the chart\'s finding is in front of the model');
+  assert.ok(out.evidence.some((e) => e.includes(out.charts[0].finding)), 'and in the evidence shown with the answer');
+});
+
+test('ask: the model can put up a chart itself, from the built-in kinds only', async (t) => {
+  const tl = tools(t);
+  const s = tl.run('sessions', {}).sessions[0];
+  const ollama = {
+    ask: async (req) => {
+      assert.ok(req.tools.schemas.some((x) => x.function.name === 'show_chart'));
+      const shown = req.tools.run('show_chart', { kind: 'lap_times' });
+      const refused = req.tools.run('show_chart', { kind: 'pie' });
+      return { answer: 'Here are your laps.', toolCalls: [{ name: 'show_chart', args: { kind: 'lap_times' }, result: shown }, { name: 'show_chart', args: { kind: 'pie' }, result: refused }] };
+    },
+  };
+  const out = await askRace({ ollama, tools: tl, sessionId: s.session_id, model: 'qwen3:1.7b', question: 'Anything else?' });
+  assert.deepStrictEqual(out.charts.map((c) => c.kind), ['lap_times']);
 });

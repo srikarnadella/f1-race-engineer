@@ -62,8 +62,8 @@ flowchart LR
     L1[L1 Read-only race tools]:::done
     L2[L2 Ollama client with a lifecycle]:::done
     L3[L3 Model picker and downloads]:::done
-    L4[L4 Question set picks the models]
-    L5[L5 Ask the race screen]
+    L4[L4 Question set picks the models]:::next
+    L5[L5 Ask the race screen]:::done
   end
   subgraph R[Race analysis: its own place]
     R1[R1 Session picker and race overview]:::done
@@ -323,12 +323,25 @@ phrases the answer.
 - **L4 Question set picks the models.** 20-40 questions from the recorded races with expected facts
   ("where did I lose time on lap 21?", "was the lap 12 box call right?"). *Test:* `npm run llm-eval`
   scores each model (facts right, laps cited, refuses what the data doesn't show) and time per
-  answer on this PC; the scores go in `docs/accuracy.md`; models under the bar leave the list.
+  answer on this PC; the scores go in `docs/accuracy.md`; models under the bar leave the list. *Started:* `npm run llm-eval`: questions
+  whose answers come from race.db (best lap, start and finish, winner, position on a lap, the stop and its
+  tyres, who finished behind, where time went on a lap, and one the data can't answer). qwen3:1.7b, 3 Nov
+  2026: 31/31 right and grounded on four races, 8-10 s a question on a GTX 1650. Still to do: the other
+  models, more questions, and the scores in docs/accuracy.md.
 - **L5 Ask the race screen.** Its own place (W4), reached from Home and from Race analysis (R1). A clear notice: "Not for use
   while racing - it uses the GPU the game needs"; the input is disabled while a session is live.
   Answers cite laps or say the recording doesn't show it. A post-race summary only on request.
   *Test:* the input is disabled and the notice shown while live; a W0 run with the screen open but
-  unused shows no model loaded and no extra CPU; every answer in L4's set cites a lap or refuses.
+  unused shows no model loaded and no extra CPU; every answer in L4's set cites a lap or refuses. *Done:* `public/askrace.js` (`test/desktopAskRace.test.js`)
+  and `src/llm/ask.js`: a session and model picker, the question box with Stop, suggested questions, and
+  the answers newest first, each with its chart, a warning for anything not in your data, and "How this was
+  worked out". The engine gives the model a brief of the session (every lap with its gap to your best,
+  stops with their tyres, overtakes, calls), looks up what the question is about itself (a lap comparison
+  in sentences, the order on a lap, a named driver), and checks every lap time, lap, position and seconds
+  figure in the answer. Charts (`src/llm/charts.js`, `test/llmCharts.test.js`): lap times, positions, gap to
+  a driver and two laps' speed, drawn by the engine with a one-line finding; the engine attaches one when
+  the question is about it, the model can ask for one (`show_chart`), and the chart buttons draw them with
+  no model at all.
 
 ### Race analysis: its own place
 

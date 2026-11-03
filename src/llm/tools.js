@@ -86,6 +86,7 @@ function createRaceTools(file) {
         laps: sql.laps.all(sid, car).map((l) => ({
           lap: l.lap_num, time: lapTime(l.lap_ms), ms: l.lap_ms, s1: sec(l.s1_ms), s2: sec(l.s2_ms), s3: sec(l.s3_ms), position: l.position,
           tyre: tyre(l.compound), tyre_age: l.tyre_age, pit: !!l.pit, safety_car: !!l.neutralised, valid: l.valid == null ? null : !!l.valid, has_telemetry: !!l.traced,
+          gap_to_leader_s: sec(l.gap_to_leader_ms),
         })),
       };
     },
@@ -191,7 +192,25 @@ function createRaceTools(file) {
     };
   }
 
-  return { schemas: schemasOf(TOOLS), run: (name, args) => call(name, args), bind, db, close: () => db.close() };
+  // For charts (the engine's, never the model's): two of your laps' speed over distance, resampled
+  // to the same points by lapCompare, with the corners. null if either lap has no telemetry.
+  function compareTrace(sid, a, b) {
+    const car = carOf(sid, null);
+    if (car == null) return null;
+    const rows = sql.laps.all(sid, car);
+    const lap = (n) => {
+      const points = sql.trace.all(sid, car, n).map((p) => [p.distance_m, p.lap_time_ms, p.speed_kmh, p.throttle, p.brake, p.steer, p.gear]);
+      const row = rows.find((l) => l.lap_num === n);
+      return points.length > 10 && row ? { lapNum: n, lapMs: row.lap_ms, points } : null;
+    };
+    const la = lap(a);
+    const lb = lap(b);
+    if (!la || !lb) return null;
+    const c = compareLaps(la, lb);
+    return { d: c.trace.d, speedA: c.trace.a.speed, speedB: c.trace.b.speed, delta: c.trace.delta, totalS: c.totalS, corners: c.corners };
+  }
+
+  return { schemas: schemasOf(TOOLS), run: (name, args) => call(name, args), bind, compareTrace, db, close: () => db.close() };
 }
 
 module.exports = { createRaceTools, sessionStart };

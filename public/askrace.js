@@ -28,6 +28,91 @@
   const pct = (f) => `${Math.round(f * 100)}%`;
   const reason = (err) => String((err && err.message) || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 
+  // ---------- Charts: the engine's chart specs (src/llm/charts.js) drawn as SVG ----------
+  // You in orange, the other line in blue: the Lap vs lap pair, which passes the dataviz checks.
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const sv = (tag, attrs, ...kids) => {
+    const el = document.createElementNS(SVGNS, tag);
+    for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, String(v));
+    for (const kid of kids) el.append(kid);
+    return el;
+  };
+  const fmt = (v) => (Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2));
+  function ticks(lo, hi, n = 5) {
+    const step = Math.pow(10, Math.floor(Math.log10((hi - lo) / n || 1)));
+    const nice = [1, 2, 5, 10].map((m) => m * step).find((s) => (hi - lo) / s <= n) || step * 10;
+    const out = [];
+    for (let v = Math.ceil(lo / nice) * nice; v <= hi + 1e-9; v += nice) out.push(+v.toFixed(6));
+    return out;
+  }
+  function chartView(c) {
+    const W = 900;
+    const H = 300;
+    const pad = { l: 56, r: 16, t: 14, b: 36 };
+    const all = c.series.flatMap((s) => s.points);
+    const xs = all.map((p) => p[0]);
+    let ys = all.map((p) => p[1]);
+    // Lap times: a pit or safety-car lap would flatten the rest; the axis stops at 107% of your best.
+    if (c.kind === 'lap_times') {
+      const best = Math.min(...ys);
+      ys = ys.map((y) => Math.min(y, best * 1.07));
+    }
+    const x0 = Math.min(...xs);
+    const x1 = Math.max(...xs);
+    let y0 = Math.min(...ys, c.y.zero ? 0 : Infinity);
+    let y1 = Math.max(...ys, c.y.zero ? 0 : -Infinity);
+    if (y0 === y1) { y0 -= 1; y1 += 1; }
+    const span = y1 - y0;
+    if (!c.y.invert) { y0 -= span * 0.05; y1 += span * 0.05; }
+    const X = (v) => pad.l + ((v - x0) / Math.max(1e-9, x1 - x0)) * (W - pad.l - pad.r);
+    const Y = (v) => {
+      const f = (Math.min(Math.max(v, y0), y1) - y0) / (y1 - y0);
+      return c.y.invert ? pad.t + f * (H - pad.t - pad.b) : H - pad.b - f * (H - pad.t - pad.b);
+    };
+    const svg = sv('svg', { class: 'llm__chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${c.title}. ${c.finding}` });
+    // Positions: whole places, always including your best and worst.
+    const yTicks = c.y.invert ? [...new Set([y0, ...ticks(y0, y1).filter((v) => Number.isInteger(v) && v >= 1), y1])].sort((p, q) => p - q) : ticks(y0, y1);
+    for (const v of yTicks) {
+      svg.append(sv('line', { class: 'llm__grid', x1: pad.l, x2: W - pad.r, y1: Y(v), y2: Y(v) }), sv('text', { class: 'llm__tick', x: pad.l - 8, y: Y(v) + 4, 'text-anchor': 'end' }, c.y.invert ? `P${v}` : fmt(v)));
+    }
+    if (c.y.zero) svg.append(sv('line', { class: 'llm__zero', x1: pad.l, x2: W - pad.r, y1: Y(0), y2: Y(0) }));
+    for (const v of ticks(x0, x1, 10)) svg.append(sv('text', { class: 'llm__tick', x: X(v), y: H - 12, 'text-anchor': 'middle' }, String(Math.round(v))));
+    svg.append(sv('text', { class: 'llm__tick', x: W - pad.r, y: H - 1, 'text-anchor': 'end' }, c.x.label));
+    for (const m of c.marks || []) {
+      svg.append(sv('line', { class: 'llm__mark', x1: X(m.x), x2: X(m.x), y1: pad.t, y2: H - pad.b }), sv('text', { class: 'llm__mark-label', x: X(m.x) + 4, y: pad.t + 10 }, m.label));
+    }
+    const lines = c.series.map((s, i) => {
+      const color = s.you ? 'is-you' : i === 0 || c.series.length === 2 ? 'is-ref' : 'is-other';
+      const step = c.kind === 'positions';
+      const d = s.points.map((p, k) => `${k ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('');
+      const g = sv('g', { class: `llm__series ${color}` }, sv('path', { d, class: 'llm__line' }));
+      if (s.points.length <= 40) for (const p of s.points) g.append(sv('circle', { cx: X(p[0]), cy: Y(p[1]), r: step ? 4 : 3.5 }));
+      return g;
+    });
+    lines.sort((a, b) => Number(a.classList.contains('is-you')) - Number(b.classList.contains('is-you'))).forEach((g) => svg.append(g));
+    // Hover: the values at the nearest x, for every line.
+    const cross = sv('line', { class: 'llm__cross', y1: pad.t, y2: H - pad.b, visibility: 'hidden' });
+    svg.append(cross);
+    const readout = h('p', { class: 'llm__readout' }, ' ');
+    svg.addEventListener('mousemove', (e) => {
+      const rect = svg.getBoundingClientRect();
+      if (!rect.width) return;
+      const vx = x0 + (((e.clientX - rect.left) / rect.width) * W - pad.l) / (W - pad.l - pad.r) * (x1 - x0);
+      const near = c.series.map((s) => s.points.reduce((a, p) => (Math.abs(p[0] - vx) < Math.abs(a[0] - vx) ? p : a), s.points[0]));
+      cross.setAttribute('x1', X(near[0][0]));
+      cross.setAttribute('x2', X(near[0][0]));
+      cross.setAttribute('visibility', 'visible');
+      readout.textContent = `${c.x.label} ${Math.round(near[0][0])}: ${c.series.map((s, i) => `${s.name} ${c.y.invert ? `P${near[i][1]}` : fmt(near[i][1])}`).join(' · ')}`;
+    });
+    svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); readout.textContent = ' '; });
+    const legend = c.series.length > 1 ? h('p', { class: 'llm__legend' }, c.series.map((s, i) => h('span', {}, h('i', { class: `llm__key ${s.you ? 'is-you' : i === 0 || c.series.length === 2 ? 'is-ref' : 'is-other'}` }), s.name))) : null;
+    return h('figure', { class: 'llm__figure' },
+      h('figcaption', {}, h('b', { class: 'llm__chart-title' }, c.title), h('span', { class: 'llm__finding' }, c.finding)),
+      legend,
+      h('p', { class: 'llm__axis' }, `${c.y.label}${c.kind === 'lap_times' ? ' · slower than 107% of your best is cut off at the top' : ''}`),
+      svg, readout);
+  }
+
   widgets.askrace = {
     title: 'Ask the race',
     description: 'Questions about your saved races, answered by a local model',
@@ -60,6 +145,122 @@
       const nameOf = (id) => (catalog.find((m) => m.id === id) || { name: id }).name;
       const downloading = (id) => downloads.find((d) => d.model === id && d.state === 'downloading');
 
+      // ---------- Asking (L5): built once, kept across redraws so answers survive download updates ----------
+      let sessions = [];
+      let drivers = [];
+      const askbox = h('section', { class: 'llm__askbox', 'aria-label': 'Ask about a session' });
+      const thread = h('ol', { class: 'llm__thread' });
+      const sessionPick = h('select', { class: 'llm__session lvl__pick', 'aria-label': 'Session', onchange: () => loadDrivers() });
+      const modelPick = h('select', { class: 'llm__pick-model lvl__pick', 'aria-label': 'Model', onchange: () => { try { localStorage.setItem('undercut.llmModel', modelPick.value); } catch (_) { /* fine */ } } });
+      const question = h('textarea', { class: 'llm__question', rows: 2, maxlength: 2000, placeholder: 'Ask about this session, e.g. "Where did I lose time on lap 12?"', 'aria-label': 'Question' });
+      const askBtn = h('button', { type: 'button', class: 'pc-btn pc-btn--primary llm__ask', onclick: () => ask(question.value) }, 'Ask');
+      const stopBtn = h('button', { type: 'button', class: 'pc-btn pc-btn--quiet llm__stop', hidden: true, onclick: () => act(() => api.llm.stop()) }, 'Stop');
+      const gapPick = h('select', { class: 'llm__gap-driver lvl__pick', 'aria-label': 'Driver for the gap chart' });
+      question.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          ask(question.value);
+        }
+      });
+      let busy = false;
+      const sid = () => Number(sessionPick.value);
+      const SUGGESTED = ['What was my best lap?', 'When did I pit, and what tyres did I go onto?', 'How did my position change through the race?', 'Who finished right behind me?'];
+      const chip = (label, onclick, cls = '') => h('button', { type: 'button', class: `llm__chip ${cls}`.trim(), onclick }, label);
+      const controls = h('div', { class: 'llm__ask-ui' },
+        h('div', { class: 'llm__row' }, h('label', {}, 'Session ', sessionPick), h('label', {}, 'Model ', modelPick)),
+        h('div', { class: 'llm__qrow' }, question, askBtn, stopBtn),
+        h('div', { class: 'llm__chips', 'aria-label': 'Suggested questions' }, SUGGESTED.map((q) => chip(q, () => ask(q)))),
+        h('div', { class: 'llm__chips', 'aria-label': 'Charts' },
+          h('span', { class: 'llm__chips-label' }, 'Charts'),
+          chip('Lap times', () => chart('lap_times', {}), 'llm__chip--chart'),
+          chip('Positions', () => chart('positions', {}), 'llm__chip--chart'),
+          h('span', { class: 'llm__gap' }, chip('Gap to', () => chart('gap_to_driver', { driver: gapPick.value }), 'llm__chip--chart'), gapPick),
+          chip('Best vs slowest lap', () => ask('Where did I lose time on my slowest clean lap compared with my best lap?'), 'llm__chip--chart')));
+
+      function updateAsk() {
+        const mine = catalog.filter((m) => have.has(m.id));
+        if (!mine.length) {
+          askbox.replaceChildren(h('h2', { class: 'llm__head' }, 'Ask about a session'), h('p', { class: 'llm__lede' }, 'Download a model below to ask about your races.'));
+          return;
+        }
+        let saved = null;
+        try { saved = localStorage.getItem('undercut.llmModel'); } catch (_) { /* fine */ }
+        const keep = modelPick.value || saved;
+        modelPick.replaceChildren(...mine.map((m) => h('option', { value: m.id }, m.name)));
+        if (mine.some((m) => m.id === keep)) modelPick.value = keep;
+        askBtn.disabled = isLive || busy || !sessions.length;
+        for (const b of controls.querySelectorAll('.llm__chip')) b.disabled = isLive || busy || !sessions.length;
+        if (!askbox.contains(controls)) askbox.replaceChildren(h('h2', { class: 'llm__head' }, 'Ask about a session'), controls, thread);
+      }
+
+      async function loadSessions() {
+        sessions = (await act(() => api.llm.sessions())) || [];
+        // The newest race first, then the rest newest first.
+        const first = sessions.find((x) => x.is_race) || sessions[0];
+        sessionPick.replaceChildren(...sessions.map((x) => h('option', { value: x.session_id }, `${x.track} ${x.type}${x.date ? ` · ${x.date}` : ''}${x.finish ? ` · P${x.finish}` : ''}`)));
+        if (first) sessionPick.value = String(first.session_id);
+        await loadDrivers();
+        updateAsk();
+      }
+      async function loadDrivers() {
+        if (!sessions.length) return;
+        const all = (await act(() => api.llm.results(sid()))) || [];
+        const me = all.find((r) => r.you);
+        drivers = all.filter((r) => !r.you).sort((a, b) => (me ? Math.abs(a.position - me.position) - Math.abs(b.position - me.position) : a.position - b.position) || a.position - b.position);
+        gapPick.replaceChildren(...drivers.map((r) => h('option', { value: r.driver }, `P${r.position} ${r.driver}`)));
+      }
+
+      // One entry in the thread: the question, then the answer, its charts and what it was worked out from.
+      function entry(title) {
+        const a = h('div', { class: 'llm__a' }, h('span', { class: 'llm__thinking' }, 'Working it out…'));
+        const li = h('li', { class: 'llm__answer' }, h('p', { class: 'llm__q' }, title), a);
+        thread.prepend(li);
+        return { li, a };
+      }
+      function fill(a, out, took) {
+        const kids = [];
+        if (out.answer != null) kids.push(h('p', { class: 'llm__reply' }, out.answer || '(no answer)'));
+        if (out.unsupported && out.unsupported.length) kids.push(h('p', { class: 'llm__unsupported' }, `Check this: not in your data: ${out.unsupported.join(', ')}. The model wrote it; the recording doesn't show it.`));
+        for (const c of out.charts || []) kids.push(chartView(c));
+        if (out.evidence && out.evidence.length) kids.push(h('details', { class: 'llm__why' }, h('summary', {}, 'How this was worked out'), h('ul', { class: 'llm__evidence' }, out.evidence.map((e) => h('li', {}, e)))));
+        if (took != null) kids.push(h('p', { class: 'llm__meta' }, `${(took / 1000).toFixed(1)} s${out.model ? ` · ${out.model}` : ''}`));
+        a.replaceChildren(...kids);
+      }
+
+      async function ask(text) {
+        const q = String(text || '').trim();
+        if (!q || busy || isLive || !sessions.length || !modelPick.value) return;
+        busy = true;
+        stopBtn.hidden = false;
+        updateAsk();
+        const { a } = entry(q);
+        const t0 = Date.now();
+        try {
+          const out = await api.llm.ask(modelPick.value, sid(), q);
+          fill(a, { ...out, model: (catalog.find((m) => m.id === modelPick.value) || {}).name }, Date.now() - t0);
+          question.value = '';
+        } catch (err) {
+          a.replaceChildren(h('p', { class: 'pc-error' }, reason(err)));
+        } finally {
+          busy = false;
+          stopBtn.hidden = true;
+          updateAsk();
+        }
+      }
+
+      // A chart command: straight from the data, no model.
+      async function chart(kind, args) {
+        if (isLive || !sessions.length) return;
+        const { a } = entry(`Chart: ${kind === 'gap_to_driver' ? `gap to ${args.driver}` : kind.replace('_', ' ')}`);
+        try {
+          const c = await api.llm.chart(sid(), kind, args);
+          if (c.error) a.replaceChildren(h('p', { class: 'llm__reply' }, c.error));
+          else fill(a, { charts: [c] }, null);
+        } catch (err) {
+          a.replaceChildren(h('p', { class: 'pc-error' }, reason(err)));
+        }
+      }
+
       async function refresh() {
         if (!api || !api.llm) {
           body.replaceChildren(h('p', { class: 'ana__empty' }, 'Ask the race needs the Windows app.'));
@@ -70,6 +271,7 @@
           catalog = (await act(() => api.llm.catalog())) || [];
           have = new Set(((await act(() => api.llm.models())) || []).map((m) => m.name));
           downloads = (await act(() => api.llm.downloads())) || [];
+          await loadSessions();
         }
         draw();
       }
@@ -143,8 +345,10 @@
           return;
         }
         manager.hidden = false;
+        updateAsk();
         body.replaceChildren(
-          h('h2', { class: 'llm__head' }, 'Models'),
+          askbox,
+          h('h2', { class: 'llm__head llm__head--models' }, 'Models'),
           h('p', { class: 'llm__lede' }, `Small models that run on a 4 GB graphics card, through Ollama ${status.version}. Download one or more; each stays on this PC until you delete it.`),
           h('ol', { class: 'llm__models' }, catalog.map(modelRow)));
       }
