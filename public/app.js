@@ -104,9 +104,11 @@
   let custom = sanitizeCustom(load(STORE.custom, CUSTOM_DEFAULT));
   // Custom sits with the live screens; Debrief after them. In the app, Home
   // comes first and Connect and Library last.
-  const screens = () => [...PC_SCREENS.filter((p) => p.group === 'home'), ...PRESETS.filter((p) => p.group === 'live'), { id: 'custom', group: 'live', label: 'Custom', ...custom }, ...PRESETS.filter((p) => p.group === 'after'), ...PC_SCREENS.filter((p) => p.group === 'pc')];
+  const screens = () => [...PC_SCREENS.filter((p) => p.group === 'home'), ...PRESETS.filter((p) => p.group === 'live'), { id: 'custom', group: 'live', label: 'Custom', ...custom }, ...PRESETS.filter((p) => p.group === 'after'), ...PC_SCREENS.filter((p) => p.group === 'place')];
+  // Home and the app's places (Race analysis, Storage, Connect) fill the window on their own: no rail, no number key.
+  const standalone = (id) => ['home', 'place'].includes((screens().find((s) => s.id === id) || {}).group);
   // Number keys skip Home, so Drive is 1 in the app as in a browser.
-  const numbered = () => screens().filter((s) => s.group !== 'home');
+  const numbered = () => screens().filter((s) => !standalone(s.id));
   // The recorded demo always opens on Drive: a screen picked on an earlier visit isn't what a first-time visitor should land on.
   // The app opens on Home - or, after it reloaded itself (a replay, a settings change), where it was.
   function appScreen() {
@@ -126,14 +128,13 @@
   let lastSnapshot = null;
 
   // ---------- Tabs ----------
-  const GROUP_LABEL = { live: 'Live', after: 'After the race', pc: 'On this PC' };
+  const GROUP_LABEL = { live: 'Live', after: 'After the race' };
   function renderTabs() {
     const items = [];
     let group = null;
     const all = screens();
-    const keys = all.filter((s) => s.group !== 'home');
-    // Connect and Storage are on Home: in the rail only while one is open, so it fits without scrolling.
-    all.filter((s) => s.group !== 'pc' || s.id === currentId).forEach((s) => {
+    const keys = all.filter((s) => !standalone(s.id));
+    all.filter((s) => s.group !== 'place').forEach((s) => {
       if (s.group !== group && GROUP_LABEL[s.group]) {
         group = s.group;
         const h = document.createElement('div');
@@ -193,7 +194,7 @@
     renderScreen();
   }
 
-  // The desktop Library's "Open in Debrief".
+  // Home and the desktop places switch screens with this event (Storage's "Open in Race analysis" too).
   document.addEventListener('undercut:show', (e) => showScreen(/** @type {CustomEvent} */ (e).detail));
 
   $('customize').addEventListener('click', () => {
@@ -230,8 +231,7 @@
     grid.style.gridTemplateColumns = m === 'wide' ? `repeat(${layout.cols}, minmax(0, 1fr))` : '';
     grid.style.gridTemplateRows = m === 'wide' ? layout.rows : '';
 
-    // Home fills the window on its own; the rail comes with the screens.
-    /** @type {HTMLElement} */ (document.querySelector('.rail')).hidden = currentId === 'home';
+    /** @type {HTMLElement} */ (document.querySelector('.rail')).hidden = standalone(currentId);
     $('editbar').hidden = !editing;
     if (editing) renderEditbar();
 
@@ -369,7 +369,7 @@
   const labelOf = (id) => (screens().find((x) => x.id === id) || {}).label || id;
 
   function applyFocus(s) {
-    if (!autoOn || editing || Date.now() < autoPausedUntil || !s.focus || !s.connected) return;
+    if (!autoOn || editing || standalone(currentId) || Date.now() < autoPausedUntil || !s.focus || !s.connected) return;
     const target = s.focus.screen === 'drive' ? homeId : s.focus.screen;
     if (target !== currentId && screens().some((x) => x.id === target)) showScreen(target, true);
   }
@@ -401,8 +401,11 @@
   $('settings-sheet').addEventListener('click', (e) => { if (e.target === $('settings-sheet')) closeSettings(); });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    const sheetOpen = !$('settings-sheet').hidden || !$('ask-sheet').hidden;
     closeSettings();
     closeAsk();
+    // Esc leaves a place for Home, once nothing is open over it.
+    if (!sheetOpen && (screens().find((x) => x.id === currentId) || {}).group === 'place') showScreen('home');
   });
   $('set-auto').addEventListener('change', (e) => {
     autoOn = $('set-auto').checked;
@@ -556,7 +559,7 @@
       body = 'Nothing from the game for a few seconds - paused, in a menu, or the session ended. Showing the last data.';
     }
     // Home, Connect and Library say it themselves, in full.
-    $('status-banner').hidden = !title || ['pc', 'home'].includes((screens().find((x) => x.id === currentId) || {}).group);
+    $('status-banner').hidden = !title || standalone(currentId);
     if (title) {
       setText($('status-title'), title);
       setText($('status-body'), body);

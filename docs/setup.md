@@ -11,13 +11,15 @@ on private networks, or phones (and the game on a console) can't reach it.
 
 It opens on **Home**, a full-window page with one bar into each part of the app: the live dashboard
 (position, lap and the current call once the game is connected), race analysis, Ask the race (coming
-soon), Storage and Connect. Inside a screen, the left rail switches screens mid-race (keys **1–8**) and
-has Home at the top; Connect and Storage appear in it while one of them is open.
+soon), Storage and Connect. Live dashboard is the dashboard, with the left rail of race screens (keys
+**1–6**, Home at the top). The others are places of their own that fill the window, with a **← Home**
+button; Esc goes back too.
 
 | Screen | What you do there |
 |---|---|
 | **Connect** | See whether F1 26 telemetry is arriving, with the game settings to change if not. Scan the QR code on a phone or tablet. Turn off sharing on the Wi-Fi, or turn on *Voice questions on phones* (below). **Record this session** saves every packet and call, like `npm run capture`; MARK appears while it records. |
-| **Storage** | Every saved session (open it in the Debrief, or delete it) and every recording (replay it through the screens, analyze it to check each call, show the file, or delete it). Deletes ask first and can't be undone. |
+| **Race analysis** | Every saved session in depth. For now the Debrief at full size (Summary, Lap compare, Rivals, Calls, Models); more views are on the roadmap. |
+| **Storage** | Every saved session (open it in Race analysis, or delete it) and every recording (replay it through the screens, analyze it to check each call, show the file, or delete it). Deletes ask first and can't be undone. |
 | **Settings** | As before, plus the two ports and the data folder. |
 
 **Voice in the app window** uses Windows' own speech recognition, offline. It listens for the Ask

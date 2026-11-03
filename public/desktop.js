@@ -119,12 +119,25 @@
   // Switch screens (app.js listens).
   const go = (id) => document.dispatchEvent(new CustomEvent('undercut:show', { detail: id }));
 
+  // A place of its own (Race analysis, Storage, Connect): fills the window, no dashboard rail,
+  // a way back Home (Esc too, in app.js). Returns the element the place's content goes in.
+  function placeFrame(el, title) {
+    const body = h('div', { class: 'place__body' });
+    el.replaceChildren(h('div', { class: 'place' },
+      h('header', { class: 'place__head' },
+        h('button', { type: 'button', class: 'place__back', onclick: () => go('home') }, '← Home'),
+        h('h1', { class: 'place__title' }, title)),
+      body));
+    return body;
+  }
+
   // ---------- Connect ----------
   widgets.connect = {
     title: 'Connect',
     description: 'The game, other devices and recording - on this PC only',
     tall: true,
-    mount(el) {
+    mount(place) {
+      const el = placeFrame(place, 'Connect and record');
       const st = {
         modeText: h('p', { class: 'pc-mode__text' }),
         state: h('h2', { class: 'pc-game__state' }, 'Waiting for F1 26'),
@@ -267,10 +280,11 @@
 
   // ---------- Library ----------
   widgets.library = {
-    title: 'Library',
+    title: 'Storage',
     description: 'Every saved session and recording on this PC',
     tall: true,
-    mount(el) {
+    mount(place) {
+      const el = placeFrame(place, 'Storage');
       const st = {
         summary: h('p', { class: 'pc-lib__summary' }),
         sessions: h('ul', { class: 'pc-list' }),
@@ -281,11 +295,11 @@
       };
       el.replaceChildren(h('div', { class: 'pc pc-lib' },
         h('header', { class: 'pc-lib__head' },
-          h('div', {}, h('h2', {}, 'Library'), st.summary),
+          h('div', {}, st.summary),
           button('Open data folder', () => act(() => api.openDataFolder()), 'pc-btn--quiet')),
         st.error,
         h('div', { class: 'pc-lib__cols' },
-          h('section', { class: 'pc-lib__col' }, h('h3', {}, 'Saved sessions'), h('p', { class: 'dim' }, 'Each one opens in the Debrief: the result, every lap, lap compare and the calls audit.'), st.sessionsNote, st.sessions),
+          h('section', { class: 'pc-lib__col' }, h('h3', {}, 'Saved sessions'), h('p', { class: 'dim' }, 'Each one opens in Race analysis: the result, every lap, lap compare and the calls audit.'), st.sessionsNote, st.sessions),
           h('section', { class: 'pc-lib__col' }, h('h3', {}, 'Recordings'), h('p', { class: 'dim' }, 'Every packet of a session. Replay one through the screens, or analyze it to check each call.'), st.capturesNote, st.captures))));
 
       let captures = null;
@@ -331,9 +345,9 @@
               h('b', { class: 'pc-row__title' }, title || 'Session'),
               h('span', { class: 'pc-row__meta' }, [when(d.startedAt), result, plural(d.laps.length, 'lap'), best].filter(Boolean).join(' · '))),
             h('div', { class: 'pc-row__actions' },
-              button('Open in Debrief', () => {
+              button('Open in Race analysis', () => {
                 window.RaceDebrief.openSession(d.id);
-                document.dispatchEvent(new CustomEvent('undercut:show', { detail: 'debrief' }));
+                go('analysis');
               }, 'pc-btn--primary'),
               replaying ? null : button('Delete', () => act(async () => {
                 if (await api.deleteSession(d.id, `${title}, ${when(d.startedAt)}`)) {
@@ -457,6 +471,15 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountSettings);
   else mountSettings();
 
+  // ---------- Race analysis: its own place ----------
+  // For now the Debrief at full size; roadmap R1-R5 build the in-depth views here.
+  widgets.analysis = {
+    title: 'Race analysis',
+    description: 'Every saved session in depth',
+    tall: true,
+    mount: (el) => widgets.debrief.mount(placeFrame(el, 'Race analysis')),
+  };
+
   // ---------- Home: where the app opens ----------
   // Real races behind the name, from Wikimedia Commons; each is credited while it shows.
   // pos keeps the cars clear of the bars on the left.
@@ -486,7 +509,7 @@
         return { node, state };
       };
       const live = dest('Live dashboard', () => go('drive'));
-      const analysis = dest('Race analysis', () => go('debrief'));
+      const analysis = dest('Race analysis', () => go('analysis'));
       const ask = dest('Ask the race', null);
       ask.node.disabled = true; // roadmap L5: a local model, never run while racing
       const storage = dest('Storage', () => go('library'));
@@ -587,8 +610,9 @@
   window.RaceDesktop = {
     screens: [
       { id: 'home', group: 'home', label: 'Home', layout: 'single', widgets: ['home'] },
-      { id: 'connect', group: 'pc', label: 'Connect', layout: 'single', widgets: ['connect'] },
-      { id: 'library', group: 'pc', label: 'Storage', layout: 'single', widgets: ['library'] },
+      { id: 'analysis', group: 'place', label: 'Race analysis', layout: 'single', widgets: ['analysis'] },
+      { id: 'connect', group: 'place', label: 'Connect', layout: 'single', widgets: ['connect'] },
+      { id: 'library', group: 'place', label: 'Storage', layout: 'single', widgets: ['library'] },
     ],
   };
 })();

@@ -828,9 +828,20 @@ body {
    from the same tone steps as the rest: panel blocks, panel-2 rows inside
    them, colour for meaning only (green receiving, amber waiting, red
    recording, blue the main action). */
-.card--home, .card--connect, .card--library { padding: 0; background: var(--bg); }
-.card--home .card__title, .card--connect .card__title, .card--library .card__title { display: none; }
-.card--home .card__body, .card--connect .card__body, .card--library .card__body { container-type: normal; overflow-y: auto; }
+.card--home, .card--connect, .card--library, .card--analysis { padding: 0; background: var(--bg); }
+.card--home .card__title, .card--connect .card__title, .card--library .card__title, .card--analysis .card__title { display: none; }
+.card--home .card__body, .card--connect .card__body, .card--library .card__body, .card--analysis .card__body { container-type: normal; overflow-y: auto; }
+
+/* A place of its own (Race analysis, Storage, Connect): the whole window, its own heading and a
+   way back Home. The dashboard rail is hidden (app.js). */
+.place { position: fixed; inset: 0; z-index: 5; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 24px 28px 32px; background: var(--bg); }
+.place__head { display: flex; align-items: center; gap: 20px; }
+.place__back { appearance: none; border: 0; border-radius: 4px; min-height: 44px; padding: 0 18px; background: var(--panel); color: var(--text); font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; }
+.place__back:hover { background: #222; }
+.place__back:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.place__title { margin: 0; font-size: clamp(2rem, 1.4rem + 2.4vw, 3.4rem); font-weight: 800; line-height: 1; letter-spacing: -0.035em; }
+.place__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.place__body > * { flex: 1; }
 .pc { display: grid; gap: var(--gap); align-content: start; padding-bottom: var(--gap); }
 .pc h2, .pc h3, .pc h4, .pc p { margin: 0; }
 .pc h3 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em; }

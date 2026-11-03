@@ -6,7 +6,7 @@
 
   const { widgets: W, esc, badge, plus, isNum, fmtLap, degText, COMPOUND_NAME } = window.RaceWidgets;
 
-  // The desktop Library's "Open in Debrief": the session the next Debrief opens on.
+  // Storage's "Open in Race analysis" (desktop app): the session the next Debrief opens on.
   let openNext = null;
   window.RaceDebrief = { openSession: (id) => { openNext = id; } };
 

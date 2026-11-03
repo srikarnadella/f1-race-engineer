@@ -18,9 +18,9 @@ function recordIntervals(w, intervals) {
   w.setInterval = (fn, ms, ...a) => { const id = set(fn, ms, ...a); intervals.push({ id, fn, ms, cleared: false }); return id; };
   w.clearInterval = (id) => { const i = intervals.find((x) => x.id === id); if (i) i.cleared = true; clear(id); };
 }
-async function openApp(t) {
+async function openApp(t, { storage = {} } = {}) {
   const intervals = [];
-  const app = open(t, { before: (w) => { w.undercut = fakeApi(); recordIntervals(w, intervals); } });
+  const app = open(t, { storage, before: (w) => { w.undercut = fakeApi(); recordIntervals(w, intervals); } });
   await settle();
   const doc = app.window.document;
   const rail = doc.querySelector('.rail');
@@ -34,19 +34,6 @@ test('home: the app opens on Home, filling the window with no rail, one way into
   assert.strictEqual(app.rail.hidden, true, 'no dashboard rail around Home');
   assert.deepStrictEqual(app.dests().map((b) => b.querySelector('.home__name').textContent),
     ['Live dashboard', 'Race analysis', 'Ask the race', 'Storage', 'Connect and record']);
-  assert.deepStrictEqual(app.errors, []);
-});
-
-test('home: each destination opens its screen, the rail comes back, and Home is one tap away', async (t) => {
-  const app = await openApp(t);
-  for (const [name, tab] of [['Live dashboard', 'Drive'], ['Race analysis', 'Debrief'], ['Storage', 'Storage'], ['Connect and record', 'Connect']]) {
-    app.dest(name).click();
-    assert.strictEqual(app.activeTab(), tab, name);
-    assert.strictEqual(app.rail.hidden, false, `the rail is back on ${tab}`);
-    [...app.doc.querySelectorAll('.tab')].find((b) => b.textContent === 'Home').click();
-    assert.strictEqual(app.activeTab(), 'Home');
-    assert.strictEqual(app.rail.hidden, true);
-  }
   assert.deepStrictEqual(app.errors, []);
 });
 
@@ -79,18 +66,6 @@ test('home: a phone or browser on the Wi-Fi gets the dashboard, no Home', (t) =>
   assert.strictEqual(app.window.document.querySelector('.rail').hidden, false);
 });
 
-test('home: the rail carries the race screens; Connect and Storage live on Home and join the rail only while open', async (t) => {
-  const app = await openApp(t);
-  const tabs = () => [...app.doc.querySelectorAll('.tab')].map((b) => b.textContent.replace(/^\d/, ''));
-  app.dest('Live dashboard').click();
-  assert.deepStrictEqual(tabs(), ['Home', 'Drive', 'Battle', 'Strategy', 'Weather', 'Custom', 'Debrief']);
-  [...app.doc.querySelectorAll('.tab')].find((b) => b.textContent === 'Home').click();
-  app.dest('Storage').click();
-  assert.deepStrictEqual(tabs(), ['Home', 'Drive', 'Battle', 'Strategy', 'Weather', 'Custom', 'Debrief', 'Storage']);
-  app.press('7'); // the number keys still reach both
-  assert.strictEqual(app.activeTab(), 'Connect');
-});
-
 test('home: the background is a slideshow of real races, each credited while it shows, and it stops when you leave', async (t) => {
   const app = await openApp(t);
   const slides = [...app.doc.querySelectorAll('.home__photo')];
@@ -121,5 +96,53 @@ test('home: the background is a slideshow of real races, each credited while it 
   app.dest('Live dashboard').click();
   timer.fn();
   assert.strictEqual(timer.cleared, true);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+const place = (app) => app.doc.querySelector('.place');
+const placeTitle = (app) => place(app) && place(app).querySelector('.place__title').textContent;
+
+test('home: every destination but Live dashboard opens a place of its own: the whole window, no dashboard rail, a way back Home', async (t) => {
+  const app = await openApp(t);
+  for (const name of ['Race analysis', 'Storage', 'Connect and record']) {
+    app.dest(name).click();
+    assert.strictEqual(app.doc.querySelector('.home'), null, `${name}: Home is gone`);
+    assert.strictEqual(placeTitle(app), name);
+    assert.strictEqual(app.rail.hidden, true, `${name}: not a dashboard tab`);
+    place(app).querySelector('.place__back').click();
+    assert.ok(app.doc.querySelector('.home'), `${name}: back to Home`);
+    assert.strictEqual(app.rail.hidden, true);
+  }
+  app.dest('Live dashboard').click();
+  assert.strictEqual(app.activeTab(), 'Drive');
+  assert.strictEqual(app.rail.hidden, false, 'the dashboard is the one with the rail');
+  assert.strictEqual(place(app), null);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('home: Esc leaves a place for Home, after closing any open sheet first', async (t) => {
+  const app = await openApp(t);
+  app.dest('Storage').click();
+  app.$('settings').click();
+  app.press('Escape');
+  assert.strictEqual(app.$('settings-sheet').hidden, true);
+  assert.strictEqual(placeTitle(app), 'Storage', 'the first Esc only closed the sheet');
+  app.press('Escape');
+  assert.ok(app.doc.querySelector('.home'));
+});
+
+test('home: the dashboard rail is race screens only, and auto-switch never pulls you out of Home or a place', async (t) => {
+  const app = await openApp(t, { storage: { 'raceEngineer.auto': true } });
+  app.dest('Live dashboard').click();
+  const tabs = [...app.doc.querySelectorAll('.tab')].map((b) => b.textContent.replace(/^\d/, ''));
+  assert.deepStrictEqual(tabs, ['Home', 'Drive', 'Battle', 'Strategy', 'Weather', 'Custom', 'Debrief']);
+  app.press('7');
+  assert.strictEqual(app.activeTab(), 'Drive', 'no number key leads out of the dashboard');
+
+  [...app.doc.querySelectorAll('.tab')].find((b) => b.textContent === 'Home').click();
+  app.dest('Storage').click();
+  app.connect();
+  app.send({ ...raceSnapshots()[200], connected: true, focus: { screen: 'battle', reason: 'Car behind within 1 s' } });
+  assert.strictEqual(placeTitle(app), 'Storage');
   assert.deepStrictEqual(app.errors, []);
 });

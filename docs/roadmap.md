@@ -54,8 +54,8 @@ flowchart LR
     W1[W1 Efficiency wins]:::next
     W2[W2 Home screen]:::done
     W5[W5 Home slideshow: real races]:::done
-    W4[W4 Separate places, not dashboard tabs]:::next
-    W3[W3 Storage, its own place]
+    W4[W4 Separate places, not dashboard tabs]:::done
+    W3[W3 Storage, its own place]:::next
   end
   subgraph L[Ask the race: local LLM]
     L1[L1 Read-only race tools]:::next
@@ -65,7 +65,7 @@ flowchart LR
     L5[L5 Ask the race screen]
   end
   subgraph R[Race analysis: its own place]
-    R1[R1 Session picker and race overview]
+    R1[R1 Session picker and race overview]:::next
     R2[R2 Pace: laps, stints, tyre wear]
     R3[R3 Head to head with any rival]
     R4[R4 Strategy review: calls, stops, what-if]
@@ -267,7 +267,9 @@ against W0, and none may raise the race numbers.
   each have their own layout. The dashboard rail stays race-only. *Test:* each destination except
   Live dashboard opens with no dashboard rail and its own back-to-Home; the dashboard rail lists
   only race screens; Back/Esc returns to Home; nothing mounted in a place keeps running after
-  leaving it (W0 idle unchanged).
+  leaving it (W0 idle unchanged). *Done:* `test/desktopHome.test.js`. Race analysis, Storage and
+  Connect open as places (Race analysis shows the Debrief until R1); the rail is Home + the six race
+  screens; Esc and ← Home return; auto-switch never pulls you out of Home or a place.
 - **W3 Storage, its own place.** Built on W4, replacing the Library tab. Disk use per store (race.db, debriefs, captures, downloaded models) with
   delete, using the existing `deleteSession()`. *Test:* the sizes shown add up to the folder size on
   disk; deleting a session leaves no store mentioning its uid; deleting a model frees its bytes.
