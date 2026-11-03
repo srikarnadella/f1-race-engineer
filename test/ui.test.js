@@ -212,6 +212,42 @@ test('debrief summary: Download CSV gives one row per lap in raw units, ready fo
   assert.match(d.window.RaceWidgets.widgets.debrief.csvName({ ...session, track: 'Spa, "Belgium"' }), /^[\w-]+\.csv$/);
 });
 
+test('debrief: the Field table downloads as CSV, one row per car as the table shows it (roadmap G2)', () => {
+  const d = dashboard();
+  const deb = d.mounted.find((w) => w.id === 'debrief');
+  const field = [
+    { name: 'RIVAL, "Jr"', position: 1, bestMs: 77500, stops: 2, compounds: [17, 18, 16], isPlayer: false, status: 3 },
+    { name: 'YOU', position: 7, bestMs: null, stops: 1, compounds: [17], isPlayer: true, status: 3 },
+  ];
+  const session = { id: 'x', live: false, sessionName: 'Race', track: 'Spa', isRace: true, laps: [], field, penalties: [], stints: [], comparable: [], bestSectors: [], fieldBestSectors: [] };
+  deb.update({ debrief: { sessions: [session] } });
+  assert.ok(deb.card.querySelector('button[data-csv="field"]'), 'a CSV button on the Field table');
+  const csv = d.window.RaceWidgets.widgets.debrief.fieldCsv(session);
+  const rows = csv.trim().split('\n');
+  assert.strictEqual(rows[0], 'position,driver,best_ms,tyres,stops,you');
+  assert.strictEqual(rows.length, field.length + 1);
+  assert.strictEqual(rows[1], '1,"RIVAL, ""Jr""",77500,Medium Hard Soft,2,0');
+  assert.strictEqual(rows[2], '7,YOU,,Medium,1,1');
+  assert.ok(!LEAKS.test(csv));
+});
+
+test('debrief: the Calls audit copies as plain text with every graded call (roadmap G2)', () => {
+  const d = dashboard();
+  const audit = {
+    summary: { right: 1, wrong: 1, unclear: 0, calls: 2 },
+    calls: [
+      { lapNum: 12, action: 'BOX', kind: 'tyres', verdict: 'right', why: 'Undercut on NORRIS worked' },
+      { lapNum: 30, action: 'PUSH', kind: 'attack', verdict: 'wrong', why: 'No pass in 3 laps' },
+    ],
+  };
+  const text = d.window.RaceWidgets.widgets.debrief.callsText(audit, { track: 'Spa', sessionName: 'Race' });
+  const lines = text.trim().split('\n');
+  assert.match(lines[0], /Spa Race/);
+  assert.match(text, /1 right, 1 wrong, 0 unclear of 2 calls/);
+  assert.ok(lines.some((l) => /Lap 12.*BOX.*Right.*Undercut on NORRIS worked/.test(l)));
+  assert.ok(lines.some((l) => /Lap 30.*PUSH.*Wrong.*No pass in 3 laps/.test(l)));
+});
+
 test('tyre card: the wear rate comes with its 90% range, e.g. "+0.090s (0.071-0.110)"', () => {
   const d = dashboard();
   const card = d.mounted.find((w) => w.id === 'tyrecall');

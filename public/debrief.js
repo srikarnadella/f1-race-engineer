@@ -18,11 +18,16 @@
 
   // The lap table as a CSV file, in raw units (ms, kg, %) for a spreadsheet.
   const CSV_COLS = ['lap', 'time_ms', 's1_ms', 's2_ms', 's3_ms', 'position', 'compound', 'tyre_age', 'wear_pct', 'fuel_kg', 'battery_pct', 'pit', 'sc', 'invalid'];
+  const cell =(v) => (v == null || (typeof v === 'number' && !Number.isFinite(v)) ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
   function lapsCsv(d) {
-    const cell = (v) => (v == null || (typeof v === 'number' && !Number.isFinite(v)) ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
     const rows = d.laps.map((l) => [l.lap, l.timeMs, l.s1, l.s2, l.s3, l.position, COMPOUND_NAME[l.compound] || l.compound, l.tyreAge,
       l.wearAvg != null ? Math.round(l.wearAvg) : null, l.fuelKg != null ? l.fuelKg.toFixed(1) : null, l.batteryPct, l.pit ? 1 : 0, l.neutralised ? 1 : 0, l.invalid ? 1 : 0].map(cell).join(','));
     return `${[CSV_COLS.join(','), ...rows].join('\n')}\n`;
+  }
+  // The Field table the same way (G2): one row per car, as the table shows it.
+  function fieldCsv(d) {
+    const rows = d.field.map((f) => [f.position, f.name, f.bestMs, f.compounds.map((c) => COMPOUND_NAME[c] || c).join(' '), f.stops, f.isPlayer ? 1 : 0].map(cell).join(','));
+    return `${['position,driver,best_ms,tyres,stops,you', ...rows].join('\n')}\n`;
   }
   const csvName = (d) => `${[d.track, d.sessionName, d.id].filter(Boolean).join('-').replace(/[^\w-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'laps'}.csv`;
 
@@ -115,7 +120,7 @@
       ${positionChart(d.positionChart)}
       <div class="w-deb__cols">
         <div class="w-deb__laps"><div class="w-label">Laps <button class="tool w-deb__csv" type="button" data-csv>Download CSV</button></div><table class="tbl"><thead><tr><th>Lap</th><th class="num">Time</th><th class="num">Δ best</th><th class="num">S1</th><th class="num">S2</th><th class="num">S3</th><th class="num">Pos</th><th>Tyre</th><th class="num">Wear</th><th class="num">Fuel</th><th class="num">ERS</th></tr></thead><tbody>${lapRows}</tbody></table></div>
-        <div class="w-deb__field"><div class="w-label">Field</div><table class="tbl"><thead><tr><th></th><th>Driver</th><th class="num">Best</th><th>Tyres</th><th class="num">Stops</th></tr></thead><tbody>${fieldRows}</tbody></table></div>
+        <div class="w-deb__field"><div class="w-label">Field <button class="tool w-deb__csv" type="button" data-csv="field">Download CSV</button></div><table class="tbl"><thead><tr><th></th><th>Driver</th><th class="num">Best</th><th>Tyres</th><th class="num">Stops</th></tr></thead><tbody>${fieldRows}</tbody></table></div>
       </div>`;
   }
 
@@ -189,6 +194,15 @@
 
   // ---------- Calls: each race call graded against what then happened ----------
   const VERDICT = { right: ['Right', 'is-good'], wrong: ['Wrong', 'is-act'], unclear: ['Unclear', 'is-watch'], rule: ['Rule', 'dim'] };
+  // The Calls audit as plain text to paste anywhere (G2).
+  function callsText(a, d) {
+    const t = a.summary;
+    return [
+      `Calls audit: ${[d.track, d.sessionName].filter(Boolean).join(' ')}`,
+      `${t.right} right, ${t.wrong} wrong, ${t.unclear} unclear of ${t.calls} calls`,
+      ...a.calls.map((c) => `Lap ${c.lapNum}  ${c.action} (${c.kind})  ${(VERDICT[c.verdict] || [c.verdict])[0]}: ${c.why}`),
+    ].join('\n') + '\n';
+  }
   function callsHtml(a) {
     if (a.error) return `<div class="w-deb__empty dim">${esc(a.error)}</div>`;
     if (!a.calls.length) return '<div class="w-deb__empty dim">No race calls yet - they are graded lap by lap as the race goes on.</div>';
@@ -200,7 +214,7 @@
     }).join('');
     return `<div class="w-deb__tiles">${tile('Right', t.right, 'is-good')}${tile('Wrong', t.wrong, t.wrong ? 'is-act' : '')}${tile('Unclear', t.unclear, 'is-watch')}${tile('Calls', t.calls, '')}</div>`
       + `<table class="tbl"><thead><tr><th class="num">Lap</th><th>Call</th><th>Why</th><th>Verdict</th><th>What happened</th></tr></thead><tbody>${rows}</tbody></table>`
-      + '<div class="w-foot">Each call is judged by the one thing it claims, on the laps after it. Following the rules (in the pits, a safety car, a penalty) is not graded.</div>';
+      + '<div class="w-foot"><button class="tool" type="button" data-copy="calls">Copy as text</button> Each call is judged by the one thing it claims, on the laps after it. Following the rules (in the pits, a safety car, a penalty) is not graded.</div>';
   }
 
   function rivalsHtml(r) {
@@ -278,6 +292,8 @@
     description: 'After the session: recap, lap-vs-lap telemetry, where you lose time to rivals, and the models',
     tall: true,
     lapsCsv,
+    fieldCsv,
+    callsText,
     csvName,
     mount(el) {
       el.innerHTML = `<div class="w-deb">
@@ -323,14 +339,22 @@
         draw();
       });
 
+      let lastAudit = null; // the Calls view's audit, for Copy as text
       body.addEventListener('click', (e) => {
-        if (!e.target.closest || !e.target.closest('[data-csv]')) return;
+        const btn = e.target.closest && e.target.closest('[data-csv], [data-copy]');
+        if (!btn) return;
         const sessions = (lastData && lastData.sessions) || [];
         const d = sessions.find((x) => x.id === selected) || sessions[0];
         if (!d) return;
+        if (btn.dataset.copy) {
+          if (!lastAudit || !navigator.clipboard) return;
+          navigator.clipboard.writeText(callsText(lastAudit, d)).then(() => { btn.textContent = 'Copied'; }, () => { btn.textContent = 'Couldn\'t copy'; });
+          return;
+        }
+        const field = btn.dataset.csv === 'field';
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([lapsCsv(d)], { type: 'text/csv' }));
-        a.download = csvName(d);
+        a.href = URL.createObjectURL(new Blob([field ? fieldCsv(d) : lapsCsv(d)], { type: 'text/csv' }));
+        a.download = field ? csvName(d).replace(/\.csv$/, '-field.csv') : csvName(d);
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       });
@@ -377,7 +401,7 @@
         } else if (view === 'rivals') {
           load(`/api/debrief/rivals?session=${encodeURIComponent(d.id)}`, `riv|${d.id}|${d.laps.length}`, rivalsHtml);
         } else if (view === 'calls') {
-          load(`/api/debrief/audit?session=${encodeURIComponent(d.id)}`, `aud|${d.id}|${d.laps.length}`, callsHtml);
+          load(`/api/debrief/audit?session=${encodeURIComponent(d.id)}`, `aud|${d.id}|${d.laps.length}`, (a) => { lastAudit = a.error ? null : a; return callsHtml(a); });
         }
       }
 

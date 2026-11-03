@@ -75,7 +75,7 @@ flowchart LR
   end
   subgraph G[Quick gaps]
     G1[G1 Shortcuts listed in Settings]:::done
-    G2[G2 Field CSV and Calls audit copy]:::next
+    G2[G2 Field CSV and Calls audit copy]:::done
     G3[G3 Library shows every saved session]:::done
     G4[G4 races.csv ends at the flag]:::next
     G5[G5 Window opens without a blank frame]:::done
@@ -370,7 +370,7 @@ Found reading the app on 3 Nov 2026; an hour or less each.
 - **G1** Settings lists the keyboard shortcuts (1-8 screens, M mark, Q ask, Esc close). *Test:* every
   key with a handler appears in the list, and every listed key has a handler.
 - **G2** Debrief: CSV of the Field table and a copy button for the Calls audit (same pattern as
-  `lapsCsv`). *Test:* the CSV round-trips the table's rows; the copied text has every graded call.
+  `lapsCsv`). *Test:* the CSV round-trips the table's rows; the copied text has every graded call. *Done:* `fieldCsv` and `callsText` in public/debrief.js (`test/ui.test.js`); the Calls view's "Copy as text" puts the summary and one line per call on the clipboard.
 - **G3** Library shows every session on disk (50), not the 10 the debrief keeps in memory.
   *Test:* with 12 saved sessions the Library lists 12. *Done:* `/api/debrief/older` summarizes each
   session on disk past the 10 in memory once (cached by file) and opens one in full on demand; Storage
