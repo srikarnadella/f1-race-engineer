@@ -1141,6 +1141,52 @@ body {
   .sheet--wide .sheet__col:last-child { grid-column: 1 / -1; }
 }
 
+/* Pace (analysis.js): the session lap by lap. Tyre colours for identity, always named beside them. */
+.pace { display: flex; flex-direction: column; gap: 52px; }
+.pace h3 { margin: 0 0 16px; font-size: 1.2rem; font-weight: 750; color: var(--muted); }
+.pace__head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.pace__head h3 { margin-bottom: 12px; }
+.pace__key { margin: 0; display: flex; flex-wrap: wrap; gap: 18px; font-size: 0.95rem; color: var(--muted); }
+.pace__key span { display: inline-flex; align-items: center; gap: 7px; }
+.pace__key i { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); }
+.pace__key i.is-best { background: var(--pb); }
+.pace__key i.is-pit, .pace__key i.is-sc, .pace__key i.is-start { background: none; box-shadow: inset 0 0 0 2px var(--muted); }
+.pace__key i.is-sc { box-shadow: inset 0 0 0 2px var(--watch); }
+.pace__chart { display: block; width: 100%; height: auto; }
+.pace__line { fill: none; stroke: var(--muted); stroke-width: 2; stroke-linejoin: round; opacity: 0.55; }
+.pace__lap { fill: var(--muted); stroke: var(--bg); stroke-width: 2; }
+.pace__line[data-c="soft"] { stroke: var(--soft); } .pace__lap[data-c="soft"] { fill: var(--soft); }
+.pace__line[data-c="medium"] { stroke: var(--medium); } .pace__lap[data-c="medium"] { fill: var(--medium); }
+.pace__line[data-c="hard"] { stroke: var(--hard); } .pace__lap[data-c="hard"] { fill: var(--hard); }
+.pace__line[data-c="inter"] { stroke: var(--inter); } .pace__lap[data-c="inter"] { fill: var(--inter); }
+.pace__line[data-c="wet"] { stroke: var(--wet); } .pace__lap[data-c="wet"] { fill: var(--wet); }
+.pace__lap.is-best { fill: var(--pb); }
+.pace__lap.is-pit, .pace__lap.is-start, .pace__lap.is-invalid { fill: var(--bg); stroke: var(--muted); }
+.pace__lap.is-sc { fill: var(--bg); stroke: var(--watch); }
+.pace__readout { margin: 10px 0 0 11.8%; min-height: 1.5em; color: var(--muted); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.pace .tbl { font-size: 1rem; }
+.pace section { min-width: 0; overflow-x: auto; } /* a wide table scrolls on its own, never the page */
+.pace .tbl th { padding: 0 0.6em 10px; font-size: 0.95rem; font-weight: 650; color: var(--label); text-align: left; vertical-align: bottom; }
+.pace .tbl th.num { text-align: right; }
+.pace .tbl td { padding: 11px 0.6em; border-top: 0; font-variant-numeric: tabular-nums; }
+.pace .tbl tbody tr:nth-child(odd) td { background: #101010; }
+.pace .tbl th button { appearance: none; border: 0; border-radius: 4px; padding: 6px 6px; margin: -6px; background: none; color: inherit; font: inherit; cursor: pointer; }
+.pace .tbl th button:hover { color: var(--text); background: #181818; }
+.pace .tbl th button:focus-visible, .pace__csv:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.pace__table tr.is-pit td, .pace__table tr.is-sc td, .pace__table tr.is-start td, .pace__table tr.is-invalid td { color: var(--muted); }
+.pace__table tr.is-best td { color: var(--pb); font-weight: 750; }
+.pace__stint td:first-child { font-weight: 750; }
+.pace__stint td:first-child::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 10px; border-radius: 50%; background: var(--muted); }
+.pace__stint td[data-c="soft"]::before { background: var(--soft); }
+.pace__stint td[data-c="medium"]::before { background: var(--medium); }
+.pace__stint td[data-c="hard"]::before { background: var(--hard); }
+.pace__stint td[data-c="inter"]::before { background: var(--inter); }
+.pace__stint td[data-c="wet"]::before { background: var(--wet); }
+.pace__sectors { max-width: 640px; }
+.pace__note { margin: 14px 0 0; color: var(--muted); font-size: 1rem; }
+.pace__csv { appearance: none; border: 0; border-radius: 4px; min-height: 40px; padding: 0 14px; background: #1c1c1c; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.pace__csv:hover { background: #262626; }
+
 /* Settings: this PC's ports and data folder. */
 .setting--pc { flex-direction: column; cursor: default; }
 .pc-ports { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }

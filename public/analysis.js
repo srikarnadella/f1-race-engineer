@@ -133,6 +133,142 @@
       list.length ? h('section', {}, h('h3', {}, 'Key moments'), h('ol', { class: 'ana__moments' }, list.map((m) => h('li', { class: 'ana__moment' }, h('b', {}, m.at), h('span', {}, m.text))))) : null);
   }
 
+  // ---------- Pace: the session lap by lap ----------
+  // What a lap was: the start, a pit lap, under the safety car, invalid, your best, or a clean lap.
+  function lapKind(d, l) {
+    if (l.pit) return 'pit';
+    if (l.neutralised) return 'sc';
+    if (l.invalid) return 'invalid';
+    if (d.bestLap && l.lap === d.bestLap.lap) return 'best';
+    if (d.isRace && l.lap === 1) return 'start';
+    return 'clean';
+  }
+  const median = (xs) => { const s2 = [...xs].sort((a, b) => a - b); const m = s2.length >> 1; return s2.length % 2 ? s2[m] : (s2[m - 1] + s2[m]) / 2; };
+  // Least-squares slope of y on x; null with fewer than two distinct x.
+  function slope(xs, ys) {
+    const n = xs.length;
+    if (n < 2) return null;
+    const mx = xs.reduce((a, b) => a + b, 0) / n;
+    const my = ys.reduce((a, b) => a + b, 0) / n;
+    const sxx = xs.reduce((a, x) => a + (x - mx) ** 2, 0);
+    return sxx ? xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / sxx : null;
+  }
+  /** @type {[string, string, (l: any) => string][]} */
+  const COLS = [
+    ['lap', 'Lap', (l) => String(l.lap)], ['timeMs', 'Time', (l) => fmtLap(l.timeMs)],
+    ['s1', 'S1', (l) => (l.s1 ? (l.s1 / 1000).toFixed(3) : '–')], ['s2', 'S2', (l) => (l.s2 ? (l.s2 / 1000).toFixed(3) : '–')], ['s3', 'S3', (l) => (l.s3 ? (l.s3 / 1000).toFixed(3) : '–')],
+    ['position', 'Pos', (l) => (l.position ? `P${l.position}` : '–')], ['compound', 'Tyre', (l) => tyre(l.compound)], ['tyreAge', 'Age', (l) => (l.tyreAge != null ? String(l.tyreAge) : '–')],
+    ['wearAvg', 'Wear', (l) => (l.wearAvg != null ? `${Math.round(l.wearAvg)}%` : '–')], ['fuelKg', 'Fuel', (l) => (l.fuelKg != null ? `${l.fuelKg.toFixed(1)} kg` : '–')], ['batteryPct', 'ERS', (l) => (l.batteryPct != null ? `${l.batteryPct}%` : '–')],
+  ];
+  const KIND_NAME = { start: 'start', pit: 'pit lap', sc: 'safety car', invalid: 'invalid', best: 'best lap', clean: '' };
+
+  function pace(d) {
+    const root = h('div', { class: 'pace' });
+    if (!d.laps.length) {
+      root.append(h('p', { class: 'ana__empty' }, 'No completed laps in this session.'));
+      return root;
+    }
+    const laps = d.laps;
+    const kinds = new Map(laps.map((l) => [l.lap, lapKind(d, l)]));
+    const counts = (l) => ['clean', 'best'].includes(kinds.get(l.lap)) && l.timeMs > 0;
+
+    // The chart: clean laps to scale, anything slower than 7% off the best pinned to the top.
+    const W = 1000;
+    const H = 300;
+    const pad = { l: 118, r: 16, t: 14, b: 30 };
+    const clean = laps.filter(counts).map((l) => l.timeMs);
+    const lo = (clean.length ? Math.min(...clean) : Math.min(...laps.map((l) => l.timeMs))) * 0.995;
+    const hi = (d.bestLap ? d.bestLap.ms : lo) * 1.07;
+    const x = (i) => pad.l + (laps.length > 1 ? (i / (laps.length - 1)) * (W - pad.l - pad.r) : (W - pad.l - pad.r) / 2);
+    const y = (ms) => pad.t + (1 - (Math.min(ms, hi) - lo) / (hi - lo || 1)) * (H - pad.t - pad.b);
+    const svg = s('svg', { class: 'pace__chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Lap times, ${laps.length} laps` });
+    for (const ms of [lo / 0.995, (lo / 0.995 + hi) / 2, hi]) {
+      svg.append(s('line', { class: 'ana__grid', x1: pad.l, x2: W - pad.r, y1: y(ms), y2: y(ms) }), s('text', { class: 'ana__tick', x: pad.l - 14, y: y(ms) + 6, 'text-anchor': 'end' }, ms === hi ? `${fmtLap(ms)}+` : fmtLap(ms)));
+    }
+    const step = Math.max(1, Math.ceil(laps.length / 12));
+    laps.forEach((l, i) => { if (i % step === 0) svg.append(s('text', { class: 'ana__tick', x: x(i), y: H - 6, 'text-anchor': 'middle' }, String(l.lap))); });
+    // One line per stint through its laps that count, in the tyre's colour.
+    for (const st of d.stints) {
+      const pts = laps.map((l, i) => [l, i]).filter(([l]) => l.lap >= st.fromLap && l.lap <= st.toLap && counts(l)).map(([l, i]) => `${x(i).toFixed(1)},${y(l.timeMs).toFixed(1)}`);
+      if (pts.length > 1) svg.append(s('polyline', { class: 'pace__line', 'data-c': (COMPOUND_NAME[st.compound] || '').toLowerCase(), points: pts.join(' ') }));
+    }
+    laps.forEach((l, i) => {
+      const k = kinds.get(l.lap);
+      svg.append(s('circle', { class: `pace__lap is-${k}`, 'data-lap': l.lap, 'data-kind': k, 'data-c': (COMPOUND_NAME[l.compound] || '').toLowerCase(), cx: x(i), cy: y(l.timeMs), r: k === 'best' ? 8 : 6 }));
+    });
+    const readout = h('p', { class: 'pace__readout' }, 'Point at the chart to read any lap.');
+    svg.addEventListener('pointermove', (e) => {
+      const box = svg.getBoundingClientRect();
+      if (!box.width) return;
+      const vx = ((e.clientX - box.left) / box.width) * W;
+      const i = Math.max(0, Math.min(laps.length - 1, Math.round(((vx - pad.l) / (W - pad.l - pad.r)) * (laps.length - 1))));
+      const l = laps[i];
+      readout.textContent = [`Lap ${l.lap}`, fmtLap(l.timeMs), KIND_NAME[kinds.get(l.lap)], `${tyre(l.compound)}, ${l.tyreAge != null ? `${l.tyreAge} laps old` : ''}`, l.wearAvg != null ? `${Math.round(l.wearAvg)}% worn` : null, l.position ? `P${l.position}` : null].filter(Boolean).join(' · ');
+    });
+
+    // Stints: pace and how fast it fell away, from the laps that count (not the start or the in-lap).
+    const stintRows = d.stints.map((st) => {
+      const ls = laps.filter((l) => l.lap >= st.fromLap && l.lap <= st.toLap && counts(l) && kinds.get(l.lap) !== 'start');
+      const fitted = ls.filter((l) => l.tyreAge != null);
+      const deg = slope(fitted.map((l) => l.tyreAge), fitted.map((l) => l.timeMs / 1000));
+      const wear = slope(fitted.filter((l) => l.wearAvg != null).map((l) => l.tyreAge), fitted.filter((l) => l.wearAvg != null).map((l) => l.wearAvg));
+      const fuel = laps.filter((l) => l.lap >= st.fromLap && l.lap <= st.toLap && l.fuelKg != null);
+      return h('tr', { class: 'pace__stint' },
+        h('td', { 'data-c': (COMPOUND_NAME[st.compound] || '').toLowerCase() }, tyre(st.compound)),
+        h('td', {}, st.fromLap === st.toLap ? String(st.fromLap) : `${st.fromLap}–${st.toLap}`),
+        h('td', { class: 'num' }, ls.length ? fmtLap(median(ls.map((l) => l.timeMs))) : '–'),
+        h('td', { class: 'num' }, ls.length ? fmtLap(Math.min(...ls.map((l) => l.timeMs))) : '–'),
+        h('td', { class: 'num' }, deg != null && fitted.length >= 3 ? `${deg >= 0 ? '+' : '−'}${Math.abs(deg).toFixed(3)} s/lap` : '–'),
+        h('td', { class: 'num' }, wear != null && fitted.length >= 3 ? `${wear.toFixed(1)}%/lap` : '–'),
+        h('td', { class: 'num' }, fuel.length > 1 ? `${(fuel[0].fuelKg - fuel[fuel.length - 1].fuelKg).toFixed(1)} kg` : '–'),
+        h('td', { class: 'num' }, String(ls.length)));
+    });
+    const stints = h('table', { class: 'tbl pace__stints' },
+      h('thead', {}, h('tr', {}, ['Tyre', 'Laps', 'Typical lap', 'Best', 'Pace change per lap', 'Tyre wear', 'Fuel used', 'Laps counted'].map((x2, i) => h('th', { class: i > 1 ? 'num' : '' }, x2)))),
+      h('tbody', {}, stintRows));
+
+    // Sectors: your best, your typical, and what joining the best ones up would give.
+    const sectorRows = ['s1', 's2', 's3'].map((k, i) => {
+      const vals = laps.filter(counts).map((l) => l[k]).filter((v) => v > 0);
+      const best = d.bestSectors && d.bestSectors[i];
+      return h('tr', {}, h('td', {}, `Sector ${i + 1}`), h('td', { class: 'num' }, best ? (best / 1000).toFixed(3) : '–'), h('td', { class: 'num' }, vals.length ? (median(vals) / 1000).toFixed(3) : '–'), h('td', { class: 'num' }, best && vals.length ? `+${((median(vals) - best) / 1000).toFixed(3)}` : '–'));
+    });
+    const sectors = h('table', { class: 'tbl pace__sectors' },
+      h('thead', {}, h('tr', {}, ['', 'Best', 'Typical', 'Typical vs best'].map((x2, i) => h('th', { class: i ? 'num' : '' }, x2)))), h('tbody', {}, sectorRows));
+
+    // Every lap, sortable by any column.
+    let sortKey = 'lap';
+    let sortDir = 1;
+    const table = h('table', { class: 'tbl pace__table' });
+    function drawTable() {
+      const rows = [...laps].sort((a, b) => ((a[sortKey] ?? Infinity) - (b[sortKey] ?? Infinity)) * sortDir || a.lap - b.lap);
+      table.replaceChildren(
+        h('thead', {}, h('tr', {}, COLS.map(([key, label]) => h('th', { class: key === 'lap' || key === 'compound' ? '' : 'num', 'aria-sort': key === sortKey ? (sortDir > 0 ? 'ascending' : 'descending') : 'none' },
+          h('button', { type: 'button', onclick: () => { sortDir = key === sortKey ? -sortDir : 1; sortKey = key; drawTable(); } }, `${label}${key === sortKey ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}`))))),
+        h('tbody', {}, rows.map((l) => h('tr', { class: `is-${kinds.get(l.lap)}` }, COLS.map(([key, , fmt]) => h('td', { class: key === 'lap' || key === 'compound' ? '' : 'num' }, fmt(l)))))));
+    }
+    drawTable();
+    const csv = h('button', {
+      type: 'button', class: 'pace__csv',
+      onclick: () => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([widgets.debrief.lapsCsv(d)], { type: 'text/csv' }));
+        a.download = widgets.debrief.csvName(d);
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      },
+    }, 'Download CSV');
+
+    root.append(
+      h('section', {}, h('div', { class: 'pace__head' }, h('h3', {}, 'Lap times'), h('p', { class: 'pace__key' },
+        h('span', {}, h('i', { class: 'is-clean' }), 'lap'), h('span', {}, h('i', { class: 'is-best' }), 'best'), h('span', {}, h('i', { class: 'is-pit' }), 'pit'),
+        h('span', {}, h('i', { class: 'is-sc' }), 'safety car'), h('span', {}, h('i', { class: 'is-start' }), 'start'))), svg, readout),
+      h('section', {}, h('h3', {}, 'Stints'), stints),
+      h('section', {}, h('h3', {}, 'Sectors'), sectors, d.theoreticalBestMs ? h('p', { class: 'pace__note' }, `Your best three sectors joined up: ${fmtLap(d.theoreticalBestMs)}${d.bestLap ? `, ${((d.bestLap.ms - d.theoreticalBestMs) / 1000).toFixed(3)} s under your best lap` : ''}.`) : null),
+      h('section', {}, h('div', { class: 'pace__head' }, h('h3', {}, 'Every lap'), csv), table));
+    return root;
+  }
+
   // ---------- Lap vs lap: two laps on one distance axis ----------
   // The bridge compares A (the reference) with B (the lap it explains): + means B lost time. Here
   // "your lap" is always the one explained and "against" the reference, another lap or a rival's best.
@@ -304,7 +440,7 @@
       let sig = '';
       let debriefUpdate = null;
       let lapView = null; // { id, node }: kept across redraws, so a new lap doesn't refetch the comparison
-      const VIEWS = [['overview', 'Overview'], ['laps', 'Lap vs lap'], ['debrief', 'Full debrief']];
+      const VIEWS = [['overview', 'Overview'], ['pace', 'Pace'], ['laps', 'Lap vs lap'], ['debrief', 'Full debrief']];
 
       function draw() {
         const d = sessions.find((x) => x.id === selected) || sessions[0] || null;
@@ -329,6 +465,8 @@
         debriefUpdate = null;
         if (view === 'overview') {
           body.replaceChildren(overview(d));
+        } else if (view === 'pace') {
+          body.replaceChildren(pace(d));
         } else if (view === 'laps') {
           if (!lapView || lapView.id !== d.id) lapView = { id: d.id, node: lapVsLap(d) };
           if (!body.contains(lapView.node)) body.replaceChildren(lapView.node);

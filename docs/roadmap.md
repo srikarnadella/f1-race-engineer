@@ -67,7 +67,7 @@ flowchart LR
   end
   subgraph R[Race analysis: its own place]
     R1[R1 Session picker and race overview]:::done
-    R2[R2 Pace: laps, stints, tyre wear]:::next
+    R2[R2 Pace: laps, stints, tyre wear]:::done
     R3[R3 Head to head with any rival]:::next
     R4[R4 Strategy review: calls, stops, what-if]:::next
     R5[R5 Across sessions: trends per track]
@@ -333,7 +333,11 @@ estimated on the page. Use the taste skill and the dataviz skill for every view.
   the debrief keeps in memory (G3 covers the rest on disk).
 - **R2 Pace.** Lap times through the race with in/out laps and neutralised laps marked, stint pace
   and tyre wear rate per stint, sector times, best and theoretical best. *Test:* on a recorded
-  race the chart's points equal laps.csv for that session.
+  race the chart's points equal laps.csv for that session. *Done:* `test/desktopPace.test.js`: every
+  lap on the chart (start, pit, safety car, invalid and best marked as such), per stint the typical and
+  best lap, the pace change per lap and the wear per lap fitted on its clean laps, sectors best against
+  typical, and every lap in a table sortable by any column with CSV. "Pace change" rather than "lost to
+  wear": fuel burn speeds the car up over a stint, so the fit is the net of both.
 - **R3 Head to head.** Pick any rival: the gap lap by lap, where the time went by corner on any
   lap pair (lapCompare), their stints next to yours. *Test:* the gap at each lap equals the
   debrief's gap; the corner deltas add up to the lap delta.
