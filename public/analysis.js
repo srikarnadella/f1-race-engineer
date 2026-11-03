@@ -374,6 +374,125 @@
     return root;
   }
 
+  // ---------- Strategy: the calls graded, your stops priced against the field's (R4) ----------
+  // The calls audit (/api/debrief/audit) grades each call as `npm run backtest` does; its stops are
+  // every car's in- and out-lap against the cars that stayed out those laps.
+  const VERDICT_WORD = { right: 'Right', wrong: 'Wrong', unclear: 'Unclear', rule: 'Rule' };
+  function strategy(d) {
+    const root = h('div', { class: 'str' }, h('p', { class: 'ana__empty' }, 'Grading the calls…'));
+    /** @type {any} */
+    let audit = null;
+    let filter = 'all';
+
+    // Your stops from the laps: one per run of pit laps; the rejoin is the position after the out-lap.
+    function myStops() {
+      const out = [];
+      d.laps.forEach((l, i) => {
+        if (!l.pit || (i > 0 && d.laps[i - 1].pit)) return;
+        let j = i;
+        while (d.laps[j + 1] && d.laps[j + 1].pit) j++;
+        const after = j > i ? d.laps[j] : d.laps[i + 1];
+        const before = d.laps[i - 1];
+        out.push({ lap: l.lap, from: l.compound, to: after ? after.compound : null, before: before ? before.position : null, after: after ? after.position : null });
+      });
+      return out;
+    }
+
+    // Races saved before the calls and every car's laps were kept with the session have neither.
+    const oldSave = () => !audit.calls.length && !(audit.stops || []).length;
+
+    function stopsSection() {
+      const stops = myStops();
+      if (!stops.length) return h('section', {}, h('h3', {}, 'Your stops'), h('p', { class: 'pace__note' }, 'No pit stop this race.'));
+      const priced = audit.stops || [];
+      const others = priced.filter((x) => !x.isPlayer && x.green).map((x) => x.costMs);
+      const typical = others.length ? median(others) : null;
+      const rows = stops.map((st) => {
+        const p = priced.find((x) => x.isPlayer && x.lapNum === st.lap);
+        let vs = oldSave() ? 'Not priced: this race was saved before stops were priced' : 'Not priced: no cars stayed out on those laps';
+        if (p && !p.green) vs = 'Under the safety car or VSC: not comparable with green-flag stops';
+        else if (p && typical != null) {
+          const diff = p.costMs - typical;
+          vs = `${(Math.abs(diff) / 1000).toFixed(1)} s ${diff <= 0 ? 'quicker' : 'slower'} than the others' typical ${(typical / 1000).toFixed(1)} s`;
+        } else if (p) vs = 'Nobody else stopped under green to compare with';
+        return h('li', { class: 'str__stop' },
+          h('b', { class: 'str__stop-lap' }, `Lap ${st.lap}`),
+          h('span', {}, `${tyre(st.from)} → ${st.to != null ? tyre(st.to) : '?'}`),
+          h('span', { class: 'str__stop-cost' }, p ? `${(p.costMs / 1000).toFixed(1)} s` : '–'),
+          h('span', { class: 'str__stop-vs' }, vs),
+          h('span', {}, st.before && st.after ? `P${st.before} → P${st.after}` : ''));
+      });
+      // Every green-flag stop of the race on one axis: where yours sits.
+      const green = priced.filter((x) => x.green);
+      let strip = null;
+      if (green.length > 1) {
+        const W = 1000;
+        const lo = Math.min(...green.map((x) => x.costMs));
+        const hi = Math.max(...green.map((x) => x.costMs));
+        const x = (v) => 20 + ((v - lo) / Math.max(1, hi - lo)) * (W - 40);
+        strip = s('svg', { class: 'str__strip', viewBox: `0 0 ${W} 70`, role: 'img', 'aria-label': 'Every green-flag stop of the race, by what it cost' });
+        strip.append(s('line', { class: 'ana__grid', x1: 20, x2: W - 20, y1: 30, y2: 30 }));
+        for (const g of [...green].sort((a, b) => Number(a.isPlayer) - Number(b.isPlayer))) {
+          const dot = s('circle', { class: `str__dot${g.isPlayer ? ' is-you' : ''}`, cx: x(g.costMs), cy: 30, r: g.isPlayer ? 9 : 6 });
+          dot.append(s('title', {}, `${g.isPlayer ? 'You' : `Car ${g.carIndex + 1}`}, lap ${g.lapNum}: ${(g.costMs / 1000).toFixed(1)} s`));
+          strip.append(dot);
+        }
+        strip.append(s('text', { class: 'ana__tick', x: 20, y: 64 }, `${(lo / 1000).toFixed(1)} s`), s('text', { class: 'ana__tick', x: W - 20, y: 64, 'text-anchor': 'end' }, `${(hi / 1000).toFixed(1)} s`));
+      }
+      return h('section', {},
+        h('h3', {}, 'Your stops'),
+        h('ol', { class: 'str__stops' }, rows),
+        strip ? h('div', {}, h('p', { class: 'pace__note' }, 'Every green-flag stop in the race, cheapest on the left; yours is the large dot. A stop costs its in- and out-lap against the cars that stayed out those laps.'), strip) : null);
+    }
+
+    function callsSection() {
+      const counts = { all: audit.calls.length, right: 0, wrong: 0, unclear: 0, rule: 0 };
+      for (const c of audit.calls) counts[c.verdict] = (counts[c.verdict] || 0) + 1;
+      const shown = audit.calls.filter((c) => filter === 'all' || c.verdict === filter);
+      const chips = [['all', 'All'], ['right', 'Right'], ['wrong', 'Wrong'], ['unclear', 'Unclear'], ['rule', 'Rules']]
+        .filter(([k]) => k === 'all' || counts[k])
+        .map(([k, label]) => h('button', { type: 'button', class: 'str__filter', 'aria-pressed': String(filter === k), onclick: () => { filter = k; render(); } }, `${label} ${counts[k]}`));
+      const copy = h('button', {
+        type: 'button',
+        class: 'str__copy',
+        onclick: (e) => {
+          const btn = e.currentTarget;
+          if (!navigator.clipboard) return;
+          navigator.clipboard.writeText(widgets.debrief.callsText(audit, d)).then(() => { btn.textContent = 'Copied'; }, () => { btn.textContent = 'Couldn\'t copy'; });
+        },
+      }, 'Copy as text');
+      return h('section', {},
+        h('div', { class: 'pace__head' }, h('h3', {}, 'Every call'), copy),
+        h('div', { class: 'str__filters', role: 'group', 'aria-label': 'Show calls' }, chips),
+        h('ol', { class: 'str__calls' }, shown.map((c) => h('li', { class: `str__call is-${c.verdict}`, 'data-lap': c.lapNum },
+          h('b', { class: 'str__call-lap' }, `Lap ${c.lapNum}`),
+          h('span', { class: 'str__call-action' }, c.action),
+          h('span', { class: 'str__call-verdict' }, VERDICT_WORD[c.verdict] || c.verdict),
+          h('span', { class: 'str__call-why' }, c.why)))),
+        h('p', { class: 'pace__note' }, 'Each call is judged by the one thing it claims, on the laps after it. Following the rules (in the pits, a safety car, a penalty) isn\'t graded.'));
+    }
+
+    function render() {
+      if (!audit || audit.error) {
+        root.replaceChildren(h('p', { class: 'ana__empty' }, (audit && audit.error) || 'Couldn\'t reach the bridge.'));
+        return;
+      }
+      const t = audit.summary;
+      const verdict = oldSave()
+        ? 'This race was saved before the calls were kept with it, so there is nothing to grade. Races from now on are graded here.'
+        : t.graded
+        ? `${t.right} of ${t.graded} graded call${t.graded === 1 ? ' was' : 's were'} right${t.wrong ? `, ${t.wrong} wrong` : ''}${t.unclear ? `, ${t.unclear} unclear` : ''}`
+        : 'No calls to grade: every call this race followed the rules (pits, safety car, penalties).';
+      root.replaceChildren(h('p', { class: 'str__verdict lvl__verdict' }, verdict), stopsSection(), audit.calls.length ? callsSection() : null);
+    }
+
+    fetch(`/api/debrief/audit?session=${encodeURIComponent(d.id)}`)
+      .then((r) => r.json())
+      .then((j) => { audit = j; }, () => { audit = null; })
+      .then(render);
+    return root;
+  }
+
   // ---------- Lap vs lap: two laps on one distance axis ----------
   // The bridge compares A (the reference) with B (the lap it explains): + means B lost time. Here
   // "your lap" is always the one explained and "against" the reference, another lap or a rival's best.
@@ -547,7 +666,8 @@
       let debriefUpdate = null;
       let lapView = null; // { id, node }: kept across redraws, so a new lap doesn't refetch the comparison
       let h2hView = null; // the same for Head to head
-      const VIEWS = [['overview', 'Overview'], ['pace', 'Pace'], ['laps', 'Lap vs lap'], ['h2h', 'Head to head'], ['debrief', 'Full debrief']];
+      let strView = null; // and Strategy
+      const VIEWS = [['overview', 'Overview'], ['pace', 'Pace'], ['laps', 'Lap vs lap'], ['h2h', 'Head to head'], ['strategy', 'Strategy'], ['debrief', 'Full debrief']];
 
       function draw() {
         if (desk.analysisSession && sessions.some((x) => x.id === desk.analysisSession)) {
@@ -562,8 +682,8 @@
         }, h('span', { class: 'ana__session-name' }, name(x)), h('span', { class: 'ana__session-meta' }, [x.live ? 'Now' : day(x.startedAt), x.finish ? `P${x.finish}` : null].filter(Boolean).join(' · ')))));
         // The Debrief card only has the sessions in the snapshot.
         const inSnap = !!(last && (last.debrief.sessions || []).some((x) => x.id === selected));
-        if (view === 'debrief' && !inSnap) view = 'overview';
-        views.replaceChildren(...VIEWS.filter(([id]) => id !== 'debrief' || inSnap).map(([id, label]) => h('button', {
+        if ((view === 'debrief' && !inSnap) || (view === 'strategy' && !(d && d.isRace))) view = 'overview';
+        views.replaceChildren(...VIEWS.filter(([id]) => (id !== 'debrief' || inSnap) && (id !== 'strategy' || (d && d.isRace))).map(([id, label]) => h('button', {
           type: 'button', role: 'tab', class: 'ana__view', 'aria-selected': String(id === view),
           onclick: () => { view = id; sig = ''; draw(); },
         }, label)));
@@ -584,6 +704,9 @@
         } else if (view === 'h2h') {
           if (!h2hView || h2hView.id !== d.id) h2hView = { id: d.id, node: headToHead(d) };
           if (!body.contains(h2hView.node)) body.replaceChildren(h2hView.node);
+        } else if (view === 'strategy') {
+          if (!strView || strView.id !== d.id) strView = { id: d.id, node: strategy(d) };
+          if (!body.contains(strView.node)) body.replaceChildren(strView.node);
         } else if (view === 'laps') {
           if (!lapView || lapView.id !== d.id) lapView = { id: d.id, node: lapVsLap(d) };
           if (!body.contains(lapView.node)) body.replaceChildren(lapView.node);

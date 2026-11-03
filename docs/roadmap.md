@@ -69,7 +69,7 @@ flowchart LR
     R1[R1 Session picker and race overview]:::done
     R2[R2 Pace: laps, stints, tyre wear]:::done
     R3[R3 Head to head with any rival]:::done
-    R4[R4 Strategy review: calls, stops, what-if]:::next
+    R4[R4 Strategy review: calls, stops, what-if]:::done
     R5[R5 Across sessions: trends per track]
     R6[R6 Lap vs lap telemetry]:::done
   end
@@ -77,7 +77,7 @@ flowchart LR
     G1[G1 Shortcuts listed in Settings]:::done
     G2[G2 Field CSV and Calls audit copy]:::done
     G3[G3 Library shows every saved session]:::done
-    G4[G4 races.csv ends at the flag]:::next
+    G4[G4 races.csv ends at the flag]:::done
     G5[G5 Window opens without a blank frame]:::done
   end
 
@@ -351,7 +351,13 @@ estimated on the page. Use the taste skill and the dataviz skill for every view.
   rival's best lap is in Lap vs lap (R6).
 - **R4 Strategy review.** Every call with its grade (calls audit), the pit stops and what they
   cost or gained, the rejoin predicted vs actual, and a what-if on the stop lap (A1). *Test:* the
-  grades equal `npm run backtest` for the session.
+  grades equal `npm run backtest` for the session. *Done (all but the what-if):* Race analysis, Strategy:
+  the calls verdict in a sentence, every call in lap order filterable by grade (copy as text), each of
+  your stops priced against the others' green-flag stops in the same race (the audit's `stopsOf`, now
+  returned by `/api/debrief/audit`), all of them on one axis, and where you rejoined
+  (`test/desktopStrategy.test.js`, `test/debriefAudit.test.js`). Every race saved so far predates calls
+  being kept with the session; the view says so rather than grading nothing. Predicted rejoin and the
+  what-if on the stop lap are left: neither prediction is saved with the session yet.
 - **R6 Lap vs lap telemetry.** Any of your laps against another, or against a rival's best: the time
   gap, speed, throttle, brake, gear and steering on one distance axis with one crosshair across them
   all, the verdict in a sentence, and the corners ranked by time lost (click one to zoom every
@@ -379,7 +385,11 @@ Found reading the app on 3 Nov 2026; an hour or less each.
   small. Found on the way: Storage's "Open in Race analysis" opened the newest session, not the one
   clicked; fixed. Full debrief is offered only for the 10 in memory (the card reads the snapshot).
 - **G4** `races.csv` `durationMin` ends at the chequered flag, not the results screen. *Test:* a
-  synthetic race with a 2-minute results screen reports its racing time only.
+  synthetic race with a 2-minute results screen reports its racing time only. *Done:* the Event packet's
+  CHQF ends the race (`test/buildDataset.test.js`); races.csv rebuilt: Silverstone 15.3 to 8.7 min, Spa
+  46.6 to 37.5. The rebuild also picks up the Red Bull Ring race (2026-10-19_153711) that laps.csv never
+  had; it is left out until the accuracy gate's scores are re-saved with it (a deliberate step: it moves
+  every model's numbers).
 - **G5** The window shows once the page is ready (`ready-to-show`), not as an empty frame.
   *Test:* `show: false` until the first paint.
 

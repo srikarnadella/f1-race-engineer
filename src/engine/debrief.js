@@ -12,7 +12,7 @@ const { RACE_SESSION_TYPES } = require('../state/race');
 const { SESSION_TYPES, TRACKS } = require('../udp/gameIds');
 const { compareLaps, consistency } = require('../analysis/lapCompare');
 const { rivalAnalysis } = require('../analysis/rivals');
-const { auditCalls } = require('../analysis/callsAudit');
+const { auditCalls, stopsOf } = require('../analysis/callsAudit');
 const { createLapRecorder, createCallRecorder } = require('../data/laps');
 
 const KEEP_SESSIONS = 10;
@@ -445,7 +445,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     if (!RACE_SESSION_TYPES.has(s.sessionType)) return { error: 'Calls are graded in races only' };
     keepAuditRows(s);
     const rows = s.auditRows || { laps: [], calls: [] };
-    return auditCalls(rows.calls, rows.laps);
+    return { ...auditCalls(rows.calls, rows.laps), stops: stopsOf(rows.laps) };
   }
 
   // The desktop Library's Delete: a finished session goes from the list and

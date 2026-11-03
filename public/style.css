@@ -1208,6 +1208,39 @@ body {
 .h2h__worst li { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; padding: 9px 0; font-size: 1.05rem; }
 .h2h__worst b { color: var(--label); font-weight: 650; font-variant-numeric: tabular-nums; }
 
+/* Strategy (analysis.js): the calls graded, your stops against the field's. Verdicts in words first, colour second. */
+.str { display: flex; flex-direction: column; gap: 36px; }
+.str h3 { margin: 0 0 14px; font-size: 1.2rem; font-weight: 750; color: var(--muted); }
+.str__stops, .str__calls { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.str__stop { display: grid; grid-template-columns: 90px 170px 80px minmax(0, 1fr) 110px; gap: 20px; align-items: baseline; padding: 12px 0; font-size: 1.1rem; }
+.str__stop:nth-child(odd) { background: #101010; }
+.str__stop > * { padding: 0 6px; }
+.str__stop-lap, .str__call-lap { color: var(--label); font-weight: 650; font-variant-numeric: tabular-nums; }
+.str__stop-cost { font-weight: 800; font-variant-numeric: tabular-nums; }
+.str__stop-vs { color: var(--muted); }
+.str__strip { display: block; width: 100%; height: auto; margin-top: 8px; }
+.str__dot { fill: #5a5a5a; }
+.str__dot.is-you { fill: #d9740a; stroke: var(--bg); stroke-width: 2; }
+.str__filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.str__filter, .str__copy { appearance: none; border: 0; border-radius: 4px; min-height: 40px; padding: 0 14px; background: #161616; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.str__filter:hover, .str__copy:hover { background: #222; color: var(--text); }
+.str__filter[aria-pressed="true"] { background: #262626; color: var(--text); }
+.str__filter:focus-visible, .str__copy:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.str__call { display: grid; grid-template-columns: 80px 110px 90px minmax(0, 1fr); gap: 20px; align-items: baseline; padding: 11px 6px; font-size: 1.05rem; }
+.str__call:nth-child(odd) { background: #101010; }
+.str__call-action { font-weight: 800; }
+.str__call-verdict { font-weight: 750; }
+.str__call.is-right .str__call-verdict { color: var(--good); }
+.str__call.is-wrong .str__call-verdict { color: var(--act); }
+.str__call.is-unclear .str__call-verdict { color: var(--watch); }
+.str__call.is-rule { color: var(--label); }
+@media (max-width: 1100px) {
+  .str__stop { grid-template-columns: 80px 1fr 80px; }
+  .str__stop-vs { grid-column: 1 / -1; }
+  .str__call { grid-template-columns: 70px 90px 80px; }
+  .str__call-why { grid-column: 1 / -1; }
+}
+
 /* Settings: this PC's ports and data folder. */
 .setting--pc { flex-direction: column; cursor: default; }
 .pc-ports { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }

@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const { syntheticPackets, replay } = require('./helpers/synthetic');
 const { createLapRecorder, createCallRecorder } = require('../src/data/laps');
-const { auditCalls } = require('../src/analysis/callsAudit');
+const { auditCalls, stopsOf } = require('../src/analysis/callsAudit');
 
 // The calls audit (roadmap U1): after a race, the Debrief grades each call against what then happened -
 // the same grading `npm run backtest` prints from the datasets, on the same laps and calls.
@@ -28,6 +28,8 @@ test('debrief audit: every call of the race graded, as the backtest grades it fr
   assert.deepStrictEqual(audit.summary, expected.summary);
   assert.deepStrictEqual(audit.calls.map(({ lapNum, action, kind, verdict, why }) => ({ lapNum, action, kind, verdict, why })),
     expected.calls.map(({ lapNum, action, kind, verdict, why }) => ({ lapNum, action, kind, verdict, why })));
+  // Every car's stops, priced the way the audit prices them, for the strategy review (R4).
+  assert.deepStrictEqual(audit.stops, stopsOf(laps.rows()));
   assert.deepStrictEqual(p.debrief.audit('nope'), { error: 'No such session' });
 });
 
