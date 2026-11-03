@@ -7,8 +7,8 @@ const INSTALL_URL = 'https://ollama.com/download';
 const MAX_ROUNDS = 4; // tool rounds per answer; the last one gets no tools, so it must answer
 const WARM_WITHIN_ANSWER = '1m';
 
-/** @param {{ host?: string, isLive?: () => boolean, timeoutMs?: number }} [opts] */
-function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, timeoutMs = 180000 } = {}) {
+/** @param {{ host?: string, isLive?: () => boolean, timeoutMs?: number, onDownloads?: (list: object[]) => void }} [opts] */
+function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, timeoutMs = 180000, onDownloads = () => {} } = {}) {
   let used = false; // never touch Ollama on a session start unless it was used this run
   /** @type {{ controller: AbortController, done: Promise<unknown> } | null} */
   let current = null;
@@ -92,12 +92,25 @@ function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, t
   }
 
   // Downloads (L3) through Ollama: progress as a fraction of every layer's bytes; cancel by name.
+  // Tracked here, not in the page, so leaving Ask the race and coming back finds them as they are.
   const pulls = new Map(); // model -> AbortController
-  async function pull(model, onProgress) {
+  const tracked = new Map(); // model -> { model, state: downloading | done | failed | cancelled, fraction, completed, total, error }
+  const downloads = () => [...tracked.values()].map((d) => ({ ...d }));
+  const track = (model, patch) => {
+    tracked.set(model, { ...(tracked.get(model) || { model, fraction: 0, completed: 0, total: 0, error: null }), ...patch });
+    onDownloads(downloads());
+  };
+  function clearDownloads() {
+    for (const [k, d] of tracked) if (d.state !== 'downloading') tracked.delete(k);
+    onDownloads(downloads());
+  }
+  /** @param {string} model @param {(p: { status: string, fraction: number, completed: number, total: number }) => void} [onProgress] */
+  async function pull(model, onProgress = () => {}) {
     if (isLive()) throw new Error('Downloads are not while you race: they use the disk and network the game needs. Download after the session.');
     if (pulls.has(model)) throw new Error('Already downloading');
     const controller = new AbortController();
     pulls.set(model, controller);
+    track(model, { state: 'downloading', fraction: 0, completed: 0, total: 0, error: null });
     const layers = new Map(); // digest -> { total, completed }
     let last = 0;
     try {
@@ -125,11 +138,17 @@ function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, t
           const fraction = m.status === 'success' ? 1 : Math.max(last, total ? Math.min(0.99, done / total) : 0);
           last = fraction;
           onProgress({ status: m.status, fraction, completed: done, total });
+          track(model, { fraction, completed: done, total });
         }
       }
       if (last !== 1) throw new Error('The download ended early');
+      track(model, { state: 'done', fraction: 1 });
     } catch (err) {
-      if (controller.signal.aborted) throw new Error('Download cancelled');
+      if (controller.signal.aborted) {
+        track(model, { state: 'cancelled' });
+        throw new Error('Download cancelled');
+      }
+      track(model, { state: 'failed', error: err.message });
       throw err;
     } finally {
       pulls.delete(model);
@@ -144,7 +163,7 @@ function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, t
     if (!res.ok && res.status !== 404) throw new Error(`Ollama /api/delete: HTTP ${res.status}`);
   }
 
-  return { detect, models, ask, stop, sessionStarted, pull, cancelPull, remove, busy: () => !!current, installUrl: INSTALL_URL };
+  return { detect, models, ask, stop, sessionStarted, pull, cancelPull, remove, downloads, clearDownloads, busy: () => !!current, installUrl: INSTALL_URL };
 }
 
 module.exports = { createOllama, INSTALL_URL };

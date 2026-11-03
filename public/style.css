@@ -1256,7 +1256,27 @@ body {
 }
 
 /* Ask the race (askrace.js): the notice first, then Ollama and the models, a row each. */
-.llm { display: flex; flex-direction: column; gap: 28px; max-width: 1100px; }
+.llm { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 28px 64px; align-items: start; }
+.llm__main { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+/* The download manager: on the right, staying in view as the models scroll. */
+.llm__dls { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 12px; padding-left: 28px; box-shadow: inset 1px 0 0 #222; }
+.llm__dls-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.llm__dls-head .llm__head { margin: 0; }
+.llm__dl-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 18px; }
+.llm__dl { display: flex; flex-direction: column; gap: 8px; }
+.llm__dl-top { display: flex; justify-content: space-between; gap: 12px; font-size: 1.05rem; }
+.llm__dl-state { font-weight: 800; font-variant-numeric: tabular-nums; }
+.llm__dl.is-done .llm__dl-state { color: var(--good); }
+.llm__dl.is-failed .llm__dl-state { color: var(--act); }
+.llm__dl.is-cancelled .llm__dl-state { color: var(--label); }
+.llm__dl .llm__progress { width: 100%; }
+.llm__dl-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 0.95rem; }
+.llm__dl-foot .pc-btn { padding: 6px 10px; font-size: 0.95rem; }
+.llm__dl-empty { margin: 0; color: var(--muted); line-height: 1.45; }
+@media (max-width: 1100px) {
+  .llm { grid-template-columns: 1fr; }
+  .llm__dls { position: static; padding-left: 0; box-shadow: none; }
+}
 .llm__notice { margin: 0; max-width: 46ch; font-size: clamp(1.4rem, 1.1rem + 0.9vw, 2rem); font-weight: 750; letter-spacing: -0.02em; line-height: 1.25; }
 .llm__live { margin: 0; padding-left: 14px; box-shadow: inset 4px 0 0 var(--watch); color: var(--watch); font-size: 1.1rem; font-weight: 700; }
 .llm__head { margin: 12px 0 6px; font-size: 1.2rem; font-weight: 750; color: var(--muted); }

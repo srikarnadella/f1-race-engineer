@@ -125,7 +125,15 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   // Ask the race (roadmap L2): the local model through Ollama, never while the game is sending telemetry.
-  const ollama = createOllama({ isLive: () => !!(bridge && bridge.live()) });
+  // Downloads go to the window as they move: at most 4 times a second, and at once when one ends.
+  let sentDownloadsAt = 0;
+  const sendDownloads = (list) => {
+    const now = Date.now();
+    if (list.every((d) => d.state === 'downloading') && now - sentDownloadsAt < 250) return;
+    sentDownloadsAt = now;
+    if (win && !win.isDestroyed()) win.webContents.send('llm', { kind: 'downloads', downloads: list });
+  };
+  const ollama = createOllama({ isLive: () => !!(bridge && bridge.live()), onDownloads: sendDownloads });
 
   // Only this window, on the bridge's own page, may call the PC.
   function handle(channel, fn) {
@@ -211,9 +219,9 @@ if (!app.requestSingleInstanceLock()) {
     if (!isOffered(id)) throw new Error('Not a model this app offers');
     return id;
   };
-  handle('llm:pull', (id) => ollama.pull(offered(id), (p) => {
-    if (win && !win.isDestroyed()) win.webContents.send('llm', { kind: 'pull', model: id, ...p });
-  }).then(() => true));
+  handle('llm:pull', (id) => ollama.pull(offered(id)).then(() => true));
+  handle('llm:downloads', () => ollama.downloads());
+  handle('llm:clearDownloads', () => ollama.clearDownloads());
   handle('llm:cancelPull', (id) => ollama.cancelPull(offered(id)));
   handle('llm:delete', async (id) => {
     const m = MODELS.find((x) => x.id === offered(id));

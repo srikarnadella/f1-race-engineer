@@ -1,6 +1,8 @@
 // Ask the race: the desktop app's place for questions to a local model about your saved races
 // (roadmap L3-L5). The model runs through Ollama on this PC, only when asked, never while the game
-// is sending telemetry. L3: getting Ollama and the models. Only in the app window.
+// is sending telemetry. L3: getting Ollama and the models, with a download manager on the right.
+// Downloads run in the app's main process, so they carry on when you leave this page; it only
+// shows them. Only in the app window.
 (function () {
   'use strict';
 
@@ -21,6 +23,9 @@
     return el;
   }
   const gb = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.round(n / 1e6)} MB`);
+  // "1.0 of 2.0 GB": the done part in the total's unit.
+  const ofText = (done, total) => (total >= 1e9 ? `${(done / 1e9).toFixed(1)} of ${gb(total)}` : `${Math.round(done / 1e6)} of ${gb(total)}`);
+  const pct = (f) => `${Math.round(f * 100)}%`;
   const reason = (err) => String((err && err.message) || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 
   widgets.askrace = {
@@ -33,12 +38,13 @@
       const live = h('p', { class: 'llm__live', role: 'status', hidden: true }, 'The game is sending telemetry. Come back after the session.');
       const error = h('p', { class: 'pc-error', role: 'alert', hidden: true });
       const body = h('div', { class: 'llm__body' }, h('p', { class: 'ana__empty' }, 'Looking for Ollama…'));
-      frame.replaceChildren(h('div', { class: 'llm' }, notice, live, error, body));
+      const manager = h('aside', { class: 'llm__dls', 'aria-label': 'Downloads' });
+      frame.replaceChildren(h('div', { class: 'llm' }, h('div', { class: 'llm__main' }, notice, live, error, body), manager));
 
       let status = null;
       let catalog = [];
       let have = new Set();
-      const progress = new Map(); // model -> fraction while downloading
+      let downloads = []; // the app's list: { model, state, fraction, completed, total, error }
       let isLive = false;
 
       async function act(fn) {
@@ -51,6 +57,8 @@
           return null;
         }
       }
+      const nameOf = (id) => (catalog.find((m) => m.id === id) || { name: id }).name;
+      const downloading = (id) => downloads.find((d) => d.model === id && d.state === 'downloading');
 
       async function refresh() {
         if (!api || !api.llm) {
@@ -61,17 +69,26 @@
         if (status && status.installed) {
           catalog = (await act(() => api.llm.catalog())) || [];
           have = new Set(((await act(() => api.llm.models())) || []).map((m) => m.name));
+          downloads = (await act(() => api.llm.downloads())) || [];
         }
         draw();
       }
 
+      function startDownload(id) {
+        error.hidden = true;
+        // How it goes shows in the manager; only a refusal before it starts (racing) is an error here.
+        api.llm.pull(id).catch((err) => {
+          if (/cancelled/i.test(reason(err)) || downloads.some((d) => d.model === id)) return;
+          error.textContent = reason(err);
+          error.hidden = false;
+        });
+      }
+
       function modelRow(m) {
-        const downloading = progress.has(m.id);
-        const frac = progress.get(m.id) || 0;
+        const d = downloading(m.id);
         let actions;
-        if (downloading) {
-          actions = [h('progress', { class: 'llm__progress', max: 1, value: frac }), h('span', { class: 'llm__pct' }, `${Math.round(frac * 100)}%`),
-            h('button', { type: 'button', class: 'pc-btn pc-btn--quiet', onclick: () => act(() => api.llm.cancelPull(m.id)) }, 'Cancel')];
+        if (d) {
+          actions = [h('progress', { class: 'llm__progress', max: 1, value: d.fraction }), h('span', { class: 'llm__pct' }, pct(d.fraction))];
         } else if (have.has(m.id)) {
           actions = [h('span', { class: 'llm__have' }, 'Downloaded'), h('button', {
             type: 'button',
@@ -82,38 +99,41 @@
             }),
           }, 'Delete')];
         } else {
-          actions = [h('button', {
-            type: 'button',
-            class: 'pc-btn pc-btn--primary',
-            disabled: isLive,
-            onclick: () => {
-              progress.set(m.id, 0);
-              draw();
-              act(async () => {
-                try {
-                  if (await api.llm.pull(m.id)) have.add(m.id);
-                } finally {
-                  progress.delete(m.id);
-                  draw();
-                }
-              });
-            },
-          }, 'Download')];
+          actions = [h('button', { type: 'button', class: 'pc-btn pc-btn--primary', disabled: isLive, onclick: () => startDownload(m.id) }, 'Download')];
         }
-        // Keep the progress element itself, so a redraw doesn't reset its value mid-download.
-        const row = h('li', { class: 'llm__model', 'data-model': m.id },
+        return h('li', { class: 'llm__model', 'data-model': m.id },
           h('div', { class: 'llm__text' },
             h('b', { class: 'llm__name' }, m.name),
             h('span', { class: 'llm__meta' }, `${m.maker} · ${gb(m.sizeBytes)} · `, h('a', { class: 'llm__licence', href: m.licenceUrl, target: '_blank', rel: 'noopener' }, m.licence)),
             h('span', { class: 'llm__note' }, m.note)),
           h('div', { class: 'llm__actions' }, actions));
-        return row;
+      }
+
+      // The download manager: every download this run, the running ones first.
+      const STATE = { downloading: 'Downloading', done: 'Downloaded', failed: 'Failed', cancelled: 'Cancelled' };
+      function drawManager() {
+        const list = [...downloads].sort((a, b) => Number(b.state === 'downloading') - Number(a.state === 'downloading'));
+        const finished = list.some((d) => d.state !== 'downloading');
+        manager.replaceChildren(
+          h('div', { class: 'llm__dls-head' }, h('h2', { class: 'llm__head' }, 'Downloads'),
+            finished ? h('button', { type: 'button', class: 'pc-btn pc-btn--quiet', onclick: () => act(() => api.llm.clearDownloads()) }, 'Clear finished') : null),
+          list.length
+            ? h('ol', { class: 'llm__dl-list' }, list.map((d) => h('li', { class: `llm__dl is-${d.state}`, 'data-model': d.model },
+              h('div', { class: 'llm__dl-top' }, h('b', {}, nameOf(d.model)), h('span', { class: 'llm__dl-state' }, d.state === 'downloading' ? pct(d.fraction) : STATE[d.state] || d.state)),
+              d.state === 'downloading' ? h('progress', { class: 'llm__progress', max: 1, value: d.fraction }) : null,
+              h('div', { class: 'llm__dl-foot' },
+                h('span', { class: 'llm__dl-bytes' }, d.state === 'failed' ? d.error || 'Ollama stopped the download' : d.total ? ofText(d.state === 'done' ? d.total : d.completed, d.total) : 'Starting…'),
+                d.state === 'downloading' ? h('button', { type: 'button', class: 'pc-btn pc-btn--quiet', onclick: () => act(() => api.llm.cancelPull(d.model)) }, 'Cancel') : null,
+                d.state === 'failed' || d.state === 'cancelled' ? h('button', { type: 'button', class: 'pc-btn pc-btn--quiet', disabled: isLive, onclick: () => startDownload(d.model) }, 'Try again') : null))))
+            : h('p', { class: 'llm__dl-empty' }, 'Nothing downloading. Downloads keep going if you leave this page.'));
       }
 
       function draw() {
         live.hidden = !isLive;
+        drawManager();
         if (!status) return;
         if (!status.installed) {
+          manager.hidden = true;
           body.replaceChildren(
             h('h2', { class: 'llm__head' }, 'Get Ollama first'),
             h('p', { class: 'llm__lede' }, 'Ask the race runs its models through Ollama, a free app that downloads and runs them on this PC. Install it once, then come back here to pick a model.'),
@@ -122,6 +142,7 @@
               h('button', { type: 'button', class: 'pc-btn pc-btn--quiet', onclick: refresh }, 'Check again')));
           return;
         }
+        manager.hidden = false;
         body.replaceChildren(
           h('h2', { class: 'llm__head' }, 'Models'),
           h('p', { class: 'llm__lede' }, `Small models that run on a 4 GB graphics card, through Ollama ${status.version}. Download one or more; each stays on this PC until you delete it.`),
@@ -129,14 +150,14 @@
       }
 
       const off = !api || !api.llm ? () => {} : api.on('llm', (msg) => {
-        if (!msg || msg.kind !== 'pull' || !progress.has(msg.model)) return;
-        progress.set(msg.model, msg.fraction);
-        const row = [...body.querySelectorAll('.llm__model')].find((x) => x.dataset.model === msg.model);
-        const bar = row && row.querySelector('progress');
-        if (bar) {
-          bar.value = msg.fraction;
-          row.querySelector('.llm__pct').textContent = `${Math.round(msg.fraction * 100)}%`;
+        if (!el.isConnected) {
+          off(); // this page was left: the next visit listens for itself
+          return;
         }
+        if (!msg || msg.kind !== 'downloads') return;
+        for (const d of msg.downloads) if (d.state === 'done') have.add(d.model);
+        downloads = msg.downloads;
+        draw();
       });
       refresh();
 

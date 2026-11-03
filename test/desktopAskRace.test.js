@@ -12,13 +12,21 @@ function fakeApi({ installed = true, models = ['qwen3:4b'] } = {}) {
   const handlers = {};
   const calls = [];
   let have = [...models];
-  let finishPull = null;
+  // The app's download list (main process): it outlives the page.
+  let downloads = [];
+  const emit = () => handlers.llm && handlers.llm({ kind: 'downloads', downloads: downloads.map((d) => ({ ...d })) });
+  const setDl = (model, patch) => {
+    downloads = downloads.some((d) => d.model === model) ? downloads.map((d) => (d.model === model ? { ...d, ...patch } : d)) : [...downloads, { model, fraction: 0, completed: 0, total: 2.0e9, error: null, ...patch }];
+    emit();
+  };
   const llm = {
     status: async () => (installed ? { installed: true, version: '0.12.3', live: false, busy: false } : { installed: false, installUrl: 'https://ollama.com/download', live: false, busy: false }),
     catalog: async () => MODELS,
     models: async () => have.map((name) => ({ name, size: 2e9 })),
-    pull: (id) => { calls.push(['pull', id]); return new Promise((r) => { finishPull = () => { have.push(id); r(true); }; }); },
-    cancelPull: async (id) => { calls.push(['cancel', id]); },
+    pull: async (id) => { calls.push(['pull', id]); setDl(id, { state: 'downloading', fraction: 0 }); return new Promise(() => {}); },
+    cancelPull: async (id) => { calls.push(['cancel', id]); setDl(id, { state: 'cancelled' }); },
+    downloads: async () => downloads.map((d) => ({ ...d })),
+    clearDownloads: async () => { downloads = downloads.filter((d) => d.state === 'downloading'); emit(); },
     remove: async (id) => { calls.push(['remove', id]); have = have.filter((x) => x !== id); return true; },
     ask: ok,
     stop: ok,
@@ -27,7 +35,8 @@ function fakeApi({ installed = true, models = ['qwen3:4b'] } = {}) {
     api: { status: ok, setSettings: ok, record: ok, stopRecording: ok, replay: ok, live: ok, captures: async () => [], analyze: ok, deleteCapture: ok, deleteSession: ok, showCapture: ok, openReport: ok, openDataFolder: ok, openInBrowser: ok, speech: { start: ok, stop: ok }, llm, on: (ch, fn) => { handlers[ch] = fn; return () => {}; } },
     handlers,
     calls,
-    finishPull: () => finishPull(),
+    progress: (id, fraction) => setDl(id, { fraction, completed: fraction * 2.0e9 }),
+    finish: (id) => { have.push(id); setDl(id, { state: 'done', fraction: 1 }); },
   };
 }
 const settle = () => new Promise((r) => setTimeout(r, 15));
@@ -43,7 +52,9 @@ async function openAsk(t, opts, snap = { source: 'live', connected: false, debri
   await settle();
   const row = (id) => doc.querySelector(`.llm__model[data-model="${id}"]`);
   const btn = (id, label) => [...row(id).querySelectorAll('button')].find((b) => b.textContent === label);
-  return { ...app, doc, fake, row, btn };
+  const dl = (id) => doc.querySelector(`.llm__dl[data-model="${id}"]`);
+  const go = (name) => [...doc.querySelectorAll('.home__dest')].find((b) => b.textContent.startsWith(name)).click();
+  return { ...app, doc, fake, row, btn, dl, go };
 }
 
 test('ask the race: its own place, and the first thing it says is not to use it while racing', async (t) => {
@@ -69,23 +80,54 @@ test('ask the race: every model offered, with its size and licence; the download
   assert.ok(app.btn('llama3.2:3b', 'Download'), 'not yet');
 });
 
-test('ask the race: a download shows its progress, can be cancelled, and ends as downloaded', async (t) => {
+test('ask the race: a download shows its progress beside the model and in the download manager, and ends as downloaded', async (t) => {
   const app = await openAsk(t);
+  assert.match(app.doc.querySelector('.llm__dls').textContent, /Nothing downloading/);
   app.btn('llama3.2:3b', 'Download').click();
   await settle();
   assert.deepStrictEqual(app.fake.calls, [['pull', 'llama3.2:3b']]);
-  app.fake.handlers.llm({ kind: 'pull', model: 'llama3.2:3b', fraction: 0.5 });
+  app.fake.progress('llama3.2:3b', 0.5);
   assert.match(app.row('llama3.2:3b').textContent, /50%/);
   assert.strictEqual(app.row('llama3.2:3b').querySelector('progress').value, 0.5);
-  assert.ok(app.btn('llama3.2:3b', 'Cancel'));
-  app.fake.finishPull();
+  assert.match(app.dl('llama3.2:3b').textContent, /Llama 3.2 3B.*50%.*1.0 of 2.0 GB/);
+  app.fake.finish('llama3.2:3b');
   await settle();
   assert.ok(app.btn('llama3.2:3b', 'Delete'));
+  assert.match(app.dl('llama3.2:3b').textContent, /Downloaded/);
   app.btn('qwen3:4b', 'Delete').click();
   await settle();
   assert.deepStrictEqual(app.fake.calls[1], ['remove', 'qwen3:4b']);
   assert.ok(app.btn('qwen3:4b', 'Download'));
   assert.deepStrictEqual(app.errors, []);
+});
+
+test('ask the race: leaving mid-download and coming back finds it still going, not a fresh Download button', async (t) => {
+  const app = await openAsk(t);
+  app.btn('phi4-mini', 'Download').click();
+  await settle();
+  app.fake.progress('phi4-mini', 0.3);
+  app.doc.querySelector('.place__back').click();
+  app.fake.progress('phi4-mini', 0.4); // it kept going while you were away
+  app.go('Ask the race');
+  await settle();
+  assert.strictEqual(app.btn('phi4-mini', 'Download'), undefined);
+  assert.strictEqual(app.row('phi4-mini').querySelector('progress').value, 0.4);
+  assert.match(app.dl('phi4-mini').textContent, /40%/);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('ask the race: the download manager cancels a download and clears the finished ones', async (t) => {
+  const app = await openAsk(t);
+  app.btn('phi4-mini', 'Download').click();
+  await settle();
+  [...app.dl('phi4-mini').querySelectorAll('button')].find((b) => b.textContent === 'Cancel').click();
+  await settle();
+  assert.deepStrictEqual(app.fake.calls[1], ['cancel', 'phi4-mini']);
+  assert.match(app.dl('phi4-mini').textContent, /Cancelled/);
+  assert.ok(app.btn('phi4-mini', 'Download'), 'can be downloaded again');
+  [...app.doc.querySelectorAll('.llm__dls button')].find((b) => b.textContent === 'Clear finished').click();
+  await settle();
+  assert.strictEqual(app.dl('phi4-mini'), null);
 });
 
 test('ask the race: while the game is sending telemetry, downloads wait and it says why', async (t) => {

@@ -177,3 +177,28 @@ test('catalog: every model offered fits a 4 GB GPU, names its licence, and only 
   assert.strictEqual(isOffered('qwen3:4b'), true);
   assert.strictEqual(isOffered('llama3.1:70b'), false);
 });
+
+test('ollama: downloads are tracked outside any page - what is downloading, how far, and how each one ended', async (t) => {
+  const fake = await fakeOllama(t, { slowMs: 40 });
+  const updates = [];
+  const o = createOllama({ host: fake.host, onDownloads: (list) => updates.push(list) });
+  const done = o.pull('llama3.2:3b');
+  // Mid-download: wait for the first progress, however busy the machine is.
+  for (let i = 0; i < 200 && !(o.downloads()[0] && o.downloads()[0].fraction > 0); i++) await new Promise((r) => setTimeout(r, 5));
+  const mid = o.downloads().find((d) => d.model === 'llama3.2:3b');
+  assert.strictEqual(mid.state, 'downloading');
+  assert.ok(mid.fraction > 0 && mid.fraction < 1, String(mid.fraction));
+  assert.ok(mid.total > 0);
+  await done;
+  assert.deepStrictEqual(o.downloads().map((d) => [d.model, d.state, d.fraction]), [['llama3.2:3b', 'done', 1]]);
+  assert.ok(updates.length >= 3 && updates[updates.length - 1][0].state === 'done');
+
+  const cancelled = o.pull('phi4-mini');
+  await new Promise((r) => setTimeout(r, 60));
+  o.cancelPull('phi4-mini');
+  await assert.rejects(cancelled, /cancelled/i);
+  assert.strictEqual(o.downloads().find((d) => d.model === 'phi4-mini').state, 'cancelled');
+
+  o.clearDownloads();
+  assert.deepStrictEqual(o.downloads(), [], 'finished ones clear; none was still running');
+});
