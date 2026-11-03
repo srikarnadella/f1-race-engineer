@@ -31,7 +31,7 @@ function open(t) {
 test('llm tools: each one is a named function with a JSON schema, and none takes SQL', (t) => {
   const tools = open(t);
   const names = tools.schemas.map((s) => s.function.name);
-  assert.deepStrictEqual(names.sort(), ['calls', 'compare_laps', 'events', 'gaps', 'lap_coaching', 'lap_times', 'lift_and_coast', 'results', 'sessions', 'stints']);
+  assert.deepStrictEqual(names.sort(), ['calls', 'car_balance', 'compare_laps', 'events', 'gaps', 'lap_coaching', 'lap_times', 'lift_and_coast', 'results', 'sessions', 'stints']);
   for (const s of tools.schemas) {
     assert.strictEqual(s.type, 'function');
     assert.ok(s.function.description.length > 20, s.function.name);
@@ -135,4 +135,14 @@ test('llm tools: bound to one session, no tool asks for a session_id', (t) => {
   for (const s of bound.schemas) assert.ok(!('session_id' in s.function.parameters.properties), s.function.name);
   assert.deepStrictEqual(bound.run('lap_times', {}), tools.run('lap_times', { session_id: sid }));
   assert.deepStrictEqual(bound.run('lap_times', { session_id: 99 }), { error: 'lap_times takes no argument "session_id"' });
+});
+
+test('llm tools: car_balance - what the car did at each corner, the bias and diff you ran, and what to change', (t) => {
+  const tools = open(t);
+  const sid = tools.run('sessions', {}).sessions[0].session_id;
+  const b = tools.run('car_balance', { session_id: sid });
+  assert.deepStrictEqual([b.settings.brake_bias, b.settings.diff_on_throttle], [56, 60]);
+  assert.ok(b.advice.some((a) => /FL locks into .*56 to 54%/.test(a)), JSON.stringify(b.advice));
+  assert.ok(b.advice.some((a) => /Wheelspin out of .*60 to 55%/.test(a)), JSON.stringify(b.advice));
+  assert.ok(b.corners.length >= 2);
 });

@@ -136,6 +136,28 @@ CREATE TABLE IF NOT EXISTS radio_message (
   message        TEXT NOT NULL,
   PRIMARY KEY (session_id, seq)
 ) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS corner_issue (
+  session_id       INTEGER NOT NULL REFERENCES session ON DELETE CASCADE,
+  session_time_s   REAL NOT NULL,
+  lap_num          INTEGER NOT NULL,
+  distance_m       INTEGER NOT NULL,             -- where the braking zone starts (the corner)
+  kind             TEXT NOT NULL,                -- front_lock, rear_lock, wheelspin, understeer
+  wheel            TEXT,                         -- FL, FR, RL, RR, Fronts, Rears
+  brake_bias       INTEGER,                      -- front %, at the time
+  diff_on_throttle INTEGER                       -- %, at the time
+);
+CREATE INDEX IF NOT EXISTS corner_issue_by_lap ON corner_issue (session_id, lap_num);
+CREATE TABLE IF NOT EXISTS car_setting (
+  session_id        INTEGER NOT NULL REFERENCES session ON DELETE CASCADE,
+  session_time_s    REAL NOT NULL,
+  lap_num           INTEGER NOT NULL,
+  brake_bias        INTEGER,                     -- front %
+  diff_on_throttle  INTEGER,
+  diff_off_throttle INTEGER,
+  engine_braking    INTEGER,
+  ers_mode          INTEGER,                     -- 0 none, 1 medium, 2 hotlap, 3 overtake / boost
+  PRIMARY KEY (session_id, session_time_s)
+) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS weather_sample (
   session_id     INTEGER NOT NULL REFERENCES session ON DELETE CASCADE,
   session_time_s REAL NOT NULL,
@@ -201,6 +223,8 @@ function openStore(file) {
     call: db.prepare('INSERT INTO engineer_call VALUES (?, ?, ?, ?, ?, ?, ?)'),
     radio: db.prepare('INSERT INTO radio_message VALUES (?, ?, ?, ?, ?, ?, ?)'),
     weather: db.prepare('INSERT OR REPLACE INTO weather_sample VALUES (?, ?, ?, ?, ?, ?, ?)'),
+    issue: db.prepare('INSERT INTO corner_issue VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+    setting: db.prepare('INSERT OR REPLACE INTO car_setting VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
   };
   // Car and lap rows carry fields the tables don't keep (raceId, ...).
   sql.car.setAllowUnknownNamedParameters(true);
@@ -224,6 +248,8 @@ function openStore(file) {
     s.calls.forEach((c, k) => sql.call.run(sid, k + 1, c.sessionTime, c.lapNum, c.action, c.kind, c.reason));
     s.radio.forEach((r, k) => sql.radio.run(sid, k + 1, r.sessionTime, r.lapNum, r.topic, r.severity, r.message));
     for (const w of s.weather) sql.weather.run(sid, w.sessionTime, w.lapNum, w.weather, w.trackTemp, w.airTemp, w.rainPct);
+    for (const i of s.issues || []) sql.issue.run(sid, i.sessionTime, i.lapNum, i.distM, i.kind, i.wheel, i.brakeBias, i.diffOn);
+    for (const c of s.settings || []) sql.setting.run(sid, c.sessionTime, c.lapNum, c.brakeBias, c.diffOn, c.diffOff, c.engineBraking, c.ersMode);
     return sid;
   };
   // One transaction per session: all of it is stored, or none.

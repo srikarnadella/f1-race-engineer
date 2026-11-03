@@ -140,3 +140,12 @@ test('ask: the model is told not to make up setup advice the recording has no da
   assert.match(RULES, /brake bias|differential|battery/i);
   assert.match(RULES, /only (if|when)/i);
 });
+
+test('ask: brake bias and differential questions are looked up by the engine (car_balance)', (t) => {
+  const { lookups } = require('../src/llm/ask');
+  const tl = tools(t);
+  const bound = tl.bind(tl.run('sessions', {}).sessions[0].session_id);
+  for (const q of ['Should I change my brake bias?', 'Was I locking up?', 'What should I do with my differential?', 'Why did I get wheelspin?']) {
+    assert.deepStrictEqual(lookups(bound, q).map((x) => x.name), ['car_balance'], q);
+  }
+});

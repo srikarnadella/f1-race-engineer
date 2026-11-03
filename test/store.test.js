@@ -132,3 +132,18 @@ test('store: deleting a session removes it and everything under it', () => {
   }
   assert.strictEqual(store.deleteSession(uid), false);
 });
+
+test('store: what the car did at each corner (locks, wheelspin, understeer) and the bias and diff you ran (coaching, step 2)', () => {
+  const { db } = syntheticStore();
+  // The synthetic race: the front-left locks into corner 2 every lap, the rears spin out of corner 1
+  // from lap 16, the car understeers out of corner 3 from lap 17; bias 56%, on-throttle diff 60%.
+  const rows = db.prepare('SELECT lap_num, distance_m, kind, wheel, brake_bias, diff_on_throttle FROM corner_issue ORDER BY lap_num, distance_m').all();
+  const kinds = (k) => rows.filter((r) => r.kind === k);
+  assert.ok(kinds('front_lock').length >= 3, JSON.stringify(rows.slice(0, 5)));
+  assert.ok(kinds('front_lock').every((r) => r.wheel === 'FL' && r.brake_bias === 56));
+  assert.ok(kinds('wheelspin').length >= 1 && kinds('wheelspin').every((r) => r.lap_num >= 16 && r.diff_on_throttle === 60));
+  assert.ok(kinds('understeer').every((r) => r.lap_num >= 17));
+  const setting = db.prepare('SELECT * FROM car_setting').all();
+  assert.ok(setting.length >= 1);
+  assert.deepStrictEqual([setting[0].brake_bias, setting[0].diff_on_throttle], [56, 60]);
+});

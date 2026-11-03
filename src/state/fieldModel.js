@@ -402,6 +402,9 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
   }
 
   // Repeated lockups / wheelspin / understeer by corner (see carBalance.js).
+  // What the player's car did at each corner since the last call (the race store keeps it).
+  const takePlayerBalanceEvents = () => playerBalance.takeEvents();
+
   function getPlayerBalanceIssues() {
     return playerBalance.issues();
   }
@@ -439,7 +442,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
   const getSessionUID = () => sessionUID;
   const getLapPositions = () => lapPositions;
 
-  return { clock, getFeedHealth: feed.view, dispatch, reset, getCar, getClassification, getSessionUID, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
+  return { clock, getFeedHealth: feed.view, dispatch, reset, getCar, getClassification, getSessionUID, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerBalanceEvents, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
 }
 
 module.exports = { createFieldModel };

@@ -41,3 +41,32 @@ test('lift and coast: the braking zones after the longest flat-out runs, and wha
   assert.match(out.summary, /1\.6 kg a lap/);
   assert.strictEqual(liftAndCoast([], { lap: 1 }).candidates.length, 0);
 });
+
+const { balanceAdvice } = require('../src/llm/coaching');
+// Issues as the race store keeps them (one row per corner, lap and kind), with the settings at the time.
+const issue = (lap, kind, distM, over = {}) => ({ lap_num: lap, kind, distance_m: distM, wheel: kind === 'front_lock' ? 'FL' : null, brake_bias: 56, diff_on_throttle: 60, ...over });
+const corners = [{ corner: 1, atM: 300 }, { corner: 2, atM: 1300 }, { corner: 3, atM: 2000 }];
+
+test('balance: fronts locking into one corner most laps says bias rearward, from what you ran', () => {
+  const out = balanceAdvice([2, 3, 4, 5, 6].map((l) => issue(l, 'front_lock', 1290)), { corners, racingLaps: 6, bias: 56, diff: 60 });
+  assert.match(out.advice[0], /FL locks into corner 2 on 5 of 6 laps.*56%.*rearward.*56 to 54%/i);
+});
+
+test('balance: wheelspin out of a corner says lower the on-throttle diff; understeer says raise it', () => {
+  const spin = balanceAdvice([3, 4, 5].map((l) => issue(l, 'wheelspin', 310)), { corners, racingLaps: 6, bias: 56, diff: 60 });
+  assert.match(spin.advice[0], /wheelspin out of corner 1 on 3 of 6 laps.*on-throttle diff.*60 to 55%/i);
+  const under = balanceAdvice([4, 5].map((l) => issue(l, 'understeer', 2010)), { corners, racingLaps: 6, bias: 56, diff: 60 });
+  assert.match(under.advice[0], /understeer out of corner 3.*60 to 65%/i);
+});
+
+test('balance: locking at three corners or more is the base bias, not one corner', () => {
+  const rows = [1290, 310, 2010].flatMap((d) => [3, 4].map((l) => issue(l, 'front_lock', d)));
+  const out = balanceAdvice(rows, { corners, racingLaps: 6, bias: 56, diff: 60 });
+  assert.match(out.advice[0], /fronts lock at 3 corners.*base brake bias.*56 to 54%/i);
+});
+
+test('balance: once is a mistake, not the car: no advice for one lap in many', () => {
+  const out = balanceAdvice([issue(4, 'front_lock', 1290)], { corners, racingLaps: 10, bias: 56, diff: 60 });
+  assert.deepStrictEqual(out.advice, []);
+  assert.strictEqual(out.corners[0].issues[0].laps.length, 1, 'still listed as what happened');
+});

@@ -62,10 +62,15 @@ function createCarBalanceTracker() {
     return zone;
   }
 
+  // Each new issue (a corner, a lap, a kind) is also queued for the race store (takeEvents).
+  const events = [];
   function record(zone, lapNum, key, value) {
     if (!zone.laps.has(lapNum)) zone.laps.set(lapNum, {});
     const rec = zone.laps.get(lapNum);
-    if (!rec[key]) rec[key] = value;
+    if (rec[key]) return;
+    rec[key] = value;
+    events.push({ lapNum, distM: Math.round(zone.startM), type: key, wheel: typeof value === 'string' ? value : null });
+    if (events.length > 5000) events.shift(); // nobody draining (no store): keep it bounded
   }
 
   // Only the last few laps (counted from the lap being driven now) matter;
@@ -152,7 +157,7 @@ function createCarBalanceTracker() {
     return zones.map((z, i) => ({ corner: i + 1, startM: Math.round(z.startM) }));
   }
 
-  return { update, issues, forget, corners, cornerCount: () => zones.length };
+  return { update, issues, forget, corners, cornerCount: () => zones.length, takeEvents: () => events.splice(0) };
 }
 
 // Exposed so capture analysis can report how real data sits against them.

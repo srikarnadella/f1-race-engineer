@@ -6,7 +6,7 @@
 // and to the race, and bind(sessionId) to answer about one session without a session_id argument.
 const { DatabaseSync } = require('node:sqlite');
 const { compareLaps, describeCorner, lapCorners } = require('../analysis/lapCompare');
-const { adviseCorners, liftAndCoast } = require('./coaching');
+const { adviseCorners, liftAndCoast, balanceAdvice } = require('./coaching');
 const { median } = require('../lib/stats');
 
 const TYRE = { 16: 'soft', 17: 'medium', 18: 'hard', 7: 'inter', 8: 'wet' };
@@ -31,6 +31,7 @@ const TOOLS = {
   events: { description: 'What happened to you and to the race, in order: overtakes, collisions, penalties, safety cars, retirements, fastest laps. Optionally only between two laps, or about another driver.', props: { session_id: SID, lap_from: int('first lap'), lap_to: int('last lap'), driver: DRIVER }, required: ['session_id'] },
   lap_coaching: { description: 'What to do better, corner by corner: one of your laps against your best lap (braking point, apex speed, getting back to full throttle, coasting), biggest loss first. Leave lap out for a typical lap of yours.', props: { session_id: SID, lap: int('your lap to coach; leave out for a typical one') }, required: ['session_id'] },
   lift_and_coast: { description: 'Where to lift and coast to save fuel: the braking zones after your longest flat-out runs, where you coast now, and your fuel use a lap.', props: { session_id: SID, lap: int('lap to read; leave out for your best lap') }, required: ['session_id'] },
+  car_balance: { description: 'Brake bias and differential: what the car did at each corner on each lap (front or rear wheels locking, wheelspin or understeer on exit), the bias and diff you ran, and what to change.', props: { session_id: SID }, required: ['session_id'] },
   compare_laps: { description: 'Two of your laps with telemetry, corner by corner: where lap_b lost or gained time on lap_a, and why (braking, apex and exit speed).', props: { session_id: SID, lap_a: int('reference lap'), lap_b: int('lap to explain') }, required: ['session_id', 'lap_a', 'lap_b'] },
 };
 
@@ -65,6 +66,8 @@ function createRaceTools(file) {
     events: q(`SELECT e.lap_num, e.code, e.description, a.driver, b.driver AS other_driver, e.value, e.car_idx, e.other_car_idx
       FROM event e LEFT JOIN car a ON a.session_id = e.session_id AND a.car_idx = e.car_idx LEFT JOIN car b ON b.session_id = e.session_id AND b.car_idx = e.other_car_idx
       WHERE e.session_id = ? AND e.lap_num BETWEEN ? AND ? AND e.code IN (${codes}) ORDER BY e.session_time_s`),
+    issues: q('SELECT lap_num, distance_m, kind, wheel, brake_bias, diff_on_throttle FROM corner_issue WHERE session_id = ? ORDER BY lap_num, distance_m'),
+    settings: q('SELECT lap_num, brake_bias, diff_on_throttle, diff_off_throttle, engine_braking, ers_mode FROM car_setting WHERE session_id = ? ORDER BY session_time_s'),
     trace: q('SELECT distance_m, lap_time_ms, speed_kmh, throttle, brake, steer, gear FROM trace_point WHERE session_id = ? AND car_idx = ? AND lap_num = ? ORDER BY distance_m'),
   };
   // A lap's telemetry as lapCompare reads it, or null.
@@ -170,6 +173,26 @@ function createRaceTools(file) {
         if (b.lap_num === a.lap_num + 1 && a.fuel_kg != null && b.fuel_kg != null && !b.pit && !a.pit && a.fuel_kg > b.fuel_kg) drops.push(a.fuel_kg - b.fuel_kg);
       }
       return liftAndCoast(lapCorners(t.points), { lap: which, fuelPerLapKg: drops.length ? median(drops) : null });
+    },
+    car_balance: ({ session_id: sid }) => {
+      const car = carOf(sid, null);
+      if (car == null) return noCar(null);
+      const rows = /** @type {any[]} */ (sql.issues.all(sid));
+      const settings = /** @type {any[]} */ (sql.settings.all(sid));
+      if (!rows.length && !settings.length) return { error: 'This session was saved before Undercut kept what the car did at each corner and your bias and diff settings; sessions from now on have them.' };
+      const laps = /** @type {any[]} */ (sql.laps.all(sid, car));
+      const racing = laps.filter((l) => l.lap_num > 1 && !l.pit && !l.neutralised);
+      // Corner numbers as the lap comparisons count them, from your best lap with telemetry.
+      const best = racing.filter((l) => traceOf(sid, car, l.lap_num, laps)).reduce((a, b) => (!a || b.lap_ms < a.lap_ms ? b : a), null);
+      const corners = best ? lapCorners(traceOf(sid, car, best.lap_num, laps).points) : [];
+      const last = settings[settings.length - 1] || {};
+      const out = balanceAdvice(rows, { corners, racingLaps: racing.length, bias: last.brake_bias ?? null, diff: last.diff_on_throttle ?? null });
+      const changes = settings.filter((x, i) => i > 0 && (x.brake_bias !== settings[i - 1].brake_bias || x.diff_on_throttle !== settings[i - 1].diff_on_throttle));
+      return {
+        settings: { brake_bias: settings[0] ? settings[0].brake_bias : null, diff_on_throttle: settings[0] ? settings[0].diff_on_throttle : null, diff_off_throttle: settings[0] ? settings[0].diff_off_throttle : null },
+        changed: changes.map((x) => ({ lap: x.lap_num, brake_bias: x.brake_bias, diff_on_throttle: x.diff_on_throttle })),
+        ...out,
+      };
     },
     compare_laps: ({ session_id: sid, lap_a: a, lap_b: b }) => {
       const car = carOf(sid, null);

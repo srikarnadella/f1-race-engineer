@@ -134,13 +134,16 @@ function checkGrounding(answer, facts) {
 const TIME_WORDS = /\b(lose|lost|losing|gain|gained|faster|slower|quicker|compare|compared|difference|why|where)\b/i;
 const ORDER_WORDS = /\b(ahead|behind|gap|order|leader|leading|front)\b/i;
 const COACH_WORDS = /\b(better|improve|improving|advice|tips?|coach\w*|work on|mistakes?)\b|throughout the lap|through the lap|around the lap/i;
+const BALANCE_WORDS = /\b(bias|lock(ing|ed|s)?(?: up)?|lock-?ups?|diff|differential|wheel ?spin|traction|understeer\w*|oversteer\w*|setup|set-up)\b/i;
 const COAST_WORDS = /\blift(ing)? and coast|\bcoast\w*|\bsave fuel|\bfuel sav\w*/i;
 function lookups(bound, question) {
   const out = [];
   const add = (name, args) => out.push({ name, args, result: bound.run(name, args) });
   const named = [...question.matchAll(/\blaps? (\d{1,3})(?:\s*(?:and|&|vs\.?|versus|to)\s*(?:lap )?(\d{1,3}))?/gi)].flatMap((m) => [m[1], m[2]]);
   const laps = [...new Set(named.filter(Boolean).map(Number))];
-  if (COAST_WORDS.test(question)) {
+  if (BALANCE_WORDS.test(question)) {
+    add('car_balance', {});
+  } else if (COAST_WORDS.test(question)) {
     add('lift_and_coast', laps.length ? { lap: laps[0] } : {});
   } else if (COACH_WORDS.test(question) || (TIME_WORDS.test(question) && !laps.length)) {
     // What to do better, or where time went with no lap named: a typical lap against your best.
@@ -175,6 +178,18 @@ function coachingText(c) {
 function coastText(c) {
   if (c.error) return `lift_and_coast: ${c.error}`;
   return `Lift and coast (from lap ${c.lap}): ${c.summary}\n${c.candidates.map((x) => `- ${x.text}`).join('\n')}`;
+}
+
+function balanceText(c) {
+  if (c.error) return `car_balance: ${c.error}`;
+  const changed = c.changed.length ? `, then changed: ${c.changed.map((x) => `lap ${x.lap} bias ${x.brake_bias}% diff ${x.diff_on_throttle}%`).join('; ')}` : '';
+  const set = `You ran ${c.settings.brake_bias ?? '?'}% brake bias and ${c.settings.diff_on_throttle ?? '?'}% on-throttle diff${changed}.`;
+  const seen = c.corners.map((k) => `${k.corner != null ? `corner ${k.corner}` : `${k.atKm} km`}: ${k.issues.map((i) => `${i.kind.replace('_', ' ')}${i.wheel ? ` (${i.wheel})` : ''} on lap${i.laps.length > 1 ? 's' : ''} ${i.laps.join(', ')}`).join('; ')}`);
+  return [
+    `Brake bias and differential (${c.racingLaps} laps at pace): ${set}`,
+    seen.length ? `What the car did: ${seen.join('. ')}.` : 'No locking, wheelspin or understeer was seen.',
+    c.advice.length ? `What to change:\n${c.advice.map((a) => `- ${a}`).join('\n')}` : 'Nothing happened on a third of your laps or more at any corner: no change to suggest.',
+  ].join('\n');
 }
 
 // A lap comparison as sentences to answer from: the overall gap, the corner that cost most, the
@@ -212,7 +227,8 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
     ...found.map((x) => (x.name === 'compare_laps' && !x.result.error ? comparisonText(x.result)
       : x.name === 'lap_coaching' ? coachingText(x.result)
         : x.name === 'lift_and_coast' ? coastText(x.result)
-          : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
+          : x.name === 'car_balance' ? balanceText(x.result)
+            : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
   ].filter(Boolean).map((x, i) => (i ? x : `\n\nLooked up for this question:\n${x}`)).join('\n');
 
   // The chart the question is about, drawn by the engine; its finding goes in front of the model too.
@@ -255,6 +271,7 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
     ...found.flatMap((x) => (x.name === 'compare_laps' && !x.result.error ? [comparisonText(x.result).split('\n').slice(0, 2).join(' ')]
       : x.name === 'lap_coaching' && !x.result.error ? [`${x.result.verdict}.`, ...x.result.advice.map((a) => a.text)]
         : x.name === 'lift_and_coast' && !x.result.error ? x.result.candidates.map((c) => c.text)
+          : x.name === 'car_balance' && !x.result.error ? (x.result.advice.length ? x.result.advice : [balanceText(x.result).split('\n')[1]])
           : [evidenceLine(x)])),
     ...charts.map((c) => `${c.title}: ${c.finding}`),
   ].filter(Boolean);
