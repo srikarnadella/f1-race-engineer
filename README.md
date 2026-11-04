@@ -51,7 +51,7 @@ your phone or tablet. Full steps, options and voice setup: [docs/setup.md](docs/
 **As a Windows app:** the installer (`npm run app:build` makes `dist/Undercut-Setup-<version>.exe`)
 puts Undercut on any Windows PC with no Node and no terminal. It opens on a full-window **Home** with a way
 into each part: the live dashboard; **Race analysis** (every saved session in depth: pace, lap vs lap
-telemetry, head to head with any car, the strategy calls graded); **Ask the race**, a chat about your
+telemetry, head to head with any car, the strategy calls graded, and every race together: pace per track, tyre wear, the calls); **Ask the race**, a chat about your
 races answered by a small model on your own PC through [Ollama](https://ollama.com/download), with charts,
 the evidence behind each answer and coaching (corners, lift and coast, brake bias and diff, battery),
 never while you race; **Storage** for saved sessions and recordings (replay, analyze, delete, disk use);
@@ -94,6 +94,6 @@ instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md); 
 
 Node.js (no framework, no build step), Electron for the Windows app, WebSockets, SQLite, and plain HTML/CSS/JavaScript for the
 dashboard. The models are written from scratch in JavaScript, except the overtake model: LightGBM, trained in
-Python and run in the app from its exported trees. 300+ tests, ESLint and a TypeScript check run on every push.
+Python and run in the app from its exported trees. Nearly 500 tests, ESLint and a TypeScript check run on every push.
 
 Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts. MIT license.

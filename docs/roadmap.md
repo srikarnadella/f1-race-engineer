@@ -57,6 +57,7 @@ flowchart LR
     W4[W4 Separate places, not dashboard tabs]:::done
     W3[W3 Storage, its own place]:::done
     W6[W6 Settings laid out across the window]:::done
+    W7[W7 Content scales to the window]:::done
   end
   subgraph L[Ask the race: local LLM]
     L1[L1 Read-only race tools]:::done
@@ -104,6 +105,7 @@ flowchart LR
   R2 & R3 --> R5
   R1 --> R6
   W2 --> W6
+  W4 --> W7
   R1 --> L5
   L2 --> L3
   L1 & L3 --> L4
@@ -287,6 +289,13 @@ against W0, and none may raise the race numbers.
   *Test:* at 1440x900 every setting is visible without scrolling; at 1100x760 at most one scroll;
   every control keeps its label; phones and browsers keep today's sheet. *Done:* three columns
   (on/off settings, voice commands, this PC), each its own stack; no scroll at 1100x760.
+- **W7 Content scales to the window.** The user (3 Nov): on a big screen the content sat in a column
+  and didn't scale. The screens are laid out for 1440 x 900; any other window zooms the whole page by
+  the smaller of its width and height ratios, between 80% and 175%, and places use the full width.
+  *Test:* `test/zoom.test.js` (1920x1080 -> 120%, 2560x1440 -> 160%, floors and ceilings, resizing
+  back). *Done* (desktop/preload.js), checked by screenshots at 1100x760, 1920x1080 and the user's
+  3440x1440 ultrawide. Ask the race then moved its session and model pickers onto the title's row so
+  the empty chat sits in the middle of the window.
 - **W3 Storage, its own place.** Built on W4, replacing the Library tab. Disk use per store (race.db, debriefs, captures, downloaded models) with
   delete, using the existing `deleteSession()`. *Test:* the sizes shown add up to the folder size on
   disk; deleting a session leaves no store mentioning its uid; deleting a model frees its bytes. *Done

@@ -48,7 +48,7 @@ Each step only reads from the steps before it. [src/README.md](../src/README.md)
 I write each test from what the code *should* do and watch it fail before writing the code, and I never
 edit a test just to make it pass. A test only counts once it catches a bug I plant on purpose.
 
-- **Over 300 tests:** parsers on real F1 26 packets, random and corrupted packets (fuzzing), model
+- **Nearly 500 tests:** parsers on real F1 26 packets, random and corrupted packets (fuzzing), model
   properties, scripted race scenarios, the calls audit, every dashboard screen in jsdom, and a speed budget.
 - **CI** runs them on every push on Linux and Windows (Node 22, 24 and 26), fails if line coverage drops below
   88%, fails if a change makes the tyre model or rival-stop timing worse on the recorded races, and runs
@@ -80,7 +80,7 @@ node src/index.js --demo captures/<folder>/packets.f1log.gz --speed 8   # replay
 ```
 
 **Dependencies:** Node.js 22.13+ (its built-in `node:sqlite` is the race store) and two packages: `ws` (WebSocket) and `qrcode-terminal` (the pairing QR
-code). `electron` and `electron-builder` make the desktop app (`desktop/`: the window, the few calls it may make to the PC, recordings, settings, the https certificate via `selfsigned`, and voice through Windows' speech recognizer; its screens are `public/desktop.js`); `jsdom` and `c8` are for tests; `eslint` and `typescript` check the code (`npm run lint`, `npm run typecheck`: JSDoc types, no build step).
+code). `electron` and `electron-builder` make the desktop app (`desktop/`: the window, the few calls it may make to the PC, recordings, settings, the https certificate via `selfsigned`, and voice through Windows' speech recognizer; its screens are `public/desktop.js`, `public/analysis.js` and `public/askrace.js`; `desktop/preload.js` also zooms the page to fit the window); `jsdom` and `c8` are for tests; `eslint` and `typescript` check the code (`npm run lint`, `npm run typecheck`: JSDoc types, no build step).
 
 **Python (ml/ only, to retrain the overtake model):** LightGBM, scored against the gap-only baseline. It reads the samples
 in `datasets/overtake-samples.csv.gz` (`npm run train:overtake -- --samples datasets/overtake-samples.csv.gz`

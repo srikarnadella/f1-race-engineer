@@ -54,11 +54,15 @@ flowchart LR
 
 The same list as the website's Next steps page; the full plan is in the [roadmap](roadmap.md).
 
-- **Ask the race** *(next)*: ask about a race in plain words ("What happened on lap 12?", "Where did
-  I lose time to Norris?") and get an answer built from the recorded data. Every session is already stored
-  as [tables](race-store.md); a language model will query them and show which laps and events it used.
-- **Confidence on every call** *(in progress)*: the pit-stop pick already says when it depends on tyre wear
-  ("Lap 14-22, depending on tyre wear"). The tyre-cliff warning and the battle calls are next.
+- **The Windows app** *(built, not released yet)*: Home, the live dashboard, Race analysis, Ask the
+  race, Storage and Connect, from one installer. See [setup](setup.md#the-windows-app).
+- **Ask the race** *(built, in the Windows app)*: ask about a saved race in plain words and get an answer
+  from a small model running on your PC. The engine looks the facts up in the [race store](race-store.md)
+  and the model only puts them into words; every number is checked against the recording. Qwen3 4B gets
+  49 of 50 test questions right. More in [Ask the race](ask-the-race.md).
+- **Confidence on every call** *(in progress)*: the pit-stop pick says when it depends on tyre wear
+  ("Lap 14-22, depending on tyre wear"), and the tyre-cliff warning gives a range ("~1-2 laps to the
+  cliff, depending on how the wear goes"). The battle calls are next.
 - **The calls audit in the Debrief** *(done)*: every call graded against what happened after it, in the Calls tab.
 - **A sharper rejoin prediction** *(in progress)*: from 4.2 to 2.7 places off (first 45 stops) by counting the cars
   already stopping and the ones due this lap. On all 79 stops: 3.13, still about 1.7 places pessimistic.
