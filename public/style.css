@@ -1441,6 +1441,12 @@ kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #26
 .llm__chat.is-empty .llm__empty { flex: 0 0 auto; margin-top: auto; padding: 0 0 24px; align-items: center; text-align: center; }
 .llm__chat.is-empty .llm__suggest { margin-bottom: auto; justify-content: center; }
 .llm__chat.is-empty .llm__composer { position: static; padding-bottom: 10px; }
+/* The title's row carries the session and the model and stays on top as the chat scrolls. The empty
+   chat pads its bottom by the row's height, so its heading and box sit in the middle of the window. */
+.place:has(.llm-page) .place__head { position: sticky; top: -28px; z-index: 3; margin: -28px 0 0; padding: 28px 0 16px; background: var(--bg); }
+.place__head .llm__bar { position: static; flex: 1 1 auto; justify-content: flex-end; margin: 0; padding: 0; background: none; }
+.place:has(.llm-page) .llm__chat { min-height: calc(100vh - 88px); }
+.llm__chat.is-empty { padding-bottom: 88px; }
 .llm__hello { font-size: clamp(1.7rem, 1.2rem + 1.4vw, 2.4rem); font-weight: 750; letter-spacing: -0.02em; }
 .llm__ctx { color: var(--muted); }
 .llm__session { padding: 0 8px; margin-left: -8px; background: none; color: var(--muted); font-weight: 700; cursor: pointer; }

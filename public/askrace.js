@@ -218,11 +218,15 @@
         backBtn, h('div', { class: 'llm' }, h('div', { class: 'llm__main' }, modelsBody), manager));
 
       frame.replaceChildren(h('div', { class: 'llm-page' }, error, chatView, manageView));
+      // The session and model sit on the title's row, so the empty chat centers in the window.
+      const head = frame.parentElement && frame.parentElement.querySelector('.place__head');
+      if (head) head.append(bar);
 
       function show(v) {
         view = v;
         chatView.hidden = v !== 'chat';
         manageView.hidden = v !== 'models';
+        bar.hidden = v !== 'chat';
         menu.hidden = true;
         modelBtn.setAttribute('aria-expanded', 'false');
         draw();
