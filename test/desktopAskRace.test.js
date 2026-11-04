@@ -272,3 +272,23 @@ test('ask the race: Manage models shows no stray "null", and the model answering
   assert.doesNotMatch(app.doc.querySelector('.llm__manage').textContent, /null|undefined/);
   assert.match(app.row('qwen3:4b').textContent, /Selected/);
 });
+
+test('ask the race: a slow answer counts its seconds, so it never looks frozen', async (t) => {
+  const fake = fakeApi();
+  let finish = null;
+  fake.api.llm.ask = () => new Promise((r) => { finish = r; });
+  const app = open(t, { before: (w) => { w.undercut = fake.api; } });
+  await settle();
+  app.connect();
+  app.send({ source: 'live', connected: false, debrief: { sessions: [] } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.textContent.startsWith('Ask the race')).click();
+  await settle();
+  doc.querySelector('.llm__question').value = 'Slow one?';
+  doc.querySelector('.llm__ask').click();
+  await new Promise((r) => setTimeout(r, 1150));
+  assert.match(doc.querySelector('.llm__thinking').textContent, /1 s/);
+  finish({ answer: 'Done.', grounded: true, unsupported: [], charts: [], evidence: [], toolCalls: [] });
+  await settle();
+  assert.strictEqual(doc.querySelector('.llm__thinking'), null);
+});

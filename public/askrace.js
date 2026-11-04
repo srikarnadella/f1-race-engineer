@@ -315,7 +315,16 @@
 
       // One exchange: your question, then the answer with its charts and what it was worked out from.
       function exchange(title) {
-        const a = h('div', { class: 'llm__a' }, h('span', { class: 'llm__thinking' }, 'Working it out…'));
+        const thinking = h('span', { class: 'llm__thinking' }, 'Working it out…');
+        const a = h('div', { class: 'llm__a' }, thinking);
+        // A slow answer (a bigger model on a small card takes a minute) counts its seconds, so it never
+        // looks frozen; the count stops once the answer replaces it.
+        const t0 = Date.now();
+        const tick = setInterval(() => {
+          if (!thinking.parentNode) return clearInterval(tick); // replaced by the answer (not just off-screen)
+          const s = Math.floor((Date.now() - t0) / 1000);
+          thinking.textContent = `Working it out… ${s} s${s >= 8 ? ' (the model loads first, then answers)' : ''}`;
+        }, 1000);
         const li = h('li', { class: 'llm__answer' }, h('p', { class: 'llm__q' }, title), a);
         thread.append(li);
         drawChat();
