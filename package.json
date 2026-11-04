@@ -2,7 +2,7 @@
   "name": "undercut",
   "version": "0.1.0",
   "private": true,
-  "description": "UDP telemetry bridge for F1 26 - streams a race-engineer dashboard to any browser on your LAN - tablet, phone, laptop or second monitor",
+  "description": "A race engineer for F1 26: live calls from every car's telemetry on any screen, then race analysis and questions about the race answered on your own PC. Windows app and Node.js bridge.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/srikarnadella/f1-race-engineer.git"

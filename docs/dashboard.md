@@ -18,7 +18,7 @@ Switch with the buttons down the left edge, or keys **1–6**.
 | **Strategy** | "Should I box?" Where you'd rejoin and next to whom, **pit timing** (which lap to box on), the stay-out and box options under a safety car, the **race plan** on the grid, the tyre model and the weather. |
 | **Weather** | The forecast in laps, big, with tyre life and where a stop would put you. |
 | **Custom** | Your own layout from the same widgets (battle, radio, call, rejoin, pit timing, tyres, setup tips, weather, pace, lap delta). |
-| **Debrief** | After the race: the official result, best and theoretical-best lap, sectors against the fastest car, a lap chart and a position chart for the whole field. **Lap compare** puts two laps (or your lap and a rival's best) side by side as speed, throttle and brake traces, with corner-by-corner reasons. **Rivals** shows where you lose time to the fastest car. **Models** shows what the machine learning has learned and whether it beats the simple guess. |
+| **Debrief** | After the race: the official result, best and theoretical-best lap, sectors against the fastest car, a lap chart and a position chart for the whole field. **Lap compare** puts two laps (or your lap and a rival's best) side by side as speed, throttle and brake traces, with corner-by-corner reasons. **Rivals** shows where you lose time to the fastest car. **Calls** grades every call the engineer made against the laps that followed it. **Models** shows what the machine learning has learned and whether it beats the simple guess. |
 
 ### Auto-switch
 

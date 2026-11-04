@@ -145,4 +145,4 @@ function wearRange(bestInLaps, atLow, atHigh) {
   return { holds: picks.every((k) => k === bestInLaps), fromInLaps: sorted[0], toInLaps: sorted[2] };
 }
 
-module.exports = { pitTiming, wearRange, CLIFF_MS_PER_LAP };
+module.exports = { pitTiming, wearRange };

@@ -277,4 +277,4 @@ function openStore(file) {
   return { db, writeSession, deleteSession, close: () => db.close() };
 }
 
-module.exports = { openStore, SCHEMA_VERSION };
+module.exports = { openStore };

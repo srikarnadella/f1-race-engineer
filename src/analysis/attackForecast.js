@@ -141,4 +141,4 @@ function forecastAttack({ attacker, defender, corners, trackLength, passesAtM = 
   };
 }
 
-module.exports = { forecastAttack, gainOver, ATTACK_RANGE_S };
+module.exports = { forecastAttack };

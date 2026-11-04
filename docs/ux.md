@@ -26,7 +26,7 @@ Every choice below follows from that.
 | **Strategy** | "Should I box?" | "If you box now" and the call on top; **pit timing** (which lap to box on, or the SC/VSC options) in the big slot; tyre model and weather at the side. |
 | **Weather** | Rain on the way | The forecast gets the big slot (bars = rain chance, in laps), with the tyre projection and the box call beside it. |
 | **Custom** | Your own layout | Any widget in any slot, 13 layouts, saved on the device. |
-| **Debrief** | After the flag | Official result, lap chart, position chart, sectors vs the fastest, lap compare, rivals, models. |
+| **Debrief** | After the flag | Official result, lap chart, position chart, sectors vs the fastest, lap compare, rivals, the calls graded, models. |
 
 Portrait and landscape both work: wide screens use the layout as designed, narrower ones reflow the
 same cards into two or one columns.

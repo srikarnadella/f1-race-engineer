@@ -244,4 +244,4 @@ function lapCorners(points) {
   }));
 }
 
-module.exports = { lapCorners, compareLaps, consistency, resample, brakingZones, describeCorner, STEP_M };
+module.exports = { lapCorners, compareLaps, consistency, resample, describeCorner };

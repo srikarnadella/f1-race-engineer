@@ -440,4 +440,4 @@ function damageFor(car) {
   };
 }
 
-module.exports = { generate, TICK_MS, REF_LAP_MS, PLAYER, TOTAL_LAPS };
+module.exports = { generate, TICK_MS, PLAYER };

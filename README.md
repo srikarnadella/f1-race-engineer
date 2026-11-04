@@ -1,8 +1,9 @@
 # Undercut
 
-**A race engineer for F1 26.** It reads the game's live telemetry and tells you one thing at a time:
-when to box, who to attack, when the rain is coming. You watch it on a phone or tablet next to your
-screen, and it can read the calls out loud.
+**A race engineer for F1 26.** It reads every car's telemetry while you drive and calls your race out
+loud, one thing at a time: when to box, who to attack, when the rain is coming. After the flag, ask the
+race in plain words ("Where did I lose time on lap 12?") and a model on your own PC answers from the
+recording, every number checked. A Windows app, plus any phone or tablet on your Wi-Fi.
 
 I built it because the in-game engineer doesn't tell you much, and everything it would need is
 already in the data the game sends out. It's a student project: free, open source, and everything

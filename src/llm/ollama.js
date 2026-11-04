@@ -167,4 +167,4 @@ function createOllama({ host = 'http://127.0.0.1:11434', isLive = () => false, t
   return { detect, models, ask, stop, sessionStarted, pull, cancelPull, remove, downloads, clearDownloads, busy: () => !!current, installUrl: INSTALL_URL };
 }
 
-module.exports = { createOllama, INSTALL_URL };
+module.exports = { createOllama };

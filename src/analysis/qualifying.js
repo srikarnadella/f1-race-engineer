@@ -141,4 +141,4 @@ function qualifying({ session, cars, player, delta, outLapMs = null }) {
   };
 }
 
-module.exports = { qualifying, sessionKind, cutPosition, bestLapMs };
+module.exports = { qualifying, cutPosition, bestLapMs };

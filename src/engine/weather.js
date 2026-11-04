@@ -163,4 +163,4 @@ function createWeatherAnalysis() {
   return { compute, reset };
 }
 
-module.exports = { createWeatherAnalysis, crossoverPace, switchGainMs, isWet, groupOf, RAIN_IMMINENT_LAPS };
+module.exports = { createWeatherAnalysis, crossoverPace, switchGainMs, groupOf, RAIN_IMMINENT_LAPS };

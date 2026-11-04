@@ -192,4 +192,4 @@ function computeAdjustments({ player, issues, gapAheadMs, gapBehindMs, lapsLeft,
   };
 }
 
-module.exports = { computeAdjustments, batteryTrend, ERS_MODE };
+module.exports = { computeAdjustments, batteryTrend };

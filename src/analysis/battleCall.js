@@ -64,4 +64,4 @@ function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtak
   return { mode: 'HOLD', target: null, reason: gaps.length ? `${gaps.join(', ')}${closing ? '' : ' - not closing either way'}` : 'hold position' };
 }
 
-module.exports = { battleCall, IN_RANGE_S, ATTACK_MIN_PCT };
+module.exports = { battleCall, ATTACK_MIN_PCT };

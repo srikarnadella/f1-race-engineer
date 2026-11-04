@@ -533,4 +533,4 @@ function toMarkdown(r) {
   return L.join('\n') + '\n';
 }
 
-module.exports = { analyzeCapture, toMarkdown, resolveTarget, F1_25_SIZES };
+module.exports = { analyzeCapture, toMarkdown };

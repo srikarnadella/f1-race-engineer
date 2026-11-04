@@ -308,7 +308,6 @@ function encodeMotionEx(h, m) {
 
 module.exports = {
   NUM_CARS,
-  SIZES,
   encodeCarSetups,
   encodeMotionEx,
   encodeCarTelemetry,
