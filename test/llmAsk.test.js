@@ -194,3 +194,11 @@ test('ask: a driver the facts never mention is caught, and so is a tyre', () => 
   // A name that isn't a driver in the session is just a word.
   assert.strictEqual(checkGrounding('A medium-length answer.', 'medium', { drivers }).grounded, true);
 });
+
+test('ask: "where did I start and finish" is about the result, not coaching (a bare "where" is no time question)', (t) => {
+  const { lookups } = require('../src/llm/ask');
+  const tl = tools(t);
+  const bound = tl.bind(tl.run('sessions', {}).sessions[0].session_id);
+  assert.deepStrictEqual(lookups(bound, 'Where did I start and where did I finish?'), []);
+  assert.deepStrictEqual(lookups(bound, 'Where did I lose time?').map((x) => x.name), ['lap_coaching']);
+});

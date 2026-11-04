@@ -145,6 +145,8 @@ function checkGrounding(answer, facts, { drivers = [] } = {}) {
 // and incidents. The brief already answers the rest.
 const TIME_WORDS = /\b(lose|lost|losing|gain|gained|faster|slower|quicker|compare|compared|difference|why|where)\b/i;
 const ORDER_WORDS = /\b(ahead|behind|gap|order|leader|leading|front)\b/i;
+// With no lap named, only words about time lost or gained mean coaching: "where did I finish" is a result.
+const LOSS_WORDS = /\b(lose|lost|losing|gain|gained|faster|slower|quicker|time)\b/i;
 const COACH_WORDS = /\b(better|improve|improving|advice|tips?|coach\w*|work on|mistakes?)\b|throughout the lap|through the lap|around the lap/i;
 const BALANCE_WORDS = /\b(bias|lock(ing|ed|s)?(?: up)?|lock-?ups?|diff|differential|wheel ?spin|traction|understeer\w*|oversteer\w*|setup|set-up)\b/i;
 const COAST_WORDS = /\blift(ing)? and coast|\bcoast\w*|\bsave fuel|\bfuel sav\w*/i;
@@ -158,7 +160,7 @@ function lookups(bound, question) {
     add('car_balance', {});
   } else if (COAST_WORDS.test(question)) {
     add('lift_and_coast', laps.length ? { lap: laps[0] } : {});
-  } else if (COACH_WORDS.test(question) || (TIME_WORDS.test(question) && !laps.length)) {
+  } else if (COACH_WORDS.test(question) || (LOSS_WORDS.test(question) && !laps.length)) {
     // What to do better, or where time went with no lap named: a typical lap against your best.
     add('lap_coaching', laps.length === 1 ? { lap: laps[0] } : {});
   } else if (TIME_WORDS.test(question) && laps.length) {
