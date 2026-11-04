@@ -48,11 +48,13 @@ function questionsFor(tools, sid) {
   const bal = run('car_balance');
   if (!bal.error) {
     const change = bal.advice.length && /(\d+) to (\d+)%/.exec(bal.advice[0]);
-    qs.push({ q: 'Should I change my brake bias or differential?', expect: [change ? new RegExp(`\\b${change[2]}%`) : /\b(no change|nothing to change|no need|don't need|keep)\b/i], tool: 'car_balance' });
+    qs.push({ q: 'Should I change my brake bias or differential?', expect: [change ? new RegExp(`\\b${change[2]}%`) : /\b(no changes?|nothing to change|no need|don't need|keep)\b/i], tool: 'car_balance' });
   }
   // The battery: what the lap started or ended with.
   const bat = run('battery');
-  if (!bat.error) qs.push({ q: 'How did I use my battery?', expect: [new RegExp(`\\b(${bat.startPct}|${bat.endPct}|${bat.lowestPct})%`)], tool: 'battery' });
+  // Any battery figure from the data: start, end, lowest, a run's use, a stretch used or charged.
+  const batPcts = bat.error ? [] : [bat.startPct, bat.endPct, bat.lowestPct, ...bat.straights.map((z) => Math.max(0, z.usedPct)), ...bat.deployed.map((x) => x.pct), ...bat.harvested.map((x) => x.pct)];
+  if (!bat.error) qs.push({ q: 'How did I use my battery?', expect: [new RegExp(`\\b(${[...new Set(batPcts)].join('|')})%`)], tool: 'battery' });
   // Needs a tool: where time went between two laps with telemetry.
   const traced = clean.filter((l) => l.has_telemetry && l.lap !== best.lap);
   if (best.has_telemetry && traced.length) {

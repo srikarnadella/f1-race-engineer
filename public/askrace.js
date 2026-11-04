@@ -321,6 +321,7 @@
       function fill(a, out, took) {
         const kids = [];
         if (out.answer != null) kids.push(h('p', { class: 'llm__reply' }, out.answer || '(no answer)'));
+        if (out.fromEngine) kids.push(h('p', { class: 'llm__meta' }, 'Written by Undercut\'s analysis: the model didn\'t give a usable answer.'));
         if (out.unsupported && out.unsupported.length) kids.push(h('p', { class: 'llm__unsupported' }, `Check this: not in your data: ${out.unsupported.join(', ')}. The model wrote it; the recording doesn't show it.`));
         for (const c of out.charts || []) kids.push(chartView(c));
         if (out.evidence && out.evidence.length) kids.push(h('details', { class: 'llm__why' }, h('summary', {}, 'How this was worked out'), h('ul', { class: 'llm__evidence' }, out.evidence.map((e) => h('li', {}, e)))));

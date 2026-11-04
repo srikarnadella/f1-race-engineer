@@ -158,3 +158,30 @@ test('ask: battery questions are looked up by the engine', (t) => {
     assert.deepStrictEqual(lookups(bound, q).map((x) => x.name), ['battery'], q);
   }
 });
+
+test('ask: when the engine has the answer and the model refuses, leaks tool syntax or says nothing, the engine\'s own summary answers', async (t) => {
+  const tl = tools(t);
+  const s = tl.run('sessions', {}).sessions[0];
+  for (const bad of ['The recording doesn\'t show that.', '', '{"name": "compare_laps", "arguments": {}}\n</tool_call>']) {
+    const ollama = { ask: async () => ({ answer: bad, toolCalls: [] }) };
+    const out = await askRace({ ollama, tools: tl, sessionId: s.session_id, model: 'qwen3:1.7b', question: 'Should I change my brake bias?' });
+    assert.strictEqual(out.fromEngine, true, JSON.stringify(bad));
+    assert.match(out.answer, /brake bias/i);
+    assert.doesNotMatch(out.answer, /tool_call|doesn't show/);
+  }
+  // A fine answer is kept.
+  const ok = { ask: async () => ({ answer: 'Move the bias rearward at corner 2, 56 to 54%.', toolCalls: [] }) };
+  const out = await askRace({ ollama: ok, tools: tl, sessionId: s.session_id, model: 'qwen3:1.7b', question: 'Should I change my brake bias?' });
+  assert.ok(!out.fromEngine);
+});
+
+test('ask: when the engine looked the answer up, the model gets no data tools to wander off with, only charts', async (t) => {
+  const tl = tools(t);
+  const s = tl.run('sessions', {}).sessions[0];
+  let names = null;
+  const ollama = { ask: async (req) => { names = req.tools.schemas.map((x) => x.function.name); return { answer: 'ok', toolCalls: [] }; } };
+  await askRace({ ollama, tools: tl, sessionId: s.session_id, model: 'qwen3:1.7b', question: 'Should I change my brake bias?' });
+  assert.deepStrictEqual(names, ['show_chart']);
+  await askRace({ ollama, tools: tl, sessionId: s.session_id, model: 'qwen3:1.7b', question: 'Who won?' });
+  assert.ok(names.includes('gaps') && names.includes('show_chart'), 'nothing looked up: the basics are there');
+});

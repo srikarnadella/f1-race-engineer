@@ -200,10 +200,12 @@ function balanceText(c) {
   const changed = c.changed.length ? `, then changed: ${c.changed.map((x) => `lap ${x.lap} bias ${x.brake_bias}% diff ${x.diff_on_throttle}%`).join('; ')}` : '';
   const set = `You ran ${c.settings.brake_bias ?? '?'}% brake bias and ${c.settings.diff_on_throttle ?? '?'}% on-throttle diff${changed}.`;
   const seen = c.corners.map((k) => `${k.corner != null ? `corner ${k.corner}` : `${k.atKm} km`}: ${k.issues.map((i) => `${i.kind.replace('_', ' ')}${i.wheel ? ` (${i.wheel})` : ''} on lap${i.laps.length > 1 ? 's' : ''} ${i.laps.join(', ')}`).join('; ')}`);
+  // The recommendation first: a small model answers from the first thing it reads.
   return [
-    `Brake bias and differential (${c.racingLaps} laps at pace): ${set}`,
+    c.advice.length ? `Brake bias and differential, what to change:\n${c.advice.map((a) => `- ${a}`).join('\n')}`
+      : `Brake bias and differential: keep your brake bias at ${c.settings.brake_bias ?? '?'}% and your on-throttle diff at ${c.settings.diff_on_throttle ?? '?'}%. No corner showed locking, wheelspin or understeer on a third of your laps or more, so there is no change to suggest.`,
+    `Why: over ${c.racingLaps} laps at pace. ${set}`,
     seen.length ? `What the car did: ${seen.join('. ')}.` : 'No locking, wheelspin or understeer was seen.',
-    c.advice.length ? `What to change:\n${c.advice.map((a) => `- ${a}`).join('\n')}` : 'Nothing happened on a third of your laps or more at any corner: no change to suggest.',
   ].join('\n');
 }
 
@@ -237,6 +239,8 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
   const named = [...new Set([...question.matchAll(/\blaps? (\d{1,3})/gi)].map((m) => Number(m[1])))];
   const { laps: mine = [] } = bound.run('lap_times', {});
   const focus = named.map((n) => mine.find((l) => l.lap === n)).filter(Boolean).map((l) => `At the end of lap ${l.lap} you were P${l.position}, on ${l.tyre} tyres ${l.tyre_age} laps old; the lap took ${l.time}${l.pit ? ', a pit lap' : ''}${l.safety_car ? ', under the safety car' : ''}.`);
+  // A pit or tyre question: the stops line up front too (a small model mixed a stop with a red-flag tyre change).
+  if (/\b(pit|pitted|stop|stops|tyres?)\b/i.test(question)) focus.push(...brief.text.split('\n').filter((l) => l.startsWith('Pit stops:') || l.startsWith('Separately,')));
   const looked = [
     focus.length ? `The lap${focus.length > 1 ? 's' : ''} asked about:\n${focus.join('\n')}` : '',
     ...found.map((x) => (x.name === 'compare_laps' && !x.result.error ? comparisonText(x.result)
@@ -245,7 +249,7 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
           : x.name === 'car_balance' ? balanceText(x.result)
             : x.name === 'battery' ? batteryText(x.result)
             : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
-  ].filter(Boolean).map((x, i) => (i ? x : `\n\nLooked up for this question:\n${x}`)).join('\n');
+  ].filter(Boolean).map((x, i) => (i ? x : `\n\nLooked up for this question (answer from this):\n${x}`)).join('\n');
 
   // The chart the question is about, drawn by the engine; its finding goes in front of the model too.
   const charts = [];
@@ -260,7 +264,10 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
   const shownText = charts.length ? `\n\nShown with your answer: a chart, "${charts[0].title}". ${charts[0].finding}` : '';
   // The model may put up a chart itself: only the built-in kinds, drawn by the engine.
   const withCharts = {
-    schemas: [...bound.schemas, SHOW_CHART],
+    // The engine looks up coaching, lift and coast, bias and diff, and the battery itself; offered too,
+    // eleven tools confuse a small model into calling one and then refusing. The basics stay.
+    // When the engine has looked the answer up, no data tools at all: the model only words it.
+    schemas: found.length ? [SHOW_CHART] : [...bound.schemas.filter((x) => MODEL_TOOLS.has(x.function.name)), SHOW_CHART],
     run: (name, args) => {
       if (name !== 'show_chart') return bound.run(name, args);
       const { kind, ...rest } = args || {};
@@ -292,8 +299,30 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
           : [evidenceLine(x)])),
     ...charts.map((c) => `${c.title}: ${c.finding}`),
   ].filter(Boolean);
-  return { ...out, lookedUp: found.map((x) => x.name), ...checkGrounding(out.answer, facts), charts, evidence, session: { id: s.session_id, track: s.track, type: s.type, date: s.date } };
+  // The engine had the answer but the model refused it, said nothing or leaked tool syntax: the
+  // engine's own summary answers instead, marked as such.
+  const own = engineAnswer(found);
+  const lost = !out.answer || !out.answer.trim() || /doesn't show|does not show/i.test(out.answer) || /<\/?tool_call>|"name"\s*:\s*"|<\/think>/.test(out.answer);
+  const answered = own && lost ? { ...out, answer: own, fromEngine: true } : out;
+  return { ...answered, lookedUp: found.map((x) => x.name), ...checkGrounding(answered.answer, facts), charts, evidence, session: { id: s.session_id, track: s.track, type: s.type, date: s.date } };
 }
+
+// The engine's own answer from what it looked up, in a few sentences, or null.
+function engineAnswer(found) {
+  const ok = found.filter((x) => x.result && !x.result.error);
+  const parts = ok.map((x) => {
+    const r = x.result;
+    if (x.name === 'car_balance') return balanceText(r).split('\n').filter((l) => !l.startsWith('Why:') && !l.startsWith('What the car did')).join(' ').replace(/\s*- /g, ' ');
+    if (x.name === 'battery') return [batteryText(r).split('\n')[0], ...r.advice].join(' ');
+    if (x.name === 'lift_and_coast') return `${r.summary} ${r.candidates.map((c) => c.text).join(' ')}`;
+    if (x.name === 'lap_coaching') return [`${r.verdict}.`, ...r.advice.map((a) => a.text)].join(' ');
+    if (x.name === 'compare_laps') return `${r.verdict}. ${r.most_time_lost}.`;
+    return null;
+  }).filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
+
+const MODEL_TOOLS = new Set(['compare_laps', 'gaps', 'lap_times', 'events', 'results']);
 
 const SHOW_CHART = {
   type: 'function',
