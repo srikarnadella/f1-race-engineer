@@ -17,8 +17,8 @@ works out every number, and the model only puts it into words.
    insights below.
 3. **Advice from rules, with its evidence.** Coaching is the engine's: brake later by so many metres,
    carry so many km/h more to the apex, full throttle sooner; bias rearward when the fronts lock into a
-   corner on a third of your laps or more; lower the on-throttle diff for wheelspin, raise it for
-   understeer; deploy where the longest flat-out runs are. Each line carries the number it rests on.
+   corner on a third of your laps or more; raise the on-throttle diff for wheelspin, lower it for
+   understeer (a more locked diff shares the drive; a more open one rotates); deploy where the longest flat-out runs are. Each line carries the number it rests on.
 4. **The answer is checked.** Every lap time, lap number, position and seconds figure in the answer must
    appear in the facts; anything that doesn't is flagged under the answer. If the model refuses, says
    nothing or writes tool syntax instead of an answer, the engine's own finding answers, marked as such.

@@ -40,8 +40,8 @@ function liftAndCoast(zones, { lap, fuelPerLapKg = null }) {
 
 // Brake bias and differential, from what the car did at each corner (the race store's corner_issue
 // rows) and the settings at the time. The live suggestions' rules (engine/adjustments.js): fronts
-// locking -> bias rearward, rears locking -> forward, wheelspin on exit -> lower on-throttle diff,
-// understeer on exit -> raise it. Once is a mistake; a third of the laps or more is the car.
+// locking -> bias rearward, rears locking -> forward, wheelspin on exit -> raise the on-throttle diff,
+// understeer on exit -> lower it. Once is a mistake; a third of the laps or more is the car.
 const BIAS_STEP = 2;
 const BIAS_RANGE = [50, 70];
 const DIFF_STEP = 5;
@@ -91,8 +91,8 @@ function balanceAdvice(rows, { corners = [], racingLaps, bias = null, diff = nul
       const wheel = mode(k.wheels);
       if (k.kind === 'front_lock' && frontCorners.length < BASE_BIAS_CORNERS && b != null) advice.push(`${wheel || 'The fronts'} locks into ${where(e)} ${of(k)} with the bias at ${b}%: move the brake bias rearward there, ${b} to ${clamp(b - BIAS_STEP, BIAS_RANGE)}% (or brake a little softer).`);
       if (k.kind === 'rear_lock' && b != null) advice.push(`${wheel || 'The rears'} locks into ${where(e)} ${of(k)} with the bias at ${b}%: move the brake bias forward there, ${b} to ${clamp(b + BIAS_STEP, BIAS_RANGE)}%.`);
-      if (k.kind === 'wheelspin' && d != null) advice.push(`Wheelspin out of ${where(e)} ${of(k)} with the on-throttle diff at ${d}%: lower the on-throttle diff, ${d} to ${clamp(d - DIFF_STEP, DIFF_RANGE)}% (or squeeze the throttle in later).`);
-      if (k.kind === 'understeer' && d != null) advice.push(`Understeer out of ${where(e)} ${of(k)} with the on-throttle diff at ${d}%: raise the on-throttle diff, ${d} to ${clamp(d + DIFF_STEP, DIFF_RANGE)}%.`);
+      if (k.kind === 'wheelspin' && d != null) advice.push(`Wheelspin out of ${where(e)} ${of(k)} with the on-throttle diff at ${d}%: raise the on-throttle diff, ${d} to ${clamp(d + DIFF_STEP, DIFF_RANGE)}% (or squeeze the throttle in later).`);
+      if (k.kind === 'understeer' && d != null) advice.push(`Understeer out of ${where(e)} ${of(k)} with the on-throttle diff at ${d}%: lower the on-throttle diff, ${d} to ${clamp(d - DIFF_STEP, DIFF_RANGE)}%.`);
     }
   }
   return {

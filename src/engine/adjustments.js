@@ -6,8 +6,8 @@
 // Rules of thumb, not an optimiser:
 //   front locking into a corner  -> brake bias rearward
 //   rear locking                 -> brake bias forward
-//   rear wheelspin on exit       -> lower on-throttle diff (smoother)
-//   understeer on exit           -> higher on-throttle diff (more rotation)
+//   rear wheelspin on exit       -> higher on-throttle diff (more locked: the wheels share the drive)
+//   understeer on exit           -> lower on-throttle diff (more open: the car rotates)
 //   ERS                          -> deploy to attack/defend, harvest when
 //                                   alone, empty it on the last lap
 
@@ -69,18 +69,18 @@ function balanceSuggestions(issues, brakeBias, diff) {
         radio: `Rears locking into corner ${i.corner} - bias forward${to != null ? ` to ${to}%` : ''} there`, laps: i.laps,
       });
     } else if (i.type === 'spin') {
-      const to = diff != null ? clamp(diff - DIFF_STEP, DIFF_RANGE) : null;
-      out.push({
-        id: `diff-spin-${i.corner}`, kind: 'diff', dir: -1, action: to != null ? `Diff ${diff} → ${to}%` : 'Diff lower',
-        where: `${where(i)} exit`, why: `Rear wheelspin, ${seen(i)}`,
-        radio: `Wheelspin out of corner ${i.corner} - diff down${to != null ? ` to ${to}%` : ''}, or short-shift`, laps: i.laps,
-      });
-    } else if (i.type === 'understeer') {
       const to = diff != null ? clamp(diff + DIFF_STEP, DIFF_RANGE) : null;
       out.push({
-        id: `diff-understeer-${i.corner}`, kind: 'diff', dir: 1, action: to != null ? `Diff ${diff} → ${to}%` : 'Diff higher',
+        id: `diff-spin-${i.corner}`, kind: 'diff', dir: 1, action: to != null ? `Diff ${diff} → ${to}%` : 'Diff higher',
+        where: `${where(i)} exit`, why: `Rear wheelspin, ${seen(i)}`,
+        radio: `Wheelspin out of corner ${i.corner} - diff up${to != null ? ` to ${to}%` : ''}, or short-shift`, laps: i.laps,
+      });
+    } else if (i.type === 'understeer') {
+      const to = diff != null ? clamp(diff - DIFF_STEP, DIFF_RANGE) : null;
+      out.push({
+        id: `diff-understeer-${i.corner}`, kind: 'diff', dir: -1, action: to != null ? `Diff ${diff} → ${to}%` : 'Diff lower',
         where: `${where(i)} exit`, why: `Understeer on the power, ${seen(i)}`,
-        radio: `Understeer out of corner ${i.corner} - diff up${to != null ? ` to ${to}%` : ''} for more rotation`, laps: i.laps,
+        radio: `Understeer out of corner ${i.corner} - diff down${to != null ? ` to ${to}%` : ''} for more rotation`, laps: i.laps,
       });
     }
   }

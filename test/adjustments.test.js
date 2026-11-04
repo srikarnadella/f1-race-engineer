@@ -121,8 +121,8 @@ test('balance suggestions: which way to move bias and diff, and by how much', ()
   const sugg = (issues) => computeAdjustments({ player: player(60), issues }).suggestions;
   assert.deepStrictEqual(sugg([issue(2, 'frontLock', 'FL')]).map((s) => [s.action, s.where]), [['Bias 56 → 54%', 'Corner 2 (2.0 km)']]);
   assert.strictEqual(sugg([issue(4, 'rearLock', 'Rears')])[0].action, 'Bias 56 → 58%');
-  assert.strictEqual(sugg([issue(1, 'spin')])[0].action, 'Diff 60 → 55%');
-  assert.strictEqual(sugg([issue(3, 'understeer')])[0].action, 'Diff 60 → 65%');
+  assert.strictEqual(sugg([issue(1, 'spin')])[0].action, 'Diff 60 → 65%');
+  assert.strictEqual(sugg([issue(3, 'understeer')])[0].action, 'Diff 60 → 55%');
   // One corner wants less diff, another more: both are marked per-corner.
   const mixed = sugg([issue(1, 'spin'), issue(3, 'understeer')]);
   assert.deepStrictEqual(mixed.map((s) => s.where), ['Corner 1 (1.0 km) exit only', 'Corner 3 (3.0 km) exit only']);

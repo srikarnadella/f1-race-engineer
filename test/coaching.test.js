@@ -52,11 +52,11 @@ test('balance: fronts locking into one corner most laps says bias rearward, from
   assert.match(out.advice[0], /FL locks into corner 2 on 5 of 6 laps.*56%.*rearward.*56 to 54%/i);
 });
 
-test('balance: wheelspin out of a corner says lower the on-throttle diff; understeer says raise it', () => {
+test('balance: wheelspin out of a corner says raise the on-throttle diff; understeer says lower it', () => {
   const spin = balanceAdvice([3, 4, 5].map((l) => issue(l, 'wheelspin', 310)), { corners, racingLaps: 6, bias: 56, diff: 60 });
-  assert.match(spin.advice[0], /wheelspin out of corner 1 on 3 of 6 laps.*on-throttle diff.*60 to 55%/i);
+  assert.match(spin.advice[0], /wheelspin out of corner 1 on 3 of 6 laps.*on-throttle diff.*60 to 65%/i);
   const under = balanceAdvice([4, 5].map((l) => issue(l, 'understeer', 2010)), { corners, racingLaps: 6, bias: 56, diff: 60 });
-  assert.match(under.advice[0], /understeer out of corner 3.*60 to 65%/i);
+  assert.match(under.advice[0], /understeer out of corner 3.*60 to 55%/i);
 });
 
 test('balance: locking at three corners or more is the base bias, not one corner', () => {

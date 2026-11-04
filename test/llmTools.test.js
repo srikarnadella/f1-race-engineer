@@ -143,7 +143,7 @@ test('llm tools: car_balance - what the car did at each corner, the bias and dif
   const b = tools.run('car_balance', { session_id: sid });
   assert.deepStrictEqual([b.settings.brake_bias, b.settings.diff_on_throttle], [56, 60]);
   assert.ok(b.advice.some((a) => /FL locks into .*56 to 54%/.test(a)), JSON.stringify(b.advice));
-  assert.ok(b.advice.some((a) => /Wheelspin out of .*60 to 55%/.test(a)), JSON.stringify(b.advice));
+  assert.ok(b.advice.some((a) => /Wheelspin out of .*60 to 65%/.test(a)), JSON.stringify(b.advice));
   assert.ok(b.corners.length >= 2);
 });
 
