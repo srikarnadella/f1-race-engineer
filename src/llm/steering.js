@@ -24,6 +24,8 @@ const AFTER_APEX_M = 150; // time through a corner: from the braking point to th
 const MIN_LAPS = 5;
 const MIN_REPEAT_LAPS = 2;
 const REPEAT_SHARE = 0.25;
+const MIN_LOSS_S = 0.1; // an understeer habit that costs less than this through the corner gets no setup advice (a catch costs grip and tyres even when the lap time hides it)
+const MAX_ONE_OFFS = 3; // listed, biggest first
 const NEAR_M = 150; // a wheel-slip flag this close to the apex is the same corner
 
 const at = (r, m) => Math.max(0, Math.min(r.d.length - 1, Math.round(m / STEP_M)));
@@ -85,7 +87,7 @@ function analyzeSteering({ laps, corners, setting = {}, issues = [] }) {
       entry[kind] = summary(flags[kind], kind);
       const n = flags[kind].length;
       if (n >= MIN_REPEAT_LAPS && n / laps.length >= REPEAT_SHARE) entry.habits.push(kind);
-      else if (n) for (const x of flags[kind]) entry.one_offs.push({ lap: x.lap, kind });
+      else if (n) for (const x of flags[kind]) entry.one_offs.push({ lap: x.lap, kind, extra: kind === 'understeer' ? x.lock - usual.lock : x.counter - usual.counter });
     }
     if (entry.habits.length || entry.one_offs.length) found.push(entry);
   });
@@ -100,7 +102,8 @@ function analyzeSteering({ laps, corners, setting = {}, issues = [] }) {
   for (const e of found) {
     for (const kind of e.habits) {
       const s = e[kind];
-      const lost = s.lost_s > 0.01 ? `; those laps lost ${s2(s.lost_s)} s through the corner` : '';
+      const small = kind === 'understeer' && s.lost_s < MIN_LOSS_S ? ', too little to chase' : '';
+      const lost = s.lost_s > 0.01 ? `; those laps lost ${s2(s.lost_s)} s through the corner${small}` : kind === 'understeer' ? '; too little to chase' : '';
       if (kind === 'understeer') {
         lines.push(`${KIND_NAME[kind]}, corner ${e.corner} (${e.at_km} km): on laps ${list(s.laps)} you needed ${s2(s.extra)} more steering lock than usual and carried ${s.slower_kmh.toFixed(0)} km/h less speed through the apex${lost}.`);
       } else {
@@ -110,13 +113,17 @@ function analyzeSteering({ laps, corners, setting = {}, issues = [] }) {
       if (hit.length) lines.push(`The wheel-slip data agrees: ${[...new Set(hit.map((x) => x.kind.replace('_', ' ')))].join(' and ')} on lap ${list([...new Set(hit.map((x) => x.lap_num))])} at that corner.`);
     }
   }
-  const oneOffs = found.flatMap((e) => e.one_offs.map((o) => `lap ${o.lap} corner ${e.corner} (${o.kind.replace('_', ' ')})`));
-  if (oneOffs.length) lines.push(`One-offs (once, so probably driving rather than the car): ${oneOffs.join('; ')}.`);
+  const oneOffs = found.flatMap((e) => e.one_offs.map((o) => ({ ...o, corner: e.corner }))).sort((a, b) => b.extra - a.extra);
+  if (oneOffs.length) {
+    const shown = oneOffs.slice(0, MAX_ONE_OFFS).map((o) => `lap ${o.lap} corner ${o.corner} (${o.kind.replace('_', ' ')})`);
+    const more = oneOffs.length - MAX_ONE_OFFS;
+    lines.push(`One-offs (once, so probably driving rather than the car): ${shown.join('; ')}${more > 0 ? ` and ${more} more` : ''}.`);
+  }
 
   // Advice, once per kind of problem, from what the guides agree on.
   const advice = [];
   const now = (key, label) => (Number.isFinite(setting[key]) ? ` (now ${setting[key]}%)` : '');
-  const habitCorners = (kind) => found.filter((e) => e.habits.includes(kind));
+  const habitCorners = (kind) => found.filter((e) => e.habits.includes(kind) && (kind !== 'understeer' || e[kind].lost_s >= MIN_LOSS_S));
   const cornersOf = (kind) => list(habitCorners(kind).map((e) => String(e.corner)));
   if (habitCorners('understeer').length) {
     advice.push(`Understeer (corner ${cornersOf('understeer')}): more front wing, or less rear wing, adds front grip in the middle of the corner.`);

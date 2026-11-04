@@ -177,3 +177,23 @@ test('store: an existing race.db gains the battery columns when it is opened', (
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('store: a race is written when the final classification arrives, not only when the next session starts or the app closes', () => {
+  const { createSessionRecorder } = require('../src/data/sessionRecorder');
+  const lapHistory = [1, 2, 3].map((n) => ({ lapNum: n, lapMs: 90000, pit: false, neutralised: false, compound: 17, tyreAge: n }));
+  const field = fakeField({ lap: 4, t: 400 }, lapHistory);
+  let classification = null;
+  field.getClassification = () => classification;
+  const written = [];
+  const rec = createSessionRecorder(field, { write: (s) => written.push(s) });
+  rec.sync({});
+  rec.sync({});
+  assert.strictEqual(written.length, 0, 'mid-race nothing is written');
+  classification = { cars: [{ position: 1, gridPosition: 2, numLaps: 3, resultStatus: 3, numPitStops: 0, points: 25, bestLapTimeInMS: 90000, totalRaceTimeS: 270, penaltiesTimeS: 0 }] };
+  rec.sync({});
+  assert.strictEqual(written.length, 1, 'written the tick the result arrives');
+  assert.strictEqual(written[0].official, true);
+  rec.sync({});
+  rec.sync({});
+  assert.strictEqual(written.length, 1, 'once, while the results screen keeps ticking');
+});

@@ -2,7 +2,8 @@
 // the cars, every car's laps (the lap dataset's own recorder), the game's
 // events, the engineer's calls and radio cards, the weather, and the lap
 // traces the debrief kept. A flashback takes back whatever it undid. The
-// session is handed to `write` when the next one starts, and on flush().
+// session is handed to `write` when the game sends its final classification, when the next one starts,
+// and on flush() (writing the same session again replaces it).
 const { createLapRecorder } = require('./laps');
 
 const NO_CAR = 255;
@@ -53,9 +54,12 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
     rec.session = session;
     rec.uid = String(fieldModel.getSessionUID());
     rec.playerIdx = fieldModel.playerIndex();
-    rec.classification = fieldModel.getClassification() || rec.classification;
+    const cl = fieldModel.getClassification();
+    rec.classification = cl || rec.classification;
     if (debrief) rec.debriefRecord = debrief.current();
     rec.laps.sync();
+    // The result is in: the race is over, so keep it now, not when the next session starts or the app closes.
+    const resultIn = !!cl && !rec.savedResult;
 
     for (const car of fieldModel.orderedByPosition()) {
       const p = car.participant || {};
@@ -113,6 +117,10 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
     if (Object.values(setting).some((v) => v != null) && (!ls || Object.keys(setting).some((k) => ls[k] !== setting[k]))) rec.settings.push({ sessionTime: t, lapNum: playerLap, ...setting });
     for (const e of fieldModel.takePlayerBalanceEvents ? fieldModel.takePlayerBalanceEvents() : []) {
       rec.issues.push({ sessionTime: t, lapNum: e.lapNum, distM: e.distM, kind: ISSUE_KIND[e.type] || e.type, wheel: e.wheel, brakeBias: setting.brakeBias, diffOn: setting.diffOn });
+    }
+    if (resultIn) {
+      rec.savedResult = true;
+      save();
     }
   }
 

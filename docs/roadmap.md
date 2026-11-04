@@ -419,7 +419,7 @@ phrases the answer.
   because guides contradict. Tool `steering_balance`, insight button "Handling", routing for understeer /
   oversteer / steering / handling words. It reads steering, not yaw, and needs 5+ traced laps. *Test:*
   `test/steering.test.js`, routing in `test/llmInsightTools.test.js`. *Open:* the older `car_balance` rule
-  was reconciled with the guides (4 Nov): wheelspin raises the on-throttle diff, understeer lowers it. Not done: a steering chart.
+  was reconciled with the guides (4 Nov): wheelspin raises the on-throttle diff, understeer lowers it. Handling lists only the three biggest one-offs and gives no setup advice for an understeer habit that costs under 0.1 s a corner. Not done: a steering chart.
 - **L7 More insights.** The user (4 Nov 2026): let Ask the race do more and give more insights. Seven
   lookups the engine works out whole from race.db and hands the model as sentences (`src/llm/insights.js`; the
   model words, never computes): `race_summary` (the race in points), `pit_stops` (each stop priced against the

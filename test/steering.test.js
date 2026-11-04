@@ -157,3 +157,29 @@ test('wheel slip that agrees is said: an understeer or wheelspin flagged by the 
   const r = analyse(specs, { issues: [{ lap_num: 6, distance_m: 640, kind: 'understeer', wheel: null }] });
   assert.match(r.text, /wheel-slip data.*lap 6/i);
 });
+
+// --- Tidy: a long list of one-offs is clutter, and a habit that costs almost nothing is not worth chasing ---
+test('one-offs: only the biggest few are listed, with a count of the rest', () => {
+  const specs = usual(10);
+  specs[1] = { lock: 0.52, minV: 95 };
+  specs[2] = { counter: 0.35, counterThrottle: 0.8 };
+  specs[3] = { counter: 0.3, counterThrottle: 0.1 };
+  specs[4] = { counter: 0.5, counterThrottle: 0.8, counterAtM: 1650 };
+  const r = analyse(specs);
+  const line = r.text.split('\n').find((l) => /^One-offs/.test(l));
+  assert.strictEqual((line.match(/lap \d+ corner/g) || []).length, 3, line);
+  assert.match(line, /and 1 more/);
+  assert.match(line, /lap 6 corner 2/, 'the biggest correction comes first');
+});
+
+test('a habit that costs almost nothing is reported but earns no setup advice', () => {
+  const specs = usual(10);
+  for (const i of [2, 4, 6, 8]) specs[i] = { lock: 0.52, minV: 97.5 };
+  const r = analyse(specs);
+  const c = r.corners.find((x) => x.corner === 1);
+  assert.deepStrictEqual(c.habits, ['understeer']);
+  assert.ok(c.understeer.lost_s < 0.1, `lost ${c.understeer.lost_s}`);
+  assert.match(r.text, /Understeer, corner 1/);
+  assert.deepStrictEqual(r.advice, []);
+  assert.match(r.text, /cost(s)? (almost )?nothing|too little to chase/i);
+});
