@@ -44,6 +44,9 @@ function questionsFor(tools, sid) {
   if (!coach.error && coach.advice.length) qs.push({ q: 'What can I do better?', expect: [new RegExp(`corner ${coach.advice[0].corner}\\b`, 'i')], tool: 'lap_coaching' });
   const coast = run('lift_and_coast');
   if (!coast.error && coast.candidates.length) qs.push({ q: 'Where should I lift and coast to save fuel?', expect: [new RegExp(`corner (${coast.candidates.map((c) => c.corner).join('|')})\\b`, 'i')], tool: 'lift_and_coast' });
+  // A "no": a corner you don't coast into. The grounding check can't see a flipped negation; this can.
+  const noCoast = !coast.error && coast.candidates.find((c) => !/already coast/.test(c.text));
+  if (noCoast) qs.push({ q: `Do I already lift and coast before corner ${noCoast.corner}?`, expect: [/\b(no|not|don't|do not|0 m)\b/i], tool: 'lift_and_coast' });
   // Brake bias and differential: the change the rules suggest, or that none is needed.
   const bal = run('car_balance');
   if (!bal.error) {

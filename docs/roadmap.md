@@ -437,8 +437,9 @@ Found reading the app on 3 Nov 2026; an hour or less each.
   synthetic race with a 2-minute results screen reports its racing time only. *Done:* the Event packet's
   CHQF ends the race (`test/buildDataset.test.js`); races.csv rebuilt: Silverstone 15.3 to 8.7 min, Spa
   46.6 to 37.5. The rebuild also picks up the Red Bull Ring race (2026-10-19_153711) that laps.csv never
-  had; it is left out until the accuracy gate's scores are re-saved with it (a deliberate step: it moves
-  every model's numbers).
+  had. Added 3 Nov 2026 with the gate re-saved: 10 races, 3,110 laps; tyre model 386 to 396 ms off,
+  rival stops 1.31 to 1.53 laps off (Red Bull Ring had rain, a red flag and safety cars: a harder race,
+  not a worse model).
 - **G5** The window shows once the page is ready (`ready-to-show`), not as an empty frame.
   *Test:* `show: false` until the first paint.
 
