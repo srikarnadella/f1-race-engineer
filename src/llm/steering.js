@@ -7,7 +7,8 @@
 // the other way isn't a slide. Only what repeats is called the car; once is a mistake. Calibrated on real
 // races: laps flagged for understeer lost 0.14-1.0 s through the corner against about 0.1 for the rest, and
 // 0.15 of lock is where a correction stops being ordinary line-to-line scatter (6-8% of corner-laps at 0.08,
-// 2-8% at 0.16).
+// 2-8% at 0.16). Re-checked on 8 races (578 corner-laps): laps with 0.15+ extra countersteer lose 0.1 s or more
+// 47% of the time (17% otherwise, 63% from 0.3), so 0.15 stays for habits; no wheel-slip rows exist to check against.
 //
 // The setup advice is only what the community guides agree on, as things to test: they disagree on the
 // direction of the on-throttle differential and the anti-roll bars, so those are not told.
@@ -26,6 +27,7 @@ const MIN_REPEAT_LAPS = 2;
 const REPEAT_SHARE = 0.25;
 const MIN_LOSS_S = 0.1; // an understeer habit that costs less than this through the corner gets no setup advice (a catch costs grip and tyres even when the lap time hides it)
 const MAX_ONE_OFFS = 3; // listed, biggest first
+const ONE_OFF_COUNTER = 0.2; // a single catch is only listed from here; over 8 races laps lose time clearly from ~0.15 (47% lose 0.1 s+, 17% usually) and 63% from 0.3, and singles below 0.2 are mostly scatter
 const NEAR_M = 150; // a wheel-slip flag this close to the apex is the same corner
 
 const at = (r, m) => Math.max(0, Math.min(r.d.length - 1, Math.round(m / STEP_M)));
@@ -113,7 +115,7 @@ function analyzeSteering({ laps, corners, setting = {}, issues = [] }) {
       if (hit.length) lines.push(`The wheel-slip data agrees: ${[...new Set(hit.map((x) => x.kind.replace('_', ' ')))].join(' and ')} on lap ${list([...new Set(hit.map((x) => x.lap_num))])} at that corner.`);
     }
   }
-  const oneOffs = found.flatMap((e) => e.one_offs.map((o) => ({ ...o, corner: e.corner }))).sort((a, b) => b.extra - a.extra);
+  const oneOffs = found.flatMap((e) => e.one_offs.map((o) => ({ ...o, corner: e.corner }))).filter((o) => o.kind === 'understeer' || o.extra >= ONE_OFF_COUNTER).sort((a, b) => b.extra - a.extra);
   if (oneOffs.length) {
     const shown = oneOffs.slice(0, MAX_ONE_OFFS).map((o) => `lap ${o.lap} corner ${o.corner} (${o.kind.replace('_', ' ')})`);
     const more = oneOffs.length - MAX_ONE_OFFS;

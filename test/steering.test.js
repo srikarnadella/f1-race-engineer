@@ -183,3 +183,12 @@ test('a habit that costs almost nothing is reported but earns no setup advice', 
   assert.deepStrictEqual(r.advice, []);
   assert.match(r.text, /cost(s)? (almost )?nothing|too little to chase/i);
 });
+
+test('a single lap with a modest extra correction is below the one-off line and is not listed', () => {
+  // Over our races, laps lose time clearly only from about 0.15 of extra countersteer, and singles under 0.2 are mostly scatter.
+  const specs = usual(10);
+  specs[4] = { counter: 0.18, counterThrottle: 0.8 };
+  const r = analyse(specs);
+  assert.doesNotMatch(r.text, /One-offs/);
+  assert.match(r.text, /No corner showed steering out of the ordinary/);
+});
