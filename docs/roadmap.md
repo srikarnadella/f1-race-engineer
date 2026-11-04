@@ -409,8 +409,9 @@ phrases the answer.
   trend and range, new suggested questions. *Test:* `test/llmInsights.test.js` (hand-built races whose answers are
   worked out), `test/llmSummary.test.js`, `test/llmInsightTools.test.js` (the tools over a recorded session,
   the routing of 25 questions, the model's prompt), `test/llmStintChart.test.js`, `test/desktopAskRace.test.js`.
-  `npm run llm-eval` gained a question for each, answered from the same results. *Open:* the model scores on
-  the new questions are in [ask-the-race.md](ask-the-race.md).
+  `npm run llm-eval` gained a question for each, answered from the same results. Qwen3 1.7B on the 70-question
+  set over four races: 61 right, 70 of 70 grounded; the new-question misses are the small model's judgement
+  (a slowing stint "held up well"), not its numbers. *Open:* score Qwen3 4B on the expanded set.
 
 ### Race analysis: its own place
 

@@ -65,6 +65,15 @@ battery answer without a figure. So: 4B is the more reliable, 1.7B answers six t
 time is mostly the model being loaded and run on a card it nearly fills; the app counts the seconds while
 it works. Llama 3.2 3B and Phi-4-mini haven't been scored.
 
+**The expanded set (4 Nov 2026, Qwen3 1.7B, Spa, Barcelona, Silverstone and Monaco, 70 questions):
+61 right, 70 of 70 grounded (nothing invented), 9.4 s an answer.** It adds a question for each insight above,
+its right answer read from the same results. The 9 misses: three flipped "no"s on lift and coast and two on brake
+bias (known), one battery answer without the percentages, and on the new questions the small model's judgement,
+not its numbers: twice it called a slowing stint "held up well", once it wrote "0.00 seconds off the quickest" in a
+summary. A first run found two engine wordings to fix (the pace leader was confused with the fastest single lap; the
+fastest lap is now labelled as one lap, not race pace) and an eval check that was too strict. Qwen3 4B isn't scored
+on the expanded set yet.
+
 Scoring 4B also found a bug in the engine, not the model: "Where did I start and where did I finish?"
 got the lap-coaching lookup because of the word "where"; fixed, with a test.
 
