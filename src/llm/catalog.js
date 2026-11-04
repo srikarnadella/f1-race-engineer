@@ -6,22 +6,22 @@ const MODELS = [
   {
     id: 'qwen3:1.7b', name: 'Qwen3 1.7B', maker: 'Alibaba Qwen', sizeBytes: 1.4e9, thinks: true,
     licence: 'Apache 2.0', licenceUrl: 'https://huggingface.co/Qwen/Qwen3-1.7B/blob/main/LICENSE',
-    note: 'The quickest. Fine for "what was my best lap?", weaker on why.',
+    note: 'Answers in about 10 seconds on a 4 GB card. Right on 48 of 50 test questions, but can flip a yes or no.',
   },
   {
     id: 'qwen3:4b', name: 'Qwen3 4B', maker: 'Alibaba Qwen', sizeBytes: 2.5e9, thinks: true,
     licence: 'Apache 2.0', licenceUrl: 'https://huggingface.co/Qwen/Qwen3-4B/blob/main/LICENSE',
-    note: 'The best answers that fit in 4 GB, a little slower.',
+    note: 'The most reliable: 49 of 50 test questions right, yes-or-no ones included. About a minute an answer on a 4 GB card.',
   },
   {
     id: 'llama3.2:3b', name: 'Llama 3.2 3B', maker: 'Meta', sizeBytes: 2.0e9,
     licence: 'Llama 3.2 Community License', licenceUrl: 'https://www.llama.com/llama3_2/license/',
-    note: 'Quick and steady with tools.',
+    note: 'Not scored on your races yet.',
   },
   {
     id: 'phi4-mini', name: 'Phi-4-mini', maker: 'Microsoft', sizeBytes: 2.5e9,
     licence: 'MIT', licenceUrl: 'https://huggingface.co/microsoft/Phi-4-mini-instruct/blob/main/LICENSE',
-    note: 'Good at numbers and reasoning over them.',
+    note: 'Not scored on your races yet.',
   },
 ];
 

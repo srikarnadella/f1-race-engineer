@@ -37,10 +37,18 @@ and coast, brake bias and differential, the battery, and one the recording can't
 
 | Model | Races | Right | Grounded (nothing invented) | Time a question (GTX 1650, 4 GB) |
 |---|---|---|---|---|
-| Qwen3 1.7B | Silverstone, Barcelona, Red Bull Ring, Monaco | **45 / 46** | **46 / 46** | 9-11 s |
+| Qwen3 4B | Silverstone, Barcelona, Red Bull Ring, Monaco | **49 / 50** | **49 / 50** | 60-65 s |
+| Qwen3 1.7B | the same four | **48 / 50** | **50 / 50** | 8-10 s |
 
-3 November 2026. The one miss was a battery answer that described the usage without a figure. The other
-models on the list (Qwen3 4B, Llama 3.2 3B, Phi-4-mini) haven't been scored yet.
+3 November 2026, 25 questions a race pair, including one whose answer is "no" ("Do I already lift and
+coast before corner 2?"). Qwen3 4B's one miss was a battery question that ran past the 3-minute limit.
+Qwen3 1.7B said yes to that "no" question (a flipped negation the grounding check can't see) and gave a
+battery answer without a figure. So: 4B is the more reliable, 1.7B answers six times faster. The 4B's
+time is mostly the model being loaded and run on a card it nearly fills; the app counts the seconds while
+it works. Llama 3.2 3B and Phi-4-mini haven't been scored.
+
+Scoring 4B also found a bug in the engine, not the model: "Where did I start and where did I finish?"
+got the lap-coaching lookup because of the word "where"; fixed, with a test.
 
 ## What it can't do
 
