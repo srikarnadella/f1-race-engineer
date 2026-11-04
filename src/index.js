@@ -13,6 +13,7 @@ const { RIVAL_ID } = require('./engine/debrief');
 const { createPipeline } = require('./pipeline');
 const { openStore } = require('./data/store');
 const { findStoreSession, auditFromStore } = require('./data/storeAudit');
+const { trends } = require('./data/trends');
 const { startServer } = require('./server/httpServer');
 
 const USAGE = `Usage: node src/index.js [options]
@@ -190,6 +191,7 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     if (pathname === '/api/debrief/audit') return auditWithStore(params.get('session'));
     if (pathname === '/api/debrief/field') return debrief.fieldLaps(params.get('session'));
     if (pathname === '/api/debrief/older') return debrief.older();
+    if (pathname === '/api/trends') return store ? trends(store.db) : { error: 'Across-race trends come from the race store, which a replay doesn\'t use.' };
     const { analysis } = pipeline.snapshot();
     if (pathname === '/api/models') return { ...MODEL_INFO, tyre: analysis ? analysis.tyreModel : null };
     return null;

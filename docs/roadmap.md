@@ -71,7 +71,7 @@ flowchart LR
     R2[R2 Pace: laps, stints, tyre wear]:::done
     R3[R3 Head to head with any rival]:::done
     R4[R4 Strategy review: calls, stops, what-if]:::done
-    R5[R5 Across sessions: trends per track]
+    R5[R5 Across sessions: trends per track]:::done
     R6[R6 Lap vs lap telemetry]:::done
   end
   subgraph G[Quick gaps]
@@ -412,7 +412,11 @@ estimated on the page. Use the taste skill and the dataviz skill for every view.
   *Done:* `test/desktopLapCompare.test.js`; steering added to the comparison (`test/analysis.test.js`).
   The two laps' colours pass the dataviz palette checks on the dark ground (CVD ΔE 24).
 - **R5 Across sessions.** Your pace per track over time, tyre wear learned per track, how often
-  the calls were right. *Test:* adding a session moves only that track's numbers.
+  the calls were right. *Test:* adding a session moves only that track's numbers. *Done:* Race analysis,
+  All races (`src/data/trends.js`, `/api/trends`; `test/trends.test.js`, `test/desktopAnalysis.test.js`): per track every race's
+  best and typical lap in date order and the change from your first race, tyre wear a lap per track and tyre,
+  and the calls graded race by race from race.db (20 of 39 right, none wrong, on your 10 races).
+  Strategy grades old races' calls from race.db too (`src/data/storeAudit.js`).
 
 ### Quick gaps
 

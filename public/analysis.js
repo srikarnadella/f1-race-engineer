@@ -374,6 +374,49 @@
     return root;
   }
 
+  // ---------- All races (R5): across sessions, from the race store ----------
+  const ALL = '__all';
+  function trendsPage() {
+    const root = h('div', { class: 'trd' }, h('p', { class: 'ana__empty' }, 'Reading every race…'));
+    const secs = (ms) => (ms / 1000).toFixed(3);
+    fetch('/api/trends')
+      .then((r) => r.json())
+      .then((t) => {
+        if (!t || t.error || !t.tracks) {
+          root.replaceChildren(h('p', { class: 'ana__empty' }, (t && t.error) || 'Couldn\'t reach the bridge.'));
+          return;
+        }
+        if (!t.tracks.length) {
+          root.replaceChildren(h('p', { class: 'ana__empty' }, 'No races in the race store yet.'));
+          return;
+        }
+        const c = t.calls.total;
+        const nRaces = t.tracks.reduce((n, x) => n + x.races.length, 0);
+        const verdict = c.graded
+          ? `${c.right} of ${c.graded} graded calls were right${c.wrong ? `, ${c.wrong} wrong` : ', none wrong'}, across ${t.calls.races.length} race${t.calls.races.length === 1 ? '' : 's'}`
+          : `${nRaces} race${nRaces === 1 ? '' : 's'} at ${t.tracks.length} track${t.tracks.length === 1 ? '' : 's'}; no calls graded yet`;
+        const head = (...cells) => h('thead', {}, h('tr', {}, cells.map(([label, num]) => h('th', { class: num ? 'num' : null }, label))));
+        root.replaceChildren(
+          h('p', { class: 'trd__verdict lvl__verdict' }, verdict),
+          ...t.tracks.map((tr) => h('section', { class: 'trd__track' },
+            h('h3', {}, tr.track),
+            h('p', { class: 'pace__note' }, `Best ever ${fmtLap(tr.bestEverMs)}. ${tr.improvedMs == null ? 'One race so far.' : `Against your first race here, your latest best lap was ${secs(Math.abs(tr.improvedMs))} s ${tr.improvedMs >= 0 ? 'faster' : 'slower'}${tr.typicalImprovedMs != null ? ` and your typical lap ${secs(Math.abs(tr.typicalImprovedMs))} s ${tr.typicalImprovedMs >= 0 ? 'faster' : 'slower'}` : ''}.`}`),
+            h('table', { class: 'tbl trd__table' },
+              head(['Date'], ['Session'], ['Grid → finish'], ['Best lap', true], ['Typical lap', true]),
+              h('tbody', {}, tr.races.map((r) => h('tr', {},
+                h('td', {}, r.date), h('td', {}, r.type), h('td', {}, `${r.grid ? `P${r.grid}` : '–'} → ${r.finish ? `P${r.finish}` : '–'}`),
+                h('td', { class: 'num' }, fmtLap(r.bestMs)), h('td', { class: 'num' }, fmtLap(r.typicalMs)))))))),
+          t.wear.length ? h('section', { class: 'trd__wear' },
+            h('h3', {}, 'Tyre wear a lap'),
+            h('p', { class: 'pace__note' }, 'The typical step in wear from one lap to the next on the same set, from your laps.'),
+            h('table', { class: 'tbl trd__table' },
+              head(['Track'], ['Tyre'], ['Wear a lap', true], ['Laps', true]),
+              h('tbody', {}, t.wear.map((w) => h('tr', {}, h('td', {}, w.track), h('td', {}, w.tyre), h('td', { class: 'num' }, `${w.pctPerLap}%`), h('td', { class: 'num' }, String(w.laps))))))) : null,
+        );
+      }, () => root.replaceChildren(h('p', { class: 'ana__empty' }, 'Couldn\'t reach the bridge.')));
+    return root;
+  }
+
   // ---------- Strategy: the calls graded, your stops priced against the field's (R4) ----------
   // The calls audit (/api/debrief/audit) grades each call as `npm run backtest` does; its stops are
   // every car's in- and out-lap against the cars that stayed out those laps.
@@ -667,6 +710,7 @@
       let lapView = null; // { id, node }: kept across redraws, so a new lap doesn't refetch the comparison
       let h2hView = null; // the same for Head to head
       let strView = null; // and Strategy
+      let trendsView = null; // and All races
       const VIEWS = [['overview', 'Overview'], ['pace', 'Pace'], ['laps', 'Lap vs lap'], ['h2h', 'Head to head'], ['strategy', 'Strategy'], ['debrief', 'Full debrief']];
 
       function draw() {
@@ -674,9 +718,13 @@
           selected = desk.analysisSession; // Storage's "Open in Race analysis"
           desk.analysisSession = null;
         }
-        const d = sessions.find((x) => x.id === selected) || sessions[0] || null;
-        selected = d ? d.id : null;
-        list.replaceChildren(...sessions.map((x) => h('button', {
+        const all = selected === ALL;
+        const d = all ? null : sessions.find((x) => x.id === selected) || sessions[0] || null;
+        if (!all) selected = d ? d.id : null;
+        list.replaceChildren(h('button', {
+          type: 'button', class: 'ana__all', 'aria-current': String(all),
+          onclick: () => { selected = ALL; sig = ''; draw(); },
+        }, h('span', { class: 'ana__all-name' }, 'All races'), h('span', { class: 'ana__all-meta' }, 'Pace per track, tyre wear, the calls')), ...sessions.map((x) => h('button', {
           type: 'button', class: 'ana__session', 'aria-current': x.id === selected ? 'true' : 'false',
           onclick: () => { selected = x.id; sig = ''; draw(); },
         }, h('span', { class: 'ana__session-name' }, name(x)), h('span', { class: 'ana__session-meta' }, [x.live ? 'Now' : day(x.startedAt), x.finish ? `P${x.finish}` : null].filter(Boolean).join(' · ')))));
@@ -688,6 +736,14 @@
           onclick: () => { view = id; sig = ''; draw(); },
         }, label)));
         views.hidden = !d;
+        if (all) {
+          title.textContent = 'All races';
+          meta.textContent = 'Every race in the race store, across sessions';
+          debriefUpdate = null;
+          if (!trendsView) trendsView = trendsPage();
+          if (!body.contains(trendsView)) body.replaceChildren(trendsView);
+          return;
+        }
         if (!d) {
           title.textContent = '';
           meta.textContent = '';

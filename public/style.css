@@ -1049,12 +1049,12 @@ body {
 /* Race analysis (analysis.js): saved sessions on the left, one session in depth on the right. */
 .ana { display: grid; grid-template-columns: minmax(200px, 270px) minmax(0, 1fr); gap: clamp(32px, 4vw, 72px); align-items: start; }
 .ana__list { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; }
-.ana__session { appearance: none; border: 0; border-radius: 4px; padding: 12px 14px; background: none; color: var(--muted); font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: background 0.12s, color 0.12s; }
-.ana__session:hover { background: #141414; color: var(--text); }
-.ana__session:focus-visible, .ana__view:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
-.ana__session[aria-current="true"] { background: #222; color: var(--text); }
-.ana__session-name { font-size: 1.05rem; font-weight: 700; }
-.ana__session-meta { font-size: 0.9rem; font-weight: 550; color: var(--label); }
+.ana__session, .ana__all { appearance: none; border: 0; border-radius: 4px; padding: 12px 14px; background: none; color: var(--muted); font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: background 0.12s, color 0.12s; }
+.ana__session:hover, .ana__all:hover { background: #141414; color: var(--text); }
+.ana__session:focus-visible, .ana__all:focus-visible, .ana__view:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.ana__session[aria-current="true"], .ana__all[aria-current="true"] { background: #222; color: var(--text); }
+.ana__session-name, .ana__all-name { font-size: 1.05rem; font-weight: 700; }
+.ana__session-meta, .ana__all-meta { font-size: 0.9rem; font-weight: 550; color: var(--label); }
 .ana__main { min-width: 0; display: flex; flex-direction: column; gap: 40px; }
 .ana__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .ana__title { margin: 0; font-size: clamp(2.4rem, 1.6rem + 2.6vw, 4.2rem); font-weight: 800; letter-spacing: -0.04em; line-height: 0.95; }
@@ -1411,3 +1411,12 @@ body {
 .keys { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; line-height: 1.4; }
 .keys li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: baseline; }
 kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #262626; color: var(--text); font: inherit; font-weight: 800; font-size: 0.95rem; }
+
+/* All races (analysis.js, R5): the calls verdict, then a section per track, then tyre wear. */
+.trd { display: flex; flex-direction: column; gap: 36px; }
+.trd h3 { margin: 0 0 8px; font-size: 1.2rem; font-weight: 750; color: var(--muted); }
+.trd__table { max-width: 760px; margin-top: 10px; }
+.trd__table tbody tr:nth-child(odd) > * { background: #101010; }
+.ana__all { margin-bottom: 10px; }
+.trd__table th { text-align: left; }
+.trd__table th.num { text-align: right; }

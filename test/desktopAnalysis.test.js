@@ -133,3 +133,34 @@ test('analysis: sessions on disk past the 10 in memory are listed too, oldest la
   assert.ok(![...doc.querySelectorAll('.ana__view')].some((b) => b.textContent === 'Full debrief'), 'the Debrief card only has the sessions in memory');
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('analysis: All races - pace per track over time, tyre wear and the calls, from the race store (roadmap R5)', async (t) => {
+  const TRENDS = {
+    tracks: [
+      { track: 'Silverstone', bestEverMs: 90948, improvedMs: 782, races: [{ sessionId: 9, type: 'Race', date: '2026-10-15', grid: 6, finish: 5, laps: 5, bestMs: 91954, typicalMs: 92525 }, { sessionId: 19, type: 'Race', date: '2026-10-19', grid: 10, finish: 4, laps: 6, bestMs: 90948, typicalMs: 92664 }] },
+      { track: 'Monaco', bestEverMs: 74950, improvedMs: null, races: [{ sessionId: 11, type: 'Race', date: '2026-10-15', grid: 2, finish: 1, laps: 27, bestMs: 74950, typicalMs: 76144 }] },
+    ],
+    wear: [{ track: 'Monaco', tyre: 'medium', pctPerLap: 3.1, laps: 21 }],
+    calls: { races: [], total: { calls: 76, graded: 39, right: 20, wrong: 0, unclear: 19 } },
+  };
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = fakeApi();
+      w.fetch = async (url) => (String(url).endsWith('/api/trends') ? { ok: true, json: async () => TRENDS } : { ok: false, json: async () => ({}) });
+    },
+  });
+  await new Promise((r) => setTimeout(r, 10));
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: [barcelona] } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.textContent.startsWith('Race analysis')).click();
+  doc.querySelector('.ana__all').click();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.match(doc.querySelector('.ana__title').textContent, /All races/);
+  assert.match(doc.querySelector('.trd__verdict').textContent, /20 of 39 graded calls were right/);
+  const sil = [...doc.querySelectorAll('.trd__track')].find((x) => x.textContent.includes('Silverstone'));
+  assert.match(sil.textContent, /0\.782 s faster/);
+  assert.strictEqual(sil.querySelectorAll('tbody tr').length, 2);
+  assert.match(doc.querySelector('.trd__wear').textContent, /Monaco.*medium.*3\.1%/);
+  assert.deepStrictEqual(app.errors, []);
+});
