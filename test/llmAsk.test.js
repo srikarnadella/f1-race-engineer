@@ -185,3 +185,12 @@ test('ask: when the engine looked the answer up, the model gets no data tools to
   await askRace({ ollama, tools: tl, sessionId: s.session_id, model: 'qwen3:1.7b', question: 'Who won?' });
   assert.ok(names.includes('gaps') && names.includes('show_chart'), 'nothing looked up: the basics are there');
 });
+
+test('ask: a driver the facts never mention is caught, and so is a tyre', () => {
+  const facts = 'Result: P1 RUSSELL, P2 VERSTAPPEN.\nTyres: soft laps 1-6.';
+  const drivers = ['RUSSELL', 'VERSTAPPEN', 'LECLERC', 'NORRIS'];
+  assert.deepStrictEqual(checkGrounding('Russell won from Verstappen, on softs.', facts, { drivers }), { grounded: true, unsupported: [] });
+  assert.deepStrictEqual(checkGrounding('Leclerc won on the hard tyre.', facts, { drivers }).unsupported, ['LECLERC', 'hard']);
+  // A name that isn't a driver in the session is just a word.
+  assert.strictEqual(checkGrounding('A medium-length answer.', 'medium', { drivers }).grounded, true);
+});

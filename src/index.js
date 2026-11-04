@@ -12,6 +12,7 @@ const { createTrackMemory } = require('./state/trackMemory');
 const { RIVAL_ID } = require('./engine/debrief');
 const { createPipeline } = require('./pipeline');
 const { openStore } = require('./data/store');
+const { findStoreSession, auditFromStore } = require('./data/storeAudit');
 const { startServer } = require('./server/httpServer');
 
 const USAGE = `Usage: node src/index.js [options]
@@ -164,13 +165,29 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
       return { overtake: null };
     }
   })();
+  // A saved debrief from before the calls were kept with it: grade them from race.db instead, where
+  // every car's laps and the calls are (re-processing a recording fills them for old races).
+  function auditWithStore(id) {
+    const a = /** @type {any} */ (debrief.audit(id));
+    if (a.error || a.calls.length || (a.stops || []).length || !store) return a;
+    const s = [...debrief.view().sessions, ...debrief.older().sessions].find((x) => x.id === id);
+    if (!s) return a;
+    try {
+      const sid = findStoreSession(store.db, { uid: s.uid, track: s.track, sessionType: s.sessionType, startedAt: s.startedAt });
+      return sid ? auditFromStore(store.db, sid) : a;
+    } catch (err) {
+      console.warn(`[store] couldn't grade the calls from race.db: ${err.message}`);
+      return a;
+    }
+  }
+
   function api(pathname, params) {
     const lap = (k) => (params.get(k) ? Number(params.get(k)) : null);
     // b: a lap number, or a rival's best lap ('r<carIndex>').
     const b = params.get('b');
     if (pathname === '/api/debrief/compare') return debrief.compare(params.get('session'), lap('a'), b && RIVAL_ID.test(b) ? b : lap('b'));
     if (pathname === '/api/debrief/rivals') return debrief.rivals(params.get('session'));
-    if (pathname === '/api/debrief/audit') return debrief.audit(params.get('session'));
+    if (pathname === '/api/debrief/audit') return auditWithStore(params.get('session'));
     if (pathname === '/api/debrief/field') return debrief.fieldLaps(params.get('session'));
     if (pathname === '/api/debrief/older') return debrief.older();
     const { analysis } = pipeline.snapshot();

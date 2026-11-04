@@ -107,7 +107,8 @@ function sessionBrief(tools, sessionId) {
 }
 
 // Every lap time, "lap N" and "PN" in the answer must appear in the facts.
-function checkGrounding(answer, facts) {
+// drivers: the session's driver names; one the answer names must be in the facts too, as must a tyre.
+function checkGrounding(answer, facts, { drivers = [] } = {}) {
   const f = facts.toLowerCase();
   const has = (re) => re.test(f);
   const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -125,6 +126,16 @@ function checkGrounding(answer, facts) {
   for (const m of answer.matchAll(/\b(\d+\.\d{2,3}) ?(?:s|secs?|seconds)\b/gi)) {
     const k = `${m[1]} s`;
     if (!known.has(Math.round(Number(m[1]) * 100)) && !unsupported.includes(k)) unsupported.push(k);
+  }
+  // Words a reader takes as the record: a driver of this session, a tyre.
+  const a = answer.toLowerCase();
+  for (const d of drivers) {
+    const re = new RegExp(`\\b${d.toLowerCase().replace(/[^a-z]/g, '.')}\\b`);
+    if (re.test(a) && !re.test(f) && !unsupported.includes(d)) unsupported.push(d);
+  }
+  for (const m of a.matchAll(/\b(soft|medium|hard|inter|intermediate|wet)s?\b(?![-\w])/g)) {
+    const t = m[1] === 'intermediate' ? 'inter' : m[1];
+    if (!new RegExp(`\\b${t}`).test(f) && !unsupported.includes(t)) unsupported.push(t);
   }
   return { grounded: !unsupported.length, unsupported };
 }
@@ -303,7 +314,7 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
   const own = engineAnswer(found);
   const lost = !out.answer || !out.answer.trim() || /doesn't show|does not show/i.test(out.answer) || /<\/?tool_call>|"name"\s*:\s*"|<\/think>/.test(out.answer);
   const answered = own && lost ? { ...out, answer: own, fromEngine: true } : out;
-  return { ...answered, lookedUp: found.map((x) => x.name), ...checkGrounding(answered.answer, facts), charts, evidence, session: { id: s.session_id, track: s.track, type: s.type, date: s.date } };
+  return { ...answered, lookedUp: found.map((x) => x.name), ...checkGrounding(answered.answer, facts, { drivers: (bound.run('results', {}).results || []).map((r) => r.driver).filter(Boolean) }), charts, evidence, session: { id: s.session_id, track: s.track, type: s.type, date: s.date } };
 }
 
 // The engine's own answer from what it looked up, in a few sentences, or null.
