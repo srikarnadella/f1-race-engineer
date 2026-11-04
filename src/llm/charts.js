@@ -114,7 +114,7 @@ function buildChart(tools, sid, kind, args = {}) {
 // question names. Lap numbers are read from the question; one lap is compared with your best.
 const TIME_WORDS = /\b(lose|lost|losing|gain|gained|faster|slower|quicker|compare|compared|difference|where)\b/i;
 function chartFor(question, { rival = null } = {}) {
-  const laps = [...new Set([...question.matchAll(/\blaps? (\d{1,3})(?:\s*(?:and|&|vs\.?|versus|to)\s*(?:lap )?(\d{1,3}))?/gi)].flatMap((m) => [m[1], m[2]]).filter(Boolean).map(Number))];
+  const laps = lapsNamed(question);
   if (TIME_WORDS.test(question) && laps.length) return { kind: 'lap_compare', args: laps.length >= 2 ? { lap_a: laps[1], lap_b: laps[0] } : { lap_b: laps[0] } };
   if (rival && /\b(gap|battle|fight|ahead|behind|close|closer|catch|caught|pull(ed)? away)\b/i.test(question)) return { kind: 'gap_to_driver', args: { driver: rival } };
   const withRival = rival ? { driver: rival } : {};
@@ -123,4 +123,10 @@ function chartFor(question, { rival = null } = {}) {
   return null;
 }
 
-module.exports = { buildChart, chartFor, CHART_KINDS };
+// The laps a question names, in order: "lap 12", "laps 5 and 7", "lap 22 vs lap 14".
+function lapsNamed(question) {
+  const found = [...question.matchAll(/\blaps? (\d{1,3})(?:\s*(?:and|&|vs\.?|versus|to)\s*(?:lap )?(\d{1,3}))?/gi)].flatMap((m) => [m[1], m[2]]);
+  return [...new Set(found.filter(Boolean).map(Number))];
+}
+
+module.exports = { buildChart, chartFor, lapsNamed, CHART_KINDS };

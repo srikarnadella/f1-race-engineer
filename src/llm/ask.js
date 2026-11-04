@@ -4,7 +4,7 @@
 // Afterwards every lap time, lap number and position in the answer is checked against the brief
 // and the tool results: one that isn't there is flagged, never shown as if it were the record.
 const { MODELS } = require('./catalog');
-const { buildChart, chartFor, CHART_KINDS } = require('./charts');
+const { buildChart, chartFor, lapsNamed, CHART_KINDS } = require('./charts');
 
 const RULES = `You are Undercut's race engineer, answering a driver's question after an F1 26 session.
 Use only the session facts below and what the tools return. Every lap time, lap number, position and
@@ -12,7 +12,7 @@ gap you give must appear in them: never estimate, round into new numbers, or inv
 Say which lap or laps your answer comes from.
 For where time went on a lap (corners, braking, speed), call compare_laps; don't answer that from the lap list.
 Only if the facts and the tools can't show the answer, reply exactly: "The recording doesn't show that."
-Answer in one to three short sentences, plainly. "You" is the driver. Lap times look like 1:30.948.
+Answer in one to three short sentences, plainly, with the figures (laps, times, %) from the facts. "You" is the driver. Lap times look like 1:30.948.
 Tools: compare_laps for where time went between two of your laps (corners, braking, speed);
 lap_times with a driver for another car's laps; gaps for the order and gaps at the end of a lap;
 events for overtakes, collisions and penalties; results for the finishing order; lap_coaching for what to
@@ -140,8 +140,7 @@ const COAST_WORDS = /\blift(ing)? and coast|\bcoast\w*|\bsave fuel|\bfuel sav\w*
 function lookups(bound, question) {
   const out = [];
   const add = (name, args) => out.push({ name, args, result: bound.run(name, args) });
-  const named = [...question.matchAll(/\blaps? (\d{1,3})(?:\s*(?:and|&|vs\.?|versus|to)\s*(?:lap )?(\d{1,3}))?/gi)].flatMap((m) => [m[1], m[2]]);
-  const laps = [...new Set(named.filter(Boolean).map(Number))];
+  const laps = lapsNamed(question);
   if (BATTERY_WORDS.test(question)) {
     add('battery', laps.length ? { lap: laps[0] } : {});
   } else if (BALANCE_WORDS.test(question)) {
@@ -236,7 +235,7 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
   const found = lookups(bound, question);
   // A lap the question names, its line repeated up front: in a 25-lap list a small model reads the wrong row.
   // Said as a sentence: a small model reads "you were P2" more reliably than a table row.
-  const named = [...new Set([...question.matchAll(/\blaps? (\d{1,3})/gi)].map((m) => Number(m[1])))];
+  const named = lapsNamed(question);
   const { laps: mine = [] } = bound.run('lap_times', {});
   const focus = named.map((n) => mine.find((l) => l.lap === n)).filter(Boolean).map((l) => `At the end of lap ${l.lap} you were P${l.position}, on ${l.tyre} tyres ${l.tyre_age} laps old; the lap took ${l.time}${l.pit ? ', a pit lap' : ''}${l.safety_car ? ', under the safety car' : ''}.`);
   // A pit or tyre question: the stops line up front too (a small model mixed a stop with a red-flag tyre change).

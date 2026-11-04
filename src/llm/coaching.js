@@ -28,7 +28,7 @@ function liftAndCoast(zones, { lap, fuelPerLapKg = null }) {
     corner: z.corner,
     atKm: +(z.atM / 1000).toFixed(1),
     flatOutM: z.flatOutM,
-    text: `Corner ${z.corner} (${(z.atM / 1000).toFixed(1)} km): ${z.flatOutM} m flat out before it, braking from ${z.entryKmh} km/h; ${z.coastM >= 10 ? `you already coast ${z.coastM} m there` : 'you don\'t coast there now'}.`,
+    text: `Corner ${z.corner} (${(z.atM / 1000).toFixed(1)} km): ${z.flatOutM} m flat out before it, braking from ${z.entryKmh} km/h; ${z.coastM >= 10 ? `you already coast ${z.coastM} m there` : 'you coast 0 m there now'}.`,
   }));
   const coasting = zones.filter((z) => z.coastM >= 10);
   return {

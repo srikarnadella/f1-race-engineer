@@ -10,16 +10,17 @@ time: *More info → Run anyway*. Windows Firewall may ask whether Undercut can 
 on private networks, or phones (and the game on a console) can't reach it.
 
 It opens on **Home**, a full-window page with one bar into each part of the app: the live dashboard
-(position, lap and the current call once the game is connected), race analysis, Ask the race (coming
-soon), Storage and Connect. Live dashboard is the dashboard, with the left rail of race screens (keys
+(position, lap and the current call once the game is connected), race analysis, Ask the race, Storage
+and Connect. Live dashboard is the dashboard, with the left rail of race screens (keys
 **1–6**, Home at the top). The others are places of their own that fill the window, with a **← Home**
 button; Esc goes back too.
 
 | Screen | What you do there |
 |---|---|
 | **Connect** | See whether F1 26 telemetry is arriving, with the game settings to change if not. Scan the QR code on a phone or tablet. Turn off sharing on the Wi-Fi, or turn on *Voice questions on phones* (below). **Record this session** saves every packet and call, like `npm run capture`; MARK appears while it records. |
-| **Race analysis** | Every saved session, listed down the left. **Overview**: the result, best and theoretical lap, race pace, consistency, stops and penalties, your stints to scale, your position lap by lap (hover for any lap) and the key moments in order. **Full debrief**: lap compare, rivals, the calls audit and the models for the same session. |
-| **Storage** | Every saved session (open it in Race analysis, or delete it) and every recording (replay it through the screens, analyze it to check each call, show the file, or delete it). Deletes ask first and can't be undone. |
+| **Race analysis** | Every saved session, listed down the left. **Overview**: the result, best lap, stints to scale, your position lap by lap and the key moments. **Pace**: every lap by tyre, each stint's pace and wear, sectors, a sortable lap table and CSV. **Lap vs lap**: any lap of yours against another or a rival's best: speed, throttle, brake, gear and steering on one distance axis, the corners ranked by time lost. **Head to head**: you against any car, lap by lap and where on the lap. **Strategy**: every call graded, your stops priced against the field's. **Full debrief**: the dashboard's Debrief for the same session. |
+| **Ask the race** | Questions about a saved session, answered by a small model running on this PC through [Ollama](https://ollama.com/download) (install it once). A chat: pick the session and the model, ask, and each answer comes with its chart and how it was worked out; the chart buttons draw lap times, positions, the gap to a driver or two laps' speed with no model. It coaches too: what to do better corner by corner, lift and coast, brake bias and differential from what the car did at each corner, and the battery. **Manage models** downloads and deletes the models (sizes and licences listed). Not for use while racing: questions and downloads are off while the game sends telemetry, and the model leaves memory after each answer. |
+| **Storage** | Disk use per kind of data, every saved session (open it in Race analysis, or delete it) and every recording (replay it through the screens, analyze it to check each call, show the file, or delete it). Deletes ask first and can't be undone. |
 | **Settings** | As before, plus the two ports and the data folder. |
 
 **Voice in the app window** uses Windows' own speech recognition, offline. It listens for the Ask
@@ -31,7 +32,12 @@ certificate the app makes for this PC. The first time, the phone warns that the 
 (no company signed it): tap *Advanced → Proceed*, and the microphone works after that.
 
 **Where things are:** race data in `%APPDATA%\Undercut\data` (`race.db`, `sessions/`, `tracks.json`,
-`captures/`). *Open data folder* in Storage or Settings opens it.
+`captures/`). *Open data folder* in Storage or Settings opens it. Ollama keeps its models in its own
+folder (`%USERPROFILE%\.ollama`).
+
+**Re-processing recordings** into the app's race store, after an update that keeps more per session, so
+past races get it too: close Undercut, back up `race.db`, then in PowerShell from the repo run
+`npm run db -- --db "$env:APPDATA\Undercut\data\race.db" (Get-ChildItem "$env:APPDATA\Undercut\data\captures").FullName`.
 
 ## Try the demo (no game needed)
 

@@ -22,7 +22,9 @@ capture ─< session ─< car ─< lap
               ├──< event
               ├──< engineer_call
               ├──< radio_message
-              └──< weather_sample
+              ├──< weather_sample
+              ├──< corner_issue
+              └──< car_setting
 ```
 
 | Table | One row per | Key |
@@ -32,11 +34,13 @@ capture ─< session ─< car ─< lap
 | `car` | car in a session: driver, team, grid, finish, points, best lap, race time, penalties, stops | `(session_id, car_idx)` |
 | `lap` | car per completed lap: time, sectors and validity (the game's lap history), pit/neutralised flags, compound, tyre age, fuel, position and gap at the line, wear | `(session_id, car_idx, lap_num)` |
 | `stint` | set of tyres a car ran: compound, first and last lap | `(session_id, car_idx, stint_num)` |
-| `trace_point` | 2 m of a traced lap: lap time, speed, throttle, brake, steer, gear. Your laps from the line, and each rival's best lap | `(session_id, car_idx, lap_num, distance_m)` |
+| `trace_point` | 2 m of a traced lap: lap time, speed, throttle, brake, steer, gear, and on your laps the battery (`ers_pct` of the 4 MJ store) and deploy mode (`ers_mode`). Your laps from the line, and each rival's best lap | `(session_id, car_idx, lap_num, distance_m)` |
 | `event` | game event: overtakes (who passed whom), penalties, safety cars, collisions, retirements, fastest laps, speed traps, flashbacks | `event_id`; indexed by `(session_id, lap_num)` |
 | `engineer_call` | change of the PUSH / HOLD / BOX / PIT call, with its kind and reason | `(session_id, seq)` |
 | `radio_message` | radio card as it was shown (a card that updates is a new row under the same `topic`) | `(session_id, seq)` |
 | `weather_sample` | change of weather, temperatures or rain chance | `(session_id, session_time_s)` |
+| `corner_issue` | thing your car did at a corner on a lap: `front_lock`, `rear_lock`, `wheelspin` or `understeer` (from the wheel slip), with the wheel and the brake bias and on-throttle diff at the time | indexed by `(session_id, lap_num)` |
+| `car_setting` | change of your brake bias, on- and off-throttle diff, engine braking or ERS deploy mode | `(session_id, session_time_s)` |
 
 Times are integer ms unless the name ends in `_s` (game time, seconds). Booleans are 0/1. Compounds
 are the visual ones: 16 soft, 17 medium, 18 hard, 7 inter, 8 wet. Child tables reference their

@@ -310,8 +310,6 @@ body {
 /* Debrief */
 .card--debrief .card__body { container-type: normal; }
 .w-deb { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-.w-deb__tabs { flex: none !important; display: flex; gap: 6px; flex-wrap: wrap; }
-.w-deb__tabs:empty { display: none; }
 .w-deb__tab { appearance: none; border: 0; border-radius: 4px; padding: 8px 12px; background: var(--panel-2); color: var(--muted); font: inherit; font-weight: 750; font-size: 0.85rem; cursor: pointer; }
 .w-deb__tab.is-active { background: var(--text); color: #0a0a0a; }
 .w-deb__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-right: 4px; scrollbar-width: thin; }
@@ -1027,7 +1025,7 @@ body {
 .place .pc-list { gap: 2px; margin: 0; }
 .place .pc-row { padding: 14px 12px; margin: 0 -12px; background: none; transition: background 0.12s; }
 .place .pc-row:hover, .place .pc-row:focus-within { background: #141414; }
-.place .pc-row.is-recording { border-left: 0; box-shadow: inset 4px 0 0 var(--act); }
+.place .pc-row.is-recording { border-left: 0; background: #2a0c0f; }
 .place .pc-row__title { font-size: 1.15rem; font-weight: 750; }
 .place .pc-row__actions { gap: 2px; }
 .place .pc-row .pc-btn { padding: 8px 10px; font-size: 0.95rem; }
@@ -1054,7 +1052,7 @@ body {
 .ana__session { appearance: none; border: 0; border-radius: 4px; padding: 12px 14px; background: none; color: var(--muted); font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: background 0.12s, color 0.12s; }
 .ana__session:hover { background: #141414; color: var(--text); }
 .ana__session:focus-visible, .ana__view:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
-.ana__session[aria-current="true"] { background: #161616; color: var(--text); box-shadow: inset 4px 0 0 var(--act); }
+.ana__session[aria-current="true"] { background: #222; color: var(--text); }
 .ana__session-name { font-size: 1.05rem; font-weight: 700; }
 .ana__session-meta { font-size: 0.9rem; font-weight: 550; color: var(--label); }
 .ana__main { min-width: 0; display: flex; flex-direction: column; gap: 40px; }
@@ -1164,8 +1162,8 @@ body {
 .pace__key span { display: inline-flex; align-items: center; gap: 7px; }
 .pace__key i { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); }
 .pace__key i.is-best { background: var(--pb); }
-.pace__key i.is-pit, .pace__key i.is-sc, .pace__key i.is-start { background: none; box-shadow: inset 0 0 0 2px var(--muted); }
-.pace__key i.is-sc { box-shadow: inset 0 0 0 2px var(--watch); }
+.pace__key i.is-pit, .pace__key i.is-sc, .pace__key i.is-start { background: none; box-shadow: inset 0 0 0 2px var(--muted); } /* taste-skill-ignore: the legend for hollow chart markers */
+.pace__key i.is-sc { box-shadow: inset 0 0 0 2px var(--watch); } /* taste-skill-ignore: the legend for hollow chart markers */
 .pace__chart { display: block; width: 100%; height: auto; }
 .pace__line { fill: none; stroke: var(--muted); stroke-width: 2; stroke-linejoin: round; opacity: 0.55; }
 .pace__lap { fill: var(--muted); stroke: var(--bg); stroke-width: 2; }

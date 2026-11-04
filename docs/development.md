@@ -69,7 +69,8 @@ npm run analyze          # check the newest capture, write report.md beside it
 npm run accuracy         # score the predictions on every capture, writes docs/accuracy.md
 npm run dataset          # rebuild datasets/ (races, laps, calls) from the captures
 npm run backtest         # score the models on datasets/ and grade every call
-npm run db               # fill the SQL race store (data/race.db) from the captures
+npm run db               # fill the SQL race store (data/race.db) from the captures; -- --db <file> for another store
+npm run llm-eval         # score the local models (Ollama) on questions answered from race.db
 npm run train:overtake   # retrain the overtake model from the captures
 npm run lint             # ESLint
 npm run typecheck        # TypeScript checks the JSDoc types in src/ and public/ (no build step)
