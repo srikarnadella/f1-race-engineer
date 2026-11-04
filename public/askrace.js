@@ -159,10 +159,10 @@
       const sessionPick = h('select', { class: 'llm__session', 'aria-label': 'Session to ask about', onchange: () => sessionChanged() });
       const modelBtn = h('button', { type: 'button', class: 'llm__model-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => toggleMenu() });
       const menu = h('div', { class: 'llm__menu', role: 'menu', hidden: true });
+      // A quiet bar, as in Claude or ChatGPT: what you're asking about on the left, the model on the right.
       const bar = h('div', { class: 'llm__bar' },
-        h('label', { class: 'llm__ctx' }, h('span', {}, 'Asking about'), sessionPick),
+        h('div', { class: 'llm__ctx' }, sessionPick),
         h('div', { class: 'llm__switch' }, modelBtn, menu));
-      const notice = h('p', { class: 'llm__notice' }, 'Not for use while racing: the model runs on the graphics card the game needs. It loads only to answer, and leaves memory straight after.');
       const live = h('p', { class: 'llm__live', role: 'status', hidden: true }, 'F1 26 is sending telemetry, so questions are off. Ask after the session.');
       const thread = chatState.thread || (chatState.thread = h('ol', { class: 'llm__thread', 'aria-live': 'polite' }));
       const empty = h('div', { class: 'llm__empty' });
@@ -171,16 +171,23 @@
       const stopBtn = h('button', { type: 'button', class: 'llm__stop', hidden: true, onclick: () => act(() => api.llm.stop()) }, 'Stop');
       const gapPick = h('select', { class: 'llm__gap-driver', 'aria-label': 'Driver for the gap chart' });
       const chip = (label, onclick, cls = '') => h('button', { type: 'button', class: `llm__chip ${cls}`.trim(), onclick }, label);
-      const charts = h('div', { class: 'llm__chips llm__chips--charts', role: 'group', 'aria-label': 'Charts' },
-        h('span', { class: 'llm__chips-label' }, 'Charts'),
-        chip('Lap times', () => chart('lap_times', {}), 'llm__chip--chart'),
-        chip('Positions', () => chart('positions', {}), 'llm__chip--chart'),
-        h('span', { class: 'llm__gap' }, chip('Gap to', () => chart('gap_to_driver', { driver: gapPick.value }), 'llm__chip--chart'), gapPick),
-        chip('Best vs slowest lap', () => ask('Where did I lose time on my slowest clean lap compared with my best lap?'), 'llm__chip--chart'));
+      // The chart commands live in one menu inside the box, like an attachments button.
+      const toolsBtn = h('button', { type: 'button', class: 'llm__tools-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => toggleTools() }, 'Charts');
+      const pickChart = (fn) => () => { toggleTools(false); fn(); };
+      const tools = h('div', { class: 'llm__tools-menu', role: 'menu', 'aria-label': 'Charts', hidden: true },
+        chip('Lap times', pickChart(() => chart('lap_times', {})), 'llm__chip--chart'),
+        chip('Positions', pickChart(() => chart('positions', {})), 'llm__chip--chart'),
+        h('div', { class: 'llm__gap' }, chip('Gap to', pickChart(() => chart('gap_to_driver', { driver: gapPick.value })), 'llm__chip--chart'), gapPick),
+        chip('Best lap against the slowest', pickChart(() => ask('Where did I lose time on my slowest clean lap compared with my best lap?')), 'llm__chip--chart'));
+      function toggleTools(open = tools.hidden) {
+        tools.hidden = !open;
+        toolsBtn.setAttribute('aria-expanded', String(open));
+      }
       const composer = h('div', { class: 'llm__composer' },
-        charts,
-        h('div', { class: 'llm__input' }, question, askBtn, stopBtn),
-        h('p', { class: 'llm__fine' }, 'Answers come only from this session\'s recording. Anything in an answer the recording doesn\'t show is flagged.'));
+        h('div', { class: 'llm__input' }, tools, toolsBtn, question, askBtn, stopBtn),
+        h('p', { class: 'llm__notice' }, 'Runs on this PC. Not for use while racing. Answers come only from the session\'s recording; anything it doesn\'t show is flagged.'));
+      // Suggestions under the box, only while the conversation is empty.
+      const suggest = h('div', { class: 'llm__suggest', role: 'group', 'aria-label': 'Suggested questions' });
       question.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
@@ -192,7 +199,16 @@
         question.style.height = 'auto';
         question.style.height = `${Math.min(question.scrollHeight, 180)}px`;
       });
-      const chatView = h('section', { class: 'llm__chat', 'aria-label': 'Ask about a session' }, bar, notice, live, thread, empty, composer);
+      const chatView = h('section', { class: 'llm__chat', 'aria-label': 'Ask about a session' }, bar, live, thread, empty, composer, suggest);
+      document.addEventListener('click', (e) => {
+        if (!tools.hidden && !tools.contains(/** @type {Node} */ (e.target)) && e.target !== toolsBtn) toggleTools(false);
+      });
+      tools.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        e.stopPropagation();
+        toggleTools(false);
+        toolsBtn.focus();
+      });
 
       // ---------- Manage models ----------
       const modelsBody = h('div', { class: 'llm__models-body' }, h('p', { class: 'ana__empty' }, 'Looking for Ollama…'));
@@ -263,25 +279,25 @@
         askBtn.hidden = busy;
         stopBtn.hidden = !busy;
         question.disabled = isLive;
+        toolsBtn.disabled = off;
         for (const b of composer.querySelectorAll('.llm__chip')) b.disabled = off;
-        // The empty state: what you can ask, until there's a conversation.
-        empty.hidden = thread.children.length > 0;
+        // Empty: one greeting with the box under it, centred; then the conversation, the box at the bottom.
+        const isEmpty = thread.children.length === 0;
+        chatView.classList.toggle('is-empty', isEmpty || !ready);
+        empty.hidden = !isEmpty && ready;
+        suggest.hidden = !(isEmpty && ready && sessions.length);
         if (!ready) {
-          empty.hidden = false;
           empty.replaceChildren(
             h('h2', { class: 'llm__hello' }, 'Download a model to start'),
             h('p', { class: 'llm__lede' }, status && !status.installed
               ? 'Ask the race runs its models through Ollama, a free app. Set it up once, then pick a model.'
               : 'Pick a small model that runs on this PC. It stays here until you delete it.'),
             h('button', { type: 'button', class: 'pc-btn pc-btn--primary', onclick: () => show('models') }, 'Manage models'));
-        } else if (!empty.hidden) {
-          empty.replaceChildren(
-            h('h2', { class: 'llm__hello' }, sessions.length ? `Ask about ${sessionName(current())}` : 'No races saved yet'),
-            h('p', { class: 'llm__lede' }, sessions.length
-              ? 'Every answer comes from this session\'s recording, with the chart and the evidence underneath.'
-              : 'Drive a session with the game\'s telemetry on; it is saved here when it ends.'),
-            ...(sessions.length ? [h('div', { class: 'llm__suggest', role: 'group', 'aria-label': 'Suggested questions' }, SUGGESTED.map((q) => chip(q, () => ask(q), 'llm__chip--ask')))] : []));
-          for (const b of empty.querySelectorAll('.llm__chip')) b.disabled = off;
+        } else if (isEmpty) {
+          empty.replaceChildren(h('h2', { class: 'llm__hello' }, sessions.length ? `Ask about ${sessionName(current())}` : 'No races saved yet'),
+            ...(sessions.length ? [] : [h('p', { class: 'llm__lede' }, 'Drive a session with the game\'s telemetry on; it is saved here when it ends.')]));
+          if (!suggest.children.length) suggest.replaceChildren(...SUGGESTED.map((q) => chip(q, () => ask(q), 'llm__chip--ask')));
+          for (const b of suggest.querySelectorAll('.llm__chip')) b.disabled = off;
         }
       }
 
@@ -295,6 +311,7 @@
         const asked = want && sessions.find((x) => x.track === want.track && x.type === want.type && x.date === want.date);
         const keep = asked || sessions.find((x) => x.session_id === chatState.sessionId) || sessions.find((x) => x.is_race) || sessions[0];
         if (keep) sessionPick.value = String(keep.session_id);
+        fitPick();
         chatState.sessionId = keep ? keep.session_id : null;
         await loadDrivers();
       }
@@ -306,7 +323,21 @@
         gapPick.replaceChildren(...others.map((r) => h('option', { value: r.driver }, `P${r.position} ${r.driver}`)));
       }
       // A new session mid-conversation: said in the thread, so earlier answers keep their context.
+      // The session picker as wide as the session it shows (a native select takes its longest option's
+      // width, leaving the arrow far from the text). The shown name is measured in the picker's own font
+      // on a canvas; where there is none (tests), the select keeps its natural width.
+      let measure = null;
+      function fitPick() {
+        if (measure === null) measure = (document.createElement('canvas').getContext && document.createElement('canvas').getContext('2d')) || false;
+        const opt = sessionPick.options[sessionPick.selectedIndex];
+        if (!measure || !opt) return;
+        const cs = getComputedStyle(sessionPick);
+        measure.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        sessionPick.style.width = `${Math.ceil(measure.measureText(opt.text).width) + 44}px`;
+      }
+
       async function sessionChanged() {
+        fitPick();
         chatState.sessionId = Number(sessionPick.value);
         if (thread.children.length) thread.append(h('li', { class: 'llm__switched' }, `Now asking about ${sessionName(current())}`));
         await loadDrivers();

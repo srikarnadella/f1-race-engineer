@@ -1433,3 +1433,34 @@ kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #26
 .ana__sub .ana__ask { margin-top: 0; }
 .str__stop > :last-child { white-space: nowrap; }
 .trd__table th { padding: 0 0.6em 8px; }
+
+/* Ask the race, clean and minimal (like Claude's or ChatGPT's chat): an empty chat is one greeting with the
+   box under it, centred, and a few quiet suggestions; a conversation runs top to bottom with the box at the
+   bottom. Plain-text controls up top, the chart commands in one menu inside the box, one line of fine print. */
+.llm__chat { max-width: 780px; }
+.llm__chat.is-empty .llm__empty { flex: 0 0 auto; margin-top: auto; padding: 0 0 24px; align-items: center; text-align: center; }
+.llm__chat.is-empty .llm__suggest { margin-bottom: auto; justify-content: center; }
+.llm__chat.is-empty .llm__composer { position: static; padding-bottom: 10px; }
+.llm__hello { font-size: clamp(1.7rem, 1.2rem + 1.4vw, 2.4rem); font-weight: 750; letter-spacing: -0.02em; }
+.llm__ctx { color: var(--muted); }
+.llm__session { padding: 0 8px; margin-left: -8px; background: none; color: var(--muted); font-weight: 700; cursor: pointer; }
+.llm__session:hover, .llm__session:focus-visible { background: #161616; color: var(--text); }
+.llm__model-btn { background: none; color: var(--muted); }
+.llm__model-btn:hover, .llm__model-btn[aria-expanded="true"] { background: #161616; color: var(--text); }
+.llm__notice { text-align: center; color: var(--label); font-size: 0.82rem; font-weight: 500; line-height: 1.4; }
+.llm__input { position: relative; grid-template-columns: auto minmax(0, 1fr) auto auto; padding: 8px; }
+.llm__question { padding-left: 4px; }
+.llm__tools-btn { appearance: none; border: 0; border-radius: 999px; min-height: 40px; padding: 0 14px; background: #262626; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.llm__tools-btn:hover, .llm__tools-btn[aria-expanded="true"] { background: #303030; color: var(--text); }
+.llm__tools-btn:disabled { opacity: 0.4; cursor: default; }
+.llm__tools-btn:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.llm__tools-menu { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 5; width: 300px; padding: 6px; border-radius: 10px; background: #1b1b1b; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); display: flex; flex-direction: column; gap: 2px; } /* taste-skill-ignore: a menu that floats */
+.llm__tools-menu[hidden] { display: none; }
+.llm__tools-menu .llm__chip { min-height: 40px; padding: 0 12px; background: none; color: var(--text); text-align: left; font-size: 0.98rem; }
+.llm__tools-menu .llm__chip:hover { background: #262626; }
+.llm__tools-menu .llm__gap { display: flex; align-items: center; gap: 6px; }
+.llm__tools-menu .llm__gap .llm__chip { flex: none; }
+.llm__tools-menu .llm__gap-driver { flex: 1 1 auto; min-width: 0; min-height: 36px; background: #262626; }
+.llm__suggest .llm__chip--ask { min-height: 38px; padding: 0 14px; border-radius: 999px; background: #141414; color: var(--muted); font-size: 0.95rem; font-weight: 600; }
+.llm__suggest .llm__chip--ask:hover { background: #1f1f1f; color: var(--text); }
+.llm__session { width: auto; max-width: 100%; }
