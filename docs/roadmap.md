@@ -402,8 +402,9 @@ estimated on the page. Use the taste skill and the dataviz skill for every view.
   the calls verdict in a sentence, every call in lap order filterable by grade (copy as text), each of
   your stops priced against the others' green-flag stops in the same race (the audit's `stopsOf`, now
   returned by `/api/debrief/audit`), all of them on one axis, and where you rejoined
-  (`test/desktopStrategy.test.js`, `test/debriefAudit.test.js`). Every race saved so far predates calls
-  being kept with the session; the view says so rather than grading nothing. Predicted rejoin and the
+  (`test/desktopStrategy.test.js`, `test/debriefAudit.test.js`). A race saved before the calls were kept
+  with the session is graded from race.db instead (`src/data/storeAudit.js`, matched by session id or by
+  track, type and start time; `test/storeAudit.test.js`): all six of your saved races. Predicted rejoin and the
   what-if on the stop lap are left: neither prediction is saved with the session yet.
 - **R6 Lap vs lap telemetry.** Any of your laps against another, or against a rival's best: the time
   gap, speed, throttle, brake, gear and steering on one distance axis with one crosshair across them
