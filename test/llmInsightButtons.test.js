@@ -27,8 +27,8 @@ function tools(t) {
 }
 test.after(() => fixture && fs.rmSync(fixture.dir, { recursive: true, force: true }));
 
-test('insight buttons: the seven the engine works out, each with a title', () => {
-  assert.deepStrictEqual(Object.keys(INSIGHT_KINDS), ['summary', 'pit_stops', 'tyres', 'lost_time', 'race_pace', 'calls', 'history']);
+test('insight buttons: the eight the engine works out, each with a title', () => {
+  assert.deepStrictEqual(Object.keys(INSIGHT_KINDS), ['summary', 'pit_stops', 'tyres', 'lost_time', 'race_pace', 'calls', 'history', 'handling']);
   for (const k of Object.values(INSIGHT_KINDS)) assert.ok(k.title && k.tool);
 });
 

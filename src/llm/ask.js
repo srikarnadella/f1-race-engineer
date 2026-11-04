@@ -162,6 +162,7 @@ const TYRE_WEAR_WORDS = /\b(wear|worn|degrad\w*|deg|cliff|stints?|fall(ing)? off
 const PIT_WORDS = /\b(pit|pits|pitted|pitting|stops?|stopped|undercut|overcut|boxed?)\b/i;
 const LOSSES_WORDS = /\b(consisten\w*|slowest laps?|worst laps?|mistakes?|what went wrong|cost me|costliest|lost the most|bad laps?|slow laps?)\b/i;
 const BALANCE_WORDS = /\b(bias|lock(ing|ed|s)?(?: up)?|lock-?ups?|diff|differential|wheel ?spin|traction|understeer\w*|oversteer\w*|setup|set-up)\b/i;
+const STEER_WORDS = /\b(understeer\w*|oversteer\w*|steering|countersteer\w*|handling|snap(ped)?|loose|tight|rotat\w*)\b/i;
 const COAST_WORDS = /\blift(ing)? and coast|\bcoast\w*|\bsave fuel|\bfuel sav\w*/i;
 function lookups(bound, question) {
   const out = [];
@@ -183,6 +184,8 @@ function lookups(bound, question) {
     add('pit_stops', {});
   } else if (LOSSES_WORDS.test(question) && !laps.length) {
     add('lap_losses', {});
+  } else if (STEER_WORDS.test(question)) {
+    add('steering_balance', {});
   } else if (BALANCE_WORDS.test(question)) {
     add('car_balance', {});
   } else if (COAST_WORDS.test(question)) {
@@ -235,7 +238,7 @@ function batteryText(b) {
 }
 
 // The insight tools (src/llm/insights.js) write their own sentences: the answer is the text.
-const INSIGHT_TOOLS = new Set(['tyres', 'pit_stops', 'lap_losses', 'field_pace', 'calls_review', 'track_history', 'race_summary']);
+const INSIGHT_TOOLS = new Set(['tyres', 'pit_stops', 'lap_losses', 'field_pace', 'calls_review', 'track_history', 'race_summary', 'steering_balance']);
 const insightText = (x) => (x.result.error ? `${x.name}: ${x.result.error}` : x.result.text);
 // A result's text as separate lines for the evidence list and the engine's own answer: one per bullet or
 // per sentence, without the headings.
@@ -253,6 +256,7 @@ const INSIGHT_KINDS = {
   race_pace: { title: 'Race pace', tool: 'field_pace' },
   calls: { title: 'The engineer\'s calls', tool: 'calls_review' },
   history: { title: 'Your races here', tool: 'track_history' },
+  handling: { title: 'Handling from your steering', tool: 'steering_balance' },
 };
 function insight(tools, sessionId, kind) {
   const def = INSIGHT_KINDS[kind];

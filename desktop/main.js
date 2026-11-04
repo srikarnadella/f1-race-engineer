@@ -6,6 +6,7 @@
 // bridge like any other device; only this window gets window.undercut
 // (preload.js), so phones on the Wi-Fi can't record, delete or change settings.
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const zlib = require('zlib');
 const { once } = require('events');
@@ -16,6 +17,7 @@ const { defaultCaptureDir } = require('../src/capture/session');
 const { lanAddresses, pairAddress } = require('../src/server/httpServer');
 const { listCaptures, captureDir, deleteCapture, packetsFile, summarizeReport, diskUse } = require('./library');
 const { loadSettings, saveSettings, applySettings } = require('./settings');
+const { setPriorities } = require('./priority');
 const { ensureCert } = require('./tls');
 const { startRecognizer, grammarPhrases } = require('./speech');
 const { createOllama } = require('../src/llm/ollama');
@@ -146,10 +148,24 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   handle('status', status);
+  // "Easy on the game": every Undercut process (main, window, GPU, utility) runs below normal priority, so
+  // F1 26's threads win any contest for a core. Re-applied now and then: a process that restarts is new.
+  const applyPriority = () => setPriorities([process.pid, ...app.getAppMetrics().map((m) => m.pid)], settings.easyOnGame, os.setPriority);
+  setInterval(applyPriority, 10000).unref();
   handle('settings', (patch) => {
     const next = applySettings(settings, patch);
     saveSettings(paths.settings(), next);
-    return JSON.stringify(next) === JSON.stringify(settings) ? status() : switchTo(replay, next);
+    if (JSON.stringify(next) === JSON.stringify(settings)) return status();
+    // Only the priority changed: nothing to restart.
+    const { easyOnGame: a, ...rest } = settings;
+    const { easyOnGame: b, ...nextRest } = next;
+    if (a !== b && JSON.stringify(rest) === JSON.stringify(nextRest)) {
+      settings = next;
+      applyPriority();
+      pushStatus();
+      return status();
+    }
+    return switchTo(replay, next);
   });
   handle('record', () => {
     if (!bridge || replay) return status();
@@ -319,6 +335,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     settings = loadSettings(paths.settings());
     await launch();
+    applyPriority();
 
     win = new BrowserWindow({
       width: 1360,
@@ -332,7 +349,7 @@ if (!app.requestSingleInstanceLock()) {
       // The window is a dashboard client with a few named calls: no Node access.
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
-    win.once('ready-to-show', () => win.show());
+    win.once('ready-to-show', () => { win.show(); applyPriority(); }); // the window's own processes exist by now
     win.on('closed', () => { win = null; });
     // Links out (the website, GitHub) open in the browser, never inside the app...
     win.webContents.setWindowOpenHandler(({ url }) => {

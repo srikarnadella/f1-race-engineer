@@ -58,6 +58,7 @@ flowchart LR
     W3[W3 Storage, its own place]:::done
     W6[W6 Settings laid out across the window]:::done
     W7[W7 Content scales to the window]:::done
+    W8[W8 Easy on the game]:::done
   end
   subgraph L[Ask the race: local LLM]
     L1[L1 Read-only race tools]:::done
@@ -67,6 +68,7 @@ flowchart LR
     L5[L5 Ask the race screen]:::done
     L6[L6 Coaching: corners, lift and coast, bias, diff, battery]:::done
     L7[L7 More insights: summary, stops, tyres, lost time, pace, calls, history]:::done
+    L8[L8 Handling from your steering]:::done
   end
   subgraph R[Race analysis: its own place]
     R1[R1 Session picker and race overview]:::done
@@ -113,6 +115,8 @@ flowchart LR
   W2 & L4 --> L5
   L5 --> L6
   L6 --> L7
+  L7 --> L8
+  W1 --> W8
   W0 --> L5
 ```
 
@@ -397,6 +401,25 @@ phrases the answer.
   `test/llmTools.test.js`, `test/llmAsk.test.js`; qwen3:1.7b answered the coaching and lift-and-coast
   questions right on all four races. Still open: the thresholds are first guesses, and setup advice is
   rules of thumb, not an optimiser.
+- **W8 Easy on the game.** The user (4 Nov 2026, after a new race): frames dropped in F1 26 with Undercut
+  running. Measured: the app's GPU use is ~0 (GPU engine counters, `scripts/perf-app.js`), about 1% of the PC's
+  CPU, recording's gzip ~2.6% of one core. Whether it cost frames is unproven (the new race's telemetry arrived at
+  41.7/s against ~50/s earlier but with fewer hitches; `npm run cadence` prints this for any capture). Done anyway:
+  a Settings switch, on by default, that runs the app's processes at below-normal priority (`desktop/priority.js`,
+  reapplied every 10 s) and redraws the in-app dashboard at 4 Hz instead of every snapshot (race dashboard
+  14.5% -> 10.1% of one core). *Test:* `test/easyOnGame.test.js`, `test/cadence.test.js`. *Open:* record the same
+  track with Undercut minimized and open and compare `npm run cadence`.
+- **L8 Handling from your steering.** The user (4 Nov 2026): use the steering data to detect oversteer and
+  understeer and suggest setup and differential changes. `src/llm/steering.js` reads each racing lap's steering,
+  speed and pedals against your own median at every corner: extra apex lock with less speed is understeer; extra
+  countersteer after the apex is oversteer, split on or off the throttle; only what repeats (2+ laps, 25%) is
+  called the car, the rest are one-offs. Wheel-slip rows are cited when they agree. Advice is only what the
+  community guides agree on (front/rear wing, off-throttle diff, a gentler throttle, brake bias if a rear lock
+  coincides), hedged, with your current setting; the on-throttle diff direction is told as "test each way"
+  because guides contradict. Tool `steering_balance`, insight button "Handling", routing for understeer /
+  oversteer / steering / handling words. It reads steering, not yaw, and needs 5+ traced laps. *Test:*
+  `test/steering.test.js`, routing in `test/llmInsightTools.test.js`. *Open:* the older `car_balance` rule
+  (raise the on-throttle diff for understeer) disagrees with the guides: reconcile it; a steering chart.
 - **L7 More insights.** The user (4 Nov 2026): let Ask the race do more and give more insights. Seven
   lookups the engine works out whole from race.db and hands the model as sentences (`src/llm/insights.js`; the
   model words, never computes): `race_summary` (the race in points), `pit_stops` (each stop priced against the

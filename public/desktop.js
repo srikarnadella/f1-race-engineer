@@ -41,8 +41,11 @@
   // ---------- The app's status (desktop/main.js), pushed on change ----------
   let status = null;
   const watchers = new Set();
+  // "Easy on the game": the window is redrawn at most every 250 ms (public/app.js reads RaceTuning).
+  const DRAW_EASY_MS = 250;
   function setStatus(s) {
     status = s;
+    window.RaceTuning = { drawMinMs: s && s.settings && s.settings.easyOnGame ? DRAW_EASY_MS : 0 };
     for (const fn of watchers) fn(s);
   }
   api.on('status', setStatus);
@@ -511,10 +514,12 @@
       }
     }, 'pc-btn--primary');
     const version = h('span', { class: 'dim' });
+    const easy = h('input', { type: 'checkbox', id: 'set-easy', onchange: (e) => api.setSettings({ easyOnGame: e.target.checked }).then(setStatus, () => {}) });
     sheet.append(h('div', { class: 'setting setting--pc' },
       h('span', { class: 'setting__text' }, h('b', {}, 'This PC'),
         h('span', { class: 'dim' }, 'The game sends telemetry to the telemetry port; phones open the dashboard port. Change them only if another program uses them.')),
       h('div', { class: 'pc-ports' }, h('label', {}, 'Dashboard port', http), h('label', {}, 'Telemetry port', udp), save, note),
+      h('label', { class: 'pc-easy', for: 'set-easy' }, easy, h('span', {}, h('b', {}, 'Easy on the game'), h('span', { class: 'dim' }, ' Runs Undercut below normal priority and redraws this window 4 times a second, so F1 26 comes first. Turn it off for a smoother-looking dashboard.'))),
       h('div', { class: 'pc-ports' }, button('Open data folder', () => api.openDataFolder(), 'pc-btn--quiet'), version)));
     // On the PC's screen Settings reads across the window, in three columns, instead of one tall sheet.
     sheet.closest('.sheet').classList.add('sheet--wide');
@@ -529,6 +534,7 @@
     watchers.add((s) => {
       if (document.activeElement !== http) http.value = s.settings.httpPort;
       if (document.activeElement !== udp) udp.value = s.settings.udpPort;
+      easy.checked = !!s.settings.easyOnGame;
       setText(version, `Undercut ${s.version} · race data in ${s.dataDir}`);
     });
     if (status) for (const fn of watchers) fn(status);

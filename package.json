@@ -33,7 +33,8 @@
     "dataset": "node scripts/build-dataset.js",
     "db": "node scripts/build-db.js",
     "backtest": "node scripts/backtest.js",
-    "llm-eval": "node scripts/llm-eval.js"
+    "llm-eval": "node scripts/llm-eval.js",
+    "cadence": "node scripts/cadence.js"
   },
   "dependencies": {
     "qrcode-terminal": "0.12.0",

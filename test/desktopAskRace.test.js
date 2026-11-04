@@ -374,7 +374,7 @@ test('ask the race: stints are drawn in their own colours, each with its trend a
 });
 
 // --- The insight buttons (no model) and the uncertainty line ---
-const INSIGHT_LABELS = ['Race summary', 'Pit stops', 'Tyres', 'Lost time', 'Race pace', 'Calls', 'History'];
+const INSIGHT_LABELS = ['Race summary', 'Pit stops', 'Tyres', 'Lost time', 'Race pace', 'Calls', 'History', 'Handling'];
 
 test('ask the race: the Charts menu also holds the insight buttons, the engine\'s own findings with no model', async (t) => {
   const app = await openAsk(t);

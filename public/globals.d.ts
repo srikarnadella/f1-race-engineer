@@ -7,6 +7,7 @@ interface Window {
   webkitSpeechRecognition?: any;
   RaceDebrief: any;
   Spread: any;
+  RaceTuning?: { drawMinMs: number };
   RaceDesktop?: any;
   // Only in the desktop app window (desktop/preload.js).
   undercut?: any;

@@ -5,7 +5,8 @@
 // Written for small models: tyres by name, times in seconds, events filtered to what happened to you
 // and to the race, and bind(sessionId) to answer about one session without a session_id argument.
 const { DatabaseSync } = require('node:sqlite');
-const { compareLaps, describeCorner, lapCorners } = require('../analysis/lapCompare');
+const { compareLaps, describeCorner, lapCorners, resample } = require('../analysis/lapCompare');
+const { analyzeSteering } = require('./steering');
 const { adviseCorners, liftAndCoast, balanceAdvice, batteryLap } = require('./coaching');
 const { median } = require('../lib/stats');
 const { stopsOf } = require('../analysis/callsAudit');
@@ -41,6 +42,7 @@ const TOOLS = {
   field_pace: { description: 'Race pace across the field: the typical clean lap of every car ranked, where you ranked, and who set the fastest lap.', props: { session_id: SID }, required: ['session_id'] },
   calls_review: { description: 'The calls the race engineer made, graded against the laps that followed: how many were right and wrong, and each one.', props: { session_id: SID }, required: ['session_id'] },
   track_history: { description: 'Your races at the track of this session in date order: result, best lap and typical lap, and how this race compares.', props: { session_id: SID }, required: ['session_id'] },
+  steering_balance: { description: 'Oversteer and understeer read from your steering lap by lap against your own usual at each corner: where you needed extra lock with less speed, or caught a slide on or off the throttle, which of those repeated, and what to try (wings, off-throttle and on-throttle diff).', props: { session_id: SID }, required: ['session_id'] },
   race_summary: { description: 'The race in a few points: result, best lap, stops, race pace, the lap that cost the most, the engineer calls and one thing to work on.', props: { session_id: SID }, required: ['session_id'] },
   compare_laps: { description: 'Two of your laps with telemetry, corner by corner: where lap_b lost or gained time on lap_a, and why (braking, apex and exit speed).', props: { session_id: SID, lap_a: int('reference lap'), lap_b: int('lap to explain') }, required: ['session_id', 'lap_a', 'lap_b'] },
 };
@@ -88,6 +90,18 @@ function createRaceTools(file) {
     if (!row) return null;
     const points = sql.trace.all(sid, car, n).map((p) => [p.distance_m, p.lap_time_ms, p.speed_kmh, p.throttle, p.brake, p.steer, p.gear, p.ers_pct, p.ers_mode]);
     return points.length > 10 ? { lapNum: n, lapMs: row.lap_ms, points } : null;
+  }
+  // Your racing laps with telemetry, resampled every 5 m, and the corners of your best one: what the steering
+  // analysis and its chart read. null if there is no player car.
+  function steeringInput(sid) {
+    const car = carOf(sid, null);
+    if (car == null) return null;
+    const rows = /** @type {any[]} */ (sql.laps.all(sid, car));
+    const ok = rows.filter((l) => l.lap_num > 1 && !l.pit && !l.neutralised && l.valid !== 0)
+      .map((l) => ({ row: l, t: traceOf(sid, car, l.lap_num, rows) })).filter((x) => x.t);
+    if (!ok.length) return { laps: [], corners: [] };
+    const best = ok.reduce((a, b) => (b.row.lap_ms < a.row.lap_ms ? b : a));
+    return { laps: ok.map((x) => ({ lap: x.row.lap_num, r: resample(x.t.points, x.t.points[x.t.points.length - 1][0]) })), corners: lapCorners(best.t.points) };
   }
   const carOf = (sid, driver) => {
     const r = sql.car.get(sid, driver ?? null, driver ?? null);
@@ -244,6 +258,13 @@ function createRaceTools(file) {
     track_history: ({ session_id: sid }) => {
       const t = require('../data/trends').trends(db).tracks.find((x) => x.races.some((r) => r.sessionId === sid));
       return t ? trackHistory({ track: t.track, races: t.races, sessionId: sid }) : { error: 'Track history compares races; this session is not a race (or has no clean laps)' };
+    },
+    steering_balance: ({ session_id: sid }) => {
+      const inp = steeringInput(sid);
+      if (!inp) return noCar(null);
+      const settings = /** @type {any[]} */ (sql.settings.all(sid));
+      const last = settings[settings.length - 1] || {};
+      return analyzeSteering({ ...inp, setting: { brake_bias: last.brake_bias, diff_on_throttle: last.diff_on_throttle, diff_off_throttle: last.diff_off_throttle }, issues: /** @type {any[]} */ (sql.issues.all(sid)) });
     },
     race_summary: ({ session_id: sid }) => {
       const sess = anyRun.sessions().sessions.find((x) => x.session_id === sid);

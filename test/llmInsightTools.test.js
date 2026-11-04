@@ -135,6 +135,10 @@ test('routing: what the engine already answered, and what the brief answers, sta
   assert.deepStrictEqual(routed('Where was I slow in the corners?'), [], 'no summary word, no tool: the brief answers');
   assert.deepStrictEqual(routed('Where did I lose time on lap 22 compared with my best lap?'), ['compare_laps']);
   assert.deepStrictEqual(routed('Should I change my brake bias?'), ['car_balance']);
+  assert.deepStrictEqual(routed('Was I understeering in the slow corners?'), ['steering_balance']);
+  assert.deepStrictEqual(routed('Did the car oversteer on exit?'), ['steering_balance']);
+  assert.deepStrictEqual(routed('What does my steering say about the setup?'), ['steering_balance']);
+  assert.deepStrictEqual(routed('Why did I get wheelspin?'), ['car_balance'], 'wheel-slip questions stay with the wheel-slip data')
   assert.deepStrictEqual(routed('How did I use my battery?'), ['battery']);
   assert.deepStrictEqual(routed('What was my best lap?'), []);
   assert.deepStrictEqual(routed('What was my quickest lap?'), [], 'my own fastest lap is in the brief, not the field\'s pace');

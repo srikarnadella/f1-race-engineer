@@ -11,7 +11,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const dgram = require('dgram');
-const { spawn, execFileSync } = require('child_process');
+const { spawn, execFile, execFileSync } = require('child_process');
 const WebSocket = require('ws');
 const { readLog } = require('../src/capture/logFile');
 
@@ -69,12 +69,30 @@ async function cdp(wsUrl) {
   };
 }
 
+// The GPU the app's processes use, as the average over `seconds` of Windows' own per-process GPU engine
+// counters: the 3D engine alone, and every engine added up (a share of the whole GPU, not of one core).
+// This is what competes with the game for frames.
+function gpuUse(pids, seconds) {
+  const ps = `$want = @(${pids.join(',')}); $n = 0; $d = 0.0; $a = 0.0;`
+    + ` $s = Get-Counter '\\GPU Engine(*)\\Utilization Percentage' -SampleInterval 1 -MaxSamples ${seconds};`
+    + ' foreach ($x in $s) { $n++; foreach ($c in $x.CounterSamples) { if ($c.InstanceName -match "pid_(\\d+)_" -and $want -contains [int]$Matches[1]) {'
+    + ' $a += $c.CookedValue; if ($c.InstanceName -match "engtype_3D") { $d += $c.CookedValue } } } }'
+    + ' "{0:N2},{1:N2}" -f ($d / $n), ($a / $n)';
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoProfile', '-Command', ps], { encoding: 'utf8' }, (err, out) => {
+      const [d, a] = err ? [NaN, NaN] : String(out).trim().split(',').map(Number);
+      resolve({ gpu3d: d, gpuAll: a });
+    });
+  });
+}
+
 async function measure(rootPid, ms) {
   const before = treeOf(rootPid, listProcesses());
+  const gpu = gpuUse(before.map((p) => p.pid), Math.max(2, Math.round(ms / 1000) - 2));
   const t0 = Date.now();
   await sleep(ms);
   const after = treeOf(rootPid, listProcesses());
-  return summarize(before, after, Date.now() - t0, os.cpus().length);
+  return { ...summarize(before, after, Date.now() - t0, os.cpus().length), ...(await gpu) };
 }
 
 // Sends the capture's packets from fromSec on, at their recorded pace, until signal aborts.
@@ -166,10 +184,10 @@ async function main() {
     const installDir = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'undercut');
     console.log(`\nUndercut perf, ${new Date().toISOString().slice(0, 10)}, ${os.cpus()[0].model.trim()}, ${os.cpus().length} threads, ${Math.round(os.totalmem() / 2 ** 30)} GB`);
     console.log(`Capture ${path.basename(path.dirname(capture))} from ${fromSec} s; ${sent} packets fed; phases of ${phaseMs / 1000} s\n`);
-    console.log('| Phase | CPU (% of one core) | CPU (% of PC) | RAM working set (MB) | RAM private (MB) | Processes |');
-    console.log('|---|---|---|---|---|---|');
+    console.log('| Phase | CPU (% of one core) | CPU (% of PC) | GPU 3D (% of GPU) | GPU all engines (%) | RAM working set (MB) | RAM private (MB) | Processes |');
+    console.log('|---|---|---|---|---|---|---|---|');
     for (const [name, r] of rows) {
-      console.log(`| ${name} | ${r.cpuOneCore.toFixed(1)} | ${r.cpuMachine.toFixed(2)} | ${r.wsMB.toFixed(0)} | ${r.privateMB.toFixed(0)} | ${r.processes} |`);
+      console.log(`| ${name} | ${r.cpuOneCore.toFixed(1)} | ${r.cpuMachine.toFixed(2)} | ${r.gpu3d.toFixed(1)} | ${r.gpuAll.toFixed(1)} | ${r.wsMB.toFixed(0)} | ${r.privateMB.toFixed(0)} | ${r.processes} |`);
     }
     console.log(`\nStartup to a usable Home: ${(startupMs / 1000).toFixed(2)} s`);
     if (fs.existsSync(installDir)) console.log(`Installed size: ${dirMB(installDir).toFixed(0)} MB (${installDir})`);

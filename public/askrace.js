@@ -182,7 +182,7 @@
       const stopBtn = h('button', { type: 'button', class: 'llm__stop', hidden: true, onclick: () => act(() => api.llm.stop()) }, 'Stop');
       const gapPick = h('select', { class: 'llm__gap-driver', 'aria-label': 'Driver for the gap chart' });
       const chip = (label, onclick, cls = '') => h('button', { type: 'button', class: `llm__chip ${cls}`.trim(), onclick }, label);
-      const INSIGHTS = [['summary', 'Race summary'], ['pit_stops', 'Pit stops'], ['tyres', 'Tyres'], ['lost_time', 'Lost time'], ['race_pace', 'Race pace'], ['calls', 'Calls'], ['history', 'History']];
+      const INSIGHTS = [['summary', 'Race summary'], ['pit_stops', 'Pit stops'], ['tyres', 'Tyres'], ['lost_time', 'Lost time'], ['race_pace', 'Race pace'], ['calls', 'Calls'], ['history', 'History'], ['handling', 'Handling']];
       // The chart commands live in one menu inside the box, like an attachments button.
       const toolsBtn = h('button', { type: 'button', class: 'llm__tools-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => toggleTools() }, 'Charts');
       const pickChart = (fn) => () => { toggleTools(false); fn(); };

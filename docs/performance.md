@@ -42,5 +42,9 @@ Ranges are over four runs (three of 30 s phases, one of 60 s). Other numbers:
   earlier 3.2-4.8% range, so what is left minimized is the engine reading ~370 packets a second, not
   drawing. Caching the running order (`orderedByPosition`, ~2.7% of a 0.6 ms tick) was left out: too
   little to measure here for the risk of a shared, stale list.
-- Not measured yet: the game's frame rate with the app beside it, which needs F1 26
-  running. This file gets that row when it has been measured.
+- W8 (4 Nov): after a race with dropped frames, measured the app's GPU use (`perf-app.js` now adds GPU
+  columns): about 0 in every phase, so it is not fighting the game for the GPU. CPU was ~1% of the PC.
+  Settings > This PC > "Easy on the game" (on by default) runs the app at below-normal priority and redraws the
+  dashboard at 4 Hz: the race dashboard went from 14.5% to 10.1% of one core. The game's own frame rate is still
+  not measured; `npm run cadence` compares the telemetry arrival rate between two recordings (Undercut minimized
+  vs open), which follows the game's frame rate.

@@ -31,7 +31,7 @@ function open(t) {
 test('llm tools: each one is a named function with a JSON schema, and none takes SQL', (t) => {
   const tools = open(t);
   const names = tools.schemas.map((s) => s.function.name);
-  assert.deepStrictEqual(names.sort(), ['battery', 'calls', 'calls_review', 'car_balance', 'compare_laps', 'events', 'field_pace', 'gaps', 'lap_coaching', 'lap_losses', 'lap_times', 'lift_and_coast', 'pit_stops', 'race_summary', 'results', 'sessions', 'stints', 'track_history', 'tyres']);
+  assert.deepStrictEqual(names.sort(), ['battery', 'calls', 'calls_review', 'car_balance', 'compare_laps', 'events', 'field_pace', 'gaps', 'lap_coaching', 'lap_losses', 'lap_times', 'lift_and_coast', 'pit_stops', 'race_summary', 'results', 'sessions', 'steering_balance', 'stints', 'track_history', 'tyres']);
   for (const s of tools.schemas) {
     assert.strictEqual(s.type, 'function');
     assert.ok(s.function.description.length > 20, s.function.name);

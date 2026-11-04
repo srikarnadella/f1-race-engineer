@@ -576,6 +576,11 @@
   }
 
   let lastDebrief = null;
+  // In the Windows app the window sits beside the game: with "easy on the game" (desktop.js sets
+  // RaceTuning.drawMinMs) it is drawn at most every 250 ms. The voice, the calls and the auto-switch
+  // still see every snapshot. A phone or a browser draws them all.
+  let lastDrawAt = 0;
+  const DRAWN = new Set(['topbar', 'toasts', 'widgets', 'link']);
   function render(s) {
     // The debrief arrives once a second; other snapshots reuse the last one.
     if (s.debrief) lastDebrief = s.debrief;
@@ -599,8 +604,12 @@
     // Hidden (minimized, behind the game, a locked tablet): only the voice runs. Drawing a screen
     // nobody sees cost the PC as much as everything else together (docs/performance.md).
     const hidden = document.visibilityState === 'hidden';
+    const drawMin = (window.RaceTuning && window.RaceTuning.drawMinMs) || 0;
+    const drawNow = Date.now() - lastDrawAt >= drawMin;
+    if (drawNow && !hidden) lastDrawAt = Date.now();
     for (const [name, step] of steps) {
       if (hidden && name !== 'voice') continue;
+      if (!drawNow && DRAWN.has(name)) continue;
       try {
         step();
       } catch (err) {

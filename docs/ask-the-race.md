@@ -44,7 +44,7 @@ middle as certain.
 | "Am I improving here?" | Your races at this track in date order, how this race ranks by best lap and by race pace, and how your typical lap moved. |
 
 **Without the model.** The Charts menu also holds Insights buttons (Race summary, Pit stops, Tyres, Lost time,
-Race pace, Calls, History): the engine's own findings put on screen as they are, with the chart that goes with them
+Race pace, Calls, History, Handling): the engine's own findings put on screen as they are, with the chart that goes with them
 for Tyres and Lost time, and no model involved. They are the safest way to read the numbers, since nothing can
 misjudge them in the wording. Chart buttons likewise: tyre pace by stint, and time lost to your typical lap, lap by
 lap.
