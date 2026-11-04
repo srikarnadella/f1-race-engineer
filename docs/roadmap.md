@@ -323,7 +323,7 @@ phrases the answer.
   (`public/askrace.js`, `test/desktopAskRace.test.js`): the not-while-racing notice, Get Ollama when it is
   missing, and the models from `src/llm/catalog.js` with size, licence, download progress, cancel and
   delete; downloads refused while the game sends telemetry (`test/ollama.test.js`). Gemma 3 left out: no
-  tool calling in Ollama. Still to do: model sizes in Storage, and checking the list against real Ollama.
+  tool calling in Ollama. Since: Storage shows the models' disk use (a row from Ollama), and real Ollama confirmed qwen3:1.7b at 1.36 GB and qwen3:4b downloading and answering.
 - **L4 Question set picks the models.** 20-40 questions from the recorded races with expected facts
   ("where did I lose time on lap 21?", "was the lap 12 box call right?"). *Test:* `npm run llm-eval`
   scores each model (facts right, laps cited, refuses what the data doesn't show) and time per

@@ -227,3 +227,23 @@ test('storage: disk use per store, largest first, and it updates after a delete 
   assert.deepStrictEqual(rows().map((r) => r[0]), ['Race store', 'Saved sessions', 'Other'], 'an empty store drops out');
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('storage: the downloaded models are a row of their own, from Ollama (roadmap W3)', async (t) => {
+  const use = { raceDb: 20e6, sessions: 2e6, captures: 0, other: 0, total: 22e6 };
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = { ...fakeApi(), diskUse: async () => use, llm: { models: async () => [{ name: 'qwen3:1.7b', size: 1.36e9 }, { name: 'qwen3:4b', size: 2.5e9 }] } };
+    },
+  });
+  await settle();
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: [] } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.querySelector('.home__name').textContent === 'Storage').click();
+  await settle();
+  const row = [...doc.querySelectorAll('.disk__row')].find((r) => r.querySelector('.disk__name').textContent === 'Models');
+  assert.ok(row, 'a Models row');
+  assert.strictEqual(row.querySelector('.disk__size').textContent, '3.9 GB');
+  assert.match(row.textContent, /2 models, kept by Ollama/);
+  assert.deepStrictEqual(app.errors, []);
+});

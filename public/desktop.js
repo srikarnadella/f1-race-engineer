@@ -337,9 +337,21 @@
       const STORES = [['captures', 'Recordings', 'every packet of each recorded session'], ['raceDb', 'Race store', 'the laps of every car in every session'], ['sessions', 'Saved sessions', 'the debriefs Race analysis opens'], ['other', 'Other', 'the demo race and track notes']];
       async function loadDisk() {
         if (!api.diskUse) return;
-        const use = await act(() => api.diskUse());
-        if (!use) return;
-        const rows = STORES.filter(([k]) => use[k] > 0).sort((a, b) => use[b[0]] - use[a[0]]);
+        const found = await act(() => api.diskUse());
+        if (!found) return;
+        const use = { ...found };
+        // Ask the race's models live in Ollama's own folder; a row of their own when there are any.
+        let models = [];
+        try {
+          models = api.llm && api.llm.models ? (await api.llm.models()) || [] : [];
+        } catch (_) { /* Ollama not running: no row */ }
+        const stores = [...STORES];
+        if (models.length) {
+          use.models = models.reduce((n, m) => n + (m.size || 0), 0);
+          use.total += use.models;
+          stores.push(['models', 'Models', `${models.length} model${models.length === 1 ? '' : 's'}, kept by Ollama (delete them in Ask the race)`]);
+        }
+        const rows = stores.filter(([k]) => use[k] > 0).sort((a, b) => use[b[0]] - use[a[0]]);
         st.disk.replaceChildren(
           h('p', { class: 'disk__total' }, `${bytes(use.total)} on this PC`),
           h('ul', { class: 'disk__rows' }, rows.map(([k, label, what]) => h('li', { class: 'disk__row' },
