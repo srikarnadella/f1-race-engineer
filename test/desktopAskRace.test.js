@@ -54,7 +54,28 @@ const CHART = {
   series: [{ name: 'You', you: true, points: [[1, 4], [2, 3], [3, 3], [4, 4]] }, { name: 'LECLERC', points: [[1, 3], [2, 4], [3, 4], [4, 3]] }],
   marks: [{ x: 3, label: 'Pit' }], finding: 'P4 to P4 from lap 1 to lap 4; highest P3 (lap 2).',
 };
-const answer = (q) => (/invent/.test(q)
+// A gap chart whose trend (laps 2-4) carries the range it could be (engine: src/llm/charts.js).
+const GAP_CHART = {
+  kind: 'gap_to_driver', title: 'Gap to LECLERC', x: { label: 'Lap' }, y: { label: 'Seconds behind LECLERC (below 0: ahead)', zero: true },
+  series: [{ name: 'You to LECLERC', you: true, points: [[1, 2.0], [2, 2.4], [3, 2.6], [4, 3.1]] }], marks: [],
+  bands: [{ label: 'Trend and the range it could be', from: 1, to: 4, slope: 0.34, slopeLo: 0.2, slopeHi: 0.48, line: [[1, 2.0], [2, 2.34], [3, 2.68], [4, 3.02]], band: [[1, 1.7, 2.3], [2, 2.1, 2.58], [3, 2.4, 2.96], [4, 2.7, 3.34]] }],
+  finding: 'Against LECLERC: 2.000 s behind after lap 1, 3.100 s behind after lap 4. You lost 0.34 s a lap to LECLERC over laps 1-4 (80% sure it was between 0.20 and 0.48 s).',
+};
+// A stint-pace chart: each stint its own colour and its own trend with the range it could be.
+const STINT_CHART = {
+  kind: 'stint_pace', title: 'Lap time by tyre stint', x: { label: 'Lap' }, y: { label: 'Lap time (s)' },
+  series: [{ name: 'Medium, laps 2-6', tone: 'is-you', points: [[2, 80.0], [3, 80.1], [4, 80.2], [5, 80.3], [6, 80.4]] }, { name: 'Hard, laps 9-13', tone: 'is-ref', points: [[9, 79.0], [10, 79.05], [11, 78.98], [12, 79.02], [13, 79.0]] }],
+  bands: [
+    { label: 'Trend and the range it could be', from: 2, to: 6, slope: 0.1, slopeLo: 0.09, slopeHi: 0.11, line: [[2, 80.0], [6, 80.4]], band: [[2, 79.95, 80.05], [4, 80.18, 80.22], [6, 80.35, 80.45]] },
+    { label: 'Trend and the range it could be', from: 9, to: 13, slope: 0, slopeLo: -0.02, slopeHi: 0.02, line: [[9, 79.0], [13, 79.0]], band: [[9, 78.95, 79.05], [13, 78.95, 79.05]] },
+  ],
+  marks: [{ x: 7, label: 'Pit' }], finding: 'Pace by stint, clean laps only: Medium (laps 2-6): slower by 0.10 s a lap (80% sure between 0.09 and 0.11 s); Hard (laps 9-13): no clear change.',
+};
+const answer = (q) => (/hold up/.test(q)
+  ? { answer: 'The mediums got slower by 0.10 s a lap.', grounded: true, unsupported: [], charts: [STINT_CHART], evidence: [STINT_CHART.finding], toolCalls: [] }
+  : /trend/.test(q)
+  ? { answer: 'You lost about a third of a second a lap to LECLERC.', grounded: true, unsupported: [], charts: [GAP_CHART], evidence: [`${GAP_CHART.title}: ${GAP_CHART.finding}`], toolCalls: [] }
+  : /invent/.test(q)
   ? { answer: 'Your best was 1:29.000.', grounded: false, unsupported: ['1:29.000'], charts: [], evidence: ['Best lap: lap 2, 1:30.948.'], toolCalls: [] }
   : { answer: 'You went from P4 to P3 on lap 2, then back to P4.', grounded: true, unsupported: [], charts: [CHART], evidence: ['At the end of lap 2 you were P3.', `${CHART.title}: ${CHART.finding}`], toolCalls: [] });
 
@@ -291,4 +312,62 @@ test('ask the race: a slow answer counts its seconds, so it never looks frozen',
   finish({ answer: 'Done.', grounded: true, unsupported: [], charts: [], evidence: [], toolCalls: [] });
   await settle();
   assert.strictEqual(doc.querySelector('.llm__thinking'), null);
+});
+
+test('ask the race: a trend with its range is drawn as a band with the line through it, and named in the legend', async (t) => {
+  const app = await openAsk(t);
+  app.doc.querySelector('.llm__question').value = 'What is the trend against Leclerc?';
+  app.doc.querySelector('.llm__ask').click();
+  await settle();
+  const band = app.doc.querySelector('svg.llm__chart .llm__band');
+  assert.ok(band, 'a band');
+  assert.match(band.getAttribute('d'), /^M[\d.,L-]+Z$/, 'a closed shape from the lower edge to the upper');
+  assert.ok(app.doc.querySelector('svg.llm__chart .llm__trend'), 'the trend line');
+  assert.match(app.doc.querySelector('.llm__legend').textContent, /Trend and the range it could be/);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('ask the race: a chart with no trend is drawn as before, with no band', async (t) => {
+  const app = await openAsk(t);
+  app.doc.querySelector('.llm__question').value = 'Show me positions';
+  app.doc.querySelector('.llm__ask').click();
+  await settle();
+  assert.strictEqual(app.doc.querySelector('.llm__band'), null);
+});
+
+test('ask the race: the suggested questions show what it can do now - a summary, the stops, the tyres, lost time, pace', async (t) => {
+  const app = await openAsk(t);
+  assert.deepStrictEqual([...app.doc.querySelectorAll('.llm__suggest .llm__chip--ask')].map((b) => b.textContent),
+    ['Summarize my race', 'Was my pit stop good?', 'How did my tyres hold up?', 'Which laps cost me the most time?', 'Who had the best race pace?', 'What was my best lap?']);
+});
+
+test('ask the race: a suggested question asks it', async (t) => {
+  const app = await openAsk(t);
+  [...app.doc.querySelectorAll('.llm__suggest .llm__chip--ask')].find((b) => b.textContent === 'Was my pit stop good?').click();
+  await settle();
+  assert.deepStrictEqual(app.fake.calls.filter((c) => c[0] === 'ask').map((c) => c[3]), ['Was my pit stop good?']);
+});
+
+test('ask the race: the Charts menu draws tyre pace by stint with no model', async (t) => {
+  const app = await openAsk(t);
+  [...app.doc.querySelectorAll('.llm__chip--chart')].find((b) => b.textContent === 'Tyre pace by stint').click();
+  await settle();
+  assert.strictEqual(JSON.stringify(app.fake.calls.find((c) => c[0] === 'chart')), JSON.stringify(['chart', 19, 'stint_pace', {}]));
+  assert.deepStrictEqual(app.fake.calls.filter((c) => c[0] === 'ask'), []);
+});
+
+test('ask the race: stints are drawn in their own colours, each with its trend and range, and the legend names them', async (t) => {
+  const app = await openAsk(t);
+  app.doc.querySelector('.llm__question').value = 'How did my tyres hold up?';
+  app.doc.querySelector('.llm__ask').click();
+  await settle();
+  const svg = app.doc.querySelector('svg.llm__chart');
+  assert.ok(svg.querySelector('.llm__series.is-you') && svg.querySelector('.llm__series.is-ref'), 'two colours');
+  assert.strictEqual(svg.querySelectorAll('.llm__band').length, 2);
+  assert.strictEqual(svg.querySelectorAll('.llm__trend').length, 2);
+  const legend = app.doc.querySelector('.llm__legend').textContent;
+  assert.match(legend, /Medium, laps 2-6/);
+  assert.strictEqual(legend.split('Trend and the range it could be').length - 1, 1, 'named once, not once per stint');
+  assert.match(app.doc.querySelector('.llm__axis').textContent, /107% of your best/);
+  assert.deepStrictEqual(app.errors, []);
 });

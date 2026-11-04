@@ -48,7 +48,7 @@ Each step only reads from the steps before it. [src/README.md](../src/README.md)
 I write each test from what the code *should* do and watch it fail before writing the code, and I never
 edit a test just to make it pass. A test only counts once it catches a bug I plant on purpose.
 
-- **Nearly 500 tests:** parsers on real F1 26 packets, random and corrupted packets (fuzzing), model
+- **Nearly 600 tests:** parsers on real F1 26 packets, random and corrupted packets (fuzzing), model
   properties, scripted race scenarios, the calls audit, every dashboard screen in jsdom, and a speed budget.
 - **CI** runs them on every push on Linux and Windows (Node 22, 24 and 26), fails if line coverage drops below
   88%, fails if a change makes the tyre model or rival-stop timing worse on the recorded races, and runs

@@ -141,13 +141,14 @@ test('rejoin prediction slots the player in by time behind the leader + pit loss
     cars: lapCars(5, { 3: { deltaToRaceLeaderInMS: 15000 }, 4: { deltaToRaceLeaderInMS: 30000 } }),
   });
   const { rejoin } = createRaceAnalysis(fm).compute();
-  // Player at 4s + 20s = 24s: behind car 3 (15s) by 9s, ahead of car 4 (30s) by 6s.
+  // Player at 4s + three quarters of the 20s stop (the share paid by the time the prediction is judged,
+  // M5: test/rejoinShare.test.js) = 19s: behind car 3 (15s) by 4s, ahead of car 4 (30s) by 11s.
   assert.strictEqual(rejoin.position, 4);
   assert.strictEqual(rejoin.positionsLost, 1);
   assert.strictEqual(rejoin.ahead.carIndex, 3);
-  assert.strictEqual(rejoin.ahead.gapMs, 9000);
+  assert.strictEqual(rejoin.ahead.gapMs, 4000);
   assert.strictEqual(rejoin.behind.carIndex, 4);
-  assert.strictEqual(rejoin.behind.gapMs, 6000);
+  assert.strictEqual(rejoin.behind.gapMs, 11000);
 });
 
 test('gap trend and laps-to-DRS come from the pace difference', () => {

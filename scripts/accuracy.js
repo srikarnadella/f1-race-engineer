@@ -20,7 +20,7 @@ const path = require('path');
 const { readLog } = require('../src/capture/logFile');
 const { parsePacket } = require('../src/udp/parsePacket');
 const { createFieldModel } = require('../src/state/fieldModel');
-const { createRaceAnalysis, predictRejoin, PIT_LOSS_ESTIMATE_MS } = require('../src/engine/raceAnalysis');
+const { createRaceAnalysis, predictRejoin, PIT_LOSS_ESTIMATE_MS, REJOIN_LOSS_SHARE } = require('../src/engine/raceAnalysis');
 const { projectBattery, ERS_MAX_J } = require('../src/analysis/batteryProjection');
 const { fromCsv } = require('../src/data/laps');
 const { scoreTyreModel, scoreRivalStops } = require('../src/data/backtest');
@@ -85,8 +85,8 @@ async function score(file, out) {
         const fixed = PIT_LOSS_ESTIMATE_MS[session.trackId] || 22000;
         // As the app calls it: rivals due to stop this lap stop too.
         const stopIn = new Map((analysis.field || []).map((r) => [r.carIndex, r.stopInLaps]));
-        const p = predictRejoin(ordered, car, analysis.pitLoss.ms, { stopIn });
-        const q = predictRejoin(ordered, car, fixed, { stopIn });
+        const p = predictRejoin(ordered, car, analysis.pitLoss.ms, { stopIn, share: REJOIN_LOSS_SHARE });
+        const q = predictRejoin(ordered, car, fixed, { stopIn, share: REJOIN_LOSS_SHARE });
         if (p && q) lastPrediction.set(car.carIndex, { position: p.position, fixedPosition: q.position, keepPosition: ld.carPosition, t });
       }
       const before = lastStops.get(car.carIndex);

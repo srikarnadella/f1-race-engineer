@@ -35,17 +35,17 @@ flowchart LR
     M2[M2 Overtake model calibration]:::done
     M3[M3 Lap-time model with uncertainty]
     M4[M4 Backtest gate per model]:::done
-    M5[M5 Rejoin bias]:::part
+    M5[M5 Rejoin bias]:::done
     M6[M6 Gradient-boosted overtake model]:::done
   end
   subgraph A[Analysis and decisions]
     A1[A1 Monte Carlo strategy]:::done
     A2[A2 Calls audit: was the call right?]:::done
-    A3[A3 Confidence on every call]:::part
+    A3[A3 Confidence on every call]:::done
   end
   subgraph U[User experience]
     U1[U1 Calls audit screen]:::done
-    U2[U2 Uncertainty bands]
+    U2[U2 Uncertainty bands]:::done
     U3[U3 Feed health badge]:::done
     U4[U4 Accessibility pass]:::done
   end
@@ -66,6 +66,7 @@ flowchart LR
     L4[L4 Question set picks the models]:::next
     L5[L5 Ask the race screen]:::done
     L6[L6 Coaching: corners, lift and coast, bias, diff, battery]:::done
+    L7[L7 More insights: summary, stops, tyres, lost time, pace, calls, history]:::done
   end
   subgraph R[Race analysis: its own place]
     R1[R1 Session picker and race overview]:::done
@@ -111,6 +112,7 @@ flowchart LR
   L1 & L3 --> L4
   W2 & L4 --> L5
   L5 --> L6
+  L6 --> L7
   W0 --> L5
 ```
 
@@ -195,7 +197,15 @@ Each line: what it is, why it matters, and the acceptance test.
   of the cars it put ahead were already in the pit lane (the game reads their gap as 0, so they kept the
   time of the car ahead on the road). Charging those, and the cars the rival-stop model has due this
   lap: 2.71 places off, 1.47 pessimistic. Due within one lap instead got the bias to 0.53 but the error
-  up to 3.24, so this lap it is; the half-place bias isn't met yet. On all 79 stops recorded since: 3.13 places off, 1.66 pessimistic.
+  up to 3.24, so this lap it is. On all 79 stops recorded since: 3.13 places off, 1.66 pessimistic.
+  *Done (4 Nov 2026):* the score is taken 25 s after the stop, when the out-lap has hardly begun, so about a
+  quarter of the stop's loss is still to come. Sweeping the share charged (to the player and to the cars due to
+  stop alike; charging only the player's was worse, 3.30 off), three quarters gives 0.11 places pessimistic with
+  the error down to 2.80 on the 79 stops, the target met (`REJOIN_LOSS_SHARE`, `test/rejoinShare.test.js`).
+  Held out race by race (the share chosen on the other races each time): 0.54 and 2.90, so most of the gain is
+  real; single races still run from 3.5 places optimistic to 3 pessimistic. A rival-stop probability instead of
+  yes-or-no was tried and made the error worse (3.1 to 3.5). Pit timing models its own rejoin and isn't scored,
+  so its "box now" place can differ from this card by a place; unifying them is open.
 - **M4 Backtest gate.** Every model scored per race in CI against its baseline; a change that makes
   a model worse than it was fails the build. *Done for the lap-level models:* the tyre model and
   rival-stop timing are scored on the committed dataset in CI against `datasets/scores.json`.
@@ -223,13 +233,26 @@ Each line: what it is, why it matters, and the acceptance test.
   "Lap 14–22, depending on tyre wear" (and nothing when it holds). On the recordings it moves a
   quarter of the time at Monaco, 5% at Barcelona. The cliff warning too (3 Nov 2026): when the last
   laps' wear steps disagree it says "~1–2 laps to the cliff, depending on how the wear goes"
-  (`test/state.test.js`). Still to do: the battle calls.
+  (`test/state.test.js`). *Done (4 Nov 2026):* the battle calls. The overtake model's two noisy inputs
+  (how fast the gap is closing, the pace difference) are each moved by 1.28 standard errors, read from the scatter
+  of the gap samples and of the last clean laps, and the model re-run (`src/ml/passRange.js`,
+  `featureSpread`): the chance carries a range ("28% (18-41%)" on the Battle card). The call words it when the range
+  crosses a level ("pass chance low to high") and marks it soft; sandwiched between two overlapping ranges it is a
+  toss-up (`test/passConfidence.test.js`). The range is what the inputs allow, not a coverage figure for the
+  model: a pass either happens or not, so it can't be checked against single outcomes; the model's own
+  calibration is in [ml-overtake-lightgbm.md](ml-overtake-lightgbm.md).
 
 ### User experience
 
 - **U1 Calls audit screen** (*done*): the Debrief's Calls tab grades each race call (right, wrong,
   unclear, or following the rules) with what happened, as `npm run backtest` does, and keeps it with the
-  saved session. **U2 Uncertainty bands** on rejoin and gap charts.
+  saved session. **U2 Uncertainty bands** (*done*, 4 Nov 2026): the rejoin card shows the places a stop that ran
+  short or long would give (pips; the scatter of the measured stops); Race analysis, Head to head, draws the
+  typical lap difference and the range it could be behind the bars, and says "too close to call" when the range
+  holds zero; Ask the race's gap chart fits the longest run of laps with nobody stopping and draws the trend and its
+  range ("you lost 0.31 s a lap to LECLERC over laps 12-21, 80% sure between 0.22 and 0.40"), and tyre pace by stint
+  does the same per stint. One shared file, `public/spread.js`, and each band is tested for coverage: on many noisy
+  samples around a known truth the 80% band holds it 75-85% of the time (`test/spread.test.js`).
   **U3 Feed health badge** (*done*): the link chip says "Live · 8% lost" from 2% loss, and nothing
   extra when the feed is fine. **U4 Accessibility** (*done*): every text colour on every background at
   4.5:1 or more (dashboard and website), every control on every screen named for a screen reader,
@@ -374,6 +397,20 @@ phrases the answer.
   `test/llmTools.test.js`, `test/llmAsk.test.js`; qwen3:1.7b answered the coaching and lift-and-coast
   questions right on all four races. Still open: the thresholds are first guesses, and setup advice is
   rules of thumb, not an optimiser.
+- **L7 More insights.** The user (4 Nov 2026): let Ask the race do more and give more insights. Seven
+  lookups the engine works out whole from race.db and hands the model as sentences (`src/llm/insights.js`; the
+  model words, never computes): `race_summary` (the race in points), `pit_stops` (each stop priced against the
+  cars that didn't stop and the field's green-flag stops, places before and after), `tyres` (each stint's clean
+  laps, average, best and whether the pace got slower or quicker over it, with its range), `lap_losses`
+  (consistency, and the laps 0.7 s or more off typical with what was recorded on each: collisions, penalties,
+  passes, an invalid lap, locking), `field_pace` (every car's typical clean lap ranked, you among them, the
+  fastest lap), `calls_review` (the calls audit's verdict and each call) and `track_history` (your races at the
+  track over time). Questions are routed by the engine (`lookups`), a tyre-pace-by-stint chart with each stint's
+  trend and range, new suggested questions. *Test:* `test/llmInsights.test.js` (hand-built races whose answers are
+  worked out), `test/llmSummary.test.js`, `test/llmInsightTools.test.js` (the tools over a recorded session,
+  the routing of 25 questions, the model's prompt), `test/llmStintChart.test.js`, `test/desktopAskRace.test.js`.
+  `npm run llm-eval` gained a question for each, answered from the same results. *Open:* the model scores on
+  the new questions are in [ask-the-race.md](ask-the-race.md).
 
 ### Race analysis: its own place
 

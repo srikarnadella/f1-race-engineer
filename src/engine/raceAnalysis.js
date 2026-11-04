@@ -9,8 +9,8 @@ const { withoutSlowLaps } = require('../lib/laps');
 const { median } = require('../lib/stats');
 const { createTrackMemory } = require('../state/trackMemory');
 const { fitDegradation, stopPayback } = require('../ml/tyreModel');
-const { pairFeatures } = require('../ml/overtakeFeatures');
-const { predict } = require('../ml/gbdt');
+const { pairFeatures, featureSpread } = require('../ml/overtakeFeatures');
+const { passRange } = require('../ml/passRange');
 const { forecastAttack } = require('../analysis/attackForecast');
 const { strategyOptions, intersNowGain } = require('../analysis/strategyOptions');
 const { battleCall } = require('../analysis/battleCall');
@@ -22,18 +22,7 @@ const { qualifying } = require('../analysis/qualifying');
 const { createTyreTempTracker } = require('../analysis/tyreTemps');
 const { racePlan, planOdds, planUncertainty } = require('../analysis/racePlan');
 
-// The overtake model: LightGBM trained on recorded races (ml/overtake_lgbm.py),
-// run from its exported trees.
-let OVERTAKE_MODEL = null;
-try {
-  OVERTAKE_MODEL = require('../ml/models/overtake-gbdt.json');
-} catch (_) {
-  OVERTAKE_MODEL = null;
-}
-// Held out race by race it's well calibrated up to 60% (40-60% predicted: 51%
-// observed) and a little overconfident above (64% said, 57% seen, 173 samples),
-// so the dashboard gets a level plus a percentage capped there.
-const PASS_CAP = 0.6;
+// The overtake model (LightGBM trained on recorded races, ml/overtake_lgbm.py) and its range live in ml/passRange.js.
 const MIN_DEG_CARS = 5;
 const MIN_DEG_LAPS = 25;
 const PRACTICE_TYPES = new Set([1, 2, 3, 4]);
@@ -41,14 +30,12 @@ const SHOOTOUT_TYPES = new Set([10, 11, 12, 13, 14]);
 // The game's 5-lap race length: three had no AI stops (15 Oct 2026). 25% races and longer do have the stop.
 const SHORT_RACE_LAPS = 5;
 const GAME_RULES = 'game'; // track-memory key for what holds at every track
-const passLevel = (p) => (p >= 0.25 ? 'high' : p >= 0.1 ? 'medium' : 'low');
 function passChance(attacker, defender) {
-  if (!OVERTAKE_MODEL || !attacker || !defender) return null;
-  const f = pairFeatures(attacker, defender);
+  const f = attacker && defender && pairFeatures(attacker, defender);
   if (!f || f.gapS > 3) return null;
-  const x = OVERTAKE_MODEL.features.map((k) => f[k]);
-  const p = predict(OVERTAKE_MODEL, x);
-  return { p: Math.min(PASS_CAP, Math.round(p * 100) / 100), level: passLevel(p), horizonS: OVERTAKE_MODEL.horizonS };
+  const r = passRange(f, featureSpread(attacker, defender));
+  if (!r) return null;
+  return { p: r.p, level: r.level, horizonS: r.horizonS, range: { lo: r.lo, hi: r.hi, levelLo: r.levelLo, levelHi: r.levelHi } };
 }
 
 // Where passes happen at each track, learned from recorded races
@@ -87,6 +74,23 @@ const RECENT_LAPS = 5;
 const DRS_RANGE_MS = 1000;
 const MAX_PROJECTION_LAPS = 30;
 const TRAFFIC_MS = 1500;
+// The prediction is judged 25 s after the stop (scripts/accuracy.js), when the out-lap has hardly begun and
+// about a quarter of the stop's loss is still to come. On 79 recorded stops charging the whole loss put the
+// car 1.66 places too far back (error 3.13); charging three quarters of it, to the player and to the cars
+// due to stop alike, gives 0.11 (2.80), and 0.54 (2.90) held out race by race. Single races still range
+// from 3.5 places too optimistic to 3 too pessimistic: the recorded races differ more than the model.
+const REJOIN_LOSS_SHARE = 0.75;
+// How far a stop's cost could be from the typical one, a robust standard deviation of the stops measured
+// this session (1.4826 x the median absolute deviation); under three of them it is a guess, wider for a
+// track estimate than for one measurement. First guesses: the recorded stops measured 18 to 24 s.
+const LOSS_SPREAD_FEW_MS = 2500;
+const LOSS_SPREAD_GUESS_MS = 3500;
+function lossSpreadMs(samples, few) {
+  if (samples.length < 3) return few;
+  const m = median(samples);
+  return Math.max(500, Math.round(1.4826 * median(samples.map((x) => Math.abs(x - m)))));
+}
+const RANGE_Z = 1.28; // 80%
 const PIT_LOSS_SANE_RANGE_MS = [8000, 45000];
 // A new best lap to box on must hold this long before it's shown.
 const PICK_SETTLE_MS = 5000;
@@ -218,12 +222,14 @@ function timesBehindLeader(ordered) {
 
 // fieldLossMs: what a stop costs the others (loss can carry the player's own penalty).
 // stopIn: carIndex -> laps until each rival's predicted stop (rivalStops), if known.
-function predictRejoin(ordered, player, loss, { fieldLossMs = loss, stopIn = null } = {}) {
+function predictRejoin(ordered, player, loss, { fieldLossMs = loss, stopIn = null, share = 1, extraMs = 0, spreadMs = 0 } = {}) {
   if (!player.lapData || player.lapData.pitStatus !== 0) return null;
   // Our own gap unknown (just out of the pits, or a red flag): no guess beats a wrong one.
   if (player.lapData.carPosition !== 1 && !(player.lapData.deltaToRaceLeaderInMS > 0)) return null;
   const times = timesBehindLeader(ordered);
-  const myTime = (times.get(player.carIndex) || 0) + loss;
+  // share: how much of the stop's loss has been paid at the moment the prediction is judged; extraMs (a
+  // penalty served in the box) is paid in full. The cars due to stop pay the same share.
+  const myTime = (times.get(player.carIndex) || 0) + loss * share + extraMs;
   // A car already in the pit lane still has its stop to pay: it comes out at its time going in plus
   // the loss, not where the road has it now. Counted where the road had it, AI pit waves put ~3 such
   // cars ahead of every stop and the rejoin read 4 places too far back (npm run accuracy).
@@ -232,8 +238,8 @@ function predictRejoin(ordered, player, loss, { fieldLossMs = loss, stopIn = nul
   const midStop = (c) => c.lapData.pitStatus > 0 && c.pitEntryBehindLeaderMs != null;
   const dueNow = (c) => c.lapData.pitStatus === 0 && !!stopIn && stopIn.get(c.carIndex) === 0;
   const timeOf = (c) => {
-    if (midStop(c)) return c.pitEntryBehindLeaderMs + fieldLossMs;
-    return (times.get(c.carIndex) || 0) + (dueNow(c) ? fieldLossMs : 0);
+    if (midStop(c)) return c.pitEntryBehindLeaderMs + fieldLossMs * share;
+    return (times.get(c.carIndex) || 0) + (dueNow(c) ? fieldLossMs * share : 0);
   };
   const others = ordered
     .filter((c) => c.carIndex !== player.carIndex && isRunning(c))
@@ -252,10 +258,14 @@ function predictRejoin(ordered, player, loss, { fieldLossMs = loss, stopIn = nul
     tyreCompound: o.car.status ? o.car.status.visualTyreCompound : null,
     tyresAgeLaps: o.car.status ? o.car.status.tyresAgeLaps : null,
   };
+  const placeAt = (t) => others.filter((o) => o.t < t).length + 1;
   const position = aheadList.length + 1;
+  const reach = RANGE_Z * spreadMs * share;
   return {
     position,
     positionsLost: position - player.lapData.carPosition,
+    // The places a stop that ran short or long (spreadMs: the scatter of measured stops) would give.
+    range: { best: placeAt(myTime - reach), worst: placeAt(myTime + reach) },
     // Rejoining within this of the car ahead means a stint stuck in its dirty air.
     inTraffic: !!ahead && myTime - ahead.t < TRAFFIC_MS,
     ahead: summary(ahead, ahead ? myTime - ahead.t : 0),
@@ -400,27 +410,29 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     }
   }
 
-  // ms is what a stop costs right now; normalMs is the green-flag figure.
+  // ms is what a stop costs right now; normalMs is the green-flag figure; spreadMs is how far a stop
+  // could be from it (the scatter of the measured stops, or a guess while there are too few).
   function pitLoss(session) {
     let base;
     if (measuredLosses.size) {
       const samples = [...measuredLosses.values()];
       base = {
         normalMs: Math.round(median(samples.map((s) => s.ms))),
+        spreadMs: lossSpreadMs(samples.map((s) => s.ms), LOSS_SPREAD_FEW_MS),
         source: 'measured',
         samples: samples.length,
         lastMeasuredFrom: samples[samples.length - 1].by,
       };
     } else if (session && memory.get(session.trackId, 'pitLossMs').length) {
       const samples = memory.get(session.trackId, 'pitLossMs');
-      base = { normalMs: Math.round(median(samples)), source: 'earlier races here', samples: samples.length, lastMeasuredFrom: null };
+      base = { normalMs: Math.round(median(samples)), spreadMs: lossSpreadMs(samples, LOSS_SPREAD_FEW_MS), source: 'earlier races here', samples: samples.length, lastMeasuredFrom: null };
     } else {
       const est = session && PIT_LOSS_ESTIMATE_MS[session.trackId];
-      base = { normalMs: est || PIT_LOSS_FALLBACK_MS, source: est ? 'track estimate' : 'generic estimate', samples: 0, lastMeasuredFrom: null };
+      base = { normalMs: est || PIT_LOSS_FALLBACK_MS, spreadMs: LOSS_SPREAD_GUESS_MS, source: est ? 'track estimate' : 'generic estimate', samples: 0, lastMeasuredFrom: null };
     }
     const sc = session && session.safetyCarStatus;
     const factor = NEUTRALISED_PIT_LOSS_FACTOR[sc];
-    return { ms: factor ? Math.round(base.normalMs * factor) : base.normalMs, neutralised: NEUTRALISED_LABEL[sc] || null, ...base };
+    return { ms: factor ? Math.round(base.normalMs * factor) : base.normalMs, neutralised: NEUTRALISED_LABEL[sc] || null, ...base, spreadMs: factor ? Math.round(base.spreadMs * factor) : base.spreadMs };
   }
 
   // What the damage on the player's car costs per lap, from mini-sectors.
@@ -730,7 +742,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     // A time penalty served at the stop: you come out that much later -
     // in every stop prediction, so the cards agree.
     const stopPenaltyMs = penalties && penalties.servedAt === 'stop' ? penalties.timeS * 1000 : 0;
-    const rejoin = predictRejoin(ordered, player, loss.ms + stopPenaltyMs, { fieldLossMs: loss.ms, stopIn });
+    const rejoin = predictRejoin(ordered, player, loss.ms, { fieldLossMs: loss.ms, stopIn, share: REJOIN_LOSS_SHARE, extraMs: stopPenaltyMs, spreadMs: loss.spreadMs });
     const damage = damageFor({ player, session, tyreModel, myDeg, lapsLeft: raceLapsLeft(session, player.lapData), pitLossMs: loss.ms });
 
     // ATTACK / DEFEND / CLOSE IN / CLEAR.
@@ -855,4 +867,4 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   return { compute, flush: saveFit };
 }
 
-module.exports = { predictRejoin, createRaceAnalysis, nameOf, PIT_LOSS_ESTIMATE_MS };
+module.exports = { predictRejoin, createRaceAnalysis, nameOf, PIT_LOSS_ESTIMATE_MS, REJOIN_LOSS_SHARE };

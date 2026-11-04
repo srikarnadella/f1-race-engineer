@@ -309,9 +309,14 @@
       const both = common.filter((l) => myClean.has(l.lap) && theirClean.has(l.lap));
       const diffs = both.map((l) => l.ms - theirs.get(l.lap).ms); // + = you slower
       const typical = diffs.length ? median(diffs) : null;
+      // The range that typical difference could really be, from how much the laps vary (public/spread.js, 80%).
+      const range = diffs.length && window.Spread ? window.Spread.medianRange(diffs) : null;
+      const showRange = range && range.hi - range.lo >= 5;
+      const secs3 = (ms) => (Math.abs(ms) / 1000).toFixed(3);
       const verdict = typical == null
         ? `No laps you and ${them.name} both ran cleanly to compare.`
-        : `${them.name} was ${(Math.abs(typical) / 1000).toFixed(3)} s a lap ${typical > 0 ? 'faster' : 'slower'} than you over ${both.length} lap${both.length === 1 ? '' : 's'}`;
+        : `${them.name} was ${secs3(typical)} s a lap ${typical > 0 ? 'faster' : 'slower'} than you over ${both.length} lap${both.length === 1 ? '' : 's'}`
+          + (showRange ? ` (80% sure it's between ${secs3(range.lo)} and ${secs3(range.hi)} s)${range.lo < 0 && range.hi > 0 ? ' - too close to call' : ''}` : '');
 
       const fact = (label, mine, theirsTxt) => h('tr', {}, h('th', {}, label), h('td', { class: 'num' }, theirsTxt), h('td', { class: 'num' }, mine));
       const facts = h('table', { class: 'tbl h2h__facts' },
@@ -328,6 +333,12 @@
       const mid = H / 2;
       const cap = Math.max(300, ...diffs.map(Math.abs));
       const lapSvg = s('svg', { class: 'h2h__chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Lap by lap against ${them.name}` });
+      // The typical difference and the range it could be, behind the bars (up = you slower).
+      const yOf = (ms) => mid - (Math.max(-cap, Math.min(cap, ms)) / cap) * (mid - 18);
+      if (showRange) {
+        lapSvg.append(s('rect', { class: 'h2h__band', x: 0, width: W, y: yOf(range.hi), height: Math.max(1, yOf(range.lo) - yOf(range.hi)) }));
+        lapSvg.append(s('line', { class: 'h2h__typical', x1: 0, x2: W, y1: yOf(range.mid), y2: yOf(range.mid) }));
+      }
       lapSvg.append(s('line', { class: 'lvl__zero', x1: 0, x2: W, y1: mid, y2: mid }));
       const bw = W / Math.max(1, common.length);
       common.forEach((l, i) => {
@@ -363,7 +374,7 @@
         h('div', { class: 'lvl__bar' }, h('label', {}, 'You against', pick)),
         h('p', { class: 'h2h__verdict lvl__verdict' }, verdict),
         facts,
-        h('section', {}, h('div', { class: 'pace__head' }, h('h3', {}, 'Lap by lap'), h('p', { class: 'pace__key' }, h('span', {}, h('i', { class: 'h2h__key is-lost' }), 'you slower'), h('span', {}, h('i', { class: 'h2h__key is-gained' }), 'you faster'), h('span', {}, h('i', { class: 'h2h__key is-out' }), 'not counted'))), lapSvg),
+        h('section', {}, h('div', { class: 'pace__head' }, h('h3', {}, 'Lap by lap'), h('p', { class: 'pace__key' }, h('span', {}, h('i', { class: 'h2h__key is-lost' }), 'you slower'), h('span', {}, h('i', { class: 'h2h__key is-gained' }), 'you faster'), h('span', {}, h('i', { class: 'h2h__key is-out' }), 'not counted'), showRange ? h('span', {}, h('i', { class: 'h2h__key is-band' }), 'typical, and the range it could be') : '')), lapSvg),
         both.length ? h('section', {}, h('h3', {}, 'Where on the lap'), sliceSvg, ranked.length ? worst : h('p', { class: 'pace__note' }, 'Level everywhere: no part of the lap differs by more than 0.02 s.')) : '');
     }
 

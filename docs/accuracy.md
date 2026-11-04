@@ -11,11 +11,11 @@ out; that is compared with its position 25 s after the stop. Green-flag stops on
 
 | | Exact | Within 1 place | Mean error |
 |---|---|---|---|
-| **Model** (pit loss measured live from the field) | **16%** | **32%** | **3.13 places** |
-| Same model, fixed per-track pit loss | 19% | 34% | 2.76 places |
+| **Model** (pit loss measured live from the field) | **14%** | **37%** | **2.80 places** |
+| Same model, fixed per-track pit loss | 11% | 34% | 3.00 places |
 | Naive: "you keep your position" | 6% | 9% | 6.37 places |
 
-79 stops scored; on average the model puts the car 1.66 places too far back (pessimistic).
+79 stops scored; on average the model puts the car 0.11 places too far back (pessimistic).
 
 ## Projected battery at the line
 

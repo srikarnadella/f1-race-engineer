@@ -8,6 +8,8 @@ const { DatabaseSync } = require('node:sqlite');
 const { compareLaps, describeCorner, lapCorners } = require('../analysis/lapCompare');
 const { adviseCorners, liftAndCoast, balanceAdvice, batteryLap } = require('./coaching');
 const { median } = require('../lib/stats');
+const { stopsOf } = require('../analysis/callsAudit');
+const { stintReport, stopReview, lapLosses, fieldPace, callsReview, trackHistory, raceSummary } = require('./insights');
 
 const TYRE = { 16: 'soft', 17: 'medium', 18: 'hard', 7: 'inter', 8: 'wet' };
 const tyre = (c) => TYRE[c] || (c == null ? null : 'unknown');
@@ -33,6 +35,13 @@ const TOOLS = {
   lift_and_coast: { description: 'Where to lift and coast to save fuel: the braking zones after your longest flat-out runs, where you coast now, and your fuel use a lap.', props: { session_id: SID, lap: int('lap to read; leave out for your best lap') }, required: ['session_id'] },
   car_balance: { description: 'Brake bias and differential: what the car did at each corner on each lap (front or rear wheels locking, wheelspin or understeer on exit), the bias and diff you ran, and what to change.', props: { session_id: SID }, required: ['session_id'] },
   battery: { description: 'The battery round one of your laps: where you deployed and where it charged back, the lowest point, what was left at the line, and what to change. Leave lap out for your best lap.', props: { session_id: SID, lap: int('lap to read; leave out for your best lap') }, required: ['session_id'] },
+  tyres: { description: 'Your tyre stints one at a time: clean laps, average and best lap, and whether the pace got slower or quicker over the stint, with the range it could be.', props: { session_id: SID }, required: ['session_id'] },
+  pit_stops: { description: 'Your pit stops: the laps in and out, the tyres, what each cost against the cars that did not stop and against the stops of the rest of the field, and your place before and after.', props: { session_id: SID }, required: ['session_id'] },
+  lap_losses: { description: 'How consistent you were, and the laps that cost the most time against your typical lap, each with what was recorded on it (collisions, penalties, passes, an invalid lap, locking).', props: { session_id: SID }, required: ['session_id'] },
+  field_pace: { description: 'Race pace across the field: the typical clean lap of every car ranked, where you ranked, and who set the fastest lap.', props: { session_id: SID }, required: ['session_id'] },
+  calls_review: { description: 'The calls the race engineer made, graded against the laps that followed: how many were right and wrong, and each one.', props: { session_id: SID }, required: ['session_id'] },
+  track_history: { description: 'Your races at the track of this session in date order: result, best lap and typical lap, and how this race compares.', props: { session_id: SID }, required: ['session_id'] },
+  race_summary: { description: 'The race in a few points: result, best lap, stops, race pace, the lap that cost the most, the engineer calls and one thing to work on.', props: { session_id: SID }, required: ['session_id'] },
   compare_laps: { description: 'Two of your laps with telemetry, corner by corner: where lap_b lost or gained time on lap_a, and why (braking, apex and exit speed).', props: { session_id: SID, lap_a: int('reference lap'), lap_b: int('lap to explain') }, required: ['session_id', 'lap_a', 'lap_b'] },
 };
 
@@ -69,6 +78,8 @@ function createRaceTools(file) {
       WHERE e.session_id = ? AND e.lap_num BETWEEN ? AND ? AND e.code IN (${codes}) ORDER BY e.session_time_s`),
     issues: q('SELECT lap_num, distance_m, kind, wheel, brake_bias, diff_on_throttle FROM corner_issue WHERE session_id = ? ORDER BY lap_num, distance_m'),
     settings: q('SELECT lap_num, brake_bias, diff_on_throttle, diff_off_throttle, engine_braking, ers_mode FROM car_setting WHERE session_id = ? ORDER BY session_time_s'),
+    allLaps: q(`SELECT l.car_idx, c.driver, c.is_player, l.lap_num, l.lap_ms, l.pit, l.neutralised, l.valid, l.position
+      FROM lap l JOIN car c USING (session_id, car_idx) WHERE l.session_id = ? ORDER BY l.car_idx, l.lap_num`),
     trace: q('SELECT distance_m, lap_time_ms, speed_kmh, throttle, brake, steer, gear, ers_pct, ers_mode FROM trace_point WHERE session_id = ? AND car_idx = ? AND lap_num = ? ORDER BY distance_m'),
   };
   // A lap's telemetry as lapCompare reads it, or null.
@@ -205,6 +216,41 @@ function createRaceTools(file) {
         ...out,
       };
     },
+    tyres: ({ session_id: sid }) => {
+      const mine = anyRun.lap_times({ session_id: sid });
+      if (mine.error) return mine;
+      return stintReport(mine.laps, anyRun.stints({ session_id: sid }).stints);
+    },
+    pit_stops: ({ session_id: sid }) => {
+      const mine = anyRun.lap_times({ session_id: sid });
+      if (mine.error) return mine;
+      const laps = sql.allLaps.all(sid).map((l) => ({ carIndex: l.car_idx, lapNum: l.lap_num, lapMs: l.lap_ms, pit: !!l.pit, neutralised: !!l.neutralised, isPlayer: !!l.is_player }));
+      return stopReview({ stops: stopsOf(laps), laps: mine.laps, stints: anyRun.stints({ session_id: sid }).stints });
+    },
+    lap_losses: ({ session_id: sid }) => {
+      const mine = anyRun.lap_times({ session_id: sid });
+      if (mine.error) return mine;
+      return lapLosses({ laps: mine.laps, events: anyRun.events({ session_id: sid }).events || [], issues: /** @type {any[]} */ (sql.issues.all(sid)) });
+    },
+    field_pace: ({ session_id: sid }) => {
+      const cars = new Map();
+      for (const l of /** @type {any[]} */ (sql.allLaps.all(sid))) {
+        if (!cars.has(l.car_idx)) cars.set(l.car_idx, { driver: l.driver, you: !!l.is_player, laps: [] });
+        cars.get(l.car_idx).laps.push({ lap: l.lap_num, ms: l.lap_ms, pit: !!l.pit, safety_car: !!l.neutralised, valid: l.valid == null ? null : !!l.valid });
+      }
+      return cars.size ? fieldPace([...cars.values()]) : { error: 'No laps recorded for this session' };
+    },
+    calls_review: ({ session_id: sid }) => callsReview(require('../data/storeAudit').auditFromStore(db, sid)),
+    track_history: ({ session_id: sid }) => {
+      const t = require('../data/trends').trends(db).tracks.find((x) => x.races.some((r) => r.sessionId === sid));
+      return t ? trackHistory({ track: t.track, races: t.races, sessionId: sid }) : { error: 'Track history compares races; this session is not a race (or has no clean laps)' };
+    },
+    race_summary: ({ session_id: sid }) => {
+      const sess = anyRun.sessions().sessions.find((x) => x.session_id === sid);
+      if (!sess) return { error: 'No such session' };
+      const safe = (name) => { try { const r = anyRun[name]({ session_id: sid }); return r && !r.error ? r : null; } catch (_) { return null; } };
+      return raceSummary({ session: sess, laps: (anyRun.lap_times({ session_id: sid }).laps || []), stops: safe('pit_stops'), losses: safe('lap_losses'), pace: safe('field_pace'), calls: safe('calls_review'), coaching: safe('lap_coaching') });
+    },
     compare_laps: ({ session_id: sid, lap_a: a, lap_b: b }) => {
       const car = carOf(sid, null);
       if (car == null) return noCar(null);
@@ -238,6 +284,9 @@ function createRaceTools(file) {
       };
     },
   };
+
+  // The new insight tools call the ones above by name, with only the arguments they need.
+  const anyRun = /** @type {Record<string, (a?: any) => any>} */ (run);
 
   // Arguments checked against the schema before any query: known names, integers or strings only.
   function invalid(name, a, defs) {

@@ -51,9 +51,11 @@
     const pad = { l: 56, r: 16, t: 14, b: 36 };
     const all = c.series.flatMap((s) => s.points);
     const xs = all.map((p) => p[0]);
-    let ys = all.map((p) => p[1]);
+    // A trend's range counts towards the axis: the band must not be cut off.
+    let ys = [...all.map((p) => p[1]), ...(c.bands || []).flatMap((b) => b.band.flatMap((q) => [q[1], q[2]]))];
     // Lap times: a pit or safety-car lap would flatten the rest; the axis stops at 107% of your best.
-    if (c.kind === 'lap_times') {
+    const capped = c.kind === 'lap_times' || c.kind === 'stint_pace';
+    if (capped) {
       const best = Math.min(...ys);
       ys = ys.map((y) => Math.min(y, best * 1.07));
     }
@@ -88,8 +90,15 @@
       lastX = X(m.x);
       svg.append(sv('line', { class: 'llm__mark', x1: X(m.x), x2: X(m.x), y1: pad.t, y2: H - pad.b }), sv('text', { class: 'llm__mark-label', x: X(m.x) + 4, y: pad.t + 10 + (row % 3) * 16 }, m.label));
     }
+    // A trend and the range it could be: the band behind the lines, a dashed line through it.
+    for (const b of c.bands || []) {
+      const edge = [...b.band.map((q) => `${X(q[0]).toFixed(1)},${Y(q[2]).toFixed(1)}`), ...[...b.band].reverse().map((q) => `${X(q[0]).toFixed(1)},${Y(q[1]).toFixed(1)}`)];
+      svg.append(sv('path', { class: 'llm__band', d: `M${edge.join('L')}Z` }), sv('path', { class: 'llm__trend', d: b.line.map((q, k) => `${k ? 'L' : 'M'}${X(q[0]).toFixed(1)},${Y(q[1]).toFixed(1)}`).join('') }));
+    }
+    // A series says its own colour (stints), else yours is orange, a rival's blue.
+    const toneOf = (s, i) => s.tone || (s.you ? 'is-you' : i === 0 || c.series.length === 2 ? 'is-ref' : 'is-other');
     const lines = c.series.map((s, i) => {
-      const color = s.you ? 'is-you' : i === 0 || c.series.length === 2 ? 'is-ref' : 'is-other';
+      const color = toneOf(s, i);
       const step = c.kind === 'positions';
       const d = s.points.map((p, k) => `${k ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('');
       const g = sv('g', { class: `llm__series ${color}` }, sv('path', { d, class: 'llm__line' }));
@@ -112,11 +121,13 @@
       readout.textContent = `${c.x.label} ${Math.round(near[0][0])}: ${c.series.map((s, i) => `${s.name} ${c.y.invert ? `P${near[i][1]}` : fmt(near[i][1])}`).join(' · ')}`;
     });
     svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); readout.textContent = ' '; });
-    const legend = c.series.length > 1 ? h('p', { class: 'llm__legend' }, c.series.map((s, i) => h('span', {}, h('i', { class: `llm__key ${s.you ? 'is-you' : i === 0 || c.series.length === 2 ? 'is-ref' : 'is-other'}` }), s.name))) : null;
+    const legend = c.series.length > 1 || (c.bands || []).length
+      ? h('p', { class: 'llm__legend' }, [...c.series.map((s, i) => h('span', {}, h('i', { class: `llm__key ${toneOf(s, i)}` }), s.name)), ...[...new Set((c.bands || []).map((b) => b.label))].map((label) => h('span', {}, h('i', { class: 'llm__key is-band' }), label))])
+      : null;
     return h('figure', { class: 'llm__figure' },
       h('figcaption', {}, h('b', { class: 'llm__chart-title' }, c.title), h('span', { class: 'llm__finding' }, c.finding)),
       legend,
-      h('p', { class: 'llm__axis' }, `${c.y.label}${c.kind === 'lap_times' ? ' · slower than 107% of your best is cut off at the top' : ''}`),
+      h('p', { class: 'llm__axis' }, `${c.y.label}${capped ? ' · slower than 107% of your best is cut off at the top' : ''}`),
       svg, readout);
   }
 
@@ -177,6 +188,7 @@
       const tools = h('div', { class: 'llm__tools-menu', role: 'menu', 'aria-label': 'Charts', hidden: true },
         chip('Lap times', pickChart(() => chart('lap_times', {})), 'llm__chip--chart'),
         chip('Positions', pickChart(() => chart('positions', {})), 'llm__chip--chart'),
+        chip('Tyre pace by stint', pickChart(() => chart('stint_pace', {})), 'llm__chip--chart'),
         h('div', { class: 'llm__gap' }, chip('Gap to', pickChart(() => chart('gap_to_driver', { driver: gapPick.value })), 'llm__chip--chart'), gapPick),
         chip('Best lap against the slowest', pickChart(() => ask('Where did I lose time on my slowest clean lap compared with my best lap?')), 'llm__chip--chart'));
       function toggleTools(open = tools.hidden) {
@@ -265,7 +277,7 @@
 
       const sessionName = (x) => (x ? `${x.track} ${x.type}` : '');
       const current = () => sessions.find((x) => x.session_id === Number(sessionPick.value)) || null;
-      const SUGGESTED = ['What was my best lap?', 'When did I pit, and what tyres did I go onto?', 'How did my position change through the race?', 'Who finished right behind me?'];
+      const SUGGESTED = ['Summarize my race', 'Was my pit stop good?', 'How did my tyres hold up?', 'Which laps cost me the most time?', 'Who had the best race pace?', 'What was my best lap?'];
 
       function drawChat() {
         const ready = mine().length > 0;

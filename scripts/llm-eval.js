@@ -67,6 +67,26 @@ function questionsFor(tools, sid) {
     // The right corner, and said as a loss (a small model flips "lost" and "gained").
     if (worst) qs.push({ q: `Where did I lose the most time on lap ${other.lap} compared with my best lap?`, expect: [new RegExp(`corner ${worst.corner}\\b|turn ${worst.corner}\\b|${worst.at_km} ?km`, 'i'), /\blost\b|\blose\b/i], tool: 'compare_laps' });
   }
+  // The insights the engine works out whole (src/llm/insights.js): the right answer is in the result's fields.
+  const stops = run('pit_stops');
+  if (!stops.error && stops.stops.length) {
+    const st = stops.stops[0];
+    qs.push({ q: 'Was my pit stop good?', expect: [new RegExp(esc(st.cost_s.toFixed(1))), st.vs_field_s == null ? /./ : st.vs_field_s > 0 ? /slower/i : /quicker|faster|level/i], tool: 'pit_stops' });
+  }
+  const tyres = run('tyres');
+  const stint = !tyres.error && tyres.stints.find((x) => x.pace_change && x.pace_change.clear);
+  if (stint) qs.push({ q: 'How did my tyres hold up?', expect: [stint.pace_change.per_lap_s > 0 ? /slow|worse|drop|fell|lost|degrad/i : /quick|faster|improv|gain/i, new RegExp(stint.tyre, 'i')], tool: 'tyres' });
+  const losses = run('lap_losses');
+  if (!losses.error && losses.worst.length) qs.push({ q: 'Which laps cost me the most time?', expect: [new RegExp(`lap ${losses.worst[0].lap}\\b`, 'i')], tool: 'lap_losses' });
+  const pace = run('field_pace');
+  if (!pace.error && pace.ranking.length) qs.push({ q: 'Who had the best race pace?', expect: [new RegExp(esc(pace.ranking[0].driver), 'i')], tool: 'field_pace' });
+  const summary = run('race_summary');
+  if (!summary.error && s.finish) qs.push({ q: 'Summarize my race', expect: [new RegExp(`P${s.finish}\\b|${s.finish}(st|nd|rd|th)`), new RegExp(esc(best.time))], tool: 'race_summary' });
+  const calls = run('calls_review');
+  if (!calls.error && calls.summary && calls.summary.right + calls.summary.wrong > 0) qs.push({ q: 'Were the engineer calls right?', expect: calls.summary.wrong === 0
+    // All right: say so (and don't say any were wrong). Some wrong: say that, with how many.
+    ? [/\bright\b|\bcorrect\b|\ball\b/i, /^(?!.*\b(wrong|incorrect)\b)/is]
+    : [new RegExp(`\\b${calls.summary.wrong}\\b.*\\bwrong\\b|\\bwrong\\b.*\\b${calls.summary.wrong}\\b`, 'is')], tool: 'calls_review' });
   return { session: s, qs };
 }
 

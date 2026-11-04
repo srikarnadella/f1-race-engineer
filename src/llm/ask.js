@@ -19,6 +19,9 @@ events for overtakes, collisions and penalties; results for the finishing order;
 do better corner by corner; lift_and_coast for where to save fuel; car_balance for brake bias and the
 differential (locking, wheelspin, understeer); battery for where to deploy and where it charged.
 When coaching lines are given, pass on that advice with its numbers; don't invent other advice.
+When a summary, stop review, tyre report, laps that cost time, race pace, calls review or history at the track is given, answer from it and keep its figures as given.
+Where it says "80% sure it was between" two figures, say it was probably between them; never give the middle figure as certain, and never say what caused something the facts don't say caused it.
+Never call tyres, pace or a stint "good", "consistent" or "stable" when the facts say the pace got slower; say it got slower, by how much.
 Talk about brake bias, the differential or battery deployment only if the facts below include them.`;
 
 const list = (xs) => (xs.length ? xs.join(', ') : 'none');
@@ -147,15 +150,38 @@ const TIME_WORDS = /\b(lose|lost|losing|gain|gained|faster|slower|quicker|compar
 const ORDER_WORDS = /\b(ahead|behind|gap|order|leader|leading|front)\b/i;
 // With no lap named, only words about time lost or gained mean coaching: "where did I finish" is a result.
 const LOSS_WORDS = /\b(lose|lost|losing|gain|gained|faster|slower|quicker|time)\b/i;
-const COACH_WORDS = /\b(better|improve|improving|advice|tips?|coach\w*|work on|mistakes?)\b|throughout the lap|through the lap|around the lap/i;
+const COACH_WORDS = /\b(better|improve|improving|advice|tips?|coach\w*|work on)\b|throughout the lap|through the lap|around the lap/i;
+// The insights the engine works out whole (src/llm/insights.js): one lookup answers the question.
+const SUMMARY_WORDS = /\b(summar\w*|recap|highlights?|overview|sum (it )?up|how did (the race|it|my race) go|tell me about (the|my) race)\b/i;
+const CALLS_WORDS = /\b(calls?|engineer|radio)\b/i;
+const CALLS_VERDICT = /\b(right|wrong|correct|good|bad|grade\w*|trust\w*|accurate|reliable|worth)\b/i;
+const HISTORY_WORDS = /\b(other races|previous races|last time|history|over time|all my races|races here|here before|at this track|my other)\b|\b(improv\w*|progress\w*|getting (faster|quicker|better))\b.*\b(track|here|there|races|circuit)\b/i;
+const FIELD_WORDS = /\b(race pace|best pace|pace of the|the field|fastest (car|driver))\b|\b(who|which (driver|car))\b.*\b(fastest|quickest|faster|quicker)\b/i;
+const TYRE_WEAR_WORDS = /\b(wear|worn|degrad\w*|deg|cliff|stints?|fall(ing)? off|fell off|hold up|held up|grip|go off)\b|how (did|were|was) (my |the )?(tyres?|tires?)/i;
+const PIT_WORDS = /\b(pit|pits|pitted|pitting|stops?|stopped|undercut|overcut|boxed?)\b/i;
+const LOSSES_WORDS = /\b(consisten\w*|slowest laps?|worst laps?|mistakes?|what went wrong|cost me|costliest|lost the most|bad laps?|slow laps?)\b/i;
 const BALANCE_WORDS = /\b(bias|lock(ing|ed|s)?(?: up)?|lock-?ups?|diff|differential|wheel ?spin|traction|understeer\w*|oversteer\w*|setup|set-up)\b/i;
 const COAST_WORDS = /\blift(ing)? and coast|\bcoast\w*|\bsave fuel|\bfuel sav\w*/i;
 function lookups(bound, question) {
   const out = [];
   const add = (name, args) => out.push({ name, args, result: bound.run(name, args) });
   const laps = lapsNamed(question);
-  if (BATTERY_WORDS.test(question)) {
+  if (SUMMARY_WORDS.test(question)) {
+    add('race_summary', {});
+  } else if (BATTERY_WORDS.test(question)) {
     add('battery', laps.length ? { lap: laps[0] } : {});
+  } else if (CALLS_WORDS.test(question) && CALLS_VERDICT.test(question)) {
+    add('calls_review', {});
+  } else if (HISTORY_WORDS.test(question)) {
+    add('track_history', {});
+  } else if (FIELD_WORDS.test(question)) {
+    add('field_pace', {});
+  } else if (TYRE_WEAR_WORDS.test(question)) {
+    add('tyres', {});
+  } else if (PIT_WORDS.test(question) && !BALANCE_WORDS.test(question) && !COAST_WORDS.test(question)) {
+    add('pit_stops', {});
+  } else if (LOSSES_WORDS.test(question) && !laps.length) {
+    add('lap_losses', {});
   } else if (BALANCE_WORDS.test(question)) {
     add('car_balance', {});
   } else if (COAST_WORDS.test(question)) {
@@ -205,6 +231,15 @@ function batteryText(b) {
     b.straights.length ? `Battery used on each flat-out run: ${b.straights.map((z) => `before corner ${z.corner} (${z.flatOutM} m) ${Math.max(0, z.usedPct)}%`).join('; ')}.` : '',
     b.advice.length ? `What to change:\n${b.advice.map((a) => `- ${a}`).join('\n')}` : 'Nothing to change: the battery was never empty, and used where the long runs are.',
   ].filter(Boolean).join('\n');
+}
+
+// The insight tools (src/llm/insights.js) write their own sentences: the answer is the text.
+const INSIGHT_TOOLS = new Set(['tyres', 'pit_stops', 'lap_losses', 'field_pace', 'calls_review', 'track_history', 'race_summary']);
+const insightText = (x) => (x.result.error ? `${x.name}: ${x.result.error}` : x.result.text);
+// A result's text as separate lines for the evidence list and the engine's own answer: one per bullet or
+// per sentence, without the headings.
+function insightLines(text) {
+  return String(text || '').split('\n').flatMap((l) => (l.startsWith('- ') ? [l.slice(2)] : /:$/.test(l) ? [] : l.split(/(?<=\.) (?=[A-Z])/))).map((l) => l.trim()).filter(Boolean);
 }
 
 function balanceText(c) {
@@ -260,7 +295,8 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
         : x.name === 'lift_and_coast' ? coastText(x.result)
           : x.name === 'car_balance' ? balanceText(x.result)
             : x.name === 'battery' ? batteryText(x.result)
-            : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
+              : INSIGHT_TOOLS.has(x.name) ? insightText(x)
+              : `${x.name}(${JSON.stringify(x.args)}): ${JSON.stringify(x.result)}`)),
   ].filter(Boolean).map((x, i) => (i ? x : `\n\nLooked up for this question (answer from this):\n${x}`)).join('\n');
 
   // The chart the question is about, drawn by the engine; its finding goes in front of the model too.
@@ -308,6 +344,7 @@ async function askRace({ ollama, tools, sessionId, model, question }) {
         : x.name === 'lift_and_coast' && !x.result.error ? x.result.candidates.map((c) => c.text)
           : x.name === 'battery' && !x.result.error ? [batteryText(x.result).split('\n')[0], ...x.result.advice]
           : x.name === 'car_balance' && !x.result.error ? (x.result.advice.length ? x.result.advice : [balanceText(x.result).split('\n')[1]])
+          : INSIGHT_TOOLS.has(x.name) ? (x.result.error ? [`${x.name}: ${x.result.error}`] : insightLines(x.result.text).slice(0, 7))
           : [evidenceLine(x)])),
     ...charts.map((c) => `${c.title}: ${c.finding}`),
   ].filter(Boolean);
@@ -329,6 +366,7 @@ function engineAnswer(found) {
     if (x.name === 'lift_and_coast') return `${r.summary} ${r.candidates.map((c) => c.text).join(' ')}`;
     if (x.name === 'lap_coaching') return [`${r.verdict}.`, ...r.advice.map((a) => a.text)].join(' ');
     if (x.name === 'compare_laps') return `${r.verdict}. ${r.most_time_lost}.`;
+    if (INSIGHT_TOOLS.has(x.name)) return insightLines(r.text).slice(0, 6).join(' ');
     return null;
   }).filter(Boolean);
   return parts.length ? parts.join(' ') : null;

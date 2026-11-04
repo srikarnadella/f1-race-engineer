@@ -13,7 +13,8 @@ works out every number, and the model only puts it into words.
    the stops with their tyres, the safety cars, the overtakes, the engineer's calls.
 2. **What the question is about, looked up by the engine.** A 1.7B model doesn't reliably pick a tool,
    so the engine does: where time went on a lap (a lap comparison, in sentences), the order on a lap, a
-   driver you name, what to do better, lift and coast, brake bias and differential, the battery.
+   driver you name, what to do better, lift and coast, brake bias and differential, the battery, and the
+   insights below.
 3. **Advice from rules, with its evidence.** Coaching is the engine's: brake later by so many metres,
    carry so many km/h more to the apex, full throttle sooner; bias rearward when the fronts lock into a
    corner on a third of your laps or more; lower the on-throttle diff for wheelspin, raise it for
@@ -22,8 +23,25 @@ works out every number, and the model only puts it into words.
    appear in the facts; anything that doesn't is flagged under the answer. If the model refuses, says
    nothing or writes tool syntax instead of an answer, the engine's own finding answers, marked as such.
 5. **A chart and the evidence.** The engine draws a chart when the question is about something chartable
-   (lap times, positions, the gap to a driver, two laps' speed), and lists what the answer was worked
-   out from.
+   (lap times, positions, the gap to a driver, two laps' speed, tyre pace by stint), and lists what the answer was
+   worked out from.
+
+## What it can answer, beyond the lap list
+
+Each of these is worked out whole by the engine from the recording (`src/llm/insights.js`) and handed to the
+model as sentences, so the model words an answer it can't get wrong. Where a figure is an estimate it carries the
+range it could be (80%; `public/spread.js`), and the model is told to say "probably between", never to give the
+middle as certain.
+
+| Ask | The engine works out |
+|---|---|
+| "Summarize my race" | The race in points: result and places gained, best lap, each stop against the field's, race pace rank, the costliest lap, how the engineer's calls did, one thing to work on. A point with nothing behind it is left out. |
+| "Was my pit stop good?" | Each stop: laps in and out, tyres, what it cost against the cars that didn't stop on those laps, against the other cars' green-flag stops (or that a safety-car stop is cheaper), and your place before and after. |
+| "How did my tyres hold up?" | Each stint: clean laps, average and best lap, and whether the pace got slower or quicker over it, with the range. Tyre wear and fuel burn act together, which the answer says. Drawn as a chart with each stint's trend and its range. |
+| "Which laps cost me the most time?" / "What were my biggest mistakes?" | How consistent you were, and the laps 0.7 s or more off your typical lap, each with what was recorded on it: a collision, a penalty, who passed you or you passed, an invalid lap, locking or wheelspin and where. A lap with nothing recorded says so and doesn't guess a cause. |
+| "Who had the best race pace?" | Every car's typical clean lap ranked, where you ranked and how far off the quickest, and who set the fastest lap. |
+| "Were the engineer's calls right?" | The calls audit's verdict: how many were right and wrong, and each graded call with why. |
+| "Am I improving here?" | Your races at this track in date order, how this race ranks by best lap and by race pace, and how your typical lap moved. |
 
 The model only runs when you ask, never while the game is sending telemetry, and leaves the graphics
 card's memory as soon as it has answered (a live session starting unloads anything left).

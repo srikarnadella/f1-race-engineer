@@ -84,3 +84,39 @@ test('head to head: says so when the session has no lap timing to compare', asyn
   assert.match(app.text('.h2h'), /No such session/);
   assert.deepStrictEqual(app.errors, []);
 });
+
+// --- U2: the typical difference carries the range it could really be ---
+const { medianRange } = require('../public/spread');
+const lapsMs = (from, list) => list.map((ms, i) => ({ lap: from + i, ms, splits: [ms / 5, ms / 5, ms / 5, ms / 5, ms / 5] }));
+function scattered(theirMs) {
+  return { trackLength: 5000, cars: [
+    { carIndex: 11, name: 'YOU', position: 7, isPlayer: true, stops: 1, compounds: [17], bestMs: 80000, laps: lapsMs(2, Array(8).fill(80000)) },
+    { carIndex: 1, name: 'VERSTAPPEN', position: 6, isPlayer: false, stops: 1, compounds: [17], bestMs: 79400, laps: lapsMs(2, theirMs) },
+  ] };
+}
+
+test('head to head: laps that vary give the typical difference a range, said in words and drawn as a band behind the bars', async (t) => {
+  const theirs = [79700, 79900, 79500, 79850, 79600, 79950, 79400, 79800]; // you lose 300, 100, 500, 150, 400, 50, 600, 200
+  const app = await openH2H(t, () => scattered(theirs));
+  const r = medianRange(theirs.map((ms) => 80000 - ms));
+  const say = (ms) => (Math.abs(ms) / 1000).toFixed(3);
+  assert.match(app.text('.h2h__verdict'), new RegExp(`VERSTAPPEN was ${say(r.mid)} s a lap faster than you over 8 laps \\(80% sure it's between ${say(r.lo)} and ${say(r.hi)} s\\)`));
+  assert.doesNotMatch(app.text('.h2h__verdict'), /too close to call/);
+  const band = app.doc.querySelector('.h2h__band');
+  assert.ok(band && Number(band.getAttribute('height')) > 0, 'a band is drawn');
+  assert.ok(app.doc.querySelector('.h2h__typical'), 'with the typical difference marked');
+});
+
+test('head to head: a range that holds zero says it is too close to call', async (t) => {
+  const theirs = [80300, 79800, 80100, 79600, 80250, 79850, 79950, 80200]; // you lose -300, 200, -100, 400, -250, 150, 50, -200
+  const app = await openH2H(t, () => scattered(theirs));
+  const r = medianRange(theirs.map((ms) => 80000 - ms));
+  assert.ok(r.lo < 0 && 0 < r.hi, 'the fixture straddles zero');
+  assert.match(app.text('.h2h__verdict'), /too close to call/);
+});
+
+test('head to head: laps that are all the same have no range to show', async (t) => {
+  const app = await openH2H(t);
+  assert.doesNotMatch(app.text('.h2h__verdict'), /80%/);
+  assert.strictEqual(app.doc.querySelector('.h2h__band'), null);
+});

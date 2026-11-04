@@ -267,6 +267,10 @@ body {
 .w-rejoin { display: flex; flex-direction: column; gap: 10px; }
 .w-rejoin__head { flex: none !important; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .w-rejoin__lost { font-weight: 750; font-size: clamp(0.9rem, min(10cqh, 5cqw), 1.4rem); }
+.w-rejoin__range { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: clamp(0.8rem, min(8cqh, 4cqw), 1.1rem); }
+.w-rejoin__range-label { margin-right: 4px; color: var(--muted); font-weight: 650; }
+.w-rejoin__pip { padding: 1px 9px; border-radius: 4px; background: #1c1c1c; color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
+.w-rejoin__pip.is-mid { background: var(--text); color: var(--bg); }
 .w-rejoin__cars { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
 .w-rejoin__row { display: grid; grid-template-columns: 5.2em minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 5px 0; font-size: clamp(0.85rem, min(9cqh, 4.6cqw), 1.25rem); white-space: nowrap; }
 .w-rejoin__row + .w-rejoin__row { border-top: 1px solid var(--line); } /* taste-skill-ignore: rows of a table */
@@ -1216,6 +1220,10 @@ body {
 .h2h__key.is-lost { background: var(--act); }
 .h2h__key.is-gained { background: var(--good); }
 .h2h__key.is-out { background: #3a3a3a; }
+.h2h__key.is-band { background: #5a5a5a; }
+/* The range the typical difference could be, behind the bars; the typical difference through it. */
+.h2h__band { fill: #ffffff; fill-opacity: 0.14; }
+.h2h__typical { stroke: #cfcfcf; stroke-width: 2; stroke-dasharray: 6 5; }
 .h2h__worst { margin: 18px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
 .h2h__worst li { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; padding: 9px 0; font-size: 1.05rem; }
 .h2h__worst b { color: var(--label); font-weight: 650; font-variant-numeric: tabular-nums; }
@@ -1338,6 +1346,10 @@ body {
 .llm__key.is-you { background: #d9740a; }
 .llm__key.is-ref { background: #2a8fd4; }
 .llm__key.is-other { background: #8a8a8a; }
+.llm__key.is-band { background: #5a5a5a; }
+/* A trend and the range it could be, behind the lines. */
+.llm__band { fill: #ffffff; fill-opacity: 0.14; stroke: none; }
+.llm__trend { fill: none; stroke: #cfcfcf; stroke-width: 2; stroke-dasharray: 6 5; }
 
 /* Ask the race as a chat: a bar (session, model switcher), the conversation, the composer pinned at the bottom. */
 .llm-page { display: flex; flex-direction: column; gap: 12px; }

@@ -54,7 +54,7 @@ your phone or tablet. Full steps, options and voice setup: [docs/setup.md](docs/
 into each part: the live dashboard; **Race analysis** (every saved session in depth: pace, lap vs lap
 telemetry, head to head with any car, the strategy calls graded, and every race together: pace per track, tyre wear, the calls); **Ask the race**, a chat about your
 races answered by a small model on your own PC through [Ollama](https://ollama.com/download), with charts,
-the evidence behind each answer and coaching (corners, lift and coast, brake bias and diff, battery),
+the evidence behind each answer, a summary of the race, your stops priced against the field's, tyre pace stint by stint, the laps that cost time and why, race pace across the field, the engineer's calls graded, and coaching (corners, lift and coast, brake bias and diff, battery),
 never while you race; **Storage** for saved sessions and recordings (replay, analyze, delete, disk use);
 and **Connect** (game setup, a QR code for phones and tablets, and a Record button). Voice questions work in the app window through Windows' own offline speech
 recognition, and on phones once *Voice questions on phones* is on. Everything stays on the PC, in
@@ -73,7 +73,7 @@ what really happened, next to the obvious guess:
 | Prediction | Undercut | Obvious guess |
 |---|---|---|
 | Tyre wear per lap (2,194 laps) | **396 ms off** | 505 ms ("no wear") |
-| Where you rejoin after a stop (79 stops) | **3.13 places off** | 6.37 ("keep your place") |
+| Where you rejoin after a stop (79 stops) | **2.80 places off** | 6.37 ("keep your place") |
 | A rival's battery at the line | **10.7 points off** | 14.7 ("stays where it is") |
 | Will the car behind pass in 10 s? (LightGBM, 11 race sessions) | **0.866 AUC** | 0.837 (gap only), better on all 11 races |
 
@@ -99,6 +99,6 @@ instead of pretending. Every number is in [docs/accuracy.md](docs/accuracy.md); 
 
 Node.js (no framework, no build step), Electron for the Windows app, WebSockets, SQLite, and plain HTML/CSS/JavaScript for the
 dashboard. The models are written from scratch in JavaScript, except the overtake model: LightGBM, trained in
-Python and run in the app from its exported trees. Nearly 500 tests, ESLint and a TypeScript check run on every push.
+Python and run in the app from its exported trees. Nearly 600 tests, ESLint and a TypeScript check run on every push.
 
 Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts. MIT license.

@@ -69,4 +69,55 @@ function pairFeatures(attacker, defender) {
 
 const toVector = (f) => FEATURES.map((k) => f[k]);
 
-module.exports = { FEATURES, pairFeatures, toVector };
+// How sure each noisy input is, as a standard error in the feature's own unit.
+// closingSE (s/s): closingRate reads the gap now and ~5 s ago; the scatter of the gap samples about their
+// line says how far one reading is from the truth, and the difference of two of them is sqrt(2) times that,
+// over the window. Fewer than three samples have no scatter to read: a wide default.
+// paceSE (s): the pace difference is two means of the last 3 clean laps; each mean's error is the spread
+// of its laps over sqrt(n). One lap has no spread: wide, not zero.
+const CLOSING_SE_UNKNOWN = 0.1;
+const PACE_SE_ONE_LAP = 0.3;
+const PACE_SE_NONE = 0.5;
+
+function closingSE(car) {
+  const h = car.gapAheadHistory || [];
+  if (h.length < 2) return CLOSING_SE_UNKNOWN;
+  const now = h[h.length - 1];
+  let k = 0;
+  for (let i = h.length - 2; i >= 0; i--) {
+    k = i;
+    if (now.t - h[i].t >= CLOSING_WINDOW_S) break;
+  }
+  const w = h.slice(k);
+  const dt = now.t - w[0].t;
+  if (w.length < 3 || !(dt > 0)) return CLOSING_SE_UNKNOWN;
+  const n = w.length;
+  const mt = w.reduce((a, x) => a + x.t, 0) / n;
+  const mg = w.reduce((a, x) => a + x.gapMs / 1000, 0) / n;
+  let sxx = 0;
+  let sxy = 0;
+  for (const x of w) {
+    sxx += (x.t - mt) ** 2;
+    sxy += (x.t - mt) * (x.gapMs / 1000 - mg);
+  }
+  const slope = sxy / sxx;
+  let ss = 0;
+  for (const x of w) ss += (x.gapMs / 1000 - (mg + slope * (x.t - mt))) ** 2;
+  return (Math.sqrt(ss / (n - 2)) * Math.SQRT2) / dt;
+}
+
+function paceSE(car) {
+  const clean = (car.lapHistory || []).filter((l) => !l.pit && !l.neutralised).slice(-3);
+  if (clean.length === 0) return PACE_SE_NONE;
+  if (clean.length === 1) return PACE_SE_ONE_LAP;
+  const m = clean.reduce((a, l) => a + l.lapMs, 0) / clean.length;
+  const sd = Math.sqrt(clean.reduce((a, l) => a + (l.lapMs - m) ** 2, 0) / (clean.length - 1));
+  return sd / 1000 / Math.sqrt(clean.length);
+}
+
+// attacker is directly behind defender, as for pairFeatures.
+function featureSpread(attacker, defender) {
+  return { closingSE: closingSE(attacker), paceSE: Math.hypot(paceSE(attacker), paceSE(defender)) };
+}
+
+module.exports = { FEATURES, pairFeatures, toVector, featureSpread };

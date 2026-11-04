@@ -129,6 +129,25 @@
     },
   };
 
+  // The places a stop that ran short or long would give (analysis rejoin.range: 80%, from the scatter of the
+  // measured stops): one pip per place, the predicted one filled. Hidden when there is only one.
+  function rangePips(el, rj) {
+    const rg = rj && rj.range;
+    const places = rg && rg.worst > rg.best ? Array.from({ length: Math.min(8, rg.worst - rg.best + 1) }, (_, k) => rg.best + k) : [];
+    el.hidden = !places.length;
+    const sig = places.length ? `${rj.position}:${places.join()}` : '';
+    if (el.dataset.sig === sig) return;
+    el.dataset.sig = sig;
+    el.title = 'Where a stop that runs shorter or longer than usual would put you (80% of stops)';
+    const span = (cls, text) => {
+      const n = document.createElement('span');
+      n.className = cls;
+      n.textContent = text;
+      return n;
+    };
+    el.replaceChildren(...(places.length ? [span('w-rejoin__range-label', 'If the stop varies')] : []), ...places.map((p) => span(`w-rejoin__pip${p === rj.position ? ' is-mid' : ''}`, `P${p}`)));
+  }
+
   // ---------- Pit rejoin ----------
   W.rejoin = {
     title: 'If you box now',
@@ -137,6 +156,7 @@
       const r = template(el, `
         <div class="w-rejoin">
           <div class="w-rejoin__head"><span class="big" data-ref="pos">–</span><span class="w-rejoin__lost" data-ref="lost"></span><span class="tag tag--watch" data-ref="traffic" hidden>Traffic</span></div>
+          <div class="w-rejoin__range" data-ref="range" hidden></div>
           <div class="w-rejoin__cars">
             <div class="w-rejoin__row"><span class="w-rejoin__label">Behind</span><b class="w-rejoin__name" data-ref="aName">–</b><span class="w-rejoin__tyre" data-ref="aTyre"></span><span class="w-rejoin__gap" data-ref="aGap"></span></div>
             <div class="w-rejoin__row"><span class="w-rejoin__label">Ahead of</span><b class="w-rejoin__name" data-ref="bName">–</b><span class="w-rejoin__tyre" data-ref="bTyre"></span><span class="w-rejoin__gap" data-ref="bGap"></span></div>
@@ -157,6 +177,7 @@
         setText(r.lost, rj && !inPit ? (rj.positionsLost > 0 ? `−${rj.positionsLost} places` : 'no places lost') : '');
         setTone(r.lost, rj && rj.positionsLost > 0 ? 'is-watch' : 'is-good');
         r.traffic.hidden = !(rj && rj.inTraffic && !inPit);
+        rangePips(r.range, rj && !inPit ? rj : null);
         setText(r.aName, rj && rj.ahead ? rj.ahead.name : '–');
         setText(r.aGap, rj && rj.ahead ? `+${secs(rj.ahead.gapMs)}s` : '');
         tyre(r.aTyre, rj && rj.ahead);
@@ -202,7 +223,10 @@
     // ML: chance of a pass in the next few seconds (attack ahead / threat behind).
     const ml = a.battle && (which === 'ahead' ? a.battle.attack : a.battle.defend);
     if (ml) {
-      out.chip = `${which === 'ahead' ? 'Pass' : 'Threat'} ${LEVEL[ml.level]} · ${Math.round(ml.p * 100)}%`;
+      // With the range the model's noisy inputs allow (analysis/passRange): "28% (18-41%)".
+      const r = ml.range;
+      const pct = r && r.lo !== r.hi ? `${Math.round(ml.p * 100)}% (${Math.round(r.lo * 100)}-${Math.round(r.hi * 100)}%)` : `${Math.round(ml.p * 100)}%`;
+      out.chip = `${which === 'ahead' ? 'Pass' : 'Threat'} ${LEVEL[ml.level]} · ${pct}`;
       out.chipTone = ml.level === 'high' ? (which === 'ahead' ? 'is-good' : 'is-act') : ml.level === 'medium' ? 'is-watch' : 'is-muted';
     }
     if (a.regs2026) {

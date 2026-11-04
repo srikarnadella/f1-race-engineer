@@ -22,7 +22,7 @@ From the 11 race sessions I recorded. Run `npm run accuracy` to regenerate the f
 | Prediction | Undercut | Obvious guess | Verdict |
 |---|---|---|---|
 | Tyre wear per lap, each car predicted from the others (2,194 laps) | 396 ms off | 505 ms ("no wear") | Beats it on 9 of 10 races |
-| Where you rejoin after a stop (79 green-flag stops) | 3.13 places off | 6.37 ("keep your place") | Beats it; still 1.7 places pessimistic |
+| Where you rejoin after a stop (79 green-flag stops) | 2.80 places off | 6.37 ("keep your place") | Beats it; the bias is gone on these stops (0.11 places) |
 | A rival's battery at the line (1,278 half-laps) | 10.7 points off | 14.7 ("stays where it is") | Beats it |
 | When an AI car stops (86 green-flag stops) | 1.53 laps off | 1.73 (fixed share of tyre life) | Beats it |
 | Will the car behind pass in 10 s? (held-out AUC, 11 races) | 0.866 | 0.837 (gap only) | Beats it on all 11 races |
@@ -30,8 +30,14 @@ From the 11 race sessions I recorded. Run `npm run accuracy` to regenerate the f
 
 The rejoin model was 4.2 places off, nearly all of it too far back. It had assumed every other car stays
 out, but AI cars stop in waves: on average 3 of the cars it put ahead were already in the pit lane, and
-more were due that lap. Charging both their stop took it to 2.71 places on those first 45 stops; on all 79 it's 3.13, still about
-1.7 places pessimistic ([roadmap](roadmap.md), M5).
+more were due that lap. Charging both their stop took it to 2.71 places on those first 45 stops; on all 79 it was
+3.13, still 1.66 places too far back. The rest came from when it is judged: 25 s after the stop, the out-lap has
+hardly begun, so about a quarter of the stop's loss is still to come. Charging three quarters of it, to your stop
+and to the cars due to stop alike, gives 2.80 places off with a bias of 0.11, and 2.90 with 0.54 when the share is
+chosen on the other races each time (held out race by race). Single races still range from 3.5 places too
+optimistic to 3 too pessimistic: the recorded races differ more than the model does. The prediction also carries the
+places a stop that ran short or long would give (80%, from the scatter of the stops measured), shown as pips on the
+card ([roadmap](roadmap.md), M5 and U2).
 
 ## The models
 

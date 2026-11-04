@@ -30,7 +30,8 @@ flowchart LR
 ```
 
 - **More races for the models.** The attack forecast trails the busiest-corner rule. The rejoin prediction
-  beats its guess (3.13 places off against 6.37) but is still about 1.7 places pessimistic. (The overtake model needed them too: on 11 races LightGBM beats the
+  beats its guess (2.80 places off against 6.37) with the bias gone on the recorded stops (0.11), though single races
+  still differ a lot. (The overtake model needed them too: on 11 races LightGBM beats the
   gap, AUC 0.866 vs 0.837, where a logistic regression on 4 had tied it.)
 - **Scoring pit timing** needs races where the same stop was made on different laps.
 - **Damage cost on a full lap:** in every race so far I undid the damage with a flashback within a few
@@ -59,10 +60,14 @@ The same list as the website's Next steps page; the full plan is in the [roadmap
 - **Ask the race** *(built, in the Windows app)*: ask about a saved race in plain words and get an answer
   from a small model running on your PC. The engine looks the facts up in the [race store](race-store.md)
   and the model only puts them into words; every number is checked against the recording. Qwen3 4B gets
-  49 of 50 test questions right. More in [Ask the race](ask-the-race.md).
-- **Confidence on every call** *(in progress)*: the pit-stop pick says when it depends on tyre wear
-  ("Lap 14-22, depending on tyre wear"), and the tyre-cliff warning gives a range ("~1-2 laps to the
-  cliff, depending on how the wear goes"). The battle calls are next.
+  49 of 50 test questions right. It also summarizes a race, reviews your stops against the field's, reports each
+  tyre stint, finds the laps that cost time and what was recorded on them, ranks race pace across the field, grades the
+  engineer's calls and compares your races at a track. More in [Ask the race](ask-the-race.md).
+- **Confidence on every call** *(done)*: the pit-stop pick says when it depends on tyre wear
+  ("Lap 14-22, depending on tyre wear"), the tyre-cliff warning gives a range ("~1-2 laps to the
+  cliff, depending on how the wear goes"), and the battle calls say when the pass chance could be a different
+  level ("pass chance low to high") and show its range ("28% (18-41%)"). Ranges on the rejoin and gap charts too.
 - **The calls audit in the Debrief** *(done)*: every call graded against what happened after it, in the Calls tab.
-- **A sharper rejoin prediction** *(in progress)*: from 4.2 to 2.7 places off (first 45 stops) by counting the cars
-  already stopping and the ones due this lap. On all 79 stops: 3.13, still about 1.7 places pessimistic.
+- **A sharper rejoin prediction** *(done)*: from 4.2 to 2.80 places off on all 79 stops, by counting the cars already
+  stopping and those due this lap, and by charging the share of the stop paid by the time it is judged. The bias is
+  0.11 places, and the card shows the range of places a longer or shorter stop would give.

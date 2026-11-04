@@ -13,6 +13,17 @@ const ATTACK_MIN_PCT = 40;
 
 const levelRank = { low: 0, medium: 1, high: 2 };
 
+// The pass chance in words, with the range the model's noisy inputs allow (analysis battle.attack.range):
+// "medium" alone when the whole range is one level, "low to high" when it spans them. soft: the call
+// rests on a chance that could be a different level.
+function chanceWords(c) {
+  const r = c && c.range;
+  if (!c || !r || r.levelLo === r.levelHi) return { text: c ? c.level : '', soft: false };
+  return { text: `${r.levelLo} to ${r.levelHi}`, soft: true };
+}
+// Two chances whose ranges overlap can't be told apart: the sandwich call between them is a toss-up.
+const overlap = (x, y) => !!(x && y && x.range && y.range && x.range.lo <= y.range.hi && y.range.lo <= x.range.hi);
+
 // a: the snapshot's analysis; ahead/behind: field rows; player: snapshot player.
 // lapsLeft: to the flag - a forecast past it is no forecast.
 /** @param {{ [k: string]: any, battle?: any, lapsLeft?: number | null }} args */
@@ -35,18 +46,23 @@ function battleCall({ ahead, behind, gapAheadS, gapBehindS, battle = {}, overtak
   if (canAttack && mustDefend) {
     // Sandwiched: go for it only when the chance ahead beats the threat
     // behind and there's battery to do it; otherwise protect the place.
+    const confidence = overlap(battle.attack, battle.defend) ? 'soft' : 'firm';
     if (attackP >= threatP && (batteryPct == null || batteryPct >= ATTACK_MIN_PCT)) {
-      return { mode: 'ATTACK', target: name(ahead), reason: `${name(behind)} close behind - make it stick${corner(battle.attackForecast)}` };
+      return { mode: 'ATTACK', target: name(ahead), reason: `${name(behind)} close behind - make it stick${corner(battle.attackForecast)}`, confidence };
     }
-    return { mode: 'DEFEND', target: name(behind), reason: `cover first, ${name(ahead)} is within reach after${corner(battle.defendForecast) ? ` - watch${corner(battle.defendForecast)}` : ''}` };
+    return { mode: 'DEFEND', target: name(behind), reason: `cover first, ${name(ahead)} is within reach after${corner(battle.defendForecast) ? ` - watch${corner(battle.defendForecast)}` : ''}`, confidence };
   }
   if (canAttack) {
-    const why = overtakeAvailable ? 'Overtake mode ready' : atkLevel >= 1 ? `pass chance ${battle.attack.level}` : closingAhead >= 0.2 ? `catching ${closingAhead.toFixed(1)}s/lap` : `${gapAheadS.toFixed(1)}s ahead`;
-    return { mode: 'ATTACK', target: name(ahead), reason: `${why}${corner(battle.attackForecast)}` };
+    const words = chanceWords(battle.attack);
+    const onChance = !overtakeAvailable && atkLevel >= 1;
+    const why = overtakeAvailable ? 'Overtake mode ready' : atkLevel >= 1 ? `pass chance ${words.text}` : closingAhead >= 0.2 ? `catching ${closingAhead.toFixed(1)}s/lap` : `${gapAheadS.toFixed(1)}s ahead`;
+    return { mode: 'ATTACK', target: name(ahead), reason: `${why}${corner(battle.attackForecast)}`, confidence: onChance && words.soft ? 'soft' : 'firm' };
   }
   if (mustDefend) {
-    const why = behind.overtakeAvailable ? 'they have Overtake mode' : defLevel >= 1 ? `threat ${battle.defend.level}` : closingBehind >= 0.2 ? `catching ${closingBehind.toFixed(1)}s/lap` : `${gapBehindS.toFixed(1)}s behind`;
-    return { mode: 'DEFEND', target: name(behind), reason: `${why}${corner(battle.defendForecast) ? ` - watch${corner(battle.defendForecast)}` : ''}` };
+    const words = chanceWords(battle.defend);
+    const onChance = !behind.overtakeAvailable && defLevel >= 1;
+    const why = behind.overtakeAvailable ? 'they have Overtake mode' : defLevel >= 1 ? `threat ${words.text}` : closingBehind >= 0.2 ? `catching ${closingBehind.toFixed(1)}s/lap` : `${gapBehindS.toFixed(1)}s behind`;
+    return { mode: 'DEFEND', target: name(behind), reason: `${why}${corner(battle.defendForecast) ? ` - watch${corner(battle.defendForecast)}` : ''}`, confidence: onChance && words.soft ? 'soft' : 'firm' };
   }
   if (ahead && gapAheadS > IN_RANGE_S && closingAhead >= 0.15 && battle.attackForecast && battle.attackForecast.when.laps > 0 && !(lapsLeft != null && battle.attackForecast.when.laps >= lapsLeft)) {
     return { mode: 'CLOSE IN', target: name(ahead), reason: `in range ${battle.attackForecast.when.text}` };
