@@ -983,7 +983,7 @@ body {
    One ground, no panels. Sections are set apart by space and a heading, rows by a little space
    and a tone step on hover; the accent marks only the one thing that matters on the page. */
 .place { position: fixed; inset: 0; z-index: 5; overflow-y: auto; padding: 28px clamp(24px, 3.4vw, 56px) 72px; background: var(--bg); }
-.place > * { max-width: 1360px; }
+.place > * { max-width: none; } /* the window is the limit: the app zooms to fit it (desktop/preload.js) */
 .place__head { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
 .place__back { appearance: none; border: 0; border-radius: 4px; min-height: 44px; padding: 0 14px 0 10px; margin-left: -10px; background: none; color: var(--muted); font: inherit; font-size: 1rem; font-weight: 650; cursor: pointer; transition: background 0.12s, color 0.12s; }
 .place__back:hover { background: #181818; color: var(--text); }
