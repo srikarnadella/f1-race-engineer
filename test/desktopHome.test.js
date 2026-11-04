@@ -247,3 +247,19 @@ test('storage: the downloaded models are a row of their own, from Ollama (roadma
   assert.match(row.textContent, /2 models, kept by Ollama/);
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('home: the Storage line counts every saved session, the older ones on disk too', async (t) => {
+  const s = (id, day) => ({ id, live: false, startedAt: Date.UTC(2026, 9, day), track: 'Spa', sessionName: 'Race', finish: 5, grid: 8, laps: [], bestLap: null });
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = fakeApi();
+      w.fetch = async (url) => (String(url).endsWith('/api/debrief/older') ? { ok: true, json: async () => ({ sessions: [s('o1', 1), s('o2', 2)] }) } : { ok: false, json: async () => ({}) });
+    },
+  });
+  await settle();
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: Array.from({ length: 10 }, (_, k) => s(`m${k}`, 10 + k)) } });
+  await settle();
+  const storage = [...app.window.document.querySelectorAll('.home__dest')].find((b) => b.querySelector('.home__name').textContent === 'Storage');
+  assert.match(storage.textContent, /12 sessions/);
+});

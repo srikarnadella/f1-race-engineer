@@ -620,6 +620,7 @@
 
       let sig = '';
       let last = null;
+      let olderCount = 0; // saved sessions on disk past the newest 10
       function draw(snap) {
         if (!status) return;
         const s = snap || {};
@@ -629,7 +630,7 @@
         const p = s.player;
         const sessions = (s.debrief && s.debrief.sessions) || [];
         const latest = sessions.find((d) => !d.live) || null;
-        const key = JSON.stringify([replaying, on, call && call.action, p && [p.position, p.currentLapNum], s.session && s.session.totalLaps, latest && [latest.id, latest.finish], sessions.length, captures && captures.length, status.recording, status.pairUrl, status.clients, status.replay]);
+        const key = JSON.stringify([olderCount, replaying, on, call && call.action, p && [p.position, p.currentLapNum], s.session && s.session.totalLaps, latest && [latest.id, latest.finish], sessions.length, captures && captures.length, status.recording, status.pairUrl, status.clients, status.replay]);
         if (key === sig) return;
         sig = key;
 
@@ -642,7 +643,8 @@
         setText(live.state, on ? [where, call && call.action].filter(Boolean).join(' · ') || 'On track' : replaying ? 'Replay running' : 'Turn on UDP telemetry in the game');
         setText(analysis.state, latest ? [[latest.track, latest.sessionName].filter(Boolean).join(' '), latest.finish ? `P${latest.finish}` : null].filter(Boolean).join(' · ') : 'No sessions yet');
         setText(ask.state, on ? 'After the session' : 'A local model, on this PC');
-        const nSessions = sessions.filter((d) => !d.live).length;
+        // The snapshot carries the newest 10; the rest are on disk (counted once, on opening Home).
+        const nSessions = sessions.filter((d) => !d.live).length + olderCount;
         setText(storage.state, captures ? `${plural(nSessions, 'session')} · ${plural(captures.length, 'recording')}` : plural(nSessions, 'session'));
         const others = Math.max(0, status.clients - 1);
         setText(connect.state, status.recording ? 'Recording now' : status.pairUrl ? `Sharing${others ? ` · ${plural(others, 'device')}` : ''}` : 'This PC only');
@@ -650,6 +652,10 @@
       const watch = () => draw(last);
       watchers.add(watch);
       draw(null);
+      olderSessions().then((list) => {
+        olderCount = list.length;
+        draw(last);
+      });
       return (s) => {
         last = s;
         if (!el.isConnected) watchers.delete(watch);
