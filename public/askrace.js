@@ -280,7 +280,7 @@
             h('p', { class: 'llm__lede' }, sessions.length
               ? 'Every answer comes from this session\'s recording, with the chart and the evidence underneath.'
               : 'Drive a session with the game\'s telemetry on; it is saved here when it ends.'),
-            sessions.length ? h('div', { class: 'llm__suggest', role: 'group', 'aria-label': 'Suggested questions' }, SUGGESTED.map((q) => chip(q, () => ask(q), 'llm__chip--ask'))) : null);
+            ...(sessions.length ? [h('div', { class: 'llm__suggest', role: 'group', 'aria-label': 'Suggested questions' }, SUGGESTED.map((q) => chip(q, () => ask(q), 'llm__chip--ask')))] : []));
           for (const b of empty.querySelectorAll('.llm__chip')) b.disabled = off;
         }
       }
@@ -383,7 +383,7 @@
         if (d) {
           actions = [h('progress', { class: 'llm__progress', max: 1, value: d.fraction }), h('span', { class: 'llm__pct' }, pct(d.fraction))];
         } else if (have.has(m.id)) {
-          actions = [h('span', { class: 'llm__have' }, m.id === model ? 'Answering' : 'Downloaded'), h('button', {
+          actions = [h('span', { class: 'llm__have' }, m.id === model ? 'Selected' : 'Downloaded'), h('button', {
             type: 'button',
             class: 'pc-btn pc-btn--quiet',
             onclick: () => act(async () => {
@@ -438,7 +438,7 @@
         modelsBody.replaceChildren(
           h('h2', { class: 'llm__head' }, 'Models'),
           h('p', { class: 'llm__lede' }, `Small models that run on a 4 GB graphics card, through Ollama ${status.version}. Download one or more; each stays on this PC until you delete it. Pick which one answers from the switcher in the chat.`),
-          isLive ? h('p', { class: 'llm__live' }, 'F1 26 is sending telemetry, so downloads wait until the session ends.') : null,
+          ...(isLive ? [h('p', { class: 'llm__live' }, 'F1 26 is sending telemetry, so downloads wait until the session ends.')] : []),
           h('ol', { class: 'llm__models' }, catalog.map(modelRow)));
       }
 

@@ -200,3 +200,12 @@ test('app: Settings lists the keyboard shortcuts, and each listed key does what 
   assert.strictEqual(app.$('ask-sheet').hidden, true);
   assert.match(rows[2][1], /while recording/, 'M only does something while a session is recorded');
 });
+
+test('app: with no telemetry, the banner names the port the bridge listens on, not always 20777', (t) => {
+  const app = open(t);
+  app.connect();
+  app.send({ source: 'live', capturing: false, connected: false, udpPort: 20798 });
+  assert.match(app.$('status-banner').textContent, /port 20798/);
+  app.send({ source: 'live', capturing: false, connected: false });
+  assert.match(app.$('status-banner').textContent, /port 20777/, 'an older bridge: the game\'s default');
+});

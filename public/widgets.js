@@ -250,6 +250,8 @@
     setText(r[`${k}Name`], v.pos ? `${v.pos} ${v.name}` : v.name);
     setText(r[`${k}Gap`], v.gap);
     setTone(r[`${k}Gap`], v.gapTone);
+    // No gap (no car there): a small grey dash, not the big digits' size, where a dash reads as a white bar.
+    r[`${k}Gap`].classList.toggle('is-empty', !v.gap || v.gap === '–');
     setText(r[`${k}Trend`], v.trend);
     setTone(r[`${k}Trend`], v.trendTone);
     setText(r[`${k}Chip`], v.chip);
@@ -276,7 +278,7 @@
     <div class="w-battle__side">
       <div class="w-label" data-ref="${k}Label">${label}</div>
       <div class="w-battle__name" data-ref="${k}Name">–</div>
-      <div class="big w-battle__gap" data-ref="${k}Gap">–</div>
+      <div class="big w-battle__gap is-empty" data-ref="${k}Gap">–</div>
       <div class="w-battle__trend" data-ref="${k}Trend"></div>
       <div class="w-battle__chips"><span class="chip" data-ref="${k}Chip" hidden></span><span class="w-battle__extra" data-ref="${k}Extra"></span></div>
       <div class="w-battle__ers" data-ref="${k}Ers" hidden></div>

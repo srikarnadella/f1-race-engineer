@@ -321,3 +321,12 @@ test('tyre tiles: a set that reaches the flag says so, not "measuring"', () => {
     assert.doesNotMatch(card.card.textContent, /Measuring/, id);
   }
 });
+
+test('battle sides: with no gap to show, the gap is marked empty, not a huge dash that reads as a white bar', () => {
+  const d = dashboard();
+  for (const id of ['battle', 'drive']) {
+    const gaps = [...d.mounted.find((w) => w.id === id).card.querySelectorAll('.w-battle__gap')];
+    assert.ok(gaps.length >= 2, id);
+    for (const g of gaps) assert.ok(g.classList.contains('is-empty'), `${id}: ${g.outerHTML}`);
+  }
+});

@@ -406,12 +406,12 @@
               h('tbody', {}, tr.races.map((r) => h('tr', {},
                 h('td', {}, r.date), h('td', {}, r.type), h('td', {}, `${r.grid ? `P${r.grid}` : '–'} → ${r.finish ? `P${r.finish}` : '–'}`),
                 h('td', { class: 'num' }, fmtLap(r.bestMs)), h('td', { class: 'num' }, fmtLap(r.typicalMs)))))))),
-          t.wear.length ? h('section', { class: 'trd__wear' },
+          ...(t.wear.length ? [h('section', { class: 'trd__wear' },
             h('h3', {}, 'Tyre wear a lap'),
             h('p', { class: 'pace__note' }, 'The typical step in wear from one lap to the next on the same set, from your laps.'),
             h('table', { class: 'tbl trd__table' },
               head(['Track'], ['Tyre'], ['Wear a lap', true], ['Laps', true]),
-              h('tbody', {}, t.wear.map((w) => h('tr', {}, h('td', {}, w.track), h('td', {}, w.tyre), h('td', { class: 'num' }, `${w.pctPerLap}%`), h('td', { class: 'num' }, String(w.laps))))))) : null,
+              h('tbody', {}, t.wear.map((w) => h('tr', {}, h('td', {}, w.track), h('td', {}, w.tyre), h('td', { class: 'num' }, `${w.pctPerLap}%`), h('td', { class: 'num' }, String(w.laps)))))))] : []),
         );
       }, () => root.replaceChildren(h('p', { class: 'ana__empty' }, 'Couldn\'t reach the bridge.')));
     return root;
@@ -711,7 +711,7 @@
           document.dispatchEvent(new CustomEvent('undercut:show', { detail: 'askrace' }));
         },
       }, 'Ask about this session');
-      frame.replaceChildren(h('div', { class: 'ana' }, list, h('section', { class: 'ana__main' }, h('header', { class: 'ana__head' }, h('div', {}, title, meta, askBtn), views), body)));
+      frame.replaceChildren(h('div', { class: 'ana' }, list, h('section', { class: 'ana__main' }, h('header', { class: 'ana__head' }, h('div', {}, title, h('div', { class: 'ana__sub' }, meta, askBtn)), views), body)));
 
       let sessions = [];
       let older = []; // saved sessions past the 10 the snapshot carries

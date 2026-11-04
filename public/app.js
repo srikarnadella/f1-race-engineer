@@ -553,7 +553,7 @@
       body = window.undercut ? 'Close Undercut and open it again.' : 'Make sure Undercut is running on the PC and this device is on the same network.';
     } else if (!lastSnapshot || !lastSnapshot.player) {
       title = 'No telemetry.';
-      body = 'In F1 26: Settings → Telemetry → UDP On, port 20777, format 2025 or later - then get on track.';
+      body = `In F1 26: Settings → Telemetry → UDP On, port ${(lastSnapshot && lastSnapshot.udpPort) || 20777}, format 2025 or later - then get on track.`;
     } else if (!lastSnapshot.connected) {
       title = 'Telemetry paused.';
       body = 'Nothing from the game for a few seconds - paused, in a menu, or the session ended. Showing the last data.';

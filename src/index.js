@@ -120,6 +120,7 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     memory,
     debriefDir: opts.demoFile ? null : path.join(dataDir, 'sessions'),
     source: opts.demoFile ? 'demo' : 'live',
+    udpPort: opts.demoFile ? null : opts.udpPort, // the no-telemetry banner names it
     store,
   });
   const { fieldModel, debrief, dispatch: onPacket } = pipeline;

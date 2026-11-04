@@ -264,3 +264,11 @@ test('ask the race: "Ask about this session" in Race analysis opens the chat on 
   assert.strictEqual(doc.querySelector('.llm__session').value, '19', 'race.db\'s Silverstone race, not the newest session');
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('ask the race: Manage models shows no stray "null", and the model answering is marked Selected', async (t) => {
+  const app = await openAsk(t);
+  app.doc.querySelector('.llm__model-btn').click();
+  app.doc.querySelector('.llm__manage-btn').click();
+  assert.doesNotMatch(app.doc.querySelector('.llm__manage').textContent, /null|undefined/);
+  assert.match(app.row('qwen3:4b').textContent, /Selected/);
+});
