@@ -1247,7 +1247,7 @@ body {
 .str__call.is-unclear .str__call-verdict { color: var(--watch); }
 .str__call.is-rule { color: var(--label); }
 @media (max-width: 1100px) {
-  .str__stop { grid-template-columns: 80px 1fr 80px; }
+  .str__stop { grid-template-columns: 80px 1fr auto; }
   .str__stop-vs { grid-column: 1 / -1; }
   .str__call { grid-template-columns: 70px 90px 80px; }
   .str__call-why { grid-column: 1 / -1; }
@@ -1431,3 +1431,5 @@ kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #26
 .ana__sub { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
 .ana__sub .ana__meta { margin: 0; }
 .ana__sub .ana__ask { margin-top: 0; }
+.str__stop > :last-child { white-space: nowrap; }
+.trd__table th { padding: 0 0.6em 8px; }
