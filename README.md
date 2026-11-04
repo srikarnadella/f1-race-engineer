@@ -48,8 +48,8 @@ Then open **http://localhost:8080**. Keys **1–6** switch screens.
 turn **UDP Telemetry On** (port **20777**, format **2025** or later). Scan the QR code it prints with
 your phone or tablet. Full steps, options and voice setup: [docs/setup.md](docs/setup.md).
 
-**As a Windows app:** the installer (`npm run app:build` makes `dist/Undercut-Setup-<version>.exe`)
-puts Undercut on any Windows PC with no Node and no terminal. It opens on a full-window **Home** with a way
+**As a Windows app:** [download the installer](https://github.com/srikarnadella/f1-race-engineer/releases/latest)
+(Windows 10 or 11, 64-bit; or build it with `npm run app:build`). It puts Undercut on any Windows PC with no Node and no terminal. It opens on a full-window **Home** with a way
 into each part: the live dashboard; **Race analysis** (every saved session in depth: pace, lap vs lap
 telemetry, head to head with any car, the strategy calls graded, and every race together: pace per track, tyre wear, the calls); **Ask the race**, a chat about your
 races answered by a small model on your own PC through [Ollama](https://ollama.com/download), with charts,
@@ -59,6 +59,10 @@ and **Connect** (game setup, a QR code for phones and tablets, and a Record butt
 recognition, and on phones once *Voice questions on phones* is on. Everything stays on the PC, in
 `%APPDATA%\Undercut\data`. `npm run app` runs it from the code. The installer isn't code-signed yet, so
 Windows SmartScreen asks first: *More info → Run anyway*. More in [docs/setup.md](docs/setup.md#the-windows-app).
+
+| Home | Race analysis | Ask the race |
+|---|---|---|
+| ![Home](site/img/app-home.jpg) | ![Race analysis: lap 22 against lap 14 at Barcelona](docs/screenshots/app-analysis.png) | ![Ask the race: where lap 22 lost time, with the speed chart](docs/screenshots/app-ask.png) |
 
 ## Does it actually work?
 

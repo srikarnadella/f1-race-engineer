@@ -141,6 +141,19 @@
     /* ===== Set-up: three units side by side, each with its fragment ===== */
     .setup { margin-top: 96px; }
     .setup h2 { padding: 32px var(--gutter) 28px; }
+    .app { display: grid; grid-template-columns: 4fr 8fr; margin-top: 96px; border-bottom: 1px solid var(--line); }  /* taste-skill-ignore: ruled like .show, the site's house style */
+    .app-copy { padding: 32px var(--gutter) 40px; border-right: 1px solid var(--line); }  /* taste-skill-ignore: as .show-copy */
+    .app-copy h2 { margin-bottom: 20px; }
+    .app-copy p { max-width: 40ch; }
+    .app-copy .button { margin-top: 28px; }
+    .app-note { margin-top: 18px; color: var(--muted); font-size: 0.95rem; }
+    .app-list { margin: 24px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .app-list b { color: var(--text); }
+    .app-pics { display: flex; flex-direction: column; min-width: 0; }
+    .app-main { margin: 0; }
+    .app-main img { display: block; width: 100%; height: auto; }
+    .app .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 0; }
+    .app .shots img { aspect-ratio: 16 / 10; }
     .story { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .story-steps, .story-stage { display: contents; }
     .beat, .state { background: var(--bg); }
@@ -315,6 +328,9 @@
       .hero-bg { height: 220px; object-position: 65% 50%; } /* a band above the board, so it does not hide the car */
       .spec { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .show { grid-template-columns: minmax(0, 1fr); }
+      .app { grid-template-columns: minmax(0, 1fr); }
+      .app-copy { border-right: 0; }
+      .app .shots { grid-template-columns: minmax(0, 1fr); }
       .show-list, .stage { display: none; }
       .phone-shot { display: block; margin-bottom: 18px; border: 1px solid var(--line); }
       .show-copy { border-right: 0; }
@@ -370,7 +386,7 @@
         <div class="hero-grid">
           <div class="hero-copy">
             <p data-rise style="--i:0">It reads the game's live telemetry while you drive and calls your race one thing at a time: when to box, who to attack, when the rain comes. On a phone or tablet beside your screen. Free and open source.</p>
-            <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Demo</a><a href="#setup">Set it up</a></div>
+            <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Demo</a><a href="#app">Windows app</a><a href="#setup">Set it up</a></div>
             <p class="note" data-rise style="--i:2">The board replays a real race at Barcelona, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 20 to 22: chasing Leclerc, then the pass on Hamilton for P7 and holding him off.</p>
           </div>
           <div class="hero-visual">
@@ -420,12 +436,34 @@
         </div>
       </section>
 
+      <section class="app" id="app" aria-labelledby="app-h">
+        <div class="bar"><span>[ 02 // WINDOWS APP ]</span><span>ONE INSTALLER · WINDOWS 10 OR 11, 64-BIT · 123 MB</span></div>
+        <div class="app-copy">
+          <h2 id="app-h" data-reveal>Windows app</h2>
+          <p data-reveal style="--i:1">The same engineer in one installer: no Node.js, no terminal. It opens on Home, with the live dashboard for the race and a place for everything after it.</p>
+          <ul class="app-list" data-reveal style="--i:2">
+            <li><b>Race analysis.</b> Every saved session: pace, any lap against another, head to head with any car, the calls graded, and every race together.</li>
+            <li><b>Ask the race.</b> Questions about a race in plain words, answered by a small model on your own PC through <a href="https://ollama.com/download">Ollama</a>. Never while you race.</li>
+            <li><b>Storage and Connect.</b> Sessions and recordings, disk use, the game's settings and a QR code for your phone.</li>
+          </ul>
+          <a class="button button-big" href="https://github.com/srikarnadella/f1-race-engineer/releases/latest/download/Undercut-Setup-0.1.0.exe">Download for Windows</a>
+          <p class="app-note">Free, MIT license. The installer isn't code-signed yet, so Windows asks first: <i>More info → Run anyway</i>. Everything stays on your PC. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/setup.md#the-windows-app">The app's guide</a></p>
+        </div>
+        <div class="app-pics">
+        <figure class="app-main" data-reveal style="--i:1"><img src="img/app-ask.png" width="1440" height="900" alt="Ask the race in the Windows app: asked where lap 22 lost time against the best lap at Barcelona, the answer and a speed chart of the two laps with the corners that cost the most" loading="lazy" decoding="async"></figure>
+        <div class="shots">
+          <figure data-reveal><img src="img/app-home.jpg" width="1440" height="900" alt="The app's Home: the live dashboard, Race analysis, Ask the race, Storage, and Connect and record" loading="lazy" decoding="async"><figcaption><b>Home.</b> One way into each part, with what's in it.</figcaption></figure>
+          <figure data-reveal style="--i:1"><img src="img/app-analysis.png" width="1440" height="900" alt="Race analysis: lap 22 against lap 14 at Barcelona, the time gap, speed, throttle and brake on one distance axis" loading="lazy" decoding="async"><figcaption><b>Race analysis.</b> Lap 22 against the best lap at Barcelona: 1.505 s, and where it went.</figcaption></figure>
+        </div>
+        </div>
+      </section>
+
       <section class="setup" id="setup">
-        <div class="bar"><span>[ 02 // SET-UP ]</span><span>NODE.JS · ANY BROWSER ON YOUR WI-FI</span></div>
+        <div class="bar"><span>[ 03 // SET-UP ]</span><span>NODE.JS · ANY BROWSER ON YOUR WI-FI</span></div>
         <h2>Running in two minutes</h2>
         <div class="story">
           <div class="story-steps">
-            <div class="beat is-on" data-state="0"><h3>Start it on your PC.</h3><p>Install <a href="https://nodejs.org">Node.js</a>, download the code from <a href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>, then run <code>npm install</code> and <code>npm start</code> in its folder. No account, nothing in the cloud.</p></div>
+            <div class="beat is-on" data-state="0"><h3>Start it on your PC.</h3><p>Install the <a href="#app">Windows app</a>. Or from the code: install <a href="https://nodejs.org">Node.js</a>, download it from <a href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>, then run <code>npm install</code> and <code>npm start</code> in its folder. No account, nothing in the cloud.</p></div>
             <div class="beat" data-state="1"><h3>Then turn on telemetry in F1 26.</h3><p>Settings → Telemetry → UDP <b>On</b>, port <code>20777</code>, format 2025 or later.</p></div>
             <div class="beat" data-state="2"><h3>Open it beside you, and drive.</h3><p>Scan the QR code it prints with a tablet or phone on the same Wi-Fi. It talks when it matters.</p></div>
           </div>
@@ -456,7 +494,7 @@
       </section>
 
       <section class="proof" aria-labelledby="proof-h">
-        <div class="bar"><span>[ 03 // MEASURED ]</span><span>EIGHT RECORDED RACES · EACH AGAINST THE OBVIOUS GUESS</span></div>
+        <div class="bar"><span>[ 04 // MEASURED ]</span><span>EIGHT RECORDED RACES · EACH AGAINST THE OBVIOUS GUESS</span></div>
         <div class="tiles">
           <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>Eight recorded races. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
           <div class="tile" data-reveal style="--i:1"><b>3.1</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 6.4. AI cars stop in waves, so it counts the ones already stopping.</small></div>
@@ -1108,7 +1146,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
           <div data-reveal><h3>Record everything, replay exactly</h3><p>A capture saves every packet with its arrival time (<code>.f1log.gz</code>, ~300 MB a race). Replays run the same pipeline on the recording's clock, so a bug seen on Saturday can be reproduced, fixed and tested on Sunday, call for call.</p></div>
           <div data-reveal style="--i:1"><h3>Datasets from the raw stream</h3><p>Captures stay local; small datasets built from them are committed: one row per race, per car per lap (2,582 laps), and every call made. CI scores the models on them.</p></div>
           <div data-reveal><h3>Every session in SQL</h3><p>Each session is also kept as related SQLite tables: session, car, lap, stint, events, the engineer's calls and radio, weather and lap traces. The live bridge adds each session as it ends; <code>npm run db</code> fills it from the captures. Building it found that the game marks its own flag-time packets with a session ID of 0, which had been wiping every car's final lap and the official result. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/race-store.md">The schema</a></p></div>
-          <div class="soon" data-reveal style="--i:1"><h3>Built: ask the race</h3><p>Questions in plain words over that store, answered on your own PC. The engine looks the facts up in the tables and a small model only words them; any number not in the recording is flagged. <a href="#next">More in Next steps</a></p></div>
+          <div class="soon" data-reveal style="--i:1"><h3>Now: ask the race</h3><p>Questions in plain words over that store, answered on your own PC. The engine looks the facts up in the tables and a small model only words them; any number not in the recording is flagged. <a href="#next">More in Next steps</a></p></div>
         </div>
       </section>
 
@@ -1180,7 +1218,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         <h1>Coming soon</h1>
         <p class="lead">What's being built next.</p>
         <ul class="soon-list">
-          <li data-reveal><span class="tag">Built</span><h3>Ask the race</h3><p>Ask about a saved race in plain words ("Where did I lose time on lap 12?", "What can I do better?") and a small model on your own PC answers. The engine looks the facts up in the race's tables and the model only puts them into words; every number is checked against the recording. Qwen3 4B gets 49 of 50 test questions right. Coming with the Windows app's first release.</p></li>
+          <li data-reveal><span class="tag">Done</span><h3>Ask the race</h3><p>Ask about a saved race in plain words ("Where did I lose time on lap 12?", "What can I do better?") and a small model on your own PC answers. The engine looks the facts up in the race's tables and the model only puts them into words; every number is checked against the recording. Qwen3 4B gets 49 of 50 test questions right. In the <a href="#app">Windows app</a>.</p></li>
           <li data-reveal style="--i:1"><span class="tag">In progress</span><h3>Confidence on every call</h3><p>The pit-stop pick says when it depends on tyre wear ("Lap 14-22, depending on tyre wear"), and the tyre-cliff warning gives a range ("~1-2 laps to the cliff"). The battle calls are next.</p></li>
           <li data-reveal style="--i:2"><span class="tag">Done</span><h3>The calls audit in the Debrief</h3><p>Every call graded against what happened after it, on screen after the race: the Debrief's Calls tab.</p></li>
           <li data-reveal style="--i:3"><span class="tag">In progress</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9": counting the cars already stopping in a pit wave took it from 4.2 to 2.7 places off on the first 45 stops. On all 79 it's 3.1, still about 1.7 places pessimistic.</p></li>
