@@ -21,7 +21,7 @@ const { startRecognizer, grammarPhrases } = require('./speech');
 const { createOllama } = require('../src/llm/ollama');
 const { createRaceTools } = require('../src/llm/tools');
 const { MODELS, isOffered } = require('../src/llm/catalog');
-const { askRace } = require('../src/llm/ask');
+const { askRace, insight, INSIGHT_KINDS } = require('../src/llm/ask');
 const { buildChart, CHART_KINDS } = require('../src/llm/charts');
 
 const UDP_HOST = '0.0.0.0'; // a console or second PC can send telemetry too
@@ -261,6 +261,11 @@ if (!app.requestSingleInstanceLock()) {
     if (typeof a.driver === 'string' && a.driver.length <= 60) clean.driver = a.driver;
     for (const k of ['lap_a', 'lap_b']) if (Number.isInteger(a[k])) clean[k] = a[k];
     return withRaceDb((tools) => buildChart(tools, sessionIdOf(id), kind, clean));
+  });
+  // Insight buttons: the engine's own findings, no model. Only the built-in kinds.
+  handle('llm:insight', (id, kind) => {
+    if (typeof kind !== 'string' || !Object.hasOwn(INSIGHT_KINDS, kind)) throw new Error('Not an insight this app shows');
+    return withRaceDb((tools) => insight(tools, sessionIdOf(id), kind));
   });
   handle('llm:stop', () => ollama.stop());
 

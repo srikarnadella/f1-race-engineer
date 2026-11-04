@@ -33,6 +33,7 @@ function fakeApi({ installed = true, models = ['qwen3:4b'] } = {}) {
     results: async () => [{ position: 3, driver: 'LECLERC', you: false }, { position: 4, driver: 'YOU', you: true }, { position: 5, driver: 'ANTONELLI', you: false }],
     ask: async (model, sessionId, question) => { calls.push(['ask', model, sessionId, question]); return answer(question); },
     chart: async (sessionId, kind, args) => { calls.push(['chart', sessionId, kind, args]); return { ...CHART, kind, title: `Chart ${kind}` }; },
+    insight: async (sessionId, kind) => { calls.push(['insight', sessionId, kind]); return kind === 'history' ? { title: 'Your races here', error: 'Track history compares races; this session is not a race', lines: [], charts: [] } : { title: 'Pit stops', lines: ['Stop 1: in on lap 7, out on lap 8, medium to hard.', 'It cost 15.7 s against the cars that did not stop on those laps.'], charts: kind === 'tyres' ? [STINT_CHART] : [] }; },
     stop: async () => { calls.push(['stop']); },
   };
   return {
@@ -370,4 +371,58 @@ test('ask the race: stints are drawn in their own colours, each with its trend a
   assert.strictEqual(legend.split('Trend and the range it could be').length - 1, 1, 'named once, not once per stint');
   assert.match(app.doc.querySelector('.llm__axis').textContent, /107% of your best/);
   assert.deepStrictEqual(app.errors, []);
+});
+
+// --- The insight buttons (no model) and the uncertainty line ---
+const INSIGHT_LABELS = ['Race summary', 'Pit stops', 'Tyres', 'Lost time', 'Race pace', 'Calls', 'History'];
+
+test('ask the race: the Charts menu also holds the insight buttons, the engine\'s own findings with no model', async (t) => {
+  const app = await openAsk(t);
+  const chips = [...app.doc.querySelectorAll('.llm__tools-menu .llm__chip--insight')];
+  assert.deepStrictEqual(chips.map((b) => b.textContent), INSIGHT_LABELS);
+  chips.find((b) => b.textContent === 'Pit stops').click();
+  await settle();
+  assert.strictEqual(JSON.stringify(app.fake.calls.find((c) => c[0] === 'insight')), JSON.stringify(['insight', 19, 'pit_stops']));
+  assert.deepStrictEqual(app.fake.calls.filter((c) => c[0] === 'ask'), [], 'no model');
+  const lines = [...app.doc.querySelectorAll('.llm__answer .llm__lines li')].map((li) => li.textContent);
+  assert.deepStrictEqual(lines, ['Stop 1: in on lap 7, out on lap 8, medium to hard.', 'It cost 15.7 s against the cars that did not stop on those laps.']);
+  assert.match(app.doc.querySelector('.llm__answer .llm__q').textContent, /Pit stops/);
+  assert.match(app.doc.querySelector('.llm__answer .llm__fine').textContent, /no model/i);
+});
+
+test('ask the race: an insight with a chart draws it, and one that cannot answer says why', async (t) => {
+  const app = await openAsk(t);
+  [...app.doc.querySelectorAll('.llm__chip--insight')].find((b) => b.textContent === 'Tyres').click();
+  await settle();
+  assert.ok(app.doc.querySelector('.llm__answer svg.llm__chart'));
+  [...app.doc.querySelectorAll('.llm__chip--insight')].find((b) => b.textContent === 'History').click();
+  await settle();
+  const last = [...app.doc.querySelectorAll('.llm__answer')].pop();
+  assert.match(last.textContent, /not a race/);
+  assert.strictEqual(last.querySelector('.llm__lines'), null);
+});
+
+test('ask the race: every answer from the model carries a small line that it can be wrong and rests on one recording', async (t) => {
+  const app = await openAsk(t);
+  app.doc.querySelector('.llm__question').value = 'How did the stop go?';
+  app.doc.querySelector('.llm__ask').click();
+  await settle();
+  const fine = app.doc.querySelector('.llm__answer .llm__fine').textContent;
+  assert.match(fine, /small model/i);
+  assert.match(fine, /can misjudge/i);
+  assert.match(fine, /one session|this session/i);
+  assert.match(fine, /80%/);
+});
+
+test('ask the race: the notice under the box says answers can be wrong, not only that they come from the recording', async (t) => {
+  const app = await openAsk(t);
+  assert.match(app.doc.querySelector('.llm__notice').textContent, /can be wrong|can misjudge/i);
+  assert.match(app.doc.querySelector('.llm__notice').textContent, /Not for use while racing/);
+});
+
+test('ask the race: a chart button is labelled as drawn from the recording with no model', async (t) => {
+  const app = await openAsk(t);
+  [...app.doc.querySelectorAll('.llm__chip--chart')].find((b) => b.textContent === 'Positions').click();
+  await settle();
+  assert.match(app.doc.querySelector('.llm__answer .llm__fine').textContent, /no model/i);
 });

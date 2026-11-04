@@ -5,8 +5,9 @@
 const { trendBand } = require('../../public/spread');
 
 const { stintReport, clean: cleanLap } = require('./insights');
+const { median } = require('../lib/stats');
 
-const CHART_KINDS = ['lap_times', 'positions', 'gap_to_driver', 'lap_compare', 'stint_pace'];
+const CHART_KINDS = ['lap_times', 'positions', 'gap_to_driver', 'lap_compare', 'stint_pace', 'lap_delta'];
 const MAX_POINTS = 400;
 // A trend needs a run of laps this long with nobody stopping and no safety car: a stop is a step in the gap, not pace.
 const MIN_TREND_LAPS = 5;
@@ -177,6 +178,24 @@ function buildChart(tools, sid, kind, args = {}) {
       ...(bands.length ? { bands } : {}),
       marks: mine.filter((l) => l.pit).map((l) => ({ x: l.lap, label: 'Pit' })),
       finding: `Pace by stint, clean laps only: ${lines.join('; ')}. Tyre wear and fuel burn act together, so a stint can get quicker as the car gets lighter.`,
+    };
+  }
+
+  if (kind === 'lap_delta') {
+    const clean = mine.filter(cleanLap);
+    if (clean.length < 5) return { error: 'Needs at least 5 clean laps to know what a typical lap is' };
+    const typical = median(clean.map((l) => l.ms));
+    const racing = mine.filter((l) => l.lap > 1 && !l.pit && !l.safety_car && l.ms > 0);
+    const found = run('lap_losses');
+    const said = found && found.text ? found.text.split('\n').filter((l) => !l.endsWith(':')).map((l) => l.replace(/^- /, '')).join(' ') : '';
+    return {
+      kind,
+      title: 'Time lost to your typical lap, lap by lap',
+      x: { label: 'Lap' },
+      y: { label: 'Seconds slower than your typical lap (below 0: quicker)', zero: true },
+      series: [{ name: 'You', you: true, points: racing.map((l) => [l.lap, +((l.ms - typical) / 1000).toFixed(3)]) }],
+      marks: mine.filter((l) => l.pit).map((l) => ({ x: l.lap, label: 'Pit' })),
+      finding: said || `Your typical clean lap was ${(typical / 1000).toFixed(3)} s.`,
     };
   }
 

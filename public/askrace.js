@@ -182,6 +182,7 @@
       const stopBtn = h('button', { type: 'button', class: 'llm__stop', hidden: true, onclick: () => act(() => api.llm.stop()) }, 'Stop');
       const gapPick = h('select', { class: 'llm__gap-driver', 'aria-label': 'Driver for the gap chart' });
       const chip = (label, onclick, cls = '') => h('button', { type: 'button', class: `llm__chip ${cls}`.trim(), onclick }, label);
+      const INSIGHTS = [['summary', 'Race summary'], ['pit_stops', 'Pit stops'], ['tyres', 'Tyres'], ['lost_time', 'Lost time'], ['race_pace', 'Race pace'], ['calls', 'Calls'], ['history', 'History']];
       // The chart commands live in one menu inside the box, like an attachments button.
       const toolsBtn = h('button', { type: 'button', class: 'llm__tools-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => toggleTools() }, 'Charts');
       const pickChart = (fn) => () => { toggleTools(false); fn(); };
@@ -189,15 +190,18 @@
         chip('Lap times', pickChart(() => chart('lap_times', {})), 'llm__chip--chart'),
         chip('Positions', pickChart(() => chart('positions', {})), 'llm__chip--chart'),
         chip('Tyre pace by stint', pickChart(() => chart('stint_pace', {})), 'llm__chip--chart'),
+        chip('Time lost, lap by lap', pickChart(() => chart('lap_delta', {})), 'llm__chip--chart'),
         h('div', { class: 'llm__gap' }, chip('Gap to', pickChart(() => chart('gap_to_driver', { driver: gapPick.value })), 'llm__chip--chart'), gapPick),
-        chip('Best lap against the slowest', pickChart(() => ask('Where did I lose time on my slowest clean lap compared with my best lap?')), 'llm__chip--chart'));
+        chip('Best lap against the slowest', pickChart(() => ask('Where did I lose time on my slowest clean lap compared with my best lap?')), 'llm__chip--chart'),
+        h('p', { class: 'llm__tools-label' }, 'Insights from the recording, no model'),
+        ...INSIGHTS.map(([kind, label]) => chip(label, pickChart(() => runInsight(kind, label)), 'llm__chip--insight')));
       function toggleTools(open = tools.hidden) {
         tools.hidden = !open;
         toolsBtn.setAttribute('aria-expanded', String(open));
       }
       const composer = h('div', { class: 'llm__composer' },
         h('div', { class: 'llm__input' }, tools, toolsBtn, question, askBtn, stopBtn),
-        h('p', { class: 'llm__notice' }, 'Runs on this PC. Not for use while racing. Answers come only from the session\'s recording; anything it doesn\'t show is flagged.'));
+        h('p', { class: 'llm__notice' }, 'Runs on this PC. Not for use while racing. Answers come from the session\'s recording and anything it doesn\'t show is flagged, but a small model can be wrong: check the figures.'));
       // Suggestions under the box, only while the conversation is empty.
       const suggest = h('div', { class: 'llm__suggest', role: 'group', 'aria-label': 'Suggested questions' });
       question.addEventListener('keydown', (e) => {
@@ -378,14 +382,20 @@
         if (li.scrollIntoView) li.scrollIntoView({ block: 'start', behavior: 'smooth' });
         return a;
       }
+      // The uncertainty, said under every answer: a model's wording can be wrong, a range is 80% not certain,
+      // and what it says rests on this one recording.
+      const UNSURE_MODEL = 'Worded by a small model, which can misjudge what the figures mean. The figures come from your recording (see how this was worked out); ranges are 80%, not certainties, and anything it says about what to do rests on this one session.';
+      const UNSURE_ENGINE = 'From your recording, no model involved. Ranges are 80%, not certainties, and it rests on this one session.';
       function fill(a, out, took) {
         const kids = [];
         if (out.answer != null) kids.push(h('p', { class: 'llm__reply' }, out.answer || '(no answer)'));
+        if (out.lines && out.lines.length) kids.push(h('ul', { class: 'llm__lines' }, out.lines.map((l) => h('li', {}, l))));
         if (out.fromEngine) kids.push(h('p', { class: 'llm__meta' }, 'Written by Undercut\'s analysis: the model didn\'t give a usable answer.'));
         if (out.unsupported && out.unsupported.length) kids.push(h('p', { class: 'llm__unsupported' }, `Check this: not in your data: ${out.unsupported.join(', ')}. The model wrote it; the recording doesn't show it.`));
         for (const c of out.charts || []) kids.push(chartView(c));
         if (out.evidence && out.evidence.length) kids.push(h('details', { class: 'llm__why' }, h('summary', {}, 'How this was worked out'), h('ul', { class: 'llm__evidence' }, out.evidence.map((e) => h('li', {}, e)))));
         if (took != null) kids.push(h('p', { class: 'llm__meta' }, `${out.model ? `${out.model} · ` : ''}${(took / 1000).toFixed(1)} s`));
+        kids.push(h('p', { class: 'llm__fine' }, out.model && !out.fromEngine ? UNSURE_MODEL : UNSURE_ENGINE));
         a.replaceChildren(...kids);
       }
 
@@ -417,6 +427,19 @@
           const c = await api.llm.chart(Number(sessionPick.value), kind, args);
           if (c.error) a.replaceChildren(h('p', { class: 'llm__reply' }, c.error));
           else fill(a, { charts: [c] }, null);
+        } catch (err) {
+          a.replaceChildren(h('p', { class: 'pc-error' }, reason(err)));
+        }
+      }
+
+      // An insight button: the engine's own findings, straight from the data, no model.
+      async function runInsight(kind, label) {
+        if (isLive || !sessions.length) return;
+        const a = exchange(`Insight: ${label}`);
+        try {
+          const r = await api.llm.insight(Number(sessionPick.value), kind);
+          if (r.error) a.replaceChildren(h('p', { class: 'llm__reply' }, r.error));
+          else fill(a, { lines: r.lines, charts: r.charts }, null);
         } catch (err) {
           a.replaceChildren(h('p', { class: 'pc-error' }, reason(err)));
         }

@@ -43,6 +43,17 @@ middle as certain.
 | "Were the engineer's calls right?" | The calls audit's verdict: how many were right and wrong, and each graded call with why. |
 | "Am I improving here?" | Your races at this track in date order, how this race ranks by best lap and by race pace, and how your typical lap moved. |
 
+**Without the model.** The Charts menu also holds Insights buttons (Race summary, Pit stops, Tyres, Lost time,
+Race pace, Calls, History): the engine's own findings put on screen as they are, with the chart that goes with them
+for Tyres and Lost time, and no model involved. They are the safest way to read the numbers, since nothing can
+misjudge them in the wording. Chart buttons likewise: tyre pace by stint, and time lost to your typical lap, lap by
+lap.
+
+**The uncertainty, said every time.** Under every answer a small line says what to trust: from the model, "worded by
+a small model, which can misjudge what the figures mean; the figures come from your recording; ranges are 80%, not
+certainties; advice rests on this one session"; from the engine alone, "no model involved". The box's notice says a
+small model can be wrong, and the model is told to give a verdict or advice only as coming from this one recording.
+
 The model only runs when you ask, never while the game is sending telemetry, and leaves the graphics
 card's memory as soon as it has answered (a live session starting unloads anything left).
 

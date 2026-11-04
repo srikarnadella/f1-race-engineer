@@ -44,7 +44,7 @@ contextBridge.exposeInMainWorld('undercut', {
     status: call('llm:status'), models: call('llm:models'), catalog: call('llm:catalog'), ask: call('llm:ask'), stop: call('llm:stop'),
     pull: call('llm:pull'), cancelPull: call('llm:cancelPull'), remove: call('llm:delete'),
     downloads: call('llm:downloads'), clearDownloads: call('llm:clearDownloads'),
-    sessions: call('llm:sessions'), results: call('llm:results'), chart: call('llm:chart'),
+    sessions: call('llm:sessions'), results: call('llm:results'), chart: call('llm:chart'), insight: call('llm:insight'),
   },
   // on('status' | 'speech', fn) -> unsubscribe
   on: (channel, fn) => {

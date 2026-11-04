@@ -1471,8 +1471,11 @@ kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #26
 .llm__tools-btn { appearance: none; border: 0; border-radius: 999px; min-height: 40px; padding: 0 14px; background: #262626; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; transition: background 0.12s, color 0.12s; }
 .llm__tools-btn:hover, .llm__tools-btn[aria-expanded="true"] { background: #303030; color: var(--text); }
 .llm__tools-btn:disabled { opacity: 0.4; cursor: default; }
+.llm__tools-label { margin: 10px 8px 2px; color: var(--label); font-size: 0.85rem; font-weight: 700; }
+.llm__lines { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; max-width: 70ch; font-size: 1.1rem; line-height: 1.45; }
+.llm__answer .llm__fine { max-width: 70ch; line-height: 1.4; }
 .llm__tools-btn:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
-.llm__tools-menu { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 5; width: 300px; padding: 6px; border-radius: 10px; background: #1b1b1b; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); display: flex; flex-direction: column; gap: 2px; } /* taste-skill-ignore: a menu that floats */
+.llm__tools-menu { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 5; width: 300px; max-height: min(70vh, 560px); overflow-y: auto; padding: 6px; border-radius: 10px; background: #1b1b1b; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); display: flex; flex-direction: column; gap: 2px; } /* taste-skill-ignore: a menu that floats */
 .llm__tools-menu[hidden] { display: none; }
 .llm__tools-menu .llm__chip { min-height: 40px; padding: 0 12px; background: none; color: var(--text); text-align: left; font-size: 0.98rem; }
 .llm__tools-menu .llm__chip:hover { background: #262626; }

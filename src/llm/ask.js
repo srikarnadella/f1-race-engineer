@@ -22,6 +22,7 @@ When coaching lines are given, pass on that advice with its numbers; don't inven
 When a summary, stop review, tyre report, laps that cost time, race pace, calls review or history at the track is given, answer from it and keep its figures as given.
 Where it says "80% sure it was between" two figures, say it was probably between them; never give the middle figure as certain, and never say what caused something the facts don't say caused it.
 Never call tyres, pace or a stint "good", "consistent" or "stable" when the facts say the pace got slower; say it got slower, by how much.
+Everything rests on one recording: when you give a verdict or advice, say it is from this one session and may not hold in other races.
 Talk about brake bias, the differential or battery deployment only if the facts below include them.`;
 
 const list = (xs) => (xs.length ? xs.join(', ') : 'none');
@@ -242,6 +243,31 @@ function insightLines(text) {
   return String(text || '').split('\n').flatMap((l) => (l.startsWith('- ') ? [l.slice(2)] : /:$/.test(l) ? [] : l.split(/(?<=\.) (?=[A-Z])/))).map((l) => l.trim()).filter(Boolean);
 }
 
+// The insight buttons: the engine's own findings put on screen with no model at all, so what the user reads
+// can't be misjudged by one. Each is a tool above; some bring the chart that goes with them.
+const INSIGHT_KINDS = {
+  summary: { title: 'Race summary', tool: 'race_summary' },
+  pit_stops: { title: 'Pit stops', tool: 'pit_stops' },
+  tyres: { title: 'Tyres, stint by stint', tool: 'tyres', chart: 'stint_pace' },
+  lost_time: { title: 'Laps that cost time', tool: 'lap_losses', chart: 'lap_delta' },
+  race_pace: { title: 'Race pace', tool: 'field_pace' },
+  calls: { title: 'The engineer\'s calls', tool: 'calls_review' },
+  history: { title: 'Your races here', tool: 'track_history' },
+};
+function insight(tools, sessionId, kind) {
+  const def = INSIGHT_KINDS[kind];
+  if (!def) throw new Error('Not an insight this app shows');
+  const r = tools.run(def.tool, { session_id: sessionId });
+  if (r.error) return { title: def.title, error: r.error, lines: [], charts: [] };
+  const charts = [];
+  if (def.chart) {
+    const c = buildChart(tools, sessionId, def.chart, {});
+    // The lines above already say what it shows.
+    if (!c.error) charts.push({ ...c, finding: 'The same figures, drawn.' });
+  }
+  return { title: def.title, lines: insightLines(r.text), charts };
+}
+
 function balanceText(c) {
   if (c.error) return `car_balance: ${c.error}`;
   const changed = c.changed.length ? `, then changed: ${c.changed.map((x) => `lap ${x.lap} bias ${x.brake_bias}% diff ${x.diff_on_throttle}%`).join('; ')}` : '';
@@ -406,4 +432,4 @@ function evidenceLine(x) {
   return null;
 }
 
-module.exports = { sessionBrief, checkGrounding, askRace, lookups, RULES };
+module.exports = { sessionBrief, checkGrounding, askRace, lookups, insight, INSIGHT_KINDS, RULES };
