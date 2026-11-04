@@ -17,7 +17,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2306080b'/%3E%3Cpath d='M6 22h20M9 16h14M12 10h8' stroke='%23f2554a' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <script>document.documentElement.classList.add('js')</script>
   <noscript><style>[role="tabpanel"][hidden] { display: block !important; } .pages { display: none; }</style></noscript>
   <style>
@@ -28,7 +28,7 @@
       --text: #eaeaea; --muted: #a3a3a3; --dim: #8c8c8c;
       --red: #f2554a;
       --go: #4af626; --info: #5ec2ff; --watch: #ffd23f; --act: #f2554a;
-      --mono: var(--sans); --code: ui-monospace, Consolas, Menlo, monospace; /* taste-skill-ignore: real code only */
+      --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
       --sans: "Archivo", system-ui, sans-serif;
       --mega: clamp(2.1rem, 7.4vw, 11rem);
       --head: clamp(2.4rem, 1rem + 5vw, 6rem);
@@ -41,50 +41,50 @@
     html { -webkit-text-size-adjust: 100%; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--body)/1.5 var(--sans); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
     h1, h2, h3, p, figure, ul, ol, dl, dd { margin: 0; }
-    h1, h2 { font-weight: 800; letter-spacing: -0.01em; line-height: 1.02; }
+    h1, h2 { font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; line-height: 1.02; }
     h2 { font-size: var(--head); }
     h3 { font-weight: 800; }
     a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
     a:hover { color: var(--red); }
     strong, b { font-weight: 700; }
     img { display: block; max-width: 100%; height: auto; }
-    code { font: 0.86em/1 var(--code); padding: 1px 5px; background: var(--panel-2); }
+    code { font: 0.86em/1 var(--mono); padding: 1px 5px; background: var(--panel-2); }
     button { font: inherit; color: inherit; }
     :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
     .muted { color: var(--muted); }
-    .note, .micro { font: 500 var(--micro)/1.45 var(--mono); color: var(--muted); }
+    .note, .micro { font: 500 var(--micro)/1.45 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
     .lead { margin-top: 24px; max-width: 52ch; font-size: clamp(1.15rem, 1rem + 0.6vw, 1.45rem); line-height: 1.35; }
-    .button { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 22px; border: 2px solid var(--red); background: var(--red); color: #0a0a0a; font: 700 0.9rem/1 var(--mono); text-decoration: none; cursor: pointer; transition: background-color 120ms linear, color 120ms linear; }
-    .button::after { content: none; }
+    .button { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 22px; border: 2px solid var(--red); background: var(--red); color: #0a0a0a; font: 700 0.9rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: background-color 120ms linear, color 120ms linear; }
+    .button::after { content: ">>>"; }
     .button:hover { background: transparent; color: var(--red); }
     .button:active { transform: translate(2px, 2px); }
-    .hero-actions > a:not(.button) { font: 700 0.9rem/1 var(--mono); }
+    .hero-actions > a:not(.button) { font: 700 0.9rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
 
     /* ===== Top bar: a terminal header ===== */
-    .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 24px; height: 52px; padding-inline: var(--gutter); background: var(--bg); font: 500 var(--micro)/1 var(--mono); }
+    .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 24px; height: 52px; padding-inline: var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; white-space: nowrap; }
     .brand svg { width: 18px; height: 18px; }
     .brand span::before { content: "[ "; color: var(--red); }
     .brand span::after { content: " ] F1 26"; color: var(--muted); }
     .pages { display: flex; margin-left: auto; height: 100%; }
-    .pages button { appearance: none; height: 100%; padding: 0 16px; border: 0; background: none; color: var(--muted); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+    .pages button { appearance: none; height: 100%; padding: 0 16px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--muted); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
     .pages button:hover { color: var(--text); }
     .pages button[aria-selected="true"] { background: var(--text); color: var(--bg); }
-    .gh { align-self: stretch; display: flex; align-items: center; padding-left: 16px; color: var(--muted); text-decoration: none; }
+    .gh { align-self: stretch; display: flex; align-items: center; padding-left: 16px; border-left: 1px solid var(--line); color: var(--muted); text-decoration: none; }
     [role="tabpanel"][hidden] { display: none; }
 
     /* A section code bar: [ 01 // LIVE DEMO ] ...... a real fact at the right. */
-    .bar { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 10px var(--gutter); font: 500 var(--micro)/1.3 var(--mono); }
+    .bar { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 10px var(--gutter); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font: 500 var(--micro)/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
     .bar span:first-child { color: var(--red); }
     .bar span:last-child { color: var(--muted); }
 
     /* ===== Hero ===== */
-    .hero { }
+    .hero { border-bottom: 1px solid var(--line); }
     .hero h1 { padding: clamp(40px, 6vw, 96px) var(--gutter) clamp(28px, 3vw, 48px); font-size: var(--mega); }
     .lines .line { display: block; overflow: hidden; padding-bottom: 0.08em; margin-bottom: -0.04em; }
     .lines [data-line] { display: block; }
     .hero h1 .tagline { margin-top: 0.2em; font-size: 0.42em; line-height: 1.1; color: var(--muted); }
-        .hero-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 6px; }
+        .hero-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
     .hero-grid > * { background: var(--bg); }
     .hero-copy { padding: 32px var(--gutter) 40px; }
     .hero-copy p:first-child { max-width: 42ch; font-size: clamp(1.15rem, 1rem + 0.5vw, 1.4rem); line-height: 1.38; }
@@ -92,47 +92,47 @@
     .hero-copy .note { max-width: 46ch; margin-top: 32px; font: 400 0.98rem/1.5 var(--sans); letter-spacing: 0; text-transform: none; }
     .hero-visual { position: relative; min-height: 640px; overflow: hidden; }
     .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 0% 50%; filter: brightness(0.92); }
-    .hero-credit { position: absolute; left: var(--gutter); top: 12px; z-index: 1; font: 500 var(--micro)/1.3 var(--mono); color: var(--text); background: var(--bg); padding: 4px 6px; }
+    .hero-credit { position: absolute; left: var(--gutter); top: 12px; z-index: 1; font: 500 var(--micro)/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); background: var(--bg); padding: 4px 6px; }
     .hero-credit a { color: inherit; }
-    .spec { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .spec { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
     .spec div { padding: 18px var(--gutter) 20px; background: var(--bg); }
-    .spec dt { font: 500 var(--micro)/1 var(--mono); color: var(--muted); }
+    .spec dt { font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
     .spec div p { margin-top: 8px; color: var(--muted); font-size: 0.95rem; }
-    .spec dd { margin-top: 10px; font: 900 clamp(1.8rem, 1rem + 2.4vw, 3.2rem)/1 var(--sans); letter-spacing: -0.01em; }
+    .spec dd { margin-top: 10px; font: 900 clamp(1.8rem, 1rem + 2.4vw, 3.2rem)/1 var(--sans); letter-spacing: -0.01em; text-transform: uppercase; }
 
     /* The call board: the app's own call card and radio, at work. */
-    .board { position: absolute; z-index: 1; left: var(--gutter); bottom: 48px; width: min(440px, calc(100% - 2 * var(--gutter))); background: rgba(10, 10, 10, 0.92); }
-    .board-top { display: flex; align-items: center; gap: 0; font: 500 var(--micro)/1 var(--mono); color: var(--muted); }
+    .board { position: absolute; z-index: 1; left: var(--gutter); bottom: 48px; width: min(440px, calc(100% - 2 * var(--gutter))); background: rgba(10, 10, 10, 0.92); border: 1px solid var(--line); }
+    .board-top { display: flex; align-items: center; gap: 0; border-bottom: 1px solid var(--line); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
     .board-top > span:first-child { min-width: 0; padding: 0 14px; } /* wraps on narrow boards so Earlier/Later stay inside */
     .board-top b { color: var(--text); }
     .board-top .pos { margin-right: auto; color: var(--text); }
-    .board-ctl button { flex: none; appearance: none; height: 44px; padding: 0 12px; border: 0; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--text); cursor: pointer; }
+    .board-ctl button { flex: none; appearance: none; height: 44px; padding: 0 12px; border: 0; border-left: 1px solid var(--line); background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--text); cursor: pointer; }
     .board-ctl button:hover { background: var(--text); color: var(--bg); }
-    .board-callrow { display: flex; align-items: baseline; gap: 20px; padding: 18px 16px 16px; }
+    .board-callrow { display: flex; align-items: baseline; gap: 20px; padding: 18px 16px 16px; border-bottom: 1px solid var(--line); }
     .board-call { font: 900 clamp(2.6rem, 1.8rem + 2.4vw, 4rem)/1 var(--sans); letter-spacing: -0.01em; color: var(--c, var(--go)); }
-    .board-reason { font: 500 var(--micro)/1.4 var(--mono); }
-    .board-label { padding: 12px 16px 0; font: 500 var(--micro)/1 var(--mono); color: var(--muted); }
+    .board-reason { font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+    .board-label { padding: 12px 16px 0; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
     .board-log { margin: 0; padding: 0 16px 6px; list-style: none; }
     .board-log li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 12px 0; color: var(--muted); line-height: 1.4; }
-    .board-log li + li { }
+    .board-log li + li { border-top: 1px dashed var(--line); }
     .board-log li:first-child { color: var(--text); }
-    .board-log li span { font: 500 var(--micro)/1.6 var(--mono); color: var(--red); }
+    .board-log li span { font: 500 var(--micro)/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--red); }
     .board-swap { transition: opacity 150ms linear; }
     .board.is-swapping .board-swap { opacity: 0; }
 
     /* ===== The live demo ===== */
-    .show { display: grid; grid-template-columns: 4fr 8fr; grid-template-rows: auto 1fr auto; margin-top: 96px; }
-    .show-list { display: flex; flex-direction: column; align-items: stretch; }
-    .show-list button { appearance: none; flex: 1 1 auto; display: flex; justify-content: space-between; align-items: baseline; padding: 14px var(--gutter); border: 0; background: none; color: var(--muted); font: 900 clamp(1.6rem, 1rem + 1.8vw, 3rem)/1 var(--sans); letter-spacing: -0.01em; text-align: left; cursor: pointer; }
-    .show-list button::after { content: "///"; font: 500 var(--micro)/1 var(--mono); color: var(--line); }
+    .show { display: grid; grid-template-columns: 4fr 8fr; grid-template-rows: auto 1fr auto; margin-top: 96px; border-bottom: 1px solid var(--line); }
+    .show-list { display: flex; flex-direction: column; align-items: stretch; border-right: 1px solid var(--line); }
+    .show-list button { appearance: none; flex: 1 1 auto; display: flex; justify-content: space-between; align-items: baseline; padding: 14px var(--gutter); border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--muted); font: 900 clamp(1.6rem, 1rem + 1.8vw, 3rem)/1 var(--sans); letter-spacing: -0.01em; text-transform: uppercase; text-align: left; cursor: pointer; }
+    .show-list button::after { content: "///"; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; color: var(--line); }
     .show-list button:hover { color: var(--text); }
     .show-list button.is-on { background: var(--text); color: var(--bg); }
     .show-list button.is-on::after { content: "ON"; color: var(--red); }
     .show-list button.auto.is-on { background: var(--text); color: var(--bg); }
     .stage { grid-row: span 2; padding: 24px var(--gutter); background: var(--panel); }
-    .frame { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: #030303; }
+    .frame { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: #030303; border: 1px solid var(--line); }
     .frame iframe { position: absolute; top: 0; left: 0; width: 1180px; height: 885px; border: 0; transform-origin: 0 0; transform: scale(var(--s, 1)); }
-    .show-copy { padding: 24px var(--gutter) 32px; }
+    .show-copy { padding: 24px var(--gutter) 32px; border-right: 1px solid var(--line); }
     .show-copy p { max-width: 34ch; }
     .show-copy .button { margin-top: 24px; }
     .phone-shot { display: none; }
@@ -141,8 +141,8 @@
     /* ===== Set-up: three units side by side, each with its fragment ===== */
     .setup { margin-top: 96px; }
     .setup h2 { padding: 32px var(--gutter) 28px; }
-    .app { display: grid; grid-template-columns: 4fr 8fr; margin-top: 96px; }  /* taste-skill-ignore: ruled like .show, the site's house style */
-    .app-copy { padding: 32px var(--gutter) 40px; }  /* taste-skill-ignore: as .show-copy */
+    .app { display: grid; grid-template-columns: 4fr 8fr; margin-top: 96px; border-bottom: 1px solid var(--line); }  /* taste-skill-ignore: ruled like .show, the site's house style */
+    .app-copy { padding: 32px var(--gutter) 40px; border-right: 1px solid var(--line); }  /* taste-skill-ignore: as .show-copy */
     .app-copy h2 { margin-bottom: 20px; }
     .app-copy p { max-width: 40ch; }
     .app-copy .button { margin-top: 28px; }
@@ -154,27 +154,32 @@
     .app-main img { display: block; width: 100%; height: auto; }
     .app .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 0; }
     .app .shots img { aspect-ratio: 16 / 10; }
-    .story { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .story { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .story-steps, .story-stage { display: contents; }
     .beat, .state { background: var(--bg); }
     .beat { padding: 24px var(--gutter) 28px; }
     .beat[data-state="0"] { order: 1; } .beat[data-state="1"] { order: 2; } .beat[data-state="2"] { order: 3; }
     .state[data-state="0"] { order: 4; } .state[data-state="1"] { order: 5; } .state[data-state="2"] { order: 6; }
-    .beat::before { display: block; margin-bottom: 18px; font: 500 var(--micro)/1 var(--mono); color: var(--red); }
+    .beat::before { display: block; margin-bottom: 18px; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; color: var(--red); }
     .beat[data-state="0"]::before { content: "[ STEP 1 / PC ]"; }
     .beat[data-state="1"]::before { content: "[ STEP 2 / GAME ]"; }
     .beat[data-state="2"]::before { content: "[ STEP 3 / TABLET ]"; }
-    .beat h3 { font-size: clamp(1.4rem, 1rem + 1vw, 2rem); line-height: 1.15; letter-spacing: -0.005em; }
+    .beat h3 { font-size: clamp(1.4rem, 1rem + 1vw, 2rem); line-height: 1.15; text-transform: uppercase; letter-spacing: -0.005em; }
     .beat p { margin-top: 14px; }
     .state { display: grid; place-items: center; padding: 20px var(--gutter); background: var(--panel); }
-    .state pre { margin: 0; width: 100%; padding: 16px; background: var(--bg); font: var(--micro)/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .state pre { margin: 0; width: 100%; padding: 16px; background: var(--bg); border: 1px solid var(--line); font: var(--micro)/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
     .state pre .c { color: var(--muted); }
     .state pre .ok { color: var(--go); }
-    .state img { width: 100%; }
+    .settings { width: 100%; background: var(--bg); border: 1px solid var(--line); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+    .settings div { display: flex; justify-content: space-between; padding: 12px 14px; }
+    .settings div + div { border-top: 1px solid var(--line); }
+    .settings .t { padding: 12px 14px; color: var(--muted); border-bottom: 1px solid var(--line); }
+    .settings .sel { background: var(--text); color: var(--bg); }
+    .state img { width: 100%; border: 1px solid var(--line); }
 
     /* ===== Measured, not claimed ===== */
     .proof { margin-top: 96px; }
-    .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
     .tile { position: relative; display: flex; flex-direction: column; min-height: 280px; padding: 22px var(--gutter); background: var(--bg); overflow: hidden; }
     .tile-head { grid-column: span 2; background: var(--text); color: var(--bg); }
     .tile-head h2 { font-size: clamp(2.2rem, 1rem + 3.4vw, 4.6rem); }
@@ -182,126 +187,126 @@
     .tile-head a { color: inherit; }
     .tile-head a:hover { color: var(--red); }
     .tile b { font: 900 clamp(3rem, 1.6rem + 3.6vw, 5.6rem)/1 var(--sans); letter-spacing: -0.01em; }
-    .tile span { margin-top: 14px; font: 500 var(--micro)/1.4 var(--mono); }
+    .tile span { margin-top: 14px; font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
     .tile small { margin-top: auto; padding-top: 14px; color: var(--muted); font-size: 0.95rem; }
     .tile-img { padding: 0; }
     .tile-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-    .tile-img figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px; background: var(--bg); font: 500 var(--micro)/1.4 var(--mono); }
+    .tile-img figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px; background: var(--bg); font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
     .tile-img figcaption a { color: inherit; }
     .proof .more { padding: 16px var(--gutter); }
 
     /* ===== How it works ===== */
     .page-top { padding-top: 0; }
     .page-top .split, .sec > h2, .sec > .lead { padding-inline: var(--gutter); }
-    .split { display: grid; grid-template-columns: 6fr 6fr; gap: 6px; }
+    .split { display: grid; grid-template-columns: 6fr 6fr; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
     .split > * { background: var(--bg); padding: 40px var(--gutter); }
     .page-top .split { padding-inline: 0; }
     .split h1, .split h2 { font-size: clamp(2.2rem, 1rem + 3.4vw, 4.4rem); }
-    .split figure img { width: 100%; }
+    .split figure img { width: 100%; border: 1px solid var(--line); }
     .split figure figcaption { margin-top: 10px; }
-    .flow { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; background: var(--line); counter-reset: st; }
+    .flow { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; background: var(--line); border-bottom: 1px solid var(--line); counter-reset: st; }
     .stage-i { position: relative; padding: 20px 16px 22px; background: var(--bg); counter-increment: st; }
-    .stage-i::before { content: none; }
+    .stage-i::before { content: "[ 0" counter(st) " ]"; display: block; margin-bottom: 14px; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; color: var(--muted); }
     .stage-i:hover { background: var(--panel); }
     .stage-i.is-open { background: var(--text); color: var(--bg); }
     .stage-i.is-open::before, .stage-i.is-open p { color: var(--bg); }
-    .stage-i h3 { font-size: 1.2rem; letter-spacing: 0; }
+    .stage-i h3 { font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0; }
     .stage-i p { margin-top: 8px; font-size: 0.95rem; line-height: 1.4; color: var(--muted); }
-    .stage-i .eg { margin-top: 14px; font: 500 var(--micro)/1.5 var(--mono); color: var(--red); }
+    .stage-i .eg { margin-top: 14px; font: 500 var(--micro)/1.5 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--red); }
     .stage-i.is-open .eg { color: var(--bg); }
     .stage-btn { appearance: none; border: 0; padding: 0; background: none; text-align: left; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; }
     .stage-btn::after { content: ""; position: absolute; inset: 0; }
     .stage-btn:focus-visible { outline: none; }
     .stage-btn:focus-visible::after { outline: 2px solid var(--red); outline-offset: -4px; }
-    .hint { padding: 14px var(--gutter); }
-    .explore { margin: 40px var(--gutter) 0; }
+    .hint { padding: 14px var(--gutter); border-bottom: 1px solid var(--line); }
+    .explore { margin: 40px var(--gutter) 0; border: 1px solid var(--line); }
     .ex-stage[hidden], .ex-body[hidden] { display: none; }
     .ex-head { padding: 28px 28px 0; }
-    .ex-head h3 { font-size: clamp(1.5rem, 1rem + 1.4vw, 2.4rem); line-height: 1.12; letter-spacing: -0.005em; max-width: 26ch; }
+    .ex-head h3 { font-size: clamp(1.5rem, 1rem + 1.4vw, 2.4rem); line-height: 1.12; text-transform: uppercase; letter-spacing: -0.005em; max-width: 26ch; }
     .ex-head p { margin-top: 12px; max-width: 64ch; color: var(--muted); }
-    .ex-tabs { display: flex; flex-wrap: wrap; margin-top: 24px; }
-    .ex-tabs button { appearance: none; padding: 12px 16px; border: 0; background: none; color: var(--muted); font: 500 var(--micro)/1 var(--mono); cursor: pointer; }
+    .ex-tabs { display: flex; flex-wrap: wrap; margin-top: 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .ex-tabs button { appearance: none; padding: 12px 16px; border: 0; border-right: 1px solid var(--line); background: none; color: var(--muted); font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
     .ex-tabs button:hover { color: var(--text); }
     .ex-tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); }
     .ex-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; padding: 28px; }
     .ex-body > div > * + * { margin-top: 14px; }
     .ex-body ul, .ex-body ol { padding-left: 22px; }
     .ex-body li + li { margin-top: 8px; }
-    .ex-body pre { margin: 0; padding: 16px 18px; background: var(--panel); overflow-x: auto; font: var(--micro)/1.6 var(--mono); white-space: pre; }
+    .ex-body pre { margin: 0; padding: 16px 18px; background: var(--panel); border: 1px solid var(--line); overflow-x: auto; font: var(--micro)/1.6 var(--mono); white-space: pre; }
     .ex-body pre .c { color: var(--muted); }
     .kv { width: 100%; border-collapse: collapse; border: 1px solid var(--line); font-size: 0.92rem; }
     .kv td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
     .kv td:first-child { font: 500 var(--micro)/1.6 var(--mono); color: var(--text); white-space: nowrap; border-right: 1px solid var(--line); }
-    .ex-src { font: 500 var(--micro)/1.5 var(--mono); color: var(--muted); }
-    .ex-num { display: flex; flex-wrap: wrap; gap: 6px; }
-    .ex-num span { flex: 1 1 auto; padding: 10px 12px; background: var(--bg); font: 500 var(--micro)/1.3 var(--mono); }
+    .ex-src { font: 500 var(--micro)/1.5 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    .ex-num { display: flex; flex-wrap: wrap; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .ex-num span { flex: 1 1 auto; padding: 10px 12px; background: var(--bg); font: 500 var(--micro)/1.3 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
     .ex-num b { color: var(--red); }
     .legend { padding: 14px var(--gutter) 0; }
-    .loops { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 96px; background: var(--line); }
+    .loops { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 96px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .loops > div, .practice > div { padding: 28px var(--gutter) 32px; background: var(--bg); }
-    .loop-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; margin-bottom: 22px; }
-    .loops h3, .practice h3 { font-size: clamp(1.3rem, 1rem + 0.8vw, 1.8rem); line-height: 1.15; letter-spacing: 0; }
+    .loop-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top left; margin-bottom: 22px; border: 1px solid var(--line); }
+    .loops h3, .practice h3 { font-size: clamp(1.3rem, 1rem + 0.8vw, 1.8rem); line-height: 1.15; text-transform: uppercase; letter-spacing: 0; }
     .loops p, .practice p { margin-top: 12px; max-width: 54ch; }
-    .chain { font: 500 var(--micro)/1.6 var(--mono); color: var(--red); }
+    .chain { font: 500 var(--micro)/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--red); }
     .chain i { font-style: normal; color: var(--muted); padding: 0 6px; }
-    .more { color: var(--muted); font: 500 var(--micro)/1.6 var(--mono); }
+    .more { color: var(--muted); font: 500 var(--micro)/1.6 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
 
     /* ===== Engineering ===== */
-    .sec { margin-top: 96px; counter-increment: sec; }
+    .sec { margin-top: 96px; border-top: 1px solid var(--line); counter-increment: sec; }
     #page-tech { counter-reset: sec 1; }
     .sec > h2 { padding-top: 32px; }
-    .sec > h2::before { content: "[ 0" counter(sec) " // ENGINEERING ]"; display: block; margin-bottom: 20px; font: 500 var(--micro)/1 var(--mono); color: var(--red); }
+    .sec > h2::before { content: "[ 0" counter(sec) " // ENGINEERING ]"; display: block; margin-bottom: 20px; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; color: var(--red); }
     .sec > .lead { margin-bottom: 0; }
     .sec > .more { padding: 16px var(--gutter) 0; }
     .ask-sec > h2::before { content: "[ 02 // AFTER THE RACE ]"; }
-    .shots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .shots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .shots figure { background: var(--bg); }
     .shots img { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; object-position: top left; }
     .shots figcaption { padding: 12px var(--gutter) 16px; font-size: 0.95rem; color: var(--muted); }
-    .shots figcaption b { display: block; margin-bottom: 4px; font: 700 var(--micro)/1 var(--mono); color: var(--text); }
-    .tbl-wrap { margin-top: 32px; overflow-x: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); } /* taste-skill-ignore: the rules of a real table */
+    .shots figcaption b { display: block; margin-bottom: 4px; font: 700 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); }
+    .tbl-wrap { margin-top: 32px; overflow-x: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .tbl { width: 100%; border-collapse: collapse; }
     .tbl th, .tbl td { padding: 14px var(--gutter); text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); }
     .tbl th:last-child, .tbl td:last-child { border-right: 0; }
     .tbl tr:last-child td { border-bottom: 0; }
-    .tbl th { font: 500 var(--micro)/1.2 var(--mono); color: var(--muted); background: var(--panel); }
+    .tbl th { font: 500 var(--micro)/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--panel); }
     .tbl td:first-child { font-weight: 700; }
     .tbl td.num { font: 500 0.9rem/1.4 var(--mono); white-space: nowrap; }
     .tbl .good { color: var(--go); } .tbl .tie { color: var(--watch); }
-    .tbl small { display: block; font: 500 var(--micro)/1.4 var(--mono); color: var(--muted); }
-    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 32px; background: var(--line); }
+    .tbl small { display: block; font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 32px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .fact { padding: 24px var(--gutter); background: var(--bg); }
     .fact b { display: block; font: 900 clamp(2.4rem, 1.4rem + 2.6vw, 4.4rem)/1 var(--sans); letter-spacing: -0.01em; }
-    .fact span { display: block; margin-top: 12px; font: 500 var(--micro)/1.5 var(--mono); color: var(--muted); }
-    .practice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 32px; background: var(--line); }
+    .fact span { display: block; margin-top: 12px; font: 500 var(--micro)/1.5 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .practice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 32px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .practice .soon { background: var(--panel); }
     .practice .soon h3 { color: var(--red); }
     .soon-page > h1, .soon-page > .lead, .soon-page > .more { padding-inline: var(--gutter); }
     .soon-page > h1 { padding-top: 40px; font-size: var(--head); }
-    .soon-list { margin: 40px 0 0; padding: 0; list-style: none; }
-    .soon-list li { display: grid; grid-template-columns: 150px minmax(0, 18ch) minmax(0, 60ch); gap: 12px 32px; align-items: baseline; padding: 24px var(--gutter); }
-    .soon-list h3 { font-size: clamp(1.2rem, 1rem + 0.6vw, 1.6rem); line-height: 1.15; }
+    .soon-list { margin: 40px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+    .soon-list li { display: grid; grid-template-columns: 150px minmax(0, 18ch) minmax(0, 60ch); gap: 12px 32px; align-items: baseline; padding: 24px var(--gutter); border-bottom: 1px solid var(--line); }
+    .soon-list h3 { font-size: clamp(1.2rem, 1rem + 0.6vw, 1.6rem); line-height: 1.15; text-transform: uppercase; }
     .soon-list p { color: var(--muted); }
     .soon-sub { margin-top: 72px; padding-inline: var(--gutter); font-size: clamp(1.6rem, 1.1rem + 1.4vw, 2.6rem); }
-    .tag { font: 500 var(--micro)/1 var(--mono); color: var(--red); }
+    .tag { font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
     .soon-page > .more { padding-top: 16px; }
-    .layers { display: grid; gap: 1px; margin-top: 32px; background: var(--line); }
+    .layers { display: grid; gap: 1px; margin-top: 32px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .layer { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: baseline; padding: 18px var(--gutter); background: var(--bg); }
     .layer b { font: 700 0.95rem/1 var(--mono); color: var(--red); }
     .layer span { color: var(--muted); }
-    .case { display: grid; gap: 1px; margin: 32px 0 0; padding: 0; list-style: none; background: var(--line); }
+    .case { display: grid; gap: 1px; margin: 32px 0 0; padding: 0; list-style: none; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .case li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 190px; gap: 28px; padding: 22px var(--gutter); background: var(--bg); }
-    .case h3 { font-size: 1rem; letter-spacing: 0; }
+    .case h3 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0; }
     .case p { margin-top: 6px; color: var(--muted); }
-    .case .delta { align-self: center; font: 900 clamp(1.3rem, 1rem + 0.8vw, 1.9rem)/1 var(--sans); letter-spacing: -0.005em; color: var(--red); }
+    .case .delta { align-self: center; font: 900 clamp(1.3rem, 1rem + 0.8vw, 1.9rem)/1 var(--sans); letter-spacing: -0.005em; text-transform: uppercase; color: var(--red); }
 
     /* ===== Close: the name at full width, then one line ===== */
-    .wordmark { margin-top: 140px; padding: 0 var(--gutter); font: 800 15vw/1 var(--sans); letter-spacing: -0.06em; white-space: nowrap; overflow: hidden; }
-    footer { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px 24px; align-items: baseline; padding: 18px var(--gutter); font: 500 var(--micro)/1.4 var(--mono); color: var(--muted); }
+    .wordmark { margin-top: 140px; padding: 0 var(--gutter); border-top: 1px solid var(--line); font: 800 15vw/1 var(--sans); letter-spacing: -0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+    footer { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px 24px; align-items: baseline; padding: 18px var(--gutter); border-top: 1px solid var(--line); font: 500 var(--micro)/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
     footer nav { display: flex; gap: 20px; }
     footer nav a { color: var(--text); }
     footer .r { text-align: right; }
-    .credits { padding: 0 var(--gutter) 28px; max-width: 110ch; font: 500 var(--micro)/1.6 var(--mono); color: var(--muted); }
+    .credits { padding: 0 var(--gutter) 28px; max-width: 110ch; font: 500 var(--micro)/1.6 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
     .credits a { color: var(--muted); }
 
     /* ===== Motion: mechanical, short ===== */
@@ -329,7 +334,7 @@
       .app-copy { border-right: 0; }
       .app .shots { grid-template-columns: minmax(0, 1fr); }
       .show-list, .stage { display: none; }
-      .phone-shot { display: block; margin-bottom: 18px; }
+      .phone-shot { display: block; margin-bottom: 18px; border: 1px solid var(--line); }
       .show-copy { border-right: 0; }
       .story { grid-template-columns: minmax(0, 1fr); }
       .beat[data-state="0"] { order: 1; } .state[data-state="0"] { order: 2; }
@@ -359,355 +364,149 @@
       .tbl thead { display: none; }
       .tbl tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); }
       .tbl td { display: block; padding: 4px var(--gutter); border: 0; }
-      .tbl td[data-label]:not(:first-child)::before { content: attr(data-label) ": "; font: 500 var(--micro)/1 var(--mono); color: var(--muted); }
+      .tbl td[data-label]:not(:first-child)::before { content: attr(data-label) ": "; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
     }
-
-    /* ===== The pit wall's stationery (taste-skill direction: the page is the object) ===== */
-    :root { --paper: #ecebe6; --paper-ink: #0a0a0a; --paper-soft: #4a4a46; --tone: #1a1a1a; }
-    h1, h2 { text-transform: uppercase; letter-spacing: -0.01em; }
-    .bar, .sec > h2::before { display: none; content: none; }
-    .note, .micro { font-size: 0.95rem; }
-
-    /* Top row: wordmark, three pages, the plan, the action. */
-    .top { height: 60px; gap: 8px; font: 500 0.95rem/1 var(--sans); background: var(--bg); }
-    .brand { font: 900 1.15rem/1 var(--sans); text-transform: uppercase; letter-spacing: -0.01em; margin-right: auto; }
-    .brand span::before, .brand span::after { content: none; }
-    .pages { margin-left: 0; height: auto; gap: 4px; }
-    .pages button { height: 40px; padding: 0 14px; color: var(--muted); }
-    .pages button[aria-selected="true"] { background: var(--tone); color: var(--text); }
-    .top-link { padding: 0 14px; color: var(--muted); text-decoration: none; white-space: nowrap; }
-    .top-link:hover { color: var(--text); }
-    .top-dl { display: inline-flex; align-items: center; height: 40px; margin-left: 8px; padding: 0 16px; background: var(--red); color: var(--paper-ink); font-weight: 700; text-decoration: none; transition: transform 120ms var(--ease-out), background-color 120ms linear; }
-    .top-dl:hover { background: var(--paper); color: var(--paper-ink); }
-    .top-dl:active, .btn:active, .cell:active, .closer-btn:active, .t-go:active { transform: translateY(2px); }
-
-    .btn { display: inline-flex; align-items: center; min-height: 56px; padding: 0 24px; background: var(--paper-ink); color: var(--paper); font-weight: 700; text-decoration: none; transition: background-color 120ms linear, transform 120ms var(--ease-out); }
-    .btn:hover { background: var(--red); color: var(--paper-ink); }
-
-    /* Hero: the pit board on the wall at Spa, cut by the bottom of the screen. */
-    .hero2 { position: relative; min-height: calc(100svh - 60px); overflow: hidden; padding: 120px var(--gutter) 0; }
-    .hero2-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; filter: brightness(0.45); animation: drift 24s ease-in-out infinite alternate; }
-    .hero2-credit { position: absolute; right: var(--gutter); bottom: 14px; z-index: 1; font-size: 0.85rem; color: var(--text); }
-    .pitboard { position: relative; z-index: 1; width: min(760px, 100%); margin: 0 auto; padding: 56px clamp(24px, 4vw, 56px) 64px; background: var(--paper); color: var(--paper-ink); text-align: center; clip-path: polygon(22px 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%, 0 22px);
-      --go: #11823a; --watch: #9a6a00; --act: #c8352b; --info: #1d6aa8; }
-    .pb-title { display: grid; font: 900 clamp(4rem, 2rem + 7vw, 8.5rem)/0.86 var(--sans); letter-spacing: -0.03em; }
-    .pb-title span:first-child { justify-self: start; padding-left: 4%; }
-    .pb-title span:last-child { justify-self: end; padding-right: 10%; color: var(--act); }
-    .pb-lede { max-width: 34ch; margin: 28px auto 0; font-size: clamp(1.15rem, 1rem + 0.5vw, 1.45rem); line-height: 1.35; }
-    .pb-facts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 16px; margin-top: 20px; color: var(--paper-soft); font-size: 1rem; }
-    .pb-facts i { width: 10px; height: 10px; background: var(--paper-ink); transform: rotate(45deg); }
-    .pb-acts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 28px; margin-top: 32px; }
-    .pb-link { font-weight: 700; }
-    .pb-note { max-width: 52ch; margin: 18px auto 0; color: var(--paper-soft); font-size: 1rem; }
-    .pitboard .board { position: static; width: 100%; margin-top: 48px; background: var(--paper-ink); color: var(--text); text-align: left; --go: #4af626; --watch: #ffd23f; --act: #f2554a; --info: #5ec2ff; }
-    .pitboard .board-top { background: #161616; color: var(--muted); font-size: 0.95rem; }
-    .pitboard .board-reason, .pitboard .board-label, .pitboard .board-log li span { font-size: 0.95rem; }
-    .pitboard .board-log li + li { border-top: 0; }
-    .pitboard .board-call { font-size: clamp(3.4rem, 2rem + 4vw, 6rem); }
-    @keyframes drift { from { transform: scale(1.04) translateX(-1%); } to { transform: scale(1.1) translateX(1%); } }
-
-    /* The demo: one light field split in two. */
-    .plate { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; min-height: 88svh; padding: 64px var(--gutter); background: var(--paper); color: var(--paper-ink); align-items: center; }
-    .plate-pic .stage { background: var(--paper-ink); }
-    .plate-copy { display: flex; flex-direction: column; justify-content: space-between; gap: 48px; align-self: stretch; padding-block: 12px; }
-    .plate .show-list { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px 18px; }
-    .plate .show-list button { appearance: none; flex: none; padding: 6px 0; border: 0; background: none; color: var(--paper-soft); font: 500 1.125rem/1.2 var(--sans); cursor: pointer; }
-    .plate .show-list button::after { content: none; }
-    .plate .show-list button:hover { color: var(--paper-ink); }
-    .plate .show-list button.is-on { background: none; color: var(--paper-ink); font-weight: 800; box-shadow: inset 0 -4px 0 var(--act, #c8352b); } /* taste-skill-ignore: an underline bar on the chosen tab, not a shadow */
-    .plate h2 { font-size: clamp(2rem, 1.3rem + 2.4vw, 3.4rem); }
-    .plate-text { max-width: 40ch; margin-top: 24px; font-size: 1.15rem; }
-    .plate-cap { max-width: 40ch; margin-top: 16px; color: var(--paper-soft); }
-    .plate-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .cell { display: flex; align-items: center; justify-content: center; min-height: 72px; padding: 0 16px; border: 0; font: 700 1.05rem/1.2 var(--sans); text-decoration: none; cursor: pointer; transition: background-color 120ms linear, transform 120ms var(--ease-out); }
-    .cell-ink { background: var(--paper-ink); color: var(--paper); }
-    .cell-ink:hover { background: #c8352b; color: var(--paper); }
-    .cell-tone { background: #d9d8d2; color: var(--paper-ink); }
-    .cell-tone:hover, .cell-tone.is-on { background: var(--paper-ink); color: var(--paper); }
-    .plate .phone-shot { display: none; }
-
-    /* The app: four sheets stacking like folders in a drawer. */
-    .sheets { padding: 120px 0 0; }
-    .sheets-head { padding: 0 var(--gutter) 48px; }
-    .sheets-head h2 { font-size: var(--head); }
-    .sheets-head p { max-width: 52ch; margin-top: 20px; font-size: 1.2rem; }
-    .sheet { position: sticky; top: calc(60px + var(--n) * 72px); display: grid; grid-template-columns: 5fr 7fr; grid-template-rows: 72px 1fr; min-height: calc(86svh - var(--n) * 72px); background: var(--sc); color: var(--si); }
-    .sheet h3 { grid-column: 1 / -1; align-self: center; padding-inline: var(--gutter); font: 900 clamp(1.75rem, 1.2rem + 1.6vw, 2.75rem)/1 var(--sans); text-transform: uppercase; }
-    .sheet p { align-self: end; max-width: 40ch; padding: 0 var(--gutter) 40px; font-size: 1.125rem; }
-    .sheet img { grid-column: 2; grid-row: 2; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
-    .s1 { --sc: var(--red); --si: var(--paper-ink); }
-    .s2 { --sc: var(--paper); --si: var(--paper-ink); }
-    .s3 { --sc: #1c1c1c; --si: var(--text); }
-    .s4 { --sc: var(--paper); --si: var(--paper-ink); }
-
-    /* Set-up: the run sheet, torn off the pad. */
-    .runsheet { display: grid; grid-template-columns: 5fr 7fr; gap: 48px; padding: 160px var(--gutter); background: var(--bg); }
-    .runsheet-copy h2 { font-size: clamp(2.5rem, 1.4rem + 3.4vw, 4.25rem); }
-    .runsheet-copy p { max-width: 34ch; margin-top: 24px; font-size: 1.15rem; }
-    .slip { justify-self: center; width: min(520px, 100%); padding: 36px 32px 56px; background: var(--paper); color: var(--paper-ink); clip-path: polygon(0 0, 100% 0, 100.00% 100%, 95.83% calc(100% - 10px), 91.67% 100%, 87.50% calc(100% - 10px), 83.33% 100%, 79.17% calc(100% - 10px), 75.00% 100%, 70.83% calc(100% - 10px), 66.67% 100%, 62.50% calc(100% - 10px), 58.33% 100%, 54.17% calc(100% - 10px), 50.00% 100%, 45.83% calc(100% - 10px), 41.67% 100%, 37.50% calc(100% - 10px), 33.33% 100%, 29.17% calc(100% - 10px), 25.00% 100%, 20.83% calc(100% - 10px), 16.67% 100%, 12.50% calc(100% - 10px), 8.33% 100%, 4.17% calc(100% - 10px), 0.00% 100%); font-variant-numeric: tabular-nums; }
-    .slip-h { margin-top: 28px; font-weight: 800; font-size: 1.05rem; }
-    .slip-h:first-child { margin-top: 0; }
-    .row { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; font-size: 1rem; }
-    .row i { flex: 1 1 auto; min-width: 16px; border-bottom: 4px dotted var(--paper-ink); transform: translateY(-4px); }
-    .row b { white-space: nowrap; }
-    .row-total { justify-content: space-between; margin: 28px -32px 0; padding: 0 32px; min-height: 48px; align-items: center; background: var(--paper-ink); color: var(--paper); font-weight: 800; }
-
-    /* Proof: the timing printout on the red wall, cut by the section's edge. */
-    .printout { height: min(1080px, 150vw); overflow: hidden; padding: 120px var(--gutter) 0; background: var(--red); }
-    .card-print { width: min(820px, 100%); margin: 0 auto; padding: 56px; background: var(--paper); color: var(--paper-ink); text-align: center; transform: rotate(-1.5deg); }
-    .card-print h2 { font-size: clamp(2rem, 1.4rem + 2vw, 3rem); }
-    .card-print figure { margin-top: 28px; }
-    .card-print img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
-    .card-print figcaption { margin-top: 8px; color: var(--paper-soft); font-size: 0.85rem; }
-    .print-intro { max-width: 46ch; margin: 28px auto 0; font-size: 1.1rem; }
-    .print-lines { margin: 28px 0 0; padding: 0; list-style: none; display: grid; gap: 18px; }
-    .print-lines li { font-size: 1.25rem; line-height: 1.3; }
-    .print-lines b { font-weight: 900; }
-    .print-lines span { display: block; margin-top: 2px; color: var(--paper-soft); font-size: 1rem; }
-    .print-foot { margin-top: 32px; color: var(--paper-soft); font-size: 0.95rem; }
-
-    /* What's next: one tall printed sheet. */
-    .menu { padding: 160px var(--gutter); background: var(--bg); }
-    .menu-sheet { width: min(680px, 100%); margin: 0 auto; padding: 72px clamp(24px, 5vw, 64px); background: var(--paper); color: var(--paper-ink); text-align: center; clip-path: polygon(0.00% 0, 3.12% 10px, 6.25% 0, 9.38% 10px, 12.50% 0, 15.62% 10px, 18.75% 0, 21.88% 10px, 25.00% 0, 28.12% 10px, 31.25% 0, 34.38% 10px, 37.50% 0, 40.62% 10px, 43.75% 0, 46.88% 10px, 50.00% 0, 53.12% 10px, 56.25% 0, 59.38% 10px, 62.50% 0, 65.62% 10px, 68.75% 0, 71.88% 10px, 75.00% 0, 78.12% 10px, 81.25% 0, 84.38% 10px, 87.50% 0, 90.62% 10px, 93.75% 0, 96.88% 10px, 100.00% 0, 100.00% 100%, 96.88% calc(100% - 10px), 93.75% 100%, 90.62% calc(100% - 10px), 87.50% 100%, 84.38% calc(100% - 10px), 81.25% 100%, 78.12% calc(100% - 10px), 75.00% 100%, 71.88% calc(100% - 10px), 68.75% 100%, 65.62% calc(100% - 10px), 62.50% 100%, 59.38% calc(100% - 10px), 56.25% 100%, 53.12% calc(100% - 10px), 50.00% 100%, 46.88% calc(100% - 10px), 43.75% 100%, 40.62% calc(100% - 10px), 37.50% 100%, 34.38% calc(100% - 10px), 31.25% 100%, 28.12% calc(100% - 10px), 25.00% 100%, 21.88% calc(100% - 10px), 18.75% 100%, 15.62% calc(100% - 10px), 12.50% 100%, 9.38% calc(100% - 10px), 6.25% 100%, 3.12% calc(100% - 10px), 0.00% 100%); }
-    .menu-sheet h2 { font-size: clamp(2.25rem, 1.6rem + 2vw, 3rem); }
-    .menu-note { margin-top: 12px; color: var(--paper-soft); font-size: 1rem; }
-    .menu-group { margin-top: 52px; }
-    .menu-group h3 { font-size: 1.4rem; font-weight: 900; text-transform: uppercase; }
-    .item { display: grid; grid-template-columns: 1fr auto; gap: 2px 16px; max-width: 460px; margin: 16px auto 0; text-align: left; }
-    .item span { font-weight: 700; font-size: 1.06rem; }
-    .item b { font-weight: 700; color: #c8352b; white-space: nowrap; }
-    .item small { grid-column: 1 / -1; color: var(--paper-soft); font-size: 1rem; line-height: 1.45; }
-    .menu-end { margin-top: 56px; color: var(--paper-soft); font-size: 0.95rem; line-height: 1.7; }
-
-    /* The close: one sentence, its last word the button. */
-    .closer { padding: 160px var(--gutter) 200px; background: var(--bg); }
-    .closer-line { font: 900 clamp(2.75rem, 1rem + 6vw, 7rem)/1.02 var(--sans); text-transform: uppercase; letter-spacing: -0.02em; }
-    .closer-btn { display: inline-block; padding: 0 0.2em; background: var(--red); color: var(--paper-ink); text-decoration: none; transition: background-color 120ms linear, transform 120ms var(--ease-out); }
-    .closer-btn:hover { background: var(--paper); color: var(--paper-ink); }
-    .closer-note { max-width: 60ch; margin-top: 32px; color: var(--muted); font-size: 1rem; }
-
-    /* Footer: tiles, the back of the object. */
-    .tiles { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; padding: 10px; background: var(--bg); }
-    .t { display: flex; flex-direction: column; gap: 8px; min-height: 220px; padding: 24px; background: var(--tone); color: var(--text); }
-    .t a { font-size: 1.05rem; text-decoration: none; }
-    .t a:hover { color: var(--red); }
-    .t-small { color: var(--muted); font-size: 0.875rem; }
-    .t-say { grid-column: 1 / 5; justify-content: space-between; }
-    .t-say p:first-child { font-size: 1.5rem; line-height: 1.25; font-weight: 700; }
-    .t-nav { grid-column: 5 / 8; }
-    .t-src { grid-column: 8 / 10; }
-    .t-me { grid-column: 10 / 13; justify-content: flex-end; }
-    .t-me a { font-size: 1.25rem; font-weight: 700; }
-    .t-word { grid-column: 1 / 9; min-height: 320px; justify-content: center; align-items: center; background: var(--paper); color: var(--paper-ink); font: 900 clamp(3rem, 9vw, 9rem)/1 var(--sans); text-transform: uppercase; letter-spacing: -0.03em; }
-    .t-go { grid-column: 9 / 13; min-height: 320px; justify-content: space-between; background: var(--red); color: var(--paper-ink); }
-    .t-go span { font: 900 1.75rem/1.1 var(--sans); text-transform: uppercase; }
-    .t-go svg { align-self: flex-end; width: 56px; height: 56px; transition: transform 160ms var(--ease-out); }
-    .t-go:hover { color: var(--paper-ink); background: var(--paper); }
-    .t-go:hover svg { transform: translateY(6px); }
-    .t-credits { grid-column: 1 / -1; max-width: 120ch; padding: 8px 14px; color: var(--muted); font-size: 0.875rem; }
-
-    @media (max-width: 900px) {
-      .top-link { display: none; }
-      .hero2 { padding-top: 72px; }
-      .pitboard { padding: 40px 20px 48px; }
-      .pb-title span:first-child, .pb-title span:last-child { justify-self: center; padding: 0; }
-      .plate { grid-template-columns: minmax(0, 1fr); min-height: 0; }
-      .plate .stage { display: none; }
-      .plate .phone-shot { display: block; }
-      .plate-acts { grid-template-columns: minmax(0, 1fr); }
-      .cell { min-height: 60px; }
-      .sheet { top: calc(60px + var(--n) * 52px); grid-template-columns: minmax(0, 1fr); grid-template-rows: 52px auto auto; min-height: calc(70svh - var(--n) * 52px); }
-      .sheet h3 { font-size: 1.375rem; }
-      .sheet img { grid-column: 1; grid-row: 2; aspect-ratio: 4 / 3; height: auto; }
-      .sheet p { grid-row: 3; padding: 20px; }
-      .runsheet { grid-template-columns: minmax(0, 1fr); padding-block: 96px; }
-      .slip { padding: 28px 20px 48px; }
-      .row-total { margin-inline: -20px; padding-inline: 20px; }
-      .printout { padding-top: 72px; height: auto; max-height: 1500px; }
-      .card-print { padding: 28px; transform: rotate(-1deg); }
-      .menu { padding: 96px 10px; }
-      .closer { padding: 96px var(--gutter) 120px; }
-      .closer-line { font-size: 9vw; }
-      .tiles { grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; position: static; }
-      .t { min-height: 0; padding: 20px; }
-      .t-word { grid-column: 1 / -1; grid-row: 1; min-height: 160px; font-size: 14vw; }
-      .t-go { grid-column: 1 / -1; grid-row: 2; min-height: 140px; }
-      .t-nav { grid-column: 1; grid-row: 3; } .t-me { grid-column: 2; grid-row: 3; }
-      .t-src { grid-column: 1; grid-row: 4; } .t-say { grid-column: 2; grid-row: 4; }
-      .t-credits { grid-row: 5; }
-    }
-    @media (prefers-reduced-motion: reduce) { .hero2-bg { animation: none; } }
-    @media (max-width: 560px) { .top-dl { display: none; } }
   </style>
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="#overview">Undercut</a>
+    <a class="brand" href="#overview"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0e1218"/><path d="M6 22h20M9 16h14M12 10h8" stroke="#f2554a" stroke-width="3" stroke-linecap="round"/></svg><span>Undercut</span></a>
     <div class="pages" role="tablist" aria-label="Pages">
       <button role="tab" id="tab-overview" aria-controls="page-overview" aria-selected="true" data-page="overview" type="button">Overview</button>
       <button role="tab" id="tab-how" aria-controls="page-how" aria-selected="false" data-page="how" type="button">How it works</button>
       <button role="tab" id="tab-tech" aria-controls="page-tech" aria-selected="false" data-page="tech" type="button">Engineering</button>
+      <button role="tab" id="tab-next" aria-controls="page-next" aria-selected="false" data-page="next" type="button">Next steps</button>
     </div>
-    <a class="top-link" href="#next">What's next</a>
-    <a class="top-dl" href="https://github.com/srikarnadella/f1-race-engineer/releases/latest/download/Undercut-Setup-0.1.0.exe">Download</a>
+    <a class="gh" href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>
   </header>
 
   <main>
+    <!-- ============ Overview ============ -->
     <div role="tabpanel" id="page-overview" aria-labelledby="tab-overview">
-      <section class="hero2" aria-labelledby="hero-h">
-        <img class="hero2-bg" src="img/verstappen-spa.jpg" width="1920" height="1080" alt="Max Verstappen in the Red Bull RB22 at Spa-Francorchamps, 2026, the background blurred by the speed" fetchpriority="high" decoding="async">
-        <div class="pitboard">
-          <h1 id="hero-h" class="pb-title"><span>Under</span><span>cut</span></h1>
-          <p class="pb-lede">A race engineer for F1 26. It calls your race live, one thing at a time, then takes it apart after the flag.</p>
-          <p class="pb-facts"><span>PC or console</span><i aria-hidden="true"></i><span>Free and open source</span><i aria-hidden="true"></i><span>Windows app</span></p>
-          <div class="pb-acts"><a class="btn" href="https://github.com/srikarnadella/f1-race-engineer/releases/latest/download/Undercut-Setup-0.1.0.exe">Download for Windows</a><a class="pb-link" href="#watch">Watch a real race</a></div>
-          <div class="board" data-ui id="board" style="--c: var(--go)">
-            <div class="board-top board-ctl">
-              <span>Barcelona, lap <b id="b-lap">21</b> of 23</span><span class="pos" id="b-pos">P8</span>
-              <button type="button" id="b-prev" aria-label="Earlier in the race">Earlier</button>
-              <button type="button" id="b-next" aria-label="Later in the race">Later</button>
-            </div>
-            <div class="board-swap" id="b-swap" aria-live="off">
-              <div class="board-callrow"><div class="board-call" id="b-call">PUSH</div><p class="board-reason" id="b-reason">Tyres and fuel OK</p></div>
-              <p class="board-label">Radio, newest first</p>
-              <ol class="board-log" id="b-log">
-                <li data-reveal style="--i:1"><span>Lap 21</span>Attack HAMILTON - Overtake mode ready into corner 1</li>
-                <li data-reveal style="--i:2"><span>Lap 21</span>Overtake mode available on HAMILTON - use it on the straight</li>
-                <li data-reveal style="--i:3"><span>Lap 20</span>Attack LECLERC - Overtake mode ready into corner 1</li>
-              </ol>
-            </div>
+      <section class="hero">
+        <h1 class="lines"><span class="line"><span data-line style="--i:0">Undercut</span></span><span class="line tagline"><span data-line style="--i:1">A race engineer for F1 26</span></span></h1>
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p data-rise style="--i:0">It reads the game's live telemetry while you drive and calls your race one thing at a time: when to box, who to attack, when the rain comes. After the flag it takes the race apart lap by lap and answers your questions about it. On your PC, a phone or a tablet. Free and open source.</p>
+            <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Demo</a><a href="#app">Windows app</a><a href="#setup">Set it up</a></div>
+            <p class="note" data-rise style="--i:2">The board replays a real race at Barcelona, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 20 to 22: chasing Leclerc, then the pass on Hamilton for P7 and holding him off.</p>
           </div>
-          <p class="pb-note">The calls and radio above are word for word from a race I recorded at Barcelona: chasing Leclerc, then passing Hamilton for P7. Step through them.</p>
+          <div class="hero-visual">
+            <img class="hero-bg" src="img/verstappen-spa.jpg" width="1920" height="1080" alt="Max Verstappen in the Red Bull RB22 at Spa-Francorchamps, 2026, the background blurred by the speed" fetchpriority="high" decoding="async">
+            <div class="board" data-ui id="board" style="--c: var(--go)">
+              <div class="board-top board-ctl">
+                <span>Barcelona · lap <b id="b-lap">21</b> of 23</span><span class="pos" id="b-pos">P8</span>
+                <button type="button" id="b-prev" aria-label="Earlier in the race">Earlier</button>
+                <button type="button" id="b-next" aria-label="Later in the race">Later</button>
+              </div>
+              <div class="board-swap" id="b-swap" aria-live="off">
+                <div class="board-callrow"><div class="board-call" id="b-call">PUSH</div><p class="board-reason" id="b-reason">Tyres and fuel OK</p></div>
+                <p class="board-label">Radio, newest first</p>
+                <ol class="board-log" id="b-log">
+                  <li><span>Lap 21</span>Attack HAMILTON - Overtake mode ready into corner 1</li>
+                  <li><span>Lap 21</span>Overtake mode available on HAMILTON - use it on the straight</li>
+                  <li><span>Lap 20</span>Attack LECLERC - Overtake mode ready into corner 1</li>
+                </ol>
+              </div>
+            </div>
+            <p class="hero-credit">Spa, 2026. <a href="https://commons.wikimedia.org/wiki/File:F1_2026,_Red_Bull_Racing,_Red_Bull_RB22,_Max_Verstappen,_Spa_Francorchamps_(55425736764).jpg">Photo</a>: Der Alf, <a href="https://creativecommons.org/licenses/by/4.0">CC BY 4.0</a></p>
+          </div>
         </div>
-        <p class="hero2-credit">Spa, 2026. <a href="https://commons.wikimedia.org/wiki/File:F1_2026,_Red_Bull_Racing,_Red_Bull_RB22,_Max_Verstappen,_Spa_Francorchamps_(55425736764).jpg">Photo</a>: Der Alf, <a href="https://creativecommons.org/licenses/by/4.0">CC BY 4.0</a></p>
+        <dl class="spec">
+          <div><dt>Game</dt><dd>F1 26</dd><p>On PC or console</p></div>
+          <div><dt>Runs on</dt><dd>Your PC</dd><p>A Windows app, nothing in the cloud, no account</p></div>
+          <div><dt>Watch on</dt><dd>Any screen</dd><p>Phone, tablet or browser on your Wi-Fi</p></div>
+          <div><dt>Cost</dt><dd>Free</dd><p>Open source, MIT license</p></div>
+        </dl>
       </section>
 
-      <section class="plate" id="watch" aria-labelledby="watch-h">
-        <div class="plate-pic">
-          <div class="stage" data-reveal><div class="frame"><iframe id="dash" src="demo/?recorded" title="Undercut dashboard, replaying a recorded race" allow="microphone; autoplay" loading="lazy"></iframe></div></div>
+      <section class="show" id="watch" aria-label="The real app, replaying the race">
+        <div class="bar"><span>[ 01 // LIVE DEMO ]</span><span>REPLAY · BARCELONA · LAPS 20-22 OF 23 · F1 26</span></div>
+        <div class="show-list" role="group" aria-label="Demo screens">
+          <button data-screen="drive" type="button">Drive</button>
+          <button data-screen="battle" type="button">Battle</button>
+          <button data-screen="strategy" type="button">Strategy</button>
+          <button data-screen="weather" type="button">Weather</button>
+          <button data-screen="debrief" type="button">Debrief</button>
+          <button class="auto" id="auto" type="button">Auto-switch</button>
+        </div>
+        <div class="stage" data-reveal><div class="frame"><iframe id="dash" src="demo/?recorded" title="Undercut dashboard, replaying a recorded race" allow="microphone; autoplay" loading="lazy"></iframe></div></div>
+        <div class="show-copy">
           <a class="phone-shot" href="demo/?recorded"><img src="img/drive.png" width="1180" height="885" alt="The Drive screen of the dashboard, from the recorded Barcelona race" loading="lazy" decoding="async"></a>
-        </div>
-        <div class="plate-copy">
-          <div class="show-list" role="group" aria-label="Demo screens">
-            <button data-screen="drive" type="button">Drive</button>
-            <button data-screen="battle" type="button">Battle</button>
-            <button data-screen="strategy" type="button">Strategy</button>
-            <button data-screen="weather" type="button">Weather</button>
-            <button data-screen="debrief" type="button">Debrief</button>
-          </div>
-          <div>
-            <h2 id="watch-h" data-reveal>The real app, replaying</h2>
-            <p class="plate-text" data-reveal style="--i:0">Not a video: the dashboard itself, fed the packets of the Barcelona race through the same engine that runs live. Pick a screen, or let the race pick it.</p>
-            <p class="plate-cap" id="caption">Drive: the one screen to leave up. The call, the fight either side, what's coming.</p>
-          </div>
-          <div class="plate-acts">
-            <a class="cell cell-ink" href="demo/?recorded">Open it full screen</a>
-            <button class="cell cell-tone auto" id="auto" type="button">Auto-switch</button>
-          </div>
+          <p id="caption">The real app, replaying the same Barcelona race.</p>
+          <a class="button button-big" href="demo/?recorded">Open the demo full screen</a>
         </div>
       </section>
 
-      <section class="sheets" id="app" aria-labelledby="app-h">
-        <div class="sheets-head">
-          <h2 id="app-h" data-reveal>The Windows app</h2>
-          <p>One installer, no terminal. The live dashboard for the race, and a place for everything after it. Windows 10 or 11, 64-bit, 123 MB, free. <a href="https://github.com/srikarnadella/f1-race-engineer/releases/latest/download/Undercut-Setup-0.1.0.exe">Download</a></p>
-        </div>
-        <article class="sheet s1" style="--n:0">
-          <h3 data-reveal style="--i:1">Live dashboard</h3>
-          <p>One call at a time: PUSH, HOLD or BOX, the fight either side, the radio read out loud. On the PC, or on any phone or tablet on your Wi-Fi.</p>
-          <img src="img/drive.png" width="1180" height="885" alt="The Drive screen: PUSH, the cars either side and what's coming" loading="lazy" decoding="async">
-        </article>
-        <article class="sheet s2" style="--n:1">
-          <h3 data-reveal style="--i:2">Race analysis</h3>
-          <p>Every saved session: pace by tyre, any lap against another on one distance axis, head to head with any car, the calls graded, and every race together.</p>
-          <img src="img/app-analysis.png" width="1440" height="900" alt="Race analysis: lap 22 against lap 14 at Barcelona, the time gap, speed, throttle and brake" loading="lazy" decoding="async">
-        </article>
-        <article class="sheet s3" style="--n:2">
-          <h3 data-reveal style="--i:3">Ask the race</h3>
-          <p>Questions in plain words, answered by a small model on your own PC. The engine works out every number and checks the answer against the recording.</p>
-          <img src="img/app-ask.png" width="1440" height="900" alt="Ask the race: where lap 22 lost time against the best lap, the answer and a speed chart" loading="lazy" decoding="async">
-        </article>
-        <article class="sheet s4" style="--n:3">
-          <h3 data-reveal style="--i:0">Home</h3>
-          <p>One way into each part, with what's in it: the sessions you've saved, the recordings, the game's settings and a QR code for your phone.</p>
-          <img src="img/app-home.jpg" width="1440" height="900" alt="The app's Home: Live dashboard, Race analysis, Ask the race, Storage, Connect and record" loading="lazy" decoding="async">
-        </article>
-      </section>
-
-      <section class="runsheet" id="setup" aria-labelledby="setup-h">
-        <div class="runsheet-copy">
-          <h2 id="setup-h" data-reveal>Two minutes to the grid</h2>
-          <p data-reveal style="--i:1">Install it, switch on the game's telemetry, and drive. Running it from the code instead takes Node.js 22 and <code>npm start</code>. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/setup.md">The set-up guide</a></p>
-        </div>
-        <div class="slip" data-reveal style="--i:1">
-          <p class="slip-h">Before the race</p>
-          <p class="row" data-reveal style="--i:1"><span>Install Undercut for Windows</span><i></i><b>2 min</b></p>
-          <p class="row" data-reveal style="--i:2"><span>F1 26: Settings, Telemetry, UDP on</span><i></i><b>port 20777</b></p>
-          <p class="row" data-reveal style="--i:3"><span>Scan the QR code on a phone or tablet</span><i></i><b>optional</b></p>
-          <p class="slip-h">On track</p>
-          <p class="row" data-reveal style="--i:0"><span>One call: PUSH, HOLD or BOX</span><i></i><b>10 a second</b></p>
-          <p class="row" data-reveal style="--i:1"><span>The radio, read out loud</span><i></i><b>key calls</b></p>
-          <p class="row" data-reveal style="--i:2"><span>The screen follows the fight</span><i></i><b>auto</b></p>
-          <p class="slip-h">After the flag</p>
-          <p class="row" data-reveal style="--i:3"><span>Every lap, against any car</span><i></i><b>Race analysis</b></p>
-          <p class="row" data-reveal style="--i:0"><span>Questions, answered on your PC</span><i></i><b>~10 s</b></p>
-          <p class="row" data-reveal style="--i:1"><span>Every call graded</span><i></i><b>Debrief</b></p>
-          <p class="row row-total"><span>Your own race engineer</span><b>free</b></p>
-        </div>
-      </section>
-
-      <section class="printout" aria-labelledby="proof-h">
-        <div class="card-print" data-reveal>
-          <h2 id="proof-h">Measured, not claimed</h2>
-          <figure><img src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower, with the pit building behind" loading="lazy" decoding="async"><figcaption>Suzuka, one of the recorded races. <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Photo</a>: Tokumeigakarinoaoshima, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></figcaption></figure>
-          <p class="print-intro" data-reveal style="--i:2">Every prediction replayed against what then happened in 11 recorded race sessions, next to the obvious guess.</p>
-          <ul class="print-lines">
-            <li data-reveal style="--i:3"><b>3.1 places</b> off, rejoining after a stop <span>The obvious guess, "you keep your place": 6.4</span></li>
-            <li data-reveal style="--i:0"><b>396 ms</b> a lap, tyre wear <span>"No wear": 505. Better on 9 of 10 races</span></li>
-            <li data-reveal style="--i:1"><b>0.866 AUC</b>, will the car behind pass in 10 s <span>The gap alone: 0.837. Better on all 11 races</span></li>
-            <li data-reveal style="--i:2"><b>10.7 points</b>, a rival's battery at the line <span>"It stays where it is": 14.7</span></li>
-            <li data-reveal style="--i:3"><b>1.53 laps</b>, when an AI car stops <span>A fixed share of tyre life: 1.73</span></li>
-            <li data-reveal style="--i:0"><b>11 of 75</b> passes at the corner it named <span>The busiest corner: 12. Not yet better, so it says "likely spot"</span></li>
+      <section class="app" id="app" aria-labelledby="app-h">
+        <div class="bar"><span>[ 02 // WINDOWS APP ]</span><span>ONE INSTALLER · WINDOWS 10 OR 11, 64-BIT · 123 MB</span></div>
+        <div class="app-copy">
+          <h2 id="app-h" data-reveal>Windows app</h2>
+          <p data-reveal style="--i:1">The same engineer in one installer: no Node.js, no terminal. It opens on Home, with the live dashboard for the race and a place for everything after it.</p>
+          <ul class="app-list" data-reveal style="--i:2">
+            <li><b>Race analysis.</b> Every saved session: pace, any lap against another, head to head with any car, the calls graded, and every race together.</li>
+            <li><b>Ask the race.</b> Questions about a race in plain words, answered by a small model on your own PC through <a href="https://ollama.com/download">Ollama</a>. Never while you race.</li>
+            <li><b>Storage and Connect.</b> Sessions and recordings, disk use, the game's settings and a QR code for your phone.</li>
           </ul>
-          <p class="print-foot">Silverstone&nbsp;· Suzuka&nbsp;· Monaco&nbsp;· Montreal&nbsp;· Barcelona&nbsp;· Red Bull Ring&nbsp;· Spa. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a> · <a href="#tech">How each is measured</a></p>
+          <a class="button button-big" href="https://github.com/srikarnadella/f1-race-engineer/releases/latest/download/Undercut-Setup-0.1.0.exe">Download for Windows</a>
+          <p class="app-note">Free, MIT license. The installer isn't code-signed yet, so Windows asks first: <i>More info → Run anyway</i>. Everything stays on your PC. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/setup.md#the-windows-app">The app's guide</a></p>
+        </div>
+        <div class="app-pics">
+        <figure class="app-main" data-reveal style="--i:1"><img src="img/app-ask.png" width="1440" height="900" alt="Ask the race in the Windows app: asked where lap 22 lost time against the best lap at Barcelona, the answer and a speed chart of the two laps with the corners that cost the most" loading="lazy" decoding="async"></figure>
+        <div class="shots">
+          <figure data-reveal><img src="img/app-home.jpg" width="1440" height="900" alt="The app's Home: the live dashboard, Race analysis, Ask the race, Storage, and Connect and record" loading="lazy" decoding="async"><figcaption><b>Home.</b> One way into each part, with what's in it.</figcaption></figure>
+          <figure data-reveal style="--i:1"><img src="img/app-analysis.png" width="1440" height="900" alt="Race analysis: lap 22 against lap 14 at Barcelona, the time gap, speed, throttle and brake on one distance axis" loading="lazy" decoding="async"><figcaption><b>Race analysis.</b> Lap 22 against the best lap at Barcelona: 1.505 s, and where it went.</figcaption></figure>
+        </div>
         </div>
       </section>
 
-      <section class="menu" id="next" aria-labelledby="next-h">
-        <div class="menu-sheet" data-reveal>
-          <h2 id="next-h">What's next</h2>
-          <p class="menu-note">In the order it will be built, each step a test before it's code.</p>
-          <div class="menu-group" data-reveal style="--i:1">
-            <h3 data-reveal style="--i:2">In progress</h3>
-            <p class="item" data-reveal style="--i:3"><span>Confidence on every call</span><b>battle calls next</b><small>The pit-stop pick and the tyre cliff give a range today; then bands on the rejoin and gap charts.</small></p>
-            <p class="item" data-reveal style="--i:0"><span>A sharper rejoin</span><b>3.1 places off</b><small>Still 1.7 places pessimistic. Next try: charge only the pit-lane part at the rejoin.</small></p>
+      <section class="setup" id="setup">
+        <div class="bar"><span>[ 03 // SET-UP ]</span><span>THE WINDOWS APP OR NODE.JS · ANY BROWSER ON YOUR WI-FI</span></div>
+        <h2>Running in two minutes</h2>
+        <div class="story">
+          <div class="story-steps">
+            <div class="beat is-on" data-state="0"><h3>Start it on your PC.</h3><p>Install the <a href="#app">Windows app</a>. Or from the code: install <a href="https://nodejs.org">Node.js</a>, download it from <a href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>, then run <code>npm install</code> and <code>npm start</code> in its folder. No account, nothing in the cloud.</p></div>
+            <div class="beat" data-state="1"><h3>Then turn on telemetry in F1 26.</h3><p>Settings → Telemetry → UDP <b>On</b>, port <code>20777</code>, format 2025 or later.</p></div>
+            <div class="beat" data-state="2"><h3>Open it beside you, and drive.</h3><p>Watch it in the app, or scan the QR code (in Connect, or printed by <code>npm start</code>) with a tablet or phone on the same Wi-Fi. It talks when it matters.</p></div>
           </div>
-          <div class="menu-group" data-reveal style="--i:1">
-            <h3 data-reveal style="--i:2">Next</h3>
-            <p class="item" data-reveal style="--i:3"><span>Share a race</span><b>one image</b><small>The result, best lap, stints and graded calls from the Debrief, ready to post.</small></p>
-            <p class="item" data-reveal style="--i:0"><span>More models to ask</span><b>2 to score</b><small>Llama 3.2 3B and Phi-4-mini on the same 50 questions, and a check for a flipped "no".</small></p>
-            <p class="item" data-reveal style="--i:1"><span>More calls graded</span><b>3 kinds</b><small>Pit-window calls, fuel saves and undercut offers, in the calls audit.</small></p>
+          <div class="story-stage">
+            <div class="state is-on" data-state="0"><pre data-ui><span class="c">$</span> npm start
+[server] dashboard: http://localhost:8080
+[server] on other devices (same Wi-Fi): http://192.168.1.23:8080
+[udp] listening for F1 telemetry on 0.0.0.0:20777
+[server] scan to open http://192.168.1.23:8080 on a phone or tablet (same Wi-Fi):
+<span class="ok">▄▄▄▄▄▄▄ ▄ ▄▄  ▄▄▄▄▄▄▄
+█ ▄▄▄ █ ▀█▄█▀ █ ▄▄▄ █
+█ ███ █ ▄ ▀▀▄ █ ███ █
+█▄▄▄▄▄█ █ ▀ █ █▄▄▄▄▄█</span></pre></div>
+            <div class="state" data-state="1">
+              <div class="settings" data-ui>
+                <p class="t">Telemetry settings</p>
+                <div class="sel"><span>UDP Telemetry</span><b>On</b></div>
+                <div><span>UDP Broadcast Mode</span><span>Off</span></div>
+                <div><span>UDP IP Address</span><span>127.0.0.1</span></div>
+                <div><span>UDP Port</span><span>20777</span></div>
+                <div><span>UDP Send Rate</span><span>60Hz</span></div>
+                <div><span>UDP Format</span><span>2025</span></div>
+              </div>
+            </div>
+            <div class="state" data-state="2"><img src="img/drive.png" width="1180" height="885" alt="The Drive screen: the call, the cars either side and what's coming" loading="lazy" decoding="async"></div>
           </div>
-          <div class="menu-group" data-reveal style="--i:2">
-            <h3 data-reveal style="--i:3">Later</h3>
-            <p class="item" data-reveal style="--i:0"><span>Rain strategy</span><b>needs a recording</b><small>How intermediates wear, and pit timing on a drying track.</small></p>
-            <p class="item" data-reveal style="--i:1"><span>Online races</span><b>needs a recording</b><small>Calls that hold up when the game hides other drivers' data.</small></p>
-            <p class="item" data-reveal style="--i:2"><span>Your races in Claude</span><b>MCP</b><small>Ask the race's read-only tools, for Claude Desktop or Claude Code.</small></p>
-          </div>
-          <div class="menu-group" data-reveal style="--i:3">
-            <h3 data-reveal style="--i:0">Shipped</h3>
-            <p class="item" data-reveal style="--i:1"><span>The Windows app</span><b>0.1.0</b><small>Home, the live dashboard, Race analysis, Ask the race, Storage and Connect.</small></p>
-            <p class="item" data-reveal style="--i:2"><span>Ask the race</span><b>49 of 50</b><small>Test questions right with Qwen3 4B; nothing invented in 50 with Qwen3 1.7B.</small></p>
-            <p class="item" data-reveal style="--i:3"><span>The calls audit</span><b>in the Debrief</b><small>Every call graded against the laps that followed it.</small></p>
-            <p class="item" data-reveal style="--i:0"><span>A learned overtake model</span><b>AUC 0.866</b><small>LightGBM over 11 races, better than the gap alone on every one.</small></p>
-          </div>
-          <p class="menu-end">Version 0.1.0, November 2026<br><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">The full roadmap</a></p>
         </div>
       </section>
 
-      <section class="closer" aria-label="Get Undercut">
-        <p class="closer-line" data-reveal>Box this lap.<br>Get <a class="closer-btn" href="https://github.com/srikarnadella/f1-race-engineer/releases/latest/download/Undercut-Setup-0.1.0.exe">Undercut</a></p>
-        <p class="closer-note" data-reveal style="--i:1">Windows 10 or 11, 64-bit, 123 MB, free and open source. The installer isn't code-signed yet, so Windows asks first: More info, then Run anyway. Or <a href="demo/?recorded">watch the demo</a> first.</p>
+      <section class="proof" aria-labelledby="proof-h">
+        <div class="bar"><span>[ 04 // MEASURED ]</span><span>11 RECORDED RACE SESSIONS · EACH AGAINST THE OBVIOUS GUESS</span></div>
+        <div class="tiles">
+          <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>11 recorded race sessions. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
+          <div class="tile" data-reveal style="--i:1"><b>3.1</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 6.4. AI cars stop in waves, so it counts the ones already stopping.</small></div>
+          <div class="tile" data-reveal style="--i:2"><b>10.7</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 14.7 points off.</small></div>
+          <div class="tile" data-reveal style="--i:1"><b>9 / 10</b><span>races where the tyre model beats "no wear"</span><small>The exception is a short Silverstone race, where the two tie: 349 ms against 347.</small></div>
+          <div class="tile" data-reveal style="--i:2; --c: var(--go)"><b>0.87</b><span>AUC: will the car behind pass within 10 s?</span><small>LightGBM, scored on every race session recorded (11, the wet one included), each held out: better on all 11. The gap alone: 0.84.</small></div>
+          <figure class="tile tile-img" data-reveal style="--i:3"><img src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower, with the pit building behind" loading="lazy" decoding="async"><figcaption>Suzuka, one of the recorded races. <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Photo</a>: Tokumeigakarinoaoshima, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></figcaption></figure>
+          <figure class="tile tile-img" data-reveal style="--i:4"><img src="img/pit-wall.jpg" width="1400" height="933" alt="A team's pit-wall stand beside the track at Suzuka, 2009" loading="lazy" decoding="async"><figcaption>A real pit wall, Suzuka 2009: the job, done by people. <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">Photo</a>: Morio, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a></figcaption></figure>
+        </div>
+        <p class="more"><a href="#tech">How each is measured</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">What's next</a></p>
       </section>
     </div>
 
@@ -1456,17 +1255,42 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer">The source</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/development.md">How it's built</a></p>
       </section>
     </div>
+    <!-- ============ Next steps ============ -->
+    <div role="tabpanel" id="page-next" aria-labelledby="tab-next" hidden>
+      <section class="page-top soon-page">
+        <div class="bar"><span>[ 01 // NEXT STEPS ]</span><span>WHAT'S BEING BUILT · WHAT SHIPPED</span></div>
+        <h1>What's next</h1>
+        <p class="lead">In the order it will be built. Each step is written as a test before it's code.</p>
+        <ul class="soon-list">
+          <li data-reveal><span class="tag">In progress</span><h3>Confidence on every call</h3><p>The pit-stop pick says when it depends on tyre wear ("Lap 14-22, depending on tyre wear"), and the tyre-cliff warning gives a range ("~1-2 laps to the cliff"). The battle calls are next, then the same uncertainty drawn as bands on the rejoin and gap charts.</p></li>
+          <li data-reveal style="--i:1"><span class="tag">In progress</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9": counting the cars already stopping in a pit wave took it from 4.2 to 2.7 places off on the first 45 stops. On all 79 it's 3.1, still about 1.7 places pessimistic. Next try: charge only the pit-lane part at the rejoin.</p></li>
+          <li data-reveal style="--i:2"><span class="tag">Next</span><h3>Share a race</h3><p>One image from the Debrief: the result, the best lap, the stints and the graded calls, ready to post.</p></li>
+          <li data-reveal style="--i:3"><span class="tag">Next</span><h3>More models for Ask the race</h3><p>Llama 3.2 3B and Phi-4-mini scored on the same 50 questions, more questions whose answer is "no", and a check for an answer that turns a "no" into a "yes".</p></li>
+          <li data-reveal style="--i:4"><span class="tag">Next</span><h3>More calls graded</h3><p>The calls audit grades pushes, tyre warnings, stops for damage or under a safety car, and weather calls today; pit-window calls, fuel saves and undercut offers are next.</p></li>
+          <li data-reveal style="--i:5"><span class="tag">Later</span><h3>Rain strategy</h3><p>How intermediates wear, and pit timing that knows the track is drying. It needs a recording of a race on a drying track first.</p></li>
+          <li data-reveal style="--i:6"><span class="tag">Later</span><h3>Online races</h3><p>Measure which telemetry the game hides for human drivers, and make the rival-stop and attack calls hold up without it.</p></li>
+          <li data-reveal style="--i:7"><span class="tag">Later</span><h3>Your races in Claude</h3><p>The same read-only tools Ask the race uses, served over MCP, so Claude Desktop or Claude Code can answer questions about your races.</p></li>
+        </ul>
+        <h2 class="soon-sub">Shipped</h2>
+        <ul class="soon-list">
+          <li data-reveal><span class="tag">0.1.0</span><h3>The Windows app</h3><p>One installer: Home, the live dashboard, Race analysis, Ask the race, Storage and Connect. <a href="#app">Download</a></p></li>
+          <li data-reveal style="--i:1"><span class="tag">0.1.0</span><h3>Ask the race</h3><p>Questions about a race in plain words, answered on your PC: 49 of 50 test questions right with Qwen3 4B. <a href="#how">How it answers</a></p></li>
+          <li data-reveal style="--i:2"><span class="tag">0.1.0</span><h3>Race analysis</h3><p>Every saved session: pace, any lap against another, head to head with any car, the calls graded, and every race together.</p></li>
+          <li data-reveal style="--i:3"><span class="tag">Done</span><h3>The calls audit</h3><p>Every call graded against what happened after it, in the Debrief's Calls tab.</p></li>
+          <li data-reveal style="--i:4"><span class="tag">Done</span><h3>A learned overtake model</h3><p>LightGBM over 11 races: AUC 0.866 against 0.837 for the gap alone, better on every race it was tested on.</p></li>
+        </ul>
+        <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">The full roadmap</a></p>
+      </section>
+    </div>
   </main>
 
-  <footer class="tiles">
-    <div class="t t-say"><p>A race engineer for F1 26, built by Srikar Nadella.</p><p class="t-small">Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts. MIT license.</p></div>
-    <nav class="t t-nav" aria-label="Site"><a href="#overview">Overview</a><a href="#how">How it works</a><a href="#tech">Engineering</a><a href="#next">What's next</a><a href="demo/?recorded">Live demo</a></nav>
-    <nav class="t t-src" aria-label="Project"><a href="https://github.com/srikarnadella/f1-race-engineer">Source on GitHub</a><a href="https://github.com/srikarnadella/f1-race-engineer/releases/latest">Release 0.1.0</a><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">Roadmap</a></nav>
-    <div class="t t-me"><p class="t-small">Srikar Nadella</p><a href="https://www.linkedin.com/in/srikar-nadella/">LinkedIn</a><a href="https://www.srikarnadella.com/">srikarnadella.com</a></div>
-    <p class="t t-word" aria-hidden="true">Undercut</p>
-    <a class="t t-go" href="https://github.com/srikarnadella/f1-race-engineer/releases/latest/download/Undercut-Setup-0.1.0.exe"><span>Download for Windows</span><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6v32M10 26l14 14 14-14" fill="none" stroke="currentColor" stroke-width="4"/></svg></a>
-    <p class="t-credits">Photographs from Wikimedia Commons, shown as the world around the project, not as its own: <a href="https://commons.wikimedia.org/wiki/File:F1_2026,_Red_Bull_Racing,_Red_Bull_RB22,_Max_Verstappen,_Spa_Francorchamps_(55425736764).jpg">Spa</a> by Der Alf (CC BY 4.0); <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Suzuka</a> by Tokumeigakarinoaoshima (CC BY-SA 4.0); <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">the pit wall</a> by Morio (CC BY-SA 3.0). Resized only.</p>
+  <p class="wordmark" aria-hidden="true">Undercut</p>
+  <footer>
+    <span>Undercut, built by Srikar Nadella</span>
+    <nav aria-label="Project"><a href="https://github.com/srikarnadella/f1-race-engineer">Source (MIT)</a><a href="demo/?recorded">Demo</a><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">Roadmap</a></nav>
+    <span class="r">Fan project. Not affiliated with Formula 1, the FIA or Electronic Arts.</span>
   </footer>
+  <p class="credits">Photographs from Wikimedia Commons, shown as the world around the project, not as its own: <a href="https://commons.wikimedia.org/wiki/File:Start_2008_Belgium.jpg">the start at Spa</a> by Mark McArdle (CC BY-SA 2.0); <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Suzuka</a> by Tokumeigakarinoaoshima (CC BY-SA 4.0); <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">the pit wall</a> by Morio (CC BY-SA 3.0). Resized only.</p>
 
   <script>
     (function () {
