@@ -144,7 +144,11 @@ function createInsightEngine(fieldModel) {
     if (recent.length < 2) return { avgWear, ratePerLap: null };
     const laps = recent[recent.length - 1].lapNum - recent[0].lapNum;
     const ratePerLap = laps > 0 ? (recent[recent.length - 1].avgWear - recent[0].avgWear) / laps : null;
-    return { avgWear, ratePerLap };
+    // The spread of the last few lap-to-lap steps: how sure the cliff projection is (roadmap A3).
+    const steps = [];
+    const lastFive = history.slice(-5);
+    for (let i = 1; i < lastFive.length; i++) if (lastFive[i].lapNum === lastFive[i - 1].lapNum + 1) steps.push(lastFive[i].avgWear - lastFive[i - 1].avgWear);
+    return { avgWear, ratePerLap, rateRange: steps.length >= 3 ? [Math.min(...steps), Math.max(...steps)] : null };
   }
 
   // A call that names "who + where" is only made once the same who + where

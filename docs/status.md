@@ -36,7 +36,7 @@ flowchart LR
 - **Damage cost on a full lap:** in every race so far I undid the damage with a flashback within a few
   corners, so this is only tested on made-up laps. The 6 s a nose change adds to a stop is a guess.
 - **When the AI stops:** learning from the stops already made in a race now beats the fixed starting guess of
-  60% of rated tyre life (1.31 laps off against 1.42 on 65 stops), but the first stops a race sees are the early ones.
+  60% of rated tyre life (1.53 laps off against 1.73 on 86 stops), but the first stops a race sees are the early ones.
 - **Online races** are untested: human drivers don't stop like the AI, and other cars' data may be hidden.
 - **Tyre temperature calls:** the 8 °C and 12 °C thresholds come from four races, not from tyre data.
 - **The race plan** looks at one and two stops; a full-distance race can need three.

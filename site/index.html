@@ -816,8 +816,8 @@ if (safetyCar) pitLossMs *= 0.55  <span class="c">// VSC 0.65</span></pre>
         - fuelEffect × lapNumber + noise
 
 <span class="c">// held out: each car predicted from the others</span>
-model     386 ms per lap
-no wear   492 ms per lap   <span class="c">(1,893 laps, 9 races)</span></pre>
+model     396 ms per lap
+no wear   505 ms per lap   <span class="c">(2,194 laps, 10 races)</span></pre>
                 <div class="ex-num"><span>beats "no wear" on <b>7 / 8</b> races</span><span><b>100</b> bootstrap resamples</span></div>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/ml/tyreModel.js">ml/tyreModel.js</a> · scored in CI on <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/datasets/laps.csv">datasets/laps.csv</a></p>
               </div>
@@ -1136,11 +1136,11 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
           <table class="tbl">
             <thead><tr><th>Prediction</th><th>Model</th><th>Obvious guess</th><th>Verdict</th></tr></thead>
             <tbody>
-              <tr><td>Tyre wear, each car predicted from the others<small>1,893 laps, 9 races</small></td><td class="num">386 ms</td><td class="num">492 ms <small>no wear</small></td><td class="good">Beats it on 8 of 9 races</td></tr>
+              <tr><td>Tyre wear, each car predicted from the others<small>2,194 laps, 10 races</small></td><td class="num">396 ms</td><td class="num">505 ms <small>no wear</small></td><td class="good">Beats it on 9 of 10 races</td></tr>
               <tr><td>Rejoin position if you box now<small>79 green-flag stops</small></td><td class="num">3.1 places</td><td class="num">6.4 <small>keep your place</small></td><td class="good">Beats it; still 1.7 places pessimistic</td></tr>
               <tr><td>A rival's battery at the line<small>1,278 half-laps</small></td><td class="num">10.7 pts</td><td class="num">14.7 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
               <tr><td>Will the car behind pass in 10 s<small>held-out AUC, LightGBM, 11 races</small></td><td class="num">0.866</td><td class="num">0.837 <small>gap only</small></td><td class="good">Beats it on all 11 races</td></tr>
-              <tr><td>When an AI car stops<small>65 green-flag stops</small></td><td class="num">1.31 laps</td><td class="num">1.42 <small>fixed share of tyre life</small></td><td class="good">Beats it</td></tr>
+              <tr><td>When an AI car stops<small>86 green-flag stops</small></td><td class="num">1.53 laps</td><td class="num">1.73 <small>fixed share of tyre life</small></td><td class="good">Beats it</td></tr>
               <tr><td>The corner they'll attack<small>50 passes</small></td><td class="num">7 / 50</td><td class="num">7 / 50 <small>busiest corner</small></td><td class="tie">Not yet, so worded as a "likely spot"</td></tr>
             </tbody>
           </table>

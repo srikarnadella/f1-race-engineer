@@ -44,12 +44,13 @@ grades its own fit), up to that car's own pace level - only the slope is tested.
 | Montreal | 84 | **285 ms** | 338 ms |
 | Barcelona | 245 | **365 ms** | 425 ms |
 | Barcelona | 399 | **379 ms** | 613 ms |
+| Red Bull Ring | 301 | **459 ms** | 581 ms |
 | Silverstone | 105 | **315 ms** | 352 ms |
 | Silverstone | 280 | **431 ms** | 450 ms |
 | Spa | 244 | **591 ms** | 642 ms |
-| All | 1893 | **386 ms** | 492 ms |
+| All | 2194 | **396 ms** | 505 ms |
 
-It beats the naive guess on 8 of 9 races; not on Silverstone (88 laps).
+It beats the naive guess on 9 of 10 races; not on Silverstone (88 laps).
 
 ## When rivals stop
 
@@ -59,10 +60,10 @@ rated life). Laps off the real in-lap.
 
 | | Mean error | Within 1 lap |
 |---|---|---|
-| **Model** | **1.31 laps** | **70%** |
-| Prior only | 1.42 laps | 66% |
+| **Model** | **1.53 laps** | **64%** |
+| Prior only | 1.73 laps | 58% |
 
-65 green-flag AI stops, 531 predictions: the recorded races' other stops came under a red flag
+86 green-flag AI stops, 604 predictions: the recorded races' other stops came under a red flag
 or a safety car, which are a different decision. Known weakness (a `todo` test): the stops a race
 sees first are its early ones, so a field whose stops spread out is called early.
 

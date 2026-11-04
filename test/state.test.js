@@ -129,6 +129,30 @@ test('the tyre-cliff warning clears on fresh tyres after a stop', () => {
   assert.ok(!step(3, 12, 2, 0).some((i) => i.id === 'tyre-cliff'));
 });
 
+test('the tyre-cliff warning gives a range when the last laps\' wear disagrees, one number when it holds (roadmap A3)', () => {
+  const run = (wears) => {
+    const fm = createFieldModel();
+    const ie = createInsightEngine(fm);
+    let out = [];
+    wears.forEach((wear, i) => {
+      const t = i + 1;
+      fm.dispatch(PACKET_IDS.CAR_STATUS, header(t), { cars: Array.from({ length: 5 }, () => ({ tyresAgeLaps: 10 + i, fuelRemainingLaps: 1 })) });
+      fm.dispatch(PACKET_IDS.CAR_DAMAGE, header(t), { cars: Array.from({ length: 5 }, () => ({ tyresWear: [wear, wear, wear, wear] })) });
+      fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { currentLapNum: 10 + i } }) });
+      out = ie.evaluate();
+    });
+    return out.find((x) => x.id === 'tyre-cliff');
+  };
+  // Steps of 2, 6, 2 and 6 points a lap from 66 to 82%: 3 points to the cliff is ~1-2 laps.
+  assert.match(run([66, 68, 74, 76, 82]).message, /~1–2 laps to the cliff/);
+  // A steady 4 points a lap: one number. (On the rule itself: a card holds its wording a few seconds when
+  // only its numbers change, so an engine run would still show the lap before's.)
+  const { tyreCliff } = require('../src/engine/rules/tyres');
+  let card = null;
+  tyreCliff({ racing: true, wear: { avgWear: 78, ratePerLap: 4, rateRange: [4, 4] }, lapsLeft: 10, upsert: (id, c) => { card = c; }, expire: () => {}, clock: () => 0, out: {} });
+  assert.match(card.message, /~2 laps to the cliff at this wear rate/);
+});
+
 test('events name the driver: one fastest-lap card, and only the player\'s penalties', () => {
   const fm = createFieldModel();
   const ie = createInsightEngine(fm);

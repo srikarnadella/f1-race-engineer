@@ -219,7 +219,9 @@ Each line: what it is, why it matters, and the acceptance test.
 - **A3 Confidence on calls.** Every call carries how sure it is, from M1/M2 intervals. *Partly
   done:* the pit-timing pick is re-run at both ends of the wear range; when it moves, the card says
   "Lap 14–22, depending on tyre wear" (and nothing when it holds). On the recordings it moves a
-  quarter of the time at Monaco, 5% at Barcelona. Still to do: the cliff warning and battle calls.
+  quarter of the time at Monaco, 5% at Barcelona. The cliff warning too (3 Nov 2026): when the last
+  laps' wear steps disagree it says "~1–2 laps to the cliff, depending on how the wear goes"
+  (`test/state.test.js`). Still to do: the battle calls.
 
 ### User experience
 

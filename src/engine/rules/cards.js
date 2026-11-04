@@ -75,7 +75,7 @@ const CATEGORY = { PACE: 'pace', STRATEGY: 'strategy', HEALTH: 'health', FLAG: '
  * @property {any} aheadRow
  * @property {any} behindRow
  * @property {any} q qualifying analysis (not in a race), or null
- * @property {{ avgWear: number, ratePerLap: number | null } | null} wear
+ * @property {{ avgWear: number, ratePerLap: number | null, rateRange?: number[] | null } | null} wear
  * @property {(c: any) => string} nameOf
  * @property {boolean} [optsSettled] set by scOptions
  * @property {boolean} [trackLimitNew] set by penalties

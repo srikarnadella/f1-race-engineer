@@ -67,7 +67,7 @@ what really happened, next to the obvious guess:
 
 | Prediction | Undercut | Obvious guess |
 |---|---|---|
-| Tyre wear per lap (1,893 laps) | **386 ms off** | 492 ms ("no wear") |
+| Tyre wear per lap (2,194 laps) | **396 ms off** | 505 ms ("no wear") |
 | Where you rejoin after a stop (79 stops) | **3.13 places off** | 6.37 ("keep your place") |
 | A rival's battery at the line | **10.7 points off** | 14.7 ("stays where it is") |
 | Will the car behind pass in 10 s? (LightGBM, 11 race sessions) | **0.866 AUC** | 0.837 (gap only), better on all 11 races |

@@ -6,6 +6,16 @@ const OUT_LAP = 3; // lapData.driverStatus
 
 /** @typedef {import('./cards').RuleContext} RuleContext */
 
+// When the last laps' wear steps disagree, the cliff as a range: the fastest step gives the earliest
+// lap, the slowest the latest (roadmap A3). Null when they agree to the lap.
+function cliffRange(wear) {
+  if (!wear.rateRange || !(wear.rateRange[0] > 0)) return null;
+  const left = TYRE_CLIFF_THRESHOLD_PCT - wear.avgWear;
+  const lo = Math.round(left / wear.rateRange[1]);
+  const hi = Math.round(left / wear.rateRange[0]);
+  return hi > lo ? `Tyres: ~${lo}–${hi} laps to the cliff, depending on how the wear goes` : null;
+}
+
 // --- Tyres: laps-to-cliff projection (a race thing: a qualifying run is three laps) ---
 /** @param {RuleContext} ctx */
 function tyreCliff({ racing, wear, lapsLeft, upsert, expire, clock, out }) {
@@ -23,7 +33,7 @@ function tyreCliff({ racing, wear, lapsLeft, upsert, expire, clock, out }) {
         category: CATEGORY.STRATEGY,
         message: lapsToCliff < 0.5
           ? 'Tyres: at the cliff - lap time is going'
-          : `Tyres: ~${laps(Math.round(lapsToCliff))} to the cliff at this wear rate`,
+          : cliffRange(wear) || `Tyres: ~${laps(Math.round(lapsToCliff))} to the cliff at this wear rate`,
         expiresAtMs: clock() + 15000,
       });
     } else {

@@ -21,10 +21,10 @@ From the 11 race sessions I recorded. Run `npm run accuracy` to regenerate the f
 
 | Prediction | Undercut | Obvious guess | Verdict |
 |---|---|---|---|
-| Tyre wear per lap, each car predicted from the others (1,893 laps) | 386 ms off | 492 ms ("no wear") | Beats it on 8 of 9 races |
+| Tyre wear per lap, each car predicted from the others (2,194 laps) | 396 ms off | 505 ms ("no wear") | Beats it on 9 of 10 races |
 | Where you rejoin after a stop (79 green-flag stops) | 3.13 places off | 6.37 ("keep your place") | Beats it; still 1.7 places pessimistic |
 | A rival's battery at the line (1,278 half-laps) | 10.7 points off | 14.7 ("stays where it is") | Beats it |
-| When an AI car stops (65 green-flag stops) | 1.31 laps off | 1.42 (fixed share of tyre life) | Beats it |
+| When an AI car stops (86 green-flag stops) | 1.53 laps off | 1.73 (fixed share of tyre life) | Beats it |
 | Will the car behind pass in 10 s? (held-out AUC, 11 races) | 0.866 | 0.837 (gap only) | Beats it on all 11 races |
 | Which corner they'll attack (75 passes) | 11 of 75 | 12 of 75 (busiest corner) | Not yet, so it says "likely spot" |
 
