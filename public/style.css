@@ -1420,3 +1420,6 @@ kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #26
 .ana__all { margin-bottom: 10px; }
 .trd__table th { text-align: left; }
 .trd__table th.num { text-align: right; }
+.ana__ask { appearance: none; border: 0; border-radius: 4px; min-height: 36px; margin-top: 10px; padding: 0 12px; background: #1c1c1c; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.ana__ask:hover { background: #262626; }
+.ana__ask:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }

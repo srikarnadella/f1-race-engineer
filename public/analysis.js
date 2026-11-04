@@ -698,7 +698,20 @@
       const meta = h('p', { class: 'ana__meta' });
       const views = h('div', { class: 'ana__views', role: 'tablist' });
       const body = h('div', { class: 'ana__body' });
-      frame.replaceChildren(h('div', { class: 'ana' }, list, h('section', { class: 'ana__main' }, h('header', { class: 'ana__head' }, h('div', {}, title, meta), views), body)));
+      // Ask the race about the session on screen (its own place; it finds the session by track, type and day).
+      const askBtn = h('button', {
+        type: 'button',
+        class: 'ana__ask',
+        hidden: true,
+        onclick: () => {
+          const d = sessions.find((x) => x.id === selected);
+          if (!d) return;
+          const at = new Date(d.startedAt);
+          desk.askSession = { track: d.track, type: d.sessionName, date: `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}` };
+          document.dispatchEvent(new CustomEvent('undercut:show', { detail: 'askrace' }));
+        },
+      }, 'Ask about this session');
+      frame.replaceChildren(h('div', { class: 'ana' }, list, h('section', { class: 'ana__main' }, h('header', { class: 'ana__head' }, h('div', {}, title, meta, askBtn), views), body)));
 
       let sessions = [];
       let older = []; // saved sessions past the 10 the snapshot carries
@@ -736,6 +749,7 @@
           onclick: () => { view = id; sig = ''; draw(); },
         }, label)));
         views.hidden = !d;
+        askBtn.hidden = true;
         if (all) {
           title.textContent = 'All races';
           meta.textContent = 'Every race in the race store, across sessions';
@@ -751,6 +765,7 @@
           return;
         }
         title.textContent = name(d);
+        askBtn.hidden = !!d.live; // a session in progress isn't in race.db yet
         meta.textContent = `${d.live ? 'In progress' : day(d.startedAt)} · ${d.laps.length} lap${d.laps.length === 1 ? '' : 's'} recorded`;
         debriefUpdate = null;
         if (view === 'overview') {

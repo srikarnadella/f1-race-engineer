@@ -247,3 +247,20 @@ test('ask the race: the conversation is still there after going Home and back', 
   await settle();
   assert.deepStrictEqual([...app.doc.querySelectorAll('.llm__answer .llm__q')].map((x) => x.textContent).slice(-1), ['Remember me?']);
 });
+
+test('ask the race: "Ask about this session" in Race analysis opens the chat on that session', async (t) => {
+  const fake = fakeApi();
+  const app = open(t, { before: (w) => { w.undercut = fake.api; } });
+  await settle();
+  app.connect();
+  // Race analysis lists the Silverstone race (the debrief's own record of it).
+  const silverstone = { id: 'd19', live: false, startedAt: new Date(2026, 9, 19, 17, 43).getTime(), sessionType: 15, sessionName: 'Race', isRace: true, track: 'Silverstone', totalLaps: 6, grid: 10, finish: 4, positionsGained: 6, official: true, points: 12, fieldBestSectors: [], bestSectors: [], positionChart: null, bestLap: null, theoreticalBestMs: null, medianPaceMs: null, consistencyMs: null, cleanLaps: 0, fieldBestMs: null, fastestLap: null, pitStops: 0, penalties: [], safetyCars: 0, stints: [], laps: [], comparable: [], field: [] };
+  app.send({ source: 'live', connected: false, debrief: { sessions: [silverstone] } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.textContent.startsWith('Race analysis')).click();
+  doc.querySelector('.ana__ask').click();
+  await settle();
+  assert.strictEqual(doc.querySelector('.place__title').textContent, 'Ask the race');
+  assert.strictEqual(doc.querySelector('.llm__session').value, '19', 'race.db\'s Silverstone race, not the newest session');
+  assert.deepStrictEqual(app.errors, []);
+});

@@ -289,7 +289,11 @@
         sessions = (await act(() => api.llm.sessions())) || [];
         sessionPick.replaceChildren(...sessions.map((x) => h('option', { value: x.session_id }, `${sessionName(x)}${x.date ? ` · ${x.date}` : ''}${x.finish ? ` · P${x.finish}` : ''}`)));
         // Back to the session the conversation was about, else the newest race.
-        const keep = sessions.find((x) => x.session_id === chatState.sessionId) || sessions.find((x) => x.is_race) || sessions[0];
+        // Race analysis's "Ask about this session" asks for one by track, type and day.
+        const want = desk.askSession;
+        desk.askSession = null;
+        const asked = want && sessions.find((x) => x.track === want.track && x.type === want.type && x.date === want.date);
+        const keep = asked || sessions.find((x) => x.session_id === chatState.sessionId) || sessions.find((x) => x.is_race) || sessions[0];
         if (keep) sessionPick.value = String(keep.session_id);
         chatState.sessionId = keep ? keep.session_id : null;
         await loadDrivers();
