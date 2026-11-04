@@ -258,6 +258,7 @@
     .sec > h2::before { content: "[ 0" counter(sec) " // ENGINEERING ]"; display: block; margin-bottom: 20px; font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; color: var(--red); }
     .sec > .lead { margin-bottom: 0; }
     .sec > .more { padding: 16px var(--gutter) 0; }
+    .ask-sec > h2::before { content: "[ 02 // AFTER THE RACE ]"; }
     .shots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .shots figure { background: var(--bg); }
     .shots img { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; object-position: top left; }
@@ -286,6 +287,7 @@
     .soon-list li { display: grid; grid-template-columns: 150px minmax(0, 18ch) minmax(0, 60ch); gap: 12px 32px; align-items: baseline; padding: 24px var(--gutter); border-bottom: 1px solid var(--line); }
     .soon-list h3 { font-size: clamp(1.2rem, 1rem + 0.6vw, 1.6rem); line-height: 1.15; text-transform: uppercase; }
     .soon-list p { color: var(--muted); }
+    .soon-sub { margin-top: 72px; padding-inline: var(--gutter); font-size: clamp(1.6rem, 1.1rem + 1.4vw, 2.6rem); }
     .tag { font: 500 var(--micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
     .soon-page > .more { padding-top: 16px; }
     .layers { display: grid; gap: 1px; margin-top: 32px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -385,7 +387,7 @@
         <h1 class="lines"><span class="line"><span data-line style="--i:0">Undercut</span></span><span class="line tagline"><span data-line style="--i:1">A race engineer for F1 26</span></span></h1>
         <div class="hero-grid">
           <div class="hero-copy">
-            <p data-rise style="--i:0">It reads the game's live telemetry while you drive and calls your race one thing at a time: when to box, who to attack, when the rain comes. On a phone or tablet beside your screen. Free and open source.</p>
+            <p data-rise style="--i:0">It reads the game's live telemetry while you drive and calls your race one thing at a time: when to box, who to attack, when the rain comes. After the flag it takes the race apart lap by lap and answers your questions about it. On your PC, a phone or a tablet. Free and open source.</p>
             <div class="hero-actions" data-rise style="--i:1"><a class="button" href="#watch">Demo</a><a href="#app">Windows app</a><a href="#setup">Set it up</a></div>
             <p class="note" data-rise style="--i:2">The board replays a real race at Barcelona, recorded in F1 26: the call and the radio, word for word, as the app gave them on laps 20 to 22: chasing Leclerc, then the pass on Hamilton for P7 and holding him off.</p>
           </div>
@@ -412,7 +414,7 @@
         </div>
         <dl class="spec">
           <div><dt>Game</dt><dd>F1 26</dd><p>On PC or console</p></div>
-          <div><dt>Runs on</dt><dd>Your PC</dd><p>Nothing in the cloud, no account</p></div>
+          <div><dt>Runs on</dt><dd>Your PC</dd><p>A Windows app, nothing in the cloud, no account</p></div>
           <div><dt>Watch on</dt><dd>Any screen</dd><p>Phone, tablet or browser on your Wi-Fi</p></div>
           <div><dt>Cost</dt><dd>Free</dd><p>Open source, MIT license</p></div>
         </dl>
@@ -459,13 +461,13 @@
       </section>
 
       <section class="setup" id="setup">
-        <div class="bar"><span>[ 03 // SET-UP ]</span><span>NODE.JS · ANY BROWSER ON YOUR WI-FI</span></div>
+        <div class="bar"><span>[ 03 // SET-UP ]</span><span>THE WINDOWS APP OR NODE.JS · ANY BROWSER ON YOUR WI-FI</span></div>
         <h2>Running in two minutes</h2>
         <div class="story">
           <div class="story-steps">
             <div class="beat is-on" data-state="0"><h3>Start it on your PC.</h3><p>Install the <a href="#app">Windows app</a>. Or from the code: install <a href="https://nodejs.org">Node.js</a>, download it from <a href="https://github.com/srikarnadella/f1-race-engineer">GitHub</a>, then run <code>npm install</code> and <code>npm start</code> in its folder. No account, nothing in the cloud.</p></div>
             <div class="beat" data-state="1"><h3>Then turn on telemetry in F1 26.</h3><p>Settings → Telemetry → UDP <b>On</b>, port <code>20777</code>, format 2025 or later.</p></div>
-            <div class="beat" data-state="2"><h3>Open it beside you, and drive.</h3><p>Scan the QR code it prints with a tablet or phone on the same Wi-Fi. It talks when it matters.</p></div>
+            <div class="beat" data-state="2"><h3>Open it beside you, and drive.</h3><p>Watch it in the app, or scan the QR code (in Connect, or printed by <code>npm start</code>) with a tablet or phone on the same Wi-Fi. It talks when it matters.</p></div>
           </div>
           <div class="story-stage">
             <div class="state is-on" data-state="0"><pre data-ui><span class="c">$</span> npm start
@@ -494,12 +496,12 @@
       </section>
 
       <section class="proof" aria-labelledby="proof-h">
-        <div class="bar"><span>[ 04 // MEASURED ]</span><span>EIGHT RECORDED RACES · EACH AGAINST THE OBVIOUS GUESS</span></div>
+        <div class="bar"><span>[ 04 // MEASURED ]</span><span>11 RECORDED RACE SESSIONS · EACH AGAINST THE OBVIOUS GUESS</span></div>
         <div class="tiles">
-          <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>Eight recorded races. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
+          <div class="tile tile-head" data-reveal><h2 id="proof-h">Measured, not claimed</h2><p>11 recorded race sessions. Each prediction is scored against what then happened, next to the obvious guess. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/accuracy.md">The full report</a></p></div>
           <div class="tile" data-reveal style="--i:1"><b>3.1</b><span>places off, rejoining after a stop</span><small>The obvious guess ("you keep your place"): 6.4. AI cars stop in waves, so it counts the ones already stopping.</small></div>
           <div class="tile" data-reveal style="--i:2"><b>10.7</b><span>points off, a rival's battery at the line</span><small>The obvious guess, that it stays where it is: 14.7 points off.</small></div>
-          <div class="tile" data-reveal style="--i:1"><b>7 / 8</b><span>races where the tyre model beats "no wear"</span><small>The exception is the Silverstone sprint, where it doesn't beat it yet.</small></div>
+          <div class="tile" data-reveal style="--i:1"><b>9 / 10</b><span>races where the tyre model beats "no wear"</span><small>The exception is a short Silverstone race, where the two tie: 349 ms against 347.</small></div>
           <div class="tile" data-reveal style="--i:2; --c: var(--go)"><b>0.87</b><span>AUC: will the car behind pass within 10 s?</span><small>LightGBM, scored on every race session recorded (11, the wet one included), each held out: better on all 11. The gap alone: 0.84.</small></div>
           <figure class="tile tile-img" data-reveal style="--i:3"><img src="img/suzuka.jpg" width="1400" height="1031" alt="Suzuka's main straight and timing tower, with the pit building behind" loading="lazy" decoding="async"><figcaption>Suzuka, one of the recorded races. <a href="https://commons.wikimedia.org/wiki/File:Suzuka_Circuit_Pit_Building.jpg">Photo</a>: Tokumeigakarinoaoshima, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a></figcaption></figure>
           <figure class="tile tile-img" data-reveal style="--i:4"><img src="img/pit-wall.jpg" width="1400" height="933" alt="A team's pit-wall stand beside the track at Suzuka, 2009" loading="lazy" decoding="async"><figcaption>A real pit wall, Suzuka 2009: the job, done by people. <a href="https://commons.wikimedia.org/wiki/File:Renault_after_losing_the_title_sponsor_ING_2009_Japan.jpg">Photo</a>: Morio, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a></figcaption></figure>
@@ -856,7 +858,7 @@ if (safetyCar) pitLossMs *= 0.55  <span class="c">// VSC 0.65</span></pre>
 <span class="c">// held out: each car predicted from the others</span>
 model     396 ms per lap
 no wear   505 ms per lap   <span class="c">(2,194 laps, 10 races)</span></pre>
-                <div class="ex-num"><span>beats "no wear" on <b>7 / 8</b> races</span><span><b>100</b> bootstrap resamples</span></div>
+                <div class="ex-num"><span>beats "no wear" on <b>9 / 10</b> races</span><span><b>100</b> bootstrap resamples</span></div>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/ml/tyreModel.js">ml/tyreModel.js</a> · scored in CI on <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/datasets/laps.csv">datasets/laps.csv</a></p>
               </div>
             </div>
@@ -875,7 +877,7 @@ for each plan:
 <span class="c">// deg ~ its 90% range, pitLoss ~ its spread</span>
 winner = argmin(total)
 odds   = wins / 1000</pre>
-                <div class="ex-num"><span><b>1,000</b> races in a few ms</span><span>rival stops <b>1.31</b> vs 1.42 laps</span></div>
+                <div class="ex-num"><span><b>1,000</b> races in a few ms</span><span>rival stops <b>1.53</b> vs 1.73 laps</span></div>
                 <p class="ex-src">Code: <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/pitTiming.js">pitTiming.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/racePlan.js">racePlan.js</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/analysis/rivalStops.js">rivalStops.js</a></p>
               </div>
             </div>
@@ -1030,7 +1032,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
             </div>
             <div class="ex-body" role="tabpanel" data-sub="dashboard" hidden>
               <div>
-                <p>Plain HTML, CSS and JavaScript with no build step. Six screens (Drive, Battle, Strategy, Weather, Debrief, Models) built from widgets that only turn the snapshot into text and color.</p>
+                <p>Plain HTML, CSS and JavaScript with no build step. Six screens (Drive, Battle, Strategy, Weather, Custom, Debrief) built from widgets that only turn the snapshot into text and color.</p>
                 <ul>
                   <li>Made to be read at a glance at speed: a tiered type scale, color only for meaning (green go, amber watch, red act), numbers that scale with the screen.</li>
                   <li>Every text color is at least 4.5:1 on its background, every control is named for a screen reader, and a new call is announced through a live region, not only drawn.</li>
@@ -1076,6 +1078,28 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
             <p class="chain">record<i>→</i>replay<i>→</i>score against reality<i>→</i>keep or cut</p>
           </div>
         </div>
+      </section>
+
+      <section class="sec ask-sec" aria-labelledby="ask-h">
+        <h2 id="ask-h" data-reveal>After the flag: ask the race</h2>
+        <p class="lead">Questions about a saved race in plain words, answered by a small model on your own PC through Ollama. The engine works out every number; the model only puts them into words.</p>
+        <div class="layers">
+          <div class="layer" data-reveal style="--c: var(--muted)"><b>The facts</b><span>Before every question the engine writes a brief of the session from the race store: every lap with its time, gap to your best, position and tyre; the stops, safety cars, overtakes and the engineer's calls.</span></div>
+          <div class="layer" data-reveal style="--i:1; --c: var(--info)"><b>The lookup</b><span>The engine, not the model, picks what the question needs: two laps compared corner by corner, the order on a lap, a driver you name, the battery. A 1.7B model doesn't reliably pick a tool, so it isn't asked to.</span></div>
+          <div class="layer" data-reveal style="--i:2; --c: var(--info)"><b>The advice</b><span>Coaching comes from rules, each with its evidence: brake later by so many meters, carry more speed to the apex, move the bias rearward when the fronts lock into a corner on a third of your laps.</span></div>
+          <div class="layer" data-reveal style="--i:3; --c: var(--watch)"><b>The check</b><span>Every lap time, lap number, position and seconds figure in the answer must appear in the facts; anything that doesn't is flagged under the answer. If the model refuses or writes nothing useful, the engine's own finding answers, marked as such.</span></div>
+          <div class="layer" data-reveal style="--i:4; --c: var(--go)"><b>The answer</b><span>The words, a chart when the question has one (lap times, positions, a gap, two laps' speed), and what it was worked out from. It never runs while the game is sending telemetry.</span></div>
+        </div>
+        <div class="tbl-wrap" data-reveal>
+          <table class="tbl">
+            <thead><tr><th>Model</th><th>Right</th><th>Nothing invented</th><th>Time an answer</th></tr></thead>
+            <tbody>
+              <tr><td>Qwen3 4B</td><td class="num">49 / 50</td><td class="num">49 / 50</td><td class="num">60-65 s</td></tr>
+              <tr><td>Qwen3 1.7B</td><td class="num">48 / 50</td><td class="num">50 / 50</td><td class="num">8-10 s</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="more">50 questions over four recorded races, each right answer read from the race store, not typed in. On a 4 GB graphics card (GTX 1650). The check covers numbers, not words: one of the 1.7B's two misses turned a "no" into a "yes". <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/ask-the-race.md">How it's built and scored</a></p>
       </section>
 
     </div>
@@ -1146,7 +1170,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
           <div data-reveal><h3>Record everything, replay exactly</h3><p>A capture saves every packet with its arrival time (<code>.f1log.gz</code>, ~300 MB a race). Replays run the same pipeline on the recording's clock, so a bug seen on Saturday can be reproduced, fixed and tested on Sunday, call for call.</p></div>
           <div data-reveal style="--i:1"><h3>Datasets from the raw stream</h3><p>Captures stay local; small datasets built from them are committed: one row per race, per car per lap (2,582 laps), and every call made. CI scores the models on them.</p></div>
           <div data-reveal><h3>Every session in SQL</h3><p>Each session is also kept as related SQLite tables: session, car, lap, stint, events, the engineer's calls and radio, weather and lap traces. The live bridge adds each session as it ends; <code>npm run db</code> fills it from the captures. Building it found that the game marks its own flag-time packets with a session ID of 0, which had been wiping every car's final lap and the official result. <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/race-store.md">The schema</a></p></div>
-          <div class="soon" data-reveal style="--i:1"><h3>Now: ask the race</h3><p>Questions in plain words over that store, answered on your own PC. The engine looks the facts up in the tables and a small model only words them; any number not in the recording is flagged. <a href="#next">More in Next steps</a></p></div>
+          <div class="soon" data-reveal style="--i:1"><h3>Ask the race</h3><p>Questions in plain words over that store, answered on your own PC. The engine looks the facts up in the tables and a small model only words them; any number not in the recording is flagged. <a href="#how">How it answers, and how well</a></p></div>
         </div>
       </section>
 
@@ -1179,7 +1203,7 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
               <tr><td>A rival's battery at the line<small>1,278 half-laps</small></td><td class="num">10.7 pts</td><td class="num">14.7 <small>stays where it is</small></td><td class="good">Beats it</td></tr>
               <tr><td>Will the car behind pass in 10 s<small>held-out AUC, LightGBM, 11 races</small></td><td class="num">0.866</td><td class="num">0.837 <small>gap only</small></td><td class="good">Beats it on all 11 races</td></tr>
               <tr><td>When an AI car stops<small>86 green-flag stops</small></td><td class="num">1.53 laps</td><td class="num">1.73 <small>fixed share of tyre life</small></td><td class="good">Beats it</td></tr>
-              <tr><td>The corner they'll attack<small>50 passes</small></td><td class="num">7 / 50</td><td class="num">7 / 50 <small>busiest corner</small></td><td class="tie">Not yet, so worded as a "likely spot"</td></tr>
+              <tr><td>The corner they'll attack<small>75 passes</small></td><td class="num">11 / 75</td><td class="num">12 / 75 <small>busiest corner</small></td><td class="tie">Not yet, so worded as a "likely spot"</td></tr>
             </tbody>
           </table>
         </div>
@@ -1203,25 +1227,57 @@ lap 15 PUSH ok        right   8 green laps, none fell away</pre>
         <h2 data-reveal>Tests that find bugs</h2>
         <p class="lead">Not tests that agree with the code.</p>
         <div class="practice">
-          <div data-reveal><h3>Test first, from the intended behavior</h3><p>Over 300 tests. Each new rule's test is written from what it should do and seen to fail before the code exists; assertions are never edited to pass. Known weaknesses stay in the suite as <code>todo</code> tests.</p></div>
+          <div data-reveal><h3>Test first, from the intended behavior</h3><p>Nearly 500 tests. Each new rule's test is written from what it should do and seen to fail before the code exists; assertions are never edited to pass. Known weaknesses stay in the suite as <code>todo</code> tests.</p></div>
           <div data-reveal style="--i:1"><h3>Mutation-checked</h3><p>A test only counts once it fails on a planted bug. In the fixes above, 9 of 13 planted bugs were caught at first; each survivor got a test, and all 13 are caught now.</p></div>
           <div data-reveal><h3>Gates in CI</h3><p>Coverage can't drop below 88% of lines; the model backtests can't get worse; and there is a tick-time budget and a contract test that tracks every snapshot field a widget reads.</p></div>
           <div data-reveal style="--i:1"><h3>Real packets, real races</h3><p>Parsers are pinned on packets captured from F1 26; scenario tests replay a scripted race and check each call follows its cause and never comes before it.</p></div>
         </div>
         <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/src/README.md">Source map</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/how-it-works.md">One call traced through the code</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md#what-the-tests-found">What the tests found</a></p>
       </section>
+
+      <section class="sec" aria-labelledby="stack-h">
+        <h2 id="stack-h" data-reveal>What it's built with</h2>
+        <p class="lead">Each part uses the least it needs. Everything runs on the player's own PC.</p>
+        <div class="tbl-wrap" data-reveal>
+          <table class="tbl">
+            <thead><tr><th>Part</th><th>Built with</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td>Telemetry bridge</td><td>Node.js, UDP, WebSockets</td><td>A browser can't open a UDP socket. Three runtime dependencies, no build step.</td></tr>
+              <tr><td>Dashboard</td><td>Plain HTML, CSS and JavaScript</td><td>Any phone or tablet browser on the Wi-Fi runs it, and this site runs it from a file.</td></tr>
+              <tr><td>Windows app</td><td>Electron, a sandboxed window with a short list of calls to the PC</td><td>One installer, no Node.js, no terminal. The window can ask the PC for a fixed set of things and nothing else.</td></tr>
+              <tr><td>Race store</td><td>SQLite</td><td>Every session as related tables, for the debrief, race analysis and Ask the race.</td></tr>
+              <tr><td>Models</td><td>JavaScript from scratch; LightGBM trained in Python</td><td>The overtake model runs from its exported trees, checked against Python to 1e-9.</td></tr>
+              <tr><td>Ask the race</td><td>A local model through Ollama (Qwen3), lookups and a grounding check in the engine</td><td>No API and no key: the race never leaves the PC.</td></tr>
+              <tr><td>Quality</td><td>node:test, jsdom, c8, ESLint, TypeScript on JSDoc, GitHub Actions</td><td>491 tests; coverage, the model backtests and a tick-time budget gate every push.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer">The source</a> · <a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/development.md">How it's built</a></p>
+      </section>
     </div>
     <!-- ============ Next steps ============ -->
     <div role="tabpanel" id="page-next" aria-labelledby="tab-next" hidden>
       <section class="page-top soon-page">
-        <div class="bar"><span>[ 01 // NEXT STEPS ]</span><span>WHAT'S BEING BUILT</span></div>
-        <h1>Coming soon</h1>
-        <p class="lead">What's being built next.</p>
+        <div class="bar"><span>[ 01 // NEXT STEPS ]</span><span>WHAT'S BEING BUILT · WHAT SHIPPED</span></div>
+        <h1>What's next</h1>
+        <p class="lead">In the order it will be built. Each step is written as a test before it's code.</p>
         <ul class="soon-list">
-          <li data-reveal><span class="tag">Done</span><h3>Ask the race</h3><p>Ask about a saved race in plain words ("Where did I lose time on lap 12?", "What can I do better?") and a small model on your own PC answers. The engine looks the facts up in the race's tables and the model only puts them into words; every number is checked against the recording. Qwen3 4B gets 49 of 50 test questions right. In the <a href="#app">Windows app</a>.</p></li>
-          <li data-reveal style="--i:1"><span class="tag">In progress</span><h3>Confidence on every call</h3><p>The pit-stop pick says when it depends on tyre wear ("Lap 14-22, depending on tyre wear"), and the tyre-cliff warning gives a range ("~1-2 laps to the cliff"). The battle calls are next.</p></li>
-          <li data-reveal style="--i:2"><span class="tag">Done</span><h3>The calls audit in the Debrief</h3><p>Every call graded against what happened after it, on screen after the race: the Debrief's Calls tab.</p></li>
-          <li data-reveal style="--i:3"><span class="tag">In progress</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9": counting the cars already stopping in a pit wave took it from 4.2 to 2.7 places off on the first 45 stops. On all 79 it's 3.1, still about 1.7 places pessimistic.</p></li>
+          <li data-reveal><span class="tag">In progress</span><h3>Confidence on every call</h3><p>The pit-stop pick says when it depends on tyre wear ("Lap 14-22, depending on tyre wear"), and the tyre-cliff warning gives a range ("~1-2 laps to the cliff"). The battle calls are next, then the same uncertainty drawn as bands on the rejoin and gap charts.</p></li>
+          <li data-reveal style="--i:1"><span class="tag">In progress</span><h3>A sharper rejoin prediction</h3><p>"If you box now, you come out P9": counting the cars already stopping in a pit wave took it from 4.2 to 2.7 places off on the first 45 stops. On all 79 it's 3.1, still about 1.7 places pessimistic. Next try: charge only the pit-lane part at the rejoin.</p></li>
+          <li data-reveal style="--i:2"><span class="tag">Next</span><h3>Share a race</h3><p>One image from the Debrief: the result, the best lap, the stints and the graded calls, ready to post.</p></li>
+          <li data-reveal style="--i:3"><span class="tag">Next</span><h3>More models for Ask the race</h3><p>Llama 3.2 3B and Phi-4-mini scored on the same 50 questions, more questions whose answer is "no", and a check for an answer that turns a "no" into a "yes".</p></li>
+          <li data-reveal style="--i:4"><span class="tag">Next</span><h3>More calls graded</h3><p>The calls audit grades pushes, tyre warnings, stops for damage or under a safety car, and weather calls today; pit-window calls, fuel saves and undercut offers are next.</p></li>
+          <li data-reveal style="--i:5"><span class="tag">Later</span><h3>Rain strategy</h3><p>How intermediates wear, and pit timing that knows the track is drying. It needs a recording of a race on a drying track first.</p></li>
+          <li data-reveal style="--i:6"><span class="tag">Later</span><h3>Online races</h3><p>Measure which telemetry the game hides for human drivers, and make the rival-stop and attack calls hold up without it.</p></li>
+          <li data-reveal style="--i:7"><span class="tag">Later</span><h3>Your races in Claude</h3><p>The same read-only tools Ask the race uses, served over MCP, so Claude Desktop or Claude Code can answer questions about your races.</p></li>
+        </ul>
+        <h2 class="soon-sub">Shipped</h2>
+        <ul class="soon-list">
+          <li data-reveal><span class="tag">0.1.0</span><h3>The Windows app</h3><p>One installer: Home, the live dashboard, Race analysis, Ask the race, Storage and Connect. <a href="#app">Download</a></p></li>
+          <li data-reveal style="--i:1"><span class="tag">0.1.0</span><h3>Ask the race</h3><p>Questions about a race in plain words, answered on your PC: 49 of 50 test questions right with Qwen3 4B. <a href="#how">How it answers</a></p></li>
+          <li data-reveal style="--i:2"><span class="tag">0.1.0</span><h3>Race analysis</h3><p>Every saved session: pace, any lap against another, head to head with any car, the calls graded, and every race together.</p></li>
+          <li data-reveal style="--i:3"><span class="tag">Done</span><h3>The calls audit</h3><p>Every call graded against what happened after it, in the Debrief's Calls tab.</p></li>
+          <li data-reveal style="--i:4"><span class="tag">Done</span><h3>A learned overtake model</h3><p>LightGBM over 11 races: AUC 0.866 against 0.837 for the gap alone, better on every race it was tested on.</p></li>
         </ul>
         <p class="more"><a href="https://github.com/srikarnadella/f1-race-engineer/blob/main/docs/roadmap.md">The full roadmap</a></p>
       </section>
