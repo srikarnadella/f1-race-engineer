@@ -194,3 +194,27 @@ test('qualifying in the wet: a dry best is no yardstick - "lap gone" is judged a
   dry[19].status = { visualTyreCompound: 16 };
   assert.strictEqual(qualifying({ session, cars: dry, player: dry[19], delta: { bestLapTimeInMS: 76500, deltaToBestMs: 2100 } }).lapGone, true);
 });
+
+test('qualifying: the order lists every car by best lap, with the gap to P1, who is on a push lap and where the cut falls', () => {
+  const cars = field({ status: 1 });
+  cars[3].sessionHistory = { bestLapNum: 0, laps: [] }; // no time yet
+  cars[7].lapData.driverStatus = 1; // another car on a push lap
+  cars[7].status = { visualTyreCompound: 16 };
+  const q = qualifying({ session, cars, player: cars[19], delta: { bestLapTimeInMS: 76500, deltaToBestMs: -200 } });
+  assert.strictEqual(q.order.length, 20);
+  assert.deepStrictEqual(q.order.slice(0, 3).map((e) => [e.name, e.bestMs, e.gapMs, e.position]), [['D0', 75000, 0, 1], ['D1', 75100, 100, 2], ['D2', 75200, 200, 3]]);
+  // The car with no time is last, with no position and no gap.
+  const last = q.order[q.order.length - 1];
+  assert.deepStrictEqual([last.name, last.bestMs, last.gapMs, last.position], ['D3', null, null, null]);
+  const me = q.order.find((e) => e.isPlayer);
+  assert.strictEqual(me.status, 'flying');
+  assert.strictEqual(me.position, q.position, 'the same rank as the standing');
+  assert.strictEqual(q.order.find((e) => e.name === 'D7').status, 'flying');
+  assert.strictEqual(q.order.find((e) => e.name === 'D7').compound, 16);
+  assert.strictEqual(q.pushing, 2);
+  // Q1 of 20 cars: 15 go through, so the cut falls under the 15th timed car.
+  assert.deepStrictEqual(q.order.map((e, i) => (e.cutLine ? i + 1 : null)).filter(Boolean), [15]);
+  // No cut in the last part, or in a short session.
+  const final = qualifying({ session: { ...session, sessionType: 7 }, cars, player: cars[19], delta: { bestLapTimeInMS: 76500 } });
+  assert.ok(final.order.every((e) => !e.cutLine));
+});

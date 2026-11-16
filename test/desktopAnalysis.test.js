@@ -164,3 +164,65 @@ test('analysis: All races - pace per track over time, tyre wear and the calls, f
   assert.match(doc.querySelector('.trd__wear').textContent, /Monaco.*medium.*3\.1%/);
   assert.deepStrictEqual(app.errors, []);
 });
+
+test('analysis: "Share this race" makes the card from the session on screen, with its graded calls, and is hidden for the all-races page', async (t) => {
+  const app = await openAnalysis(t);
+  const made = [];
+  app.window.RaceShare.shareRace = async (d, audit) => { made.push([d.id, audit && audit.calls.length]); };
+  app.window.fetch = async (url) => (String(url).startsWith('/api/debrief/audit')
+    ? { ok: true, json: async () => ({ calls: [{ verdict: 'right' }, { verdict: 'unclear' }], stops: [] }) }
+    : { ok: false, json: async () => ({}) });
+  const btn = () => app.$$('button').find((b) => b.textContent === 'Share this race');
+  assert.ok(btn() && !btn().hidden);
+  btn().click();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepStrictEqual(made, [['bcn1', 2]]);
+  // Without an audit the card is still made, just without the calls line.
+  app.window.fetch = async () => { throw new Error('offline'); };
+  btn().click();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepStrictEqual(made[1], ['bcn1', null]);
+  app.$$('.ana__all')[0].click();
+  assert.ok(btn().hidden, 'nothing to share on the all-races page');
+  assert.deepStrictEqual(app.errors, []);
+});
+
+// The race links to the setups run in it (the Setups place, public/setups.js).
+test('analysis: a race says which setups were run in it and links to them in the Setups place', async (t) => {
+  const lib = { sheet: null, tracks: [{ trackId: 14, track: 'Barcelona', circuit: null, favorites: 1, lastAt: 1, reference: null, setups: [
+    { key: 'aaaaaaaaaaaa', trackId: 14, name: 'Long-run low wing', named: true, favorite: true, sessions: [{ uid: 'uid-bcn' }], stats: {}, values: {} },
+    { key: 'bbbbbbbbbbbb', trackId: 14, name: 'Not in this race', named: false, favorite: false, sessions: [{ uid: 'other' }], stats: {}, values: {} },
+  ] }] };
+  const app = open(t, { before: (w) => {
+    w.undercut = fakeApi();
+    w.fetch = async (url) => (String(url).includes('/api/setups') ? { ok: true, json: async () => lib } : { ok: true, json: async () => ({}) });
+  } });
+  await new Promise((r) => setTimeout(r, 10));
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: [{ ...barcelona, uid: 'uid-bcn' }, spa] } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.textContent.startsWith('Race analysis')).click();
+  await new Promise((r) => setTimeout(r, 30));
+  const links = [...doc.querySelectorAll('.ana__setup-link')];
+  assert.deepStrictEqual(links.map((b) => b.textContent), ['Setup: Long-run low wing']);
+  let shown = null;
+  app.window.addEventListener('undercut:show', (e) => { shown = e.detail; e.stopImmediatePropagation(); }, true);
+  links[0].click();
+  assert.strictEqual(shown, 'setups');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(app.window.RaceDesktop.setupsFocus)), { trackId: 14, key: 'aaaaaaaaaaaa' });
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('analysis: a race with no recorded setup shows no setup link, and a failed read changes nothing', async (t) => {
+  const app = open(t, { before: (w) => {
+    w.undercut = fakeApi();
+    w.fetch = async () => { throw new Error('offline'); };
+  } });
+  await new Promise((r) => setTimeout(r, 10));
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: [{ ...barcelona, uid: 'uid-bcn' }] } });
+  [...app.window.document.querySelectorAll('.home__dest')].find((b) => b.textContent.startsWith('Race analysis')).click();
+  await new Promise((r) => setTimeout(r, 30));
+  assert.strictEqual(app.window.document.querySelectorAll('.ana__setup-link').length, 0);
+  assert.deepStrictEqual(app.errors, []);
+});

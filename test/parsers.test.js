@@ -90,7 +90,7 @@ test('event: 4-char code mapped to a label', () => {
 
 test('unhandled packet types return data: null rather than throwing', () => {
   const buf = enc.encodeEvent(H, 'XXXX');
-  buf[6] = PACKET_IDS.MOTION;
+  buf[6] = PACKET_IDS.LOBBY_INFO;
   assert.strictEqual(parsePacket(buf).data, null);
 });
 
@@ -129,4 +129,48 @@ test('a car-count mismatch degrades to a warning, not a throw', () => {
 test('session: the weekend ID, after the forecast (shared by every session of a weekend)', () => {
   const { data } = parsePacket(enc.encodeSession(H, { sessionType: 15, weekendLinkIdentifier: 2227884873 }));
   assert.strictEqual(data.weekendLinkIdentifier, 2227884873);
+});
+
+// ---- Motion (roadmap X1): where every car is, for the track map, the replay and the spotter ----
+const car = (i) => ({ x: 100 + i, y: 2 + i / 10, z: -300 - i * 5, vx: 10 + i, vy: 0.5, vz: -60 - i, forwardX: 0.6, forwardY: 0, forwardZ: -0.8, rightX: 0.8, rightY: 0, rightZ: 0.6 });
+
+test('motion, F1 25 layout (22 cars of 60 bytes): position, velocity and direction of every car', () => {
+  const { header, data } = parsePacket(enc.encodeMotion(H, cars(car)));
+  assert.strictEqual(header.packetId, PACKET_IDS.MOTION);
+  assert.strictEqual(data.cars.length, 22);
+  const c = data.cars[5];
+  assert.ok(Math.abs(c.x - 105) < 1e-4 && Math.abs(c.z - -325) < 1e-4 && Math.abs(c.y - 2.5) < 1e-4);
+  assert.ok(Math.abs(c.vx - 15) < 1e-4 && Math.abs(c.vz - -65) < 1e-4);
+  assert.ok(Math.abs(c.forwardX - 0.6) < 1e-3 && Math.abs(c.forwardZ - -0.8) < 1e-3, 'directions come back as unit vectors');
+  assert.ok(Math.abs(c.rightX - 0.8) < 1e-3 && Math.abs(c.rightZ - 0.6) < 1e-3);
+});
+
+test('motion, F1 26 layout (24 cars of 54 bytes, 1325 bytes): the same fields from the start of each car', () => {
+  const buf = enc.encodeMotion({ ...H, packetFormat: 2026 }, Array.from({ length: 24 }, (_, i) => car(i)));
+  assert.strictEqual(buf.length, 1325, 'the size a real F1 26 capture has');
+  const { data } = parsePacket(buf);
+  assert.strictEqual(data.cars.length, 24);
+  assert.ok(Math.abs(data.cars[23].x - 123) < 1e-4);
+  assert.ok(Math.abs(data.cars[11].forwardZ - -0.8) < 1e-3);
+  assert.ok(Math.abs(data.cars[0].speed - Math.hypot(10, 0.5, -60)) < 1e-4, 'speed is the length of the velocity, m/s');
+});
+
+test('motion: an unused slot (all zero) reads as not on the track, and a truncated packet still parses what it holds', () => {
+  const { data } = parsePacket(enc.encodeMotion({ ...H, packetFormat: 2026 }, []));
+  assert.ok(data.cars.every((c) => c.x === 0 && c.z === 0 && c.speed === 0));
+  const whole = enc.encodeMotion(H, cars(car));
+  const cut = parsePacket(whole.subarray(0, 29 + 60 * 5 + 20)).data; // five cars and a bit
+  assert.strictEqual(cut.cars.length, 5);
+  assert.ok(Math.abs(cut.cars[4].x - 104) < 1e-4);
+});
+
+test('car setups: the tyre pressures (rear left, rear right, front left, front right), ballast and fuel load come through', () => {
+  const setups = cars((i) => (i === 3 ? { frontWing: 50, rearWing: 28, rearLeftTyrePressure: 20.5, rearRightTyrePressure: 20.5, frontLeftTyrePressure: 29.5, frontRightTyrePressure: 29.5, ballast: 6, fuelLoad: 12.5 } : {}));
+  const { data } = parsePacket(enc.encodeCarSetups(H, setups));
+  const me = data.cars[3];
+  assert.strictEqual(me.frontWing, 50);
+  assert.deepStrictEqual(me.tyrePressures, { rl: 20.5, rr: 20.5, fl: 29.5, fr: 29.5 });
+  assert.strictEqual(me.ballast, 6);
+  assert.ok(Math.abs(me.fuelLoad - 12.5) < 1e-4);
+  assert.strictEqual(me.engineBraking, 50, 'the field before them is unchanged');
 });

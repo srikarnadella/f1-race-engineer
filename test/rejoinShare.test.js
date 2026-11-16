@@ -68,16 +68,12 @@ test('rejoin range: always holds the place, however wide', () => {
 });
 
 // --- The card shows it ---
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
 const { JSDOM } = require('jsdom');
 const { syntheticPackets, replay } = require('./helpers/synthetic');
 
 function rejoinCard() {
   const dom = new JSDOM('<!doctype html><body><div id="m"></div></body>', { runScripts: 'outside-only', url: 'http://localhost/' });
-  const file = path.join(__dirname, '..', 'public', 'widgets.js');
-  new vm.Script(fs.readFileSync(file, 'utf8'), { filename: file }).runInContext(dom.getInternalVMContext());
+  for (const script of require('./helpers/widgetScripts').widgetScripts()) script.runInContext(dom.getInternalVMContext());
   const root = dom.window.document.getElementById('m');
   return { root, update: dom.window.RaceWidgets.widgets.rejoin.mount(root) };
 }

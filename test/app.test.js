@@ -28,9 +28,9 @@ test('app: a dropped connection is retried', async (t) => {
 });
 
 test('app: keys 1-6 switch screens, and the choice is remembered', (t) => {
-  const app = open(t);
+  const app = open(t, { storage: { 'raceEngineer.auto': false } });
   app.connect();
-  app.send(raceSnapshots()[200]);
+  app.send({ ...raceSnapshots()[200], focus: { screen: 'debrief', reason: 'Session over' } }); // the Debrief is listed once the session is over
   assert.strictEqual(app.activeTab(), 'Drive');
   const seen = [];
   for (const key of ['2', '3', '4', '5', '6']) {
@@ -102,7 +102,9 @@ test('app: a lossy feed is flagged on the link; a healthy one says nothing extra
 test('app: the Models tab shows the overtake model the app runs - LightGBM, its held-out score and what it leans on', async (t) => {
   const { overtakeInfo } = require('../src/ml/modelInfo');
   const info = overtakeInfo();
-  const app = open(t);
+  const app = open(t, { storage: { 'raceEngineer.auto': false } });
+  app.connect();
+  app.send({ ...raceSnapshots()[200], focus: { screen: 'debrief', reason: 'Session over' } });
   app.window.fetch = async (url) => ({ ok: true, json: async () => (String(url).endsWith('/api/models') ? { overtake: info, tyre: null } : {}) });
   app.press('6');
   assert.strictEqual(app.activeTab(), 'Debrief');
@@ -183,9 +185,9 @@ test('app: while the window is hidden nothing is drawn, the voice still calls, a
 });
 
 test('app: Settings lists the keyboard shortcuts, and each listed key does what it says', (t) => {
-  const app = open(t);
+  const app = open(t, { storage: { 'raceEngineer.auto': false } });
   app.connect();
-  app.send(raceSnapshots()[200]);
+  app.send({ ...raceSnapshots()[200], focus: { screen: 'debrief', reason: 'Session over' } });
   const rows = [...app.window.document.querySelectorAll('#shortcuts li')].map((li) => [li.querySelector('kbd').textContent, li.textContent]);
   assert.deepStrictEqual(rows.map(([k]) => k), ['1–6', 'Q', 'M', 'Esc']);
   // 1-6: the six race screens, in order.

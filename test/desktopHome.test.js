@@ -33,7 +33,7 @@ test('home: the app opens on Home, filling the window with no rail, one way into
   const app = await openApp(t);
   assert.strictEqual(app.rail.hidden, true, 'no dashboard rail around Home');
   assert.deepStrictEqual(app.dests().map((b) => b.querySelector('.home__name').textContent),
-    ['Live dashboard', 'Race analysis', 'Ask the race', 'Storage', 'Connect and record']);
+    ['Live dashboard', 'Race analysis', 'Setups', 'Ask the race', 'Storage', 'Connect and record']);
   assert.deepStrictEqual(app.errors, []);
 });
 
@@ -72,7 +72,7 @@ test('home: in the app, Settings is laid out across the window: toggles, voice c
   const sheet = app.$('settings-sheet');
   assert.ok(sheet.classList.contains('sheet--wide'));
   const col = (el) => el.dataset.col;
-  assert.deepStrictEqual([...sheet.querySelectorAll('.setting')].filter((s) => !s.hidden).map(col), ['toggles', 'toggles', 'voice', 'pc', 'pc'], 'auto-switch, hands-free; voice commands; this PC, then the keyboard');
+  assert.deepStrictEqual([...sheet.querySelectorAll('.setting')].filter((s) => !s.hidden).map(col), ['toggles', 'toggles', 'toggles', 'toggles', 'toggles', 'voice', 'pc', 'pc'], 'units, setup screen, spotter, auto-switch, hands-free; voice commands; this PC, then the keyboard');
 });
 
 test('home: the background is a slideshow of real races, each credited while it shows, and it stops when you leave', async (t) => {
@@ -113,7 +113,7 @@ const placeTitle = (app) => place(app) && place(app).querySelector('.place__titl
 
 test('home: every destination but Live dashboard opens a place of its own: the whole window, no dashboard rail, a way back Home', async (t) => {
   const app = await openApp(t);
-  for (const name of ['Race analysis', 'Ask the race', 'Storage', 'Connect and record']) {
+  for (const name of ['Race analysis', 'Setups', 'Ask the race', 'Storage', 'Connect and record']) {
     app.dest(name).click();
     assert.strictEqual(app.doc.querySelector('.home'), null, `${name}: Home is gone`);
     assert.strictEqual(placeTitle(app), name);
@@ -144,7 +144,7 @@ test('home: the dashboard rail is race screens only, and auto-switch never pulls
   const app = await openApp(t, { storage: { 'raceEngineer.auto': true } });
   app.dest('Live dashboard').click();
   const tabs = [...app.doc.querySelectorAll('.tab')].map((b) => b.textContent.replace(/^\d/, ''));
-  assert.deepStrictEqual(tabs, ['Home', 'Drive', 'Battle', 'Strategy', 'Weather', 'Custom', 'Debrief']);
+  assert.deepStrictEqual(tabs, ['Home', 'Drive', 'Battle', 'Strategy', 'Weather', 'Custom']);
   app.press('7');
   assert.strictEqual(app.activeTab(), 'Drive', 'no number key leads out of the dashboard');
 
@@ -262,4 +262,135 @@ test('home: the Storage line counts every saved session, the older ones on disk 
   await settle();
   const storage = [...app.window.document.querySelectorAll('.home__dest')].find((b) => b.querySelector('.home__name').textContent === 'Storage');
   assert.match(storage.textContent, /12 sessions/);
+});
+
+test('storage: each saved session has a "learn from this" switch, shown only for sessions the race store holds (roadmap K2)', async (t) => {
+  const s = (id, track, day) => ({ id, live: false, startedAt: Date.UTC(2026, 9, day), track, sessionName: 'Race', finish: 5, grid: 8, laps: [], bestLap: null });
+  const flags = { a: true, b: false }; // c is a session the race store doesn't hold
+  const calls = [];
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = {
+        ...fakeApi(),
+        learnFlags: async (ids) => Object.fromEntries(ids.filter((id) => id in flags).map((id) => [id, flags[id]])),
+        setLearn: async (id, on) => { calls.push([id, on]); flags[id] = on; return true; },
+      };
+    },
+  });
+  await settle();
+  app.connect();
+  app.send({ ...raceSnapshots()[200], debrief: { sessions: [s('a', 'Spa', 20), s('b', 'Monza', 10), s('c', 'Imola', 5)] } });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.querySelector('.home__name').textContent === 'Storage').click();
+  await settle();
+  const rowOf = (track) => [...doc.querySelectorAll('.pc-row')].find((r) => r.textContent.includes(track));
+  const learnBtn = (track) => [...rowOf(track).querySelectorAll('button')].find((b) => /^Learn from this/.test(b.textContent));
+  assert.strictEqual(learnBtn('Spa').textContent, 'Learn from this: on');
+  assert.strictEqual(learnBtn('Monza').textContent, 'Learn from this: off');
+  assert.strictEqual(learnBtn('Imola'), undefined, 'no switch without a row in the race store');
+  learnBtn('Spa').click();
+  await settle();
+  assert.deepStrictEqual(calls, [['a', false]]);
+  assert.strictEqual(learnBtn('Spa').textContent, 'Learn from this: off');
+  learnBtn('Monza').click();
+  await settle();
+  assert.deepStrictEqual(calls[1], ['b', true]);
+  assert.strictEqual(learnBtn('Monza').textContent, 'Learn from this: on');
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('storage: a recording\'s packets can be dropped, one by one or by age, and a recording without them offers neither replay nor analyze (roadmap Q7)', async (t) => {
+  const cap = (name, packets) => ({ name, bytes: 5e8, startedAt: Date.UTC(2026, 8, 1), marks: 0, report: packets ? null : { checks: [], laps: 3, marks: [], durationS: 600 }, track: 'Spa', session: 'Race', packets });
+  let list = [cap('2026-09-01_100000', true), cap('2026-08-01_100000', false)];
+  const calls = [];
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = {
+        ...fakeApi(),
+        captures: async () => list,
+        dropPackets: async (name) => { calls.push(['one', name]); list = list.map((c) => (c.name === name ? cap(name, false) : c)); return true; },
+        dropOldPackets: async (days) => { calls.push(['old', days]); return { count: 1, bytes: 5e8 }; },
+      };
+    },
+  });
+  await settle();
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.home__dest')].find((b) => b.querySelector('.home__name').textContent === 'Storage').click();
+  await settle();
+  const rows = () => [...doc.querySelectorAll('#storage-recordings .pc-row, .pc-lib__col .pc-row')].filter((r) => /Spa/.test(r.textContent));
+  const labels = (r) => [...r.querySelectorAll('button')].map((b) => b.textContent);
+  const [withPackets, without] = rows();
+  assert.ok(labels(withPackets).includes('Replay') && labels(withPackets).includes('Drop packets'));
+  assert.ok(!labels(without).includes('Replay') && !labels(without).includes('Analyze') && !labels(without).includes('Drop packets'), labels(without).join());
+  assert.match(without.textContent, /packets dropped/);
+  [...withPackets.querySelectorAll('button')].find((b) => b.textContent === 'Drop packets').click();
+  await settle();
+  assert.deepStrictEqual(calls[0], ['one', '2026-09-01_100000']);
+  assert.ok(!labels(rows()[0]).includes('Replay'), 'the row updates');
+  [...doc.querySelectorAll('button')].find((b) => /^Drop packets older than 30 days/.test(b.textContent)).click();
+  await settle();
+  assert.deepStrictEqual(calls[1], ['old', 30]);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('settings: "Check for updates" asks only when pressed, and offers the download page only for a newer version (roadmap S2)', async (t) => {
+  let asked = 0;
+  let opened = 0;
+  let answer = { current: '0.1.0', latest: '0.2.0', newer: true };
+  const app = open(t, { before: (w) => { w.undercut = { ...fakeApi(), checkUpdate: async () => { asked++; return answer; }, openUpdate: async () => { opened++; return true; } }; } });
+  await settle();
+  const doc = app.window.document;
+  assert.strictEqual(asked, 0, 'nothing is asked at start-up');
+  app.$('settings').click();
+  const btn = () => [...doc.querySelectorAll('button')].find((b) => b.textContent === 'Check for updates');
+  assert.ok(btn());
+  assert.strictEqual(asked, 0, 'nor on opening Settings');
+  btn().click();
+  await settle();
+  assert.strictEqual(asked, 1);
+  assert.match(doc.querySelector('.setting--pc').textContent, /Version 0\.2\.0 is out \(this is 0\.1\.0\)/);
+  [...doc.querySelectorAll('button')].find((b) => b.textContent === 'Open the download page').click();
+  assert.strictEqual(opened, 1);
+  answer = { current: '0.1.0', latest: '0.1.0', newer: false };
+  btn().click();
+  await settle();
+  assert.match(doc.querySelector('.setting--pc').textContent, /You have the latest version \(0\.1\.0\)/);
+  assert.ok(![...doc.querySelectorAll('button')].some((b) => b.textContent === 'Open the download page'));
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('settings: "Import setups" picks the spreadsheet through the PC, shows what was imported, and says why when it cannot (setup lab)', async (t) => {
+  let picked = 0;
+  let reply = { game: 'F1 26', circuits: 24 };
+  const withStatus = { ...fakeApi() };
+  const app = open(t, {
+    before: (w) => {
+      w.undercut = {
+        ...withStatus,
+        status: async () => ({ ...(await withStatus.status()), setups: null }),
+        importSetups: async () => { picked++; if (reply instanceof Error) throw reply; return reply; },
+      };
+    },
+  });
+  await settle();
+  const doc = app.window.document;
+  app.$('settings').click();
+  const note = () => doc.querySelector('.setup-sheet__note').textContent;
+  const btn = () => [...doc.querySelectorAll('button')].find((b) => b.textContent === 'Import setups');
+  assert.ok(btn());
+  assert.match(note(), /No setup sheet yet/);
+  assert.strictEqual(picked, 0, 'nothing happens until it is pressed');
+  btn().click();
+  await settle();
+  assert.strictEqual(picked, 1);
+  assert.match(note(), /24 circuits from F1 26/);
+  reply = new Error('That is not a spreadsheet Undercut can read');
+  btn().click();
+  await settle();
+  assert.match(note(), /not a spreadsheet/);
+  reply = null; // the dialog was cancelled
+  btn().click();
+  await settle();
+  assert.match(note(), /not a spreadsheet/, 'a cancelled dialog changes nothing on screen');
+  assert.deepStrictEqual(app.errors, []);
 });

@@ -115,16 +115,12 @@ test('battle call: sandwiched between two chances whose ranges overlap, the choi
 });
 
 // --- The Battle card shows it ---
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
 const { JSDOM } = require('jsdom');
 const { syntheticPackets, replay } = require('./helpers/synthetic');
 
 test('battle card: the pass chip shows the range beside the chance, and just the chance when there is none', () => {
   const dom = new JSDOM('<!doctype html><body><div id="m"></div></body>', { runScripts: 'outside-only', url: 'http://localhost/' });
-  const file = path.join(__dirname, '..', 'public', 'widgets.js');
-  new vm.Script(fs.readFileSync(file, 'utf8'), { filename: file }).runInContext(dom.getInternalVMContext());
+  for (const script of require('./helpers/widgetScripts').widgetScripts()) script.runInContext(dom.getInternalVMContext());
   const update = dom.window.RaceWidgets.widgets.battle.mount(dom.window.document.getElementById('m'));
   let snap = null;
   replay(syntheticPackets(), { onTick: ({ snap: s }) => { if (!snap && s.analysis && s.analysis.battle && s.analysis.battle.attack) snap = JSON.parse(JSON.stringify(s)); } });

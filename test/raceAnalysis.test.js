@@ -526,3 +526,23 @@ test('a gap the game has not updated after a pass (5 s for a car alongside) is r
   const albon = createRaceAnalysis(fm).compute().field.find((r) => r.carIndex === 1).gapToPlayerMs;
   assert.ok(albon < -4000, `gap ${albon}`);
 });
+
+test('what a penalty at a stop taught about the game is tagged with its race, so deleting the race forgets it (K1)', () => {
+  const { createTrackMemory } = require('../src/state/trackMemory');
+  const memory = createTrackMemory();
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { trackId: 17, totalLaps: 20, trackLength: 4318, sessionType: 15 });
+  const ra = createRaceAnalysis(fm, { memory });
+  let t = 0;
+  const tick = (o) => {
+    fm.dispatch(PACKET_IDS.LAP_DATA, header((t += 1)), { cars: lapCars(8, { [PLAYER]: { penalties: 5, ...o } }) });
+    ra.compute();
+  };
+  tick({});
+  tick({ pitStatus: 1 });
+  tick({ pitStatus: 2, numPitStops: 1 });
+  tick({ pitStatus: 0, numPitStops: 1 });
+  assert.deepStrictEqual(memory.get('game', 'penaltyServedAtStop'), [0]);
+  assert.strictEqual(memory.forget(String(fm.getSessionUID())), 1);
+  assert.deepStrictEqual(memory.get('game', 'penaltyServedAtStop'), []);
+});

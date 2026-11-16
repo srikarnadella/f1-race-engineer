@@ -191,3 +191,44 @@ test('calls audit: the standing-start lap 1 is not a clean lap to judge damage a
   const [c] = only(damaged({ player: (lap) => ({ lapMs: lap === 1 ? PACE + 3000 : PACE }) }), [call(2, 'BOX', 'damage')]);
   assert.strictEqual(c.verdict, 'unclear', c.why);
 });
+
+// ---- Fuel calls (HOLD fuel-tight / fuel-short): was the saving needed? ----
+// Judged on the fuel left at the flag in laps (kg at the flag / the car's use a lap), and whether the car
+// actually used less after the call (then a roomy finish may be the saving working, so it can't be called wrong).
+const fuelRace = (burn, start, { saveFrom = null, saveBurn = burn } = {}) => race({
+  totalLaps: 10,
+  player: (lap) => {
+    let used = 0;
+    for (let n = 1; n <= lap; n++) used += saveFrom != null && n >= saveFrom ? saveBurn : burn;
+    return { fuelKg: start - used };
+  },
+});
+
+test('calls audit: a fuel call is right when the car finished with the tank nearly empty (Silverstone sprint, 19 Oct 2026: 0.2 kg left)', () => {
+  const [c] = only(fuelRace(1.3, 13.2), [call(1, 'HOLD', 'fuel-tight')]);
+  assert.strictEqual(c.verdict, 'right', c.why);
+  assert.match(c.why, /laps of fuel/);
+});
+
+test('calls audit: a fuel call is wrong when the car finished with plenty left and never used less', () => {
+  const [c] = only(fuelRace(1.3, 30), [call(2, 'HOLD', 'fuel-short')]);
+  assert.strictEqual(c.verdict, 'wrong', c.why);
+  assert.match(c.why, /spare/);
+});
+
+test('calls audit: a roomy finish after the car used less fuel from the call is the saving working, not a wrong call', () => {
+  const [c] = only(fuelRace(1.3, 30, { saveFrom: 4, saveBurn: 0.9 }), [call(3, 'HOLD', 'fuel-tight')]);
+  assert.strictEqual(c.verdict, 'unclear', c.why);
+  assert.match(c.why, /used less/);
+});
+
+test('calls audit: a finish between tight and roomy cannot settle a fuel call', () => {
+  const [c] = only(fuelRace(1.3, 14.5), [call(1, 'HOLD', 'fuel-tight')]); // ~0.9 laps left
+  assert.strictEqual(c.verdict, 'unclear');
+});
+
+test('calls audit: a fuel call with no fuel readings cannot be judged', () => {
+  const [c] = only(race({ totalLaps: 10 }), [call(1, 'HOLD', 'fuel-tight')]);
+  assert.strictEqual(c.verdict, 'unclear');
+  assert.match(c.why, /fuel/i);
+});

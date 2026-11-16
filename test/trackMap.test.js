@@ -1,0 +1,98 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const { open, raceSnapshots } = require('./helpers/dashboard');
+const { createPipeline } = require('../src/pipeline');
+const enc = require('../src/sim/encoders');
+
+// The track map widget: the outline the bridge learned, and every car on it, you highlighted, the ones ahead and behind
+// told apart. It is a widget for Custom screens (and any preset a user builds), not part of the six screens.
+const base = () => raceSnapshots().find((s) => s.player && s.analysis);
+const square = [[0, 0], [100, 0], [100, 100], [0, 100]];
+const car = (idx, x, z, position, over = {}) => ({ idx, x, z, position, you: false, pit: false, ...over });
+const map = (over = {}) => ({ trackId: 10, outline: square, cars: [car(0, 0, 0, 1), car(1, 100, 0, 2, { you: true }), car(2, 100, 100, 3, { pit: true })], ...over });
+const custom = (t, snap) => {
+  const app = open(t, { storage: { 'raceEngineer.customs': [{ layout: '2x2', widgets: ['map', 'call', 'radio', 'pace'] }] } });
+  app.connect();
+  app.send({ ...base(), connected: true, ...snap });
+  [...app.window.document.querySelectorAll('.tab')].find((b) => b.lastChild.textContent === 'Custom').click();
+  return app;
+};
+const dots = (app) => [...app.window.document.querySelectorAll('.w-map__car')];
+
+test('map widget: the outline is drawn and each car is a dot, you in your colour, ahead and behind told apart', (t) => {
+  const app = custom(t, { map: map() });
+  const doc = app.window.document;
+  assert.ok(doc.querySelector('.w-map__track').getAttribute('d').startsWith('M'));
+  const d = dots(app);
+  assert.strictEqual(d.length, 3);
+  const you = d.find((x) => x.classList.contains('is-you'));
+  assert.ok(you, 'you are marked');
+  assert.strictEqual(d.filter((x) => x.classList.contains('is-ahead')).length, 1, 'position 1 is ahead of you in 2nd');
+  assert.strictEqual(d.filter((x) => x.classList.contains('is-behind')).length, 1);
+  assert.strictEqual(d.filter((x) => x.classList.contains('is-pit')).length, 1);
+  assert.strictEqual(d[d.length - 1], you, 'you are drawn last, on top');
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('map widget: dots follow the cars between snapshots and cars that leave are dropped', (t) => {
+  const app = custom(t, { map: map() });
+  const x0 = dots(app)[0].getAttribute('cx');
+  app.send({ ...base(), connected: true, map: map({ cars: [car(0, 50, 50, 1), car(1, 100, 0, 2, { you: true })] }) });
+  assert.strictEqual(dots(app).length, 2);
+  assert.notStrictEqual(dots(app)[0].getAttribute('cx'), x0);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('map widget: before the first clean lap it says how the track gets drawn, and nothing breaks without a map', (t) => {
+  const app = custom(t, { map: map({ outline: null }) });
+  assert.match(app.window.document.querySelector('.w-map').textContent, /first clean lap/i);
+  assert.strictEqual(dots(app).length, 0, 'with no outline there is nothing to place the cars on');
+  const none = custom(t, { map: null });
+  assert.match(none.window.document.querySelector('.w-map').textContent, /first clean lap/i);
+  assert.deepStrictEqual(app.errors.concat(none.errors), []);
+});
+
+test('map widget: the outline rides once a second, so the page keeps it between snapshots and drops it on another track', (t) => {
+  const app = custom(t, { map: map() });
+  app.send({ ...base(), connected: true, map: { trackId: 10, cars: [car(1, 100, 0, 2, { you: true })] } }); // no outline this tick
+  assert.ok(app.window.document.querySelector('.w-map__track').getAttribute('d'), 'kept');
+  app.send({ ...base(), connected: true, map: { trackId: 11, cars: [car(1, 5, 5, 2, { you: true })] } });
+  assert.match(app.window.document.querySelector('.w-map').textContent, /first clean lap/i, 'another track: not the old outline');
+});
+
+test('pipeline: with no session packet yet there is no map, and a Motion packet alone does not break the tick', () => {
+  let t = 1_000_000;
+  const p = createPipeline({ now: () => t });
+  const H = { sessionUID: 7n, sessionTime: 10, frameIdentifier: 1, playerCarIndex: 1 };
+  p.feed(enc.encodeMotion(H, Array.from({ length: 22 }, (_, i) => (i < 3 ? { x: i * 10 + 5, z: 7 } : {}))));
+  t += 100;
+  assert.strictEqual(p.tick().map, null);
+});
+
+test('pipeline: driving a clean lap round a circle (Session, Lap Data, Telemetry and Motion packets) draws the outline on the snapshot', () => {
+  let t = 1_000_000;
+  const p = createPipeline({ now: () => t });
+  const LENGTH = 6283;
+  const H = (n) => ({ sessionUID: 9n, sessionTime: n / 10, frameIdentifier: n, overallFrameIdentifier: n, playerCarIndex: 0 });
+  let n = 0;
+  const step = (d) => {
+    n++;
+    const a = (d / LENGTH) * 2 * Math.PI;
+    p.feed(enc.encodeSession(H(n), { trackId: 10, trackLength: LENGTH, totalLaps: 5, sessionType: 15 }));
+    p.feed(enc.encodeLapData(H(n), [{ carPosition: 1, currentLapNum: 2, lapDistance: d, totalDistance: d, pitStatus: 0, driverStatus: 4, resultStatus: 2 }]));
+    p.feed(enc.encodeCarTelemetry(H(n), [{ speed: 220 }]));
+    p.feed(enc.encodeMotion(H(n), [{ x: 1000 * Math.cos(a), z: 1000 * Math.sin(a) }]));
+    t += 100;
+    return p.tick();
+  };
+  let withOutline = null;
+  for (let d = 0; d < LENGTH; d += 20) step(d);
+  for (let i = 0; i < 12; i++) {
+    const s = step(5 + i);
+    if (s.map && s.map.outline) withOutline = s.map;
+  }
+  assert.ok(withOutline, 'the outline arrives on the once-a-second tick');
+  assert.strictEqual(withOutline.outline.length, 240);
+  assert.strictEqual(withOutline.cars.length, 1);
+  assert.strictEqual(withOutline.cars[0].you, true);
+});

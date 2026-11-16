@@ -12,7 +12,8 @@ const { syntheticPackets, replay } = require('./helpers/synthetic');
 // for a missing field. The dashboard swallows a widget's error (one bad card
 // must not blank the screen), so without this a renamed field fails silently.
 // Compiled once each with their filenames, so coverage counts them as public/widgets.js and public/debrief.js.
-const WIDGETS_JS = ['widgets.js', 'debrief.js'].map((f) => {
+const { WIDGET_FILES } = require('./helpers/widgetScripts');
+const WIDGETS_JS = [...WIDGET_FILES, 'debrief.js'].map((f) => {
   const file = path.join(__dirname, '..', 'public', f);
   return new vm.Script(fs.readFileSync(file, 'utf8'), { filename: file });
 });
@@ -86,6 +87,10 @@ const NOT_IN_THE_SYNTHETIC_RACE = [
   '$.debrief.sessions[].fieldBestSectors[] (empty)', // the synthetic race has no Session History packets
   '$.debrief.sessions[].points (empty)', // ...nor a final classification
   '$.debrief.sessions[].positionChart (empty)', // ...nor Lap Positions
+  '$.setup.source (empty)', // no setup spreadsheet imported
+  '$.setup.history (empty)', // no earlier session at this track in the store
+  '$.map.outline (empty)', // no clean lap of the track yet
+  '$.briefing (empty)', // no race store in the test run
 ];
 
 test('dashboard: every field a widget reads exists in the snapshot the server builds', () => {

@@ -110,3 +110,47 @@ test('start: the bridge says when telemetry is live and when a new session start
   client.close();
   await bridge.stop();
 });
+
+test('start: a phone with the pairing key saves a setup note into the real store, and one without it is refused', async (t) => {
+  quiet(t);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'undercut-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const bridge = start({ httpPort: 0, udpPort: 0, udpHost: '127.0.0.1', dataDir });
+  if (!bridge.server.listening) await once(bridge.server, 'listening');
+  const { port } = bridge.server.address();
+  const key = fs.readFileSync(path.join(dataDir, 'pair-key'), 'utf8');
+  assert.match(key, /^[0-9a-f]{32}$/, 'the key is kept beside the other data');
+  const post = (headers, body) => new Promise((resolve, reject) => {
+    const req = http.request({ port, method: 'POST', path: '/api/setups/note', headers: { 'Content-Type': 'application/json', ...headers } }, async (res) => {
+      let text = '';
+      for await (const c of res) text += c;
+      resolve({ status: res.statusCode, json: JSON.parse(text) });
+    });
+    req.on('error', reject);
+    req.end(JSON.stringify(body));
+  });
+  const note = { trackId: 10, key: 'abcdefabcdef', values: { frontWing: 40 }, name: 'From my phone', favorite: true };
+  assert.strictEqual((await post({}, note)).status, 403);
+  assert.strictEqual((await post({ 'X-Undercut-Key': key }, { ...note, name: 'x'.repeat(61) })).status, 400);
+  const ok = await post({ 'X-Undercut-Key': key }, note);
+  assert.deepStrictEqual([ok.status, ok.json], [200, { ok: true }]);
+  const lib = await new Promise((resolve, reject) => http.get({ port, path: '/api/setups' }, async (res) => { let x = ''; for await (const c of res) x += c; resolve(JSON.parse(x)); }).on('error', reject));
+  assert.ok(lib.tracks.some((tr) => tr.setups.some((s) => s.name === 'From my phone' && s.favorite)), 'it is in the library the phone reads');
+  await bridge.stop();
+});
+
+test('start: the outline of a track is served by name for the map, null for a track not drawn yet or a name that is not a track', async (t) => {
+  quiet(t);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'undercut-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dataDir, 'tracks.json'), JSON.stringify({ 10: [[0, 0], [10, 0], [10, 10], [0, 10]] }));
+  const bridge = start({ httpPort: 0, udpPort: 0, udpHost: '127.0.0.1', dataDir });
+  if (!bridge.server.listening) await once(bridge.server, 'listening');
+  const { port } = bridge.server.address();
+  const json = (p) => new Promise((resolve, reject) => http.get({ port, path: p }, async (res) => { let x = ''; for await (const c of res) x += c; resolve(JSON.parse(x)); }).on('error', reject));
+  assert.deepStrictEqual((await json('/api/outline?track=Spa')).outline, [[0, 0], [10, 0], [10, 10], [0, 10]]);
+  assert.strictEqual((await json('/api/outline?track=Monaco')).outline, null);
+  assert.strictEqual((await json('/api/outline?track=Nowhere')).outline, null);
+  assert.strictEqual((await json('/api/outline')).outline, null);
+  await bridge.stop();
+});

@@ -36,13 +36,14 @@ function compareReply(a, b) {
 
 const session = { id: 'bcn1', live: false, startedAt: Date.UTC(2026, 9, 17), sessionType: 15, sessionName: 'Race', isRace: true, track: 'Barcelona', totalLaps: 12, grid: 15, finish: 7, positionsGained: 8, official: true, points: 6, fieldBestSectors: [], bestSectors: [], positionChart: null, bestLap: { lap: 10, ms: 80100 }, theoreticalBestMs: null, medianPaceMs: 80400, consistencyMs: 300, cleanLaps: 3, fieldBestMs: 79800, fastestLap: null, pitStops: 0, penalties: [], safetyCars: 0, stints: [{ compound: 17, fromLap: 1, toLap: 12, laps: 12 }], laps: [], comparable: [4, 7, 10], field: [] };
 
-async function openLapVsLap(t, reply = compareReply) {
+async function openLapVsLap(t, reply = compareReply, { outline = null } = {}) {
   const requests = [];
   const app = open(t, {
     before: (w) => {
       w.undercut = fakeApi();
       w.fetch = async (url) => {
         const u = new URL(String(url), 'http://x');
+        if (u.pathname.endsWith('/api/outline')) return { ok: true, json: async () => ({ outline }) };
         if (!u.pathname.endsWith('/api/debrief/compare')) return { ok: false, json: async () => ({}) };
         requests.push(u);
         return { ok: true, json: async () => reply(u.searchParams.get('a'), u.searchParams.get('b')) };
@@ -112,4 +113,29 @@ test('lap vs lap: when the bridge can\'t compare, it says why', async (t) => {
   const app = await openLapVsLap(t, () => ({ error: 'Needs two complete, clean laps with telemetry' }));
   assert.match(app.text('.lvl'), /Needs two complete, clean laps with telemetry/);
   assert.deepStrictEqual(app.errors, []);
+});
+
+// ---- where on the track the time went: the track outline coloured by what the lap lost or gained there ----
+const SQUARE = Array.from({ length: 240 }, (_, i) => { const a = (i / 240) * 2 * Math.PI; return [Math.round(1000 * Math.cos(a)), Math.round(1000 * Math.sin(a))]; });
+// B loses 0.3 s over slices 60-80 and gains 0.1 s over slices 160-170, nothing elsewhere.
+const withMap = (a, b) => ({ ...compareReply(a, b), timeMap: { lengthM: 2000, deltaS: Array.from({ length: 240 }, (_, i) => (i >= 60 && i < 80 ? 0.015 : i >= 160 && i < 170 ? -0.01 : 0)) } });
+
+test('lap vs lap: the track map colours the stretches where your lap lost time red and where it gained green', async (t) => {
+  const app = await openLapVsLap(t, withMap, { outline: SQUARE });
+  const segs = app.$$('.lvl__map .lvl__seg');
+  assert.strictEqual(segs.length, 240);
+  assert.ok(segs.slice(60, 80).every((x) => x.classList.contains('is-lost')));
+  assert.ok(segs.slice(160, 170).every((x) => x.classList.contains('is-gained')));
+  assert.ok(segs.slice(0, 50).every((x) => !x.classList.contains('is-lost') && !x.classList.contains('is-gained')), 'even stretches stay grey');
+  assert.match(app.text('.lvl__map'), /lost time/i);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('lap vs lap: no map when the track has not been drawn yet or the comparison has no time map, and the rest of the view is unharmed', async (t) => {
+  const none = await openLapVsLap(t, withMap, { outline: null });
+  assert.strictEqual(none.$$('.lvl__map').length, 0);
+  assert.ok(none.$$('.lvl__corner').length >= 1);
+  const old = await openLapVsLap(t, compareReply, { outline: SQUARE });
+  assert.strictEqual(old.$$('.lvl__map').length, 0);
+  assert.deepStrictEqual(none.errors.concat(old.errors), []);
 });
