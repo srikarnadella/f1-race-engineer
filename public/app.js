@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const { widgets: WIDGETS, setText, setTone, lapsTxt } = window.RaceWidgets;
+  const { widgets: WIDGETS, order: WIDGET_ORDER, setText, setTone, lapsTxt } = window.RaceWidgets;
   // Loosely typed: which element an id names (input, select, img) is known only from index.html.
   /** @type {(id: string) => any} */
   const $ = (id) => document.getElementById(id);
@@ -14,7 +14,7 @@
   const LOSSY_FEED_PCT = 2;
   const TOAST_MS = 6000;
   const CRITICAL_BAND_MS = 6000;
-  const STORE = { screen: 'raceEngineer.screen', custom: 'raceEngineer.custom', voice: 'raceEngineer.voice', auto: 'raceEngineer.auto', handsFree: 'raceEngineer.handsFree', commands: 'raceEngineer.commands' };
+  const STORE = { screen: 'raceEngineer.screen', custom: 'raceEngineer.custom', voice: 'raceEngineer.voice', auto: 'raceEngineer.auto', handsFree: 'raceEngineer.handsFree', commands: 'raceEngineer.commands', spotter: 'raceEngineer.spotter', customs: 'raceEngineer.customs', setupAuto: 'raceEngineer.setupAuto', imperial: 'raceEngineer.imperial', keepAwake: 'raceEngineer.keepAwake' };
 
   function load(key, fallback) {
     try {
@@ -87,6 +87,20 @@
     { id: 'weather', group: 'live', label: 'Weather', layout: 'wide-side-3', widgets: ['tyrecall', 'call', 'weather', 'rejoin', 'radio'] },
     { id: 'debrief', group: 'after', label: 'Debrief', layout: 'single', widgets: ['debrief'] },
   ];
+  // While the session is qualifying (or a sprint shootout) the live screens are these instead: nothing about a
+  // race (gaps, defending, pit timing) means anything when the order is by best lap. They swap in and out with
+  // the session (updateMode); Custom and the Debrief stay.
+  const QUALI_PRESETS = [
+    { id: 'qlap', group: 'live', label: 'Lap', layout: 'big-3', widgets: ['qlap', 'laptime', 'qplan', 'radio'] },
+    { id: 'qorder', group: 'live', label: 'Order', layout: 'big-3', widgets: ['qorder', 'laptime', 'radio', 'qplan'] },
+    { id: 'qplan', group: 'live', label: 'Plan', layout: 'wide-side-3', widgets: ['qplan', 'radio', 'weather', 'adjust', 'qorder'] },
+  ];
+  const ALL_PRESETS = [...PRESETS, ...QUALI_PRESETS];
+  // The Setup screen: your car's setup against the sheet's for the track. It comes up by itself in the garage (maybeSetup).
+  const GARAGE_PRESETS = [{ id: 'setup', group: 'garage', label: 'Setup', layout: 'single', widgets: ['setup'] }, { id: 'brief', group: 'garage', label: 'Briefing', layout: 'single', widgets: ['brief'] },
+    // On a phone or tablet the setups library is a screen here; in the app it is a place of its own (Home).
+    ...(window.RaceDesktop && window.RaceDesktop.placeFrame ? [] : [{ id: 'setups', group: 'garage', label: 'Setups', layout: 'single', widgets: ['setups'] }])];
+  let qualiMode = false;
   // In the desktop app (public/desktop.js): Connect and Library, last in the rail.
   const PC_SCREENS = (window.RaceDesktop && window.RaceDesktop.screens) || [];
   // Screens from earlier versions, so a saved choice still lands somewhere sensible.
@@ -101,14 +115,38 @@
     for (const w of FILLER) if (chosen.length < n && !chosen.includes(w)) chosen.push(w);
     return { layout, widgets: chosen };
   }
-  let custom = sanitizeCustom(load(STORE.custom, CUSTOM_DEFAULT));
+  // Up to three custom screens (Custom, Custom 2, Custom 3), kept on this device. Until one has been saved the
+  // single Custom is the unused default, which the first Customize replaces, as it always did.
+  const CUSTOM_IDS = ['custom', 'custom2', 'custom3'];
+  const MAX_CUSTOM = CUSTOM_IDS.length;
+  function loadCustoms() {
+    const raw = load(STORE.customs, null);
+    const list = Array.isArray(raw) ? raw.filter((x) => x && typeof x === 'object').slice(0, MAX_CUSTOM).map(sanitizeCustom) : [];
+    if (list.length) return { list, saved: true };
+    const old = load(STORE.custom, null); // a single Custom saved before there could be three
+    return old ? { list: [sanitizeCustom(old)], saved: true } : { list: [sanitizeCustom(CUSTOM_DEFAULT)], saved: false };
+  }
+  const loadedCustoms = loadCustoms();
+  /** @type {{ layout: string, widgets: string[] }[]} */
+  const customs = loadedCustoms.list;
+  let customsSaved = loadedCustoms.saved;
+  const saveCustoms = () => { customsSaved = true; save(STORE.customs, customs); };
+  const customIndex = (id) => { const i = CUSTOM_IDS.indexOf(id); return i >= 0 && i < customs.length ? i : -1; };
+  const isCustom = (id) => customIndex(id) >= 0;
+  const customLabel = (i) => (i ? `Custom ${i + 1}` : 'Custom');
   // Custom sits with the live screens; Debrief after them. In the app, Home
   // comes first and Connect and Library last.
-  const screens = () => [...PC_SCREENS.filter((p) => p.group === 'home'), ...PRESETS.filter((p) => p.group === 'live'), { id: 'custom', group: 'live', label: 'Custom', ...custom }, ...PRESETS.filter((p) => p.group === 'after'), ...PC_SCREENS.filter((p) => p.group === 'place')];
+  const screens = () => [...PC_SCREENS.filter((p) => p.group === 'home'), ...(qualiMode ? QUALI_PRESETS : PRESETS.filter((p) => p.group === 'live')), ...customs.map((c, i) => ({ id: CUSTOM_IDS[i], group: 'live', label: customLabel(i), ...c })), ...PRESETS.filter((p) => p.group === 'after'), ...GARAGE_PRESETS, ...PC_SCREENS.filter((p) => p.group === 'place')];
   // Home and the app's places (Race analysis, Storage, Connect) fill the window on their own: no rail, no number key.
   const standalone = (id) => ['home', 'place'].includes((screens().find((s) => s.id === id) || {}).group);
+  // Setup is listed only in the garage of a session where the car can be changed, Briefing in any garage, and the Debrief only
+  // once the session is over (the recorded demo lists them always). The screen you are on keeps its tab, so it never vanishes under you.
+  const gate = { setup: false, brief: false, over: false };
+  const listed = (s) => RECORDED || s.id === currentId
+    || (s.id === 'setup' ? gate.setup : s.id === 'brief' || (s.id === 'setups' && s.group === 'garage') ? gate.brief : s.id === 'debrief' ? gate.over : true);
+  const listedScreens = () => screens().filter(listed);
   // Number keys skip Home, so Drive is 1 in the app as in a browser.
-  const numbered = () => screens().filter((s) => !standalone(s.id));
+  const numbered = () => listedScreens().filter((s) => !standalone(s.id));
   // The recorded demo always opens on Drive: a screen picked on an earlier visit isn't what a first-time visitor should land on.
   // The app opens on Home - or, after it reloaded itself (a replay, a settings change), where it was.
   function appScreen() {
@@ -128,11 +166,11 @@
   let lastSnapshot = null;
 
   // ---------- Tabs ----------
-  const GROUP_LABEL = { live: 'Live', after: 'After the race' };
+  const GROUP_LABEL = { live: 'Live', after: 'After the race', garage: 'Garage' };
   function renderTabs() {
     const items = [];
     let group = null;
-    const all = screens();
+    const all = listedScreens();
     const keys = all.filter((s) => !standalone(s.id));
     all.filter((s) => s.group !== 'place').forEach((s) => {
       if (s.group !== group && GROUP_LABEL[s.group]) {
@@ -147,7 +185,11 @@
     $('tabs').replaceChildren(...items);
     if (RECORDED && window.parent !== window) window.parent.postMessage({ type: 'screen', id: currentId, auto: autoOn }, location.origin);
     const btn = $('customize');
-    setText(btn, currentId === 'custom' ? (editing ? 'Done' : 'Edit') : 'Customize');
+    setText(btn, isCustom(currentId) ? (editing ? 'Done' : 'Edit') : 'Customize');
+    // Three is the limit: from a screen that is not a custom one, Customize would need a fourth.
+    const full = !isCustom(currentId) && customsSaved && customs.length >= MAX_CUSTOM;
+    btn.disabled = full;
+    btn.title = full ? `You have ${MAX_CUSTOM} custom screens: open one to edit it, or delete one first` : '';
     btn.classList.toggle('is-active', editing);
     btn.hidden = (screens().find((s) => s.id === currentId) || {}).group !== 'live';
   }
@@ -180,6 +222,9 @@
   // auto: put up by auto-switch, not the driver - so it isn't remembered,
   // and "home" (where auto-switch returns once the moment passes) stays put.
   function showScreen(id, auto = false) {
+    // A screen that is not in the set in view (Drive while the session is qualifying: Home's Live dashboard and Connect's Go to
+    // Drive still ask for it) means the first live screen of the set that is.
+    if (!screens().some((x) => x.id === id)) id = (screens().find((x) => x.group === 'live' && !isCustom(x.id)) || screens()[0]).id;
     if (!auto) {
       homeId = id;
       save(STORE.screen, id);
@@ -188,7 +233,7 @@
       renderAutoChip();
     }
     if (id === currentId) return;
-    if (id !== 'custom') editing = false;
+    if (!isCustom(id)) editing = false;
     currentId = id;
     renderTabs();
     renderScreen();
@@ -198,15 +243,18 @@
   document.addEventListener('undercut:show', (e) => showScreen(/** @type {CustomEvent} */ (e).detail));
 
   $('customize').addEventListener('click', () => {
-    if (currentId === 'custom') {
+    if (isCustom(currentId)) {
       editing = !editing;
     } else {
-      // Start the custom screen from the preset on screen - except Drive,
-      // which is one composite card: start from its parts instead.
-      const preset = PRESETS.find((p) => p.id === currentId);
-      custom = sanitizeCustom(preset.id === 'drive' ? CUSTOM_DEFAULT : { layout: preset.layout, widgets: preset.widgets });
-      save(STORE.custom, custom);
-      showScreen('custom');
+      // Start a custom screen from the preset on screen - except Drive, which is one composite card: start
+      // from its parts instead. The first one replaces the unused default; after that each makes a new one.
+      const preset = ALL_PRESETS.find((p) => p.id === currentId);
+      const from = sanitizeCustom(preset.id === 'drive' ? CUSTOM_DEFAULT : { layout: preset.layout, widgets: preset.widgets });
+      if (!customsSaved) customs[0] = from;
+      else if (customs.length < MAX_CUSTOM) customs.push(from);
+      else return;
+      saveCustoms();
+      showScreen(CUSTOM_IDS[customsSaved && customs.length > 1 ? customs.length - 1 : 0]);
       editing = true;
     }
     renderTabs();
@@ -240,7 +288,7 @@
       const id = screen.widgets[i];
       const def = WIDGETS[id];
       const slot = document.createElement('section');
-      slot.className = `card card--${id}`;
+      slot.className = `card card--${id}${def.bare ? ' card--bare' : ''}`;
       if (m === 'wide') {
         slot.style.gridArea = `${r} / ${c} / span ${h} / span ${w}`;
       } else {
@@ -253,7 +301,8 @@
       title.textContent = def.title;
       const body = document.createElement('div');
       body.className = 'card__body';
-      slot.append(title, body);
+      if (def.bare) slot.append(body); // it draws its own cards: no title bar, no outer panel
+      else slot.append(title, body);
       mounted.push({ id, update: def.mount(body) });
       if (editing) slot.appendChild(slotPicker(i, id));
       return slot;
@@ -264,7 +313,7 @@
   function updateWidgets(s) {
     for (const w of mounted) {
       // Widgets that need the player's car wait until it exists.
-      if (!s.player && !['radio', 'session', 'debrief', 'home', 'connect', 'library', 'analysis', 'askrace'].includes(w.id)) continue;
+      if (!s.player && !['radio', 'session', 'debrief', 'home', 'connect', 'library', 'analysis', 'askrace', 'setups'].includes(w.id)) continue;
       try {
         w.update(s);
       } catch (err) {
@@ -278,7 +327,9 @@
     const wrap = document.createElement('label');
     wrap.className = 'slot-picker';
     const sel = document.createElement('select');
-    for (const [id, def] of Object.entries(WIDGETS)) {
+    for (const id of [...WIDGET_ORDER, ...Object.keys(WIDGETS).filter((k) => !WIDGET_ORDER.includes(k))]) {
+      const def = WIDGETS[id];
+      if (!def) continue;
       const o = document.createElement('option');
       o.value = id;
       o.textContent = def.title;
@@ -288,8 +339,8 @@
     const desc = document.createElement('span');
     desc.textContent = WIDGETS[current].description;
     sel.addEventListener('change', () => {
-      custom.widgets[index] = sel.value;
-      save(STORE.custom, custom);
+      customs[customIndex(currentId)].widgets[index] = sel.value;
+      saveCustoms();
       renderScreen();
     });
     wrap.append(sel, desc);
@@ -308,13 +359,38 @@
         sel.appendChild(o);
       }
       sel.addEventListener('change', () => {
-        custom = sanitizeCustom({ layout: sel.value, widgets: custom.widgets });
-        save(STORE.custom, custom);
+        const i = customIndex(currentId);
+        customs[i] = sanitizeCustom({ layout: sel.value, widgets: customs[i].widgets });
+        saveCustoms();
         renderScreen();
       });
       $('reset-custom').addEventListener('click', () => {
-        custom = sanitizeCustom(CUSTOM_DEFAULT);
-        save(STORE.custom, custom);
+        customs[customIndex(currentId)] = sanitizeCustom(CUSTOM_DEFAULT);
+        saveCustoms();
+        renderScreen();
+      });
+      // A copy of the screen being edited, in the next free slot.
+      $('new-custom').addEventListener('click', () => {
+        const i = customIndex(currentId);
+        if (i < 0 || customs.length >= MAX_CUSTOM) return;
+        customs.push(sanitizeCustom(customs[i]));
+        saveCustoms();
+        showScreen(CUSTOM_IDS[customs.length - 1]);
+        editing = true;
+        renderTabs();
+        renderScreen();
+      });
+      // The rest renumber; the last one left cannot go (it can be reset).
+      $('delete-custom').addEventListener('click', () => {
+        const i = customIndex(currentId);
+        if (i < 0 || customs.length <= 1) return;
+        customs.splice(i, 1);
+        saveCustoms();
+        currentId = CUSTOM_IDS[Math.min(i, customs.length - 1)];
+        homeId = currentId;
+        save(STORE.screen, currentId);
+        editing = false;
+        renderTabs();
         renderScreen();
       });
       $('done-custom').addEventListener('click', () => {
@@ -323,7 +399,9 @@
         renderScreen();
       });
     }
-    sel.value = custom.layout;
+    sel.value = customs[customIndex(currentId)].layout;
+    $('new-custom').hidden = customs.length >= MAX_CUSTOM;
+    $('delete-custom').hidden = customs.length <= 1;
   }
 
   // Swipe left/right cycles screens (not while editing - that's for selects).
@@ -335,7 +413,7 @@
     const dy = e.changedTouches[0].clientY - touchStart.clientY;
     touchStart = null;
     if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    const all = screens();
+    const all = listedScreens();
     const i = all.findIndex((s) => s.id === currentId);
     showScreen(all[(i + (dx < 0 ? 1 : all.length - 1)) % all.length].id);
   }, { passive: true });
@@ -368,6 +446,58 @@
   let homeId = currentId;
   const labelOf = (id) => (screens().find((x) => x.id === id) || {}).label || id;
 
+  // The session is qualifying: the live screens become Lap, Order and Plan; back to Drive and the race screens
+  // afterwards. A live screen of the other set means nothing now, so the page moves to this set's first.
+  function updateMode(s) {
+    const q = s.analysis && s.analysis.quali;
+    if (!s.analysis) return; // no session yet: keep whatever is up
+    const now = !!(q && q.kind === 'qualifying');
+    if (now === qualiMode) return;
+    qualiMode = now;
+    const live = screens().filter((x) => x.group === 'live' && !isCustom(x.id));
+    const isLive = (id) => ALL_PRESETS.some((p) => p.id === id && p.group === 'live');
+    if (isLive(currentId) && !live.some((x) => x.id === currentId)) {
+      currentId = live[0].id;
+      editing = false;
+    }
+    if (isLive(homeId) && !live.some((x) => x.id === homeId)) homeId = live[0].id;
+    renderTabs();
+    renderScreen();
+  }
+
+  // In the garage or the pit lane in practice or qualifying (never a race: the car can't be changed), the Setup screen
+  // comes up, and the screen you were on returns when you leave. Off in Settings; needs the setup sheet imported or an earlier session at the track.
+  let setupAutoOn = load(STORE.setupAuto, true) !== false;
+  window.RaceWidgets.units.imperial = load(STORE.imperial, false) === true;
+  let wasInGarage = false;
+  let setupShown = false;
+  let setupBack = null;
+  // Which of the contextual tabs the rail lists now; the rail is redrawn only when that changes.
+  function updateTabGate(s) {
+    const su = s.setup;
+    const garage = !!(s.connected && su && su.inGarage);
+    const next = { setup: garage && !!su.editable, brief: garage, over: !!(s.focus && s.focus.reason === 'Session over') };
+    if (next.setup === gate.setup && next.brief === gate.brief && next.over === gate.over) return;
+    Object.assign(gate, next);
+    renderTabs();
+  }
+  function maybeSetup(s) {
+    const su = s.setup;
+    const inGarage = !!(s.connected && su && (su.available || su.history) && su.editable && su.inGarage);
+    if (inGarage && !wasInGarage) {
+      wasInGarage = true;
+      if (setupAutoOn && !editing && !standalone(currentId) && currentId !== 'setup') {
+        setupBack = currentId;
+        setupShown = true;
+        showScreen('setup', true);
+      }
+    } else if (!inGarage && wasInGarage) {
+      wasInGarage = false;
+      if (setupShown && currentId === 'setup') showScreen(setupBack && screens().some((x) => x.id === setupBack) ? setupBack : homeId, true);
+      setupShown = false;
+    }
+  }
+
   function applyFocus(s) {
     if (!autoOn || editing || standalone(currentId) || Date.now() < autoPausedUntil || !s.focus || !s.connected) return;
     const target = s.focus.screen === 'drive' ? homeId : s.focus.screen;
@@ -391,10 +521,39 @@
   });
   setInterval(renderAutoChip, 1000); // the pause countdown
 
+  // ---------- Keep the screen on (a phone or tablet beside the wheel) ----------
+  // The browser's screen wake lock: given only to a secure page, dropped whenever the page is hidden, so it is asked for again when
+  // the page comes back. The desktop window sits on the PC and needs none.
+  let keepAwakeOn = !window.undercut && load(STORE.keepAwake, true) !== false;
+  let wakeLock = null;
+  async function applyWakeLock() {
+    try {
+      if (wakeLock && !keepAwakeOn) {
+        const held = wakeLock;
+        wakeLock = null;
+        await held.release();
+      }
+      if (keepAwakeOn && !wakeLock && navigator.wakeLock && document.visibilityState === 'visible') {
+        const lock = await navigator.wakeLock.request('screen');
+        wakeLock = lock;
+        lock.addEventListener('release', () => { if (wakeLock === lock) wakeLock = null; });
+      }
+    } catch (_) {
+      wakeLock = null; // refused (battery saver, a page that is not secure): the screen just sleeps as it would
+    }
+  }
+  document.addEventListener('visibilitychange', applyWakeLock);
+  document.addEventListener('pointerdown', applyWakeLock, { passive: true }); // some browsers want a tap first
+  applyWakeLock();
+
   // ---------- Settings ----------
   const closeSettings = () => { $('settings-sheet').hidden = true; };
   $('settings').addEventListener('click', () => {
     $('set-auto').checked = autoOn;
+    $('set-setup-auto').checked = setupAutoOn;
+    $('set-imperial').checked = window.RaceWidgets.units.imperial;
+    $('set-awake').checked = keepAwakeOn;
+    $('awake-hint').hidden = !!navigator.wakeLock;
     $('settings-sheet').hidden = false;
   });
   $('settings-close').addEventListener('click', closeSettings);
@@ -406,6 +565,21 @@
     closeAsk();
     // Esc leaves a place for Home, once nothing is open over it.
     if (!sheetOpen && (screens().find((x) => x.id === currentId) || {}).group === 'place') showScreen('home');
+  });
+  $('set-awake').closest('label').hidden = !!window.undercut;
+  $('set-awake').addEventListener('change', () => {
+    keepAwakeOn = $('set-awake').checked;
+    save(STORE.keepAwake, keepAwakeOn);
+    applyWakeLock();
+  });
+  $('set-imperial').addEventListener('change', () => {
+    window.RaceWidgets.units.imperial = $('set-imperial').checked;
+    save(STORE.imperial, window.RaceWidgets.units.imperial);
+    if (lastSnapshot) render(lastSnapshot);
+  });
+  $('set-setup-auto').addEventListener('change', () => {
+    setupAutoOn = $('set-setup-auto').checked;
+    save(STORE.setupAuto, setupAutoOn);
   });
   $('set-auto').addEventListener('change', (e) => {
     autoOn = $('set-auto').checked;
@@ -434,6 +608,14 @@
     const q = s.analysis && s.analysis.quali;
     $('sess').hidden = !q;
     setText($('sess'), q ? q.name.toUpperCase() : '');
+
+    // An online lobby that mixes the 2025 and 2026 cars (the game flags each car): say so.
+    const rl = s.rules;
+    $('rules').hidden = !(rl && rl.mixed);
+    if (rl && rl.mixed) {
+      setText($('rules'), "Mixed '25/'26");
+      $('rules').title = `${rl.cars2026} cars on the 2026 rules, ${rl.cars2025} on the 2025 rules (DRS, no Overtake mode)`;
+    }
 
     const wx = s.analysis && s.analysis.weather;
     const nc = wx && wx.nextChange;
@@ -484,7 +666,7 @@
   }
 
   // Voice, Ask the engineer, your voice commands and hands-free: voice.js.
-  const { voiceInsights, closeAsk } = window.RaceVoice.create({ $, inField, STORE, load, save, snapshot: () => lastSnapshot });
+  const { voiceInsights, voiceSpotter, closeAsk } = window.RaceVoice.create({ $, inField, STORE, load, save, snapshot: () => lastSnapshot });
 
   // ---------- Capture markers ----------
   // While the bridge is capturing, MARK (or the M key) stamps "this moment"
@@ -552,8 +734,19 @@
       title = 'Bridge offline.';
       body = window.undercut ? 'Close Undercut and open it again.' : 'Make sure Undercut is running on the PC and this device is on the same network.';
     } else if (!lastSnapshot || !lastSnapshot.player) {
+      const port = (lastSnapshot && lastSnapshot.udpPort) || 20777;
+      const it = lastSnapshot && lastSnapshot.intake; // what reached the UDP port (src/udp/intake.js)
       title = 'No telemetry.';
-      body = `In F1 26: Settings → Telemetry → UDP On, port ${(lastSnapshot && lastSnapshot.udpPort) || 20777}, format 2025 or later - then get on track.`;
+      body = `In F1 26: Settings → Telemetry → UDP On, port ${port}, format 2025 or later - then get on track.`;
+      if (it && it.error) {
+        body = `Undercut could not listen on port ${port}: another program is using it. Close it, or pick a different UDP port in Settings and in the game.`;
+      } else if (it && it.packets > 0 && it.format != null && it.format < 2025) {
+        title = 'Telemetry is in an old format.';
+        body = `The game is sending format ${it.format}. In F1 26: Settings → Telemetry → UDP Format, choose 2025 or later.`;
+      } else if (it && it.packets > 0 && it.format != null) {
+        title = 'Telemetry is arriving.';
+        body = 'The game is sending data. Waiting for a session: get on track.';
+      }
     } else if (!lastSnapshot.connected) {
       title = 'Telemetry paused.';
       body = 'Nothing from the game for a few seconds - paused, in a menu, or the session ended. Showing the last data.';
@@ -576,6 +769,7 @@
   }
 
   let lastDebrief = null;
+  let lastOutline = null;
   // In the Windows app the window sits beside the game: with "easy on the game" (desktop.js sets
   // RaceTuning.drawMinMs) it is drawn at most every 250 ms. The voice, the calls and the auto-switch
   // still see every snapshot. A phone or a browser draws them all.
@@ -585,6 +779,11 @@
     // The debrief arrives once a second; other snapshots reuse the last one.
     if (s.debrief) lastDebrief = s.debrief;
     else s.debrief = lastDebrief;
+    // The map's outline rides once a second; keep it for this track between those.
+    if (s.map) {
+      if (s.map.outline) lastOutline = { trackId: s.map.trackId, outline: s.map.outline };
+      else if (lastOutline && lastOutline.trackId === s.map.trackId) s.map.outline = lastOutline.outline;
+    }
     lastSnapshot = s;
     lastMessageAt = Date.now();
     s.nearby = s.nearby || [];
@@ -595,7 +794,11 @@
     const steps = [
       ['topbar', () => renderTopbar(s)],
       ['toasts', () => renderRadio(s.insights || [])],
+      ['mode', () => updateMode(s)],
+      ['tabs', () => updateTabGate(s)],
+      ['setup', () => maybeSetup(s)],
       ['voice', () => voiceInsights(s.insights || [], s.strategy)],
+      ['spotter', () => voiceSpotter(s.spotter)],
       ['announce', () => announceCall(s.strategy)],
       ['widgets', () => updateWidgets(s)],
       ['auto', () => { applyFocus(s); renderAutoChip(); }],
@@ -633,22 +836,8 @@
     }
   }, 2000);
 
-  // Keep the screen awake while the dashboard is open - a tablet that
-  // auto-locks mid-race takes the page (and its connection) with it.
-  // Needs a tap first on some browsers, so it's also requested on any touch.
-  let wakeLock = null;
-  async function keepAwake() {
-    if (!('wakeLock' in navigator) || (wakeLock && !wakeLock.released) || document.visibilityState !== 'visible') return;
-    try {
-      wakeLock = await navigator.wakeLock.request('screen');
-    } catch (_) {
-      wakeLock = null; // not allowed yet (no user gesture) - try again on the next tap
-    }
-  }
-  document.addEventListener('visibilitychange', keepAwake);
   // Back in view: draw the latest race straight away, not at the next snapshot.
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && lastSnapshot) render(lastSnapshot); });
-  document.addEventListener('pointerdown', keepAwake, { passive: true });
 
   let retryMs = 500;
   function connect() {
@@ -716,5 +905,4 @@
   renderLink();
   if (RECORDED) playRecording();
   else connect();
-  keepAwake();
 })();

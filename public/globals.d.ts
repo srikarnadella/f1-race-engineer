@@ -3,6 +3,7 @@ interface Window {
   RaceWidgets: any;
   RaceAsk: any;
   RaceVoice: any;
+  RaceShare: any;
   SpeechRecognition?: any;
   webkitSpeechRecognition?: any;
   RaceDebrief: any;

@@ -387,6 +387,61 @@
 
   // ---------- All races (R5): across sessions, from the race store ----------
   const ALL = '__all';
+  const placed = (n) => (n > 0 ? `P${n}` : '–');
+  const gain = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
+
+  // The race start report: where you started, where you were after lap 1, the places gained or lost there.
+  function startsSection(st) {
+    if (!st || !st.summary || !st.races.length) return null;
+    const m = st.summary;
+    const avg = m.avgGained === 0 ? 'about even' : `${Math.abs(m.avgGained)} place${Math.abs(m.avgGained) === 1 ? '' : 's'} ${m.avgGained > 0 ? 'gained' : 'lost'} on average`;
+    return h('section', { class: 'trd__starts' },
+      h('h3', {}, 'Race starts'),
+      h('p', { class: 'pace__note' }, `Over ${m.races} race${m.races === 1 ? '' : 's'}: ${avg} between the grid and the end of lap 1 (best ${gain(m.best)}, worst ${gain(m.worst)}); lost two or more places in ${m.lostTwoOrMore}.`),
+      h('table', { class: 'tbl trd__table' },
+        h('thead', {}, h('tr', {}, ['Date', 'Track', 'Grid', 'After lap 1', 'Gained', 'Finish'].map((x, i) => h('th', { class: i >= 2 ? 'num' : null }, x)))),
+        h('tbody', {}, st.races.map((r) => h('tr', {},
+          h('td', {}, r.date), h('td', {}, r.track), h('td', { class: 'num' }, placed(r.grid)), h('td', { class: 'num' }, placed(r.lap1)),
+          h('td', { class: `num ${r.gained > 0 ? 'lvl__gained' : r.gained < 0 ? 'lvl__lost' : ''}` }, gain(r.gained)), h('td', { class: 'num' }, placed(r.finish)))))));
+  }
+
+  // Corner trends: pick a track and see each corner's time against your fastest lap there, session by session.
+  function cornersSection(root) {
+    fetch('/api/corners')
+      .then((r) => r.json())
+      .then((list) => {
+        if (!list || !Array.isArray(list.tracks) || !list.tracks.length) return;
+        const body = h('div', {});
+        const select = h('select', { class: 'trd__corner-track', 'aria-label': 'Track', onchange: () => draw(select.value) },
+          list.tracks.map((x) => h('option', { value: x.track }, `${x.track} (${x.sessions} sessions)`)));
+        const sec = h('section', { class: 'trd__corners' }, h('h3', {}, 'Corner trends'),
+          h('p', { class: 'pace__note' }, 'Each session\'s best clean lap against your fastest lap at the track, corner by corner. Fuel, tyres and weather differ between sessions, so a small change is noise.'),
+          select, body);
+        root.append(sec);
+        const sign = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)} s`;
+        async function draw(track) {
+          let r = null;
+          try {
+            r = await (await fetch(`/api/corners?track=${encodeURIComponent(track)}`)).json();
+          } catch (_) { /* below */ }
+          if (!r || r.error || !r.corners || !r.corners.length) {
+            body.replaceChildren(h('p', { class: 'ana__empty' }, (r && r.error) || 'Nothing to compare yet: two sessions with a recorded lap are needed.'));
+            return;
+          }
+          const say = (c, word) => `Corner ${c.corner} (${(c.atM / 1000).toFixed(1)} km) is ${Math.abs(c.change).toFixed(2)} s ${word}`;
+          const lines = [...r.headline.improved.map((c) => say(c, 'closer to your best than in your first session')), ...r.headline.slipped.map((c) => say(c, 'further from your best than in your first session'))];
+          body.replaceChildren(...[
+            h('table', { class: 'tbl trd__table' },
+              h('thead', {}, h('tr', {}, h('th', {}, 'Corner'), h('th', { class: 'num' }, 'At'), r.sessions.map((s) => h('th', { class: 'num', title: `${s.name} · ${fmtLap(s.lapMs)}` }, s.date)), h('th', { class: 'num' }, 'Change'))),
+              h('tbody', {}, r.corners.map((c) => h('tr', {},
+                h('td', {}, String(c.corner)), h('td', { class: 'num' }, `${(c.atM / 1000).toFixed(1)} km`),
+                c.deltas.map((v, i) => h('td', { class: 'num' }, r.sessions[i].isRef ? 'fastest lap' : sign(v))),
+                h('td', { class: `num ${c.change <= -0.05 ? 'lvl__gained' : c.change >= 0.05 ? 'lvl__lost' : ''}` }, Math.abs(c.change) < 0.05 ? 'about the same' : `${Math.abs(c.change).toFixed(2)} s ${c.change < 0 ? 'closer' : 'further'}`))))),
+            lines.length ? h('ul', { class: 'lvl__notes' }, lines.map((x) => h('li', {}, x))) : null].filter(Boolean));
+        }
+        draw(list.tracks[0].track);
+      }, () => {});
+  }
   function trendsPage() {
     const root = h('div', { class: 'trd' }, h('p', { class: 'ana__empty' }, 'Reading every race…'));
     const secs = (ms) => (ms / 1000).toFixed(3);
@@ -409,6 +464,7 @@
         const head = (...cells) => h('thead', {}, h('tr', {}, cells.map(([label, num]) => h('th', { class: num ? 'num' : null }, label))));
         root.replaceChildren(
           h('p', { class: 'trd__verdict lvl__verdict' }, verdict),
+          ...(startsSection(t.starts) ? [startsSection(t.starts)] : []),
           ...t.tracks.map((tr) => h('section', { class: 'trd__track' },
             h('h3', {}, tr.track),
             h('p', { class: 'pace__note' }, `Best ever ${fmtLap(tr.bestEverMs)}. ${tr.improvedMs == null ? 'One race so far.' : `Against your first race here, your latest best lap was ${secs(Math.abs(tr.improvedMs))} s ${tr.improvedMs >= 0 ? 'faster' : 'slower'}${tr.typicalImprovedMs != null ? ` and your typical lap ${secs(Math.abs(tr.typicalImprovedMs))} s ${tr.typicalImprovedMs >= 0 ? 'faster' : 'slower'}` : ''}.`}`),
@@ -424,6 +480,7 @@
               head(['Track'], ['Tyre'], ['Wear a lap', true], ['Laps', true]),
               h('tbody', {}, t.wear.map((w) => h('tr', {}, h('td', {}, w.track), h('td', {}, w.tyre), h('td', { class: 'num' }, `${w.pctPerLap}%`), h('td', { class: 'num' }, String(w.laps)))))))] : []),
         );
+        cornersSection(root);
       }, () => root.replaceChildren(h('p', { class: 'ana__empty' }, 'Couldn\'t reach the bridge.')));
     return root;
   }
@@ -563,6 +620,40 @@
     let cursor = null; // index on the distance grid under the pointer
     let charts = [];
     let readout = null;
+    let outline = null; // the track's outline (the bridge draws it from your first clean lap), for the map of where the time went
+    fetch(`/api/outline?track=${encodeURIComponent(d.track)}`)
+      .then((r) => r.json())
+      .then((o) => {
+        outline = o && Array.isArray(o.outline) && o.outline.length > 2 ? o.outline : null;
+        if (outline && c && !c.error) render();
+      }, () => {});
+
+    // The track outline coloured by what this lap lost (red) or gained (green) on each stretch; even stretches stay grey.
+    function mapSection() {
+      if (!outline || !c.timeMap || !Array.isArray(c.timeMap.deltaS) || c.timeMap.deltaS.length !== outline.length) return null;
+      const bins = c.timeMap.deltaS;
+      const xs = outline.map((p) => p[0]);
+      const zs = outline.map((p) => p[1]);
+      const minX = Math.min(...xs);
+      const minZ = Math.min(...zs);
+      const spanX = Math.max(...xs) - minX;
+      const spanZ = Math.max(...zs) - minZ;
+      const k = 86 / (Math.max(spanX, spanZ) || 1);
+      const at = (p) => [((p[0] - minX) * k + (100 - spanX * k) / 2).toFixed(1), ((p[1] - minZ) * k + (100 - spanZ * k) / 2).toFixed(1)];
+      const big = Math.max(...bins.map(Math.abs)) || 1;
+      const svg = s('svg', { class: 'lvl__mapsvg', viewBox: '0 0 100 100', role: 'img', 'aria-label': 'Track map of where this lap lost and gained time' });
+      outline.forEach((p, i) => {
+        const [x1, y1] = at(p);
+        const [x2, y2] = at(outline[(i + 1) % outline.length]);
+        const v = bins[i];
+        const kind = v > big * 0.15 ? ' is-lost' : v < -big * 0.15 ? ' is-gained' : '';
+        const seg = s('line', { class: `lvl__seg${kind}`, x1, y1, x2, y2 });
+        if (kind) seg.setAttribute('stroke-opacity', (Math.min(1, 0.35 + (Math.abs(v) / big) * 0.65)).toFixed(2));
+        svg.append(seg);
+      });
+      return h('section', { class: 'lvl__map' }, h('h3', {}, 'Where on the track'), svg,
+        h('p', { class: 'pace__note' }, 'Red: where your lap lost time against the reference. Green: where it gained. Grey: about even.'));
+    }
 
     async function load(query) {
       try {
@@ -689,6 +780,7 @@
         h('div', { class: 'lvl__tools' }, legend, h('button', { type: 'button', class: 'lvl__whole', hidden: !range, onclick: () => { range = null; render(); } }, 'Whole lap')),
         stack,
         readout,
+        mapSection(),
         h('section', {}, h('h3', {}, 'Where the time went'), corners.length ? list : h('p', { class: 'ana__empty' }, 'No braking zones to compare on these laps.'),
           offCorner.length ? h('ul', { class: 'lvl__notes' }, offCorner.map((x) => h('li', {}, x))) : null));
       setCursor(cursor);
@@ -707,6 +799,9 @@
       const list = h('nav', { class: 'ana__list', 'aria-label': 'Saved sessions' });
       const title = h('h2', { class: 'ana__title' });
       const meta = h('p', { class: 'ana__meta' });
+      // The setups run in the session on screen, each a link into the Setups place (filled in by showSetupLinks).
+      const setupLinks = h('span', { class: 'ana__setups' });
+      let linkedFor = null;
       const views = h('div', { class: 'ana__views', role: 'tablist' });
       const body = h('div', { class: 'ana__body' });
       // Ask the race about the session on screen (its own place; it finds the session by track, type and day).
@@ -722,7 +817,28 @@
           document.dispatchEvent(new CustomEvent('undercut:show', { detail: 'askrace' }));
         },
       }, 'Ask about this session');
-      frame.replaceChildren(h('div', { class: 'ana' }, list, h('section', { class: 'ana__main' }, h('header', { class: 'ana__head' }, h('div', {}, title, h('div', { class: 'ana__sub' }, meta, askBtn)), views), body)));
+      // One PNG for posting: the result, the best lap, the stints and the graded calls (public/share.js).
+      const shareBtn = h('button', {
+        type: 'button',
+        class: 'ana__ask',
+        hidden: true,
+        onclick: async () => {
+          const d = sessions.find((x) => x.id === selected);
+          if (!d) return;
+          shareBtn.disabled = true;
+          try {
+            let audit = null;
+            try {
+              const res = await fetch('/api/debrief/audit?session=' + encodeURIComponent(d.id));
+              if (res.ok) audit = await res.json();
+            } catch (_) { /* no audit: the card has no calls line */ }
+            await window.RaceShare.shareRace(d, audit);
+          } finally {
+            shareBtn.disabled = false;
+          }
+        },
+      }, 'Share this race');
+      frame.replaceChildren(h('div', { class: 'ana' }, list, h('section', { class: 'ana__main' }, h('header', { class: 'ana__head' }, h('div', {}, title, h('div', { class: 'ana__sub' }, meta, askBtn, shareBtn, setupLinks)), views), body)));
 
       let sessions = [];
       let older = []; // saved sessions past the 10 the snapshot carries
@@ -736,6 +852,32 @@
       let strView = null; // and Strategy
       let trendsView = null; // and All races
       const VIEWS = [['overview', 'Overview'], ['pace', 'Pace'], ['laps', 'Lap vs lap'], ['h2h', 'Head to head'], ['strategy', 'Strategy'], ['debrief', 'Full debrief']];
+
+      // Which of your setups were run in this session (the library knows them by the game's session id), as links to the Setups place.
+      async function showSetupLinks(d) {
+        setupLinks.replaceChildren();
+        if (!d || !d.uid) return;
+        let lib = null;
+        try {
+          const res = await fetch('/api/setups');
+          lib = await res.json();
+        } catch (_) {
+          return; // no library: no links
+        }
+        if (!lib || !Array.isArray(lib.tracks) || linkedFor !== d.id || !setupLinks.isConnected) return;
+        for (const t of lib.tracks) {
+          for (const su of t.setups) {
+            if (!su.sessions.some((r) => r.uid === d.uid)) continue;
+            setupLinks.append(h('button', {
+              type: 'button', class: 'ana__ask ana__setup-link', title: 'Open this setup in Setups',
+              onclick: () => {
+                desk.setupsFocus = { trackId: t.trackId, key: su.key };
+                document.dispatchEvent(new CustomEvent('undercut:show', { detail: 'setups' }));
+              },
+            }, `Setup: ${su.name}`));
+          }
+        }
+      }
 
       function draw() {
         if (desk.analysisSession && sessions.some((x) => x.id === desk.analysisSession)) {
@@ -761,6 +903,7 @@
         }, label)));
         views.hidden = !d;
         askBtn.hidden = true;
+        shareBtn.hidden = true;
         if (all) {
           title.textContent = 'All races';
           meta.textContent = 'Every race in the race store, across sessions';
@@ -777,7 +920,12 @@
         }
         title.textContent = name(d);
         askBtn.hidden = !!d.live; // a session in progress isn't in race.db yet
+        shareBtn.hidden = !!d.live;
         meta.textContent = `${d.live ? 'In progress' : day(d.startedAt)} · ${d.laps.length} lap${d.laps.length === 1 ? '' : 's'} recorded`;
+        if (linkedFor !== d.id) {
+          linkedFor = d.id;
+          showSetupLinks(d);
+        }
         debriefUpdate = null;
         if (view === 'overview') {
           body.replaceChildren(overview(d));

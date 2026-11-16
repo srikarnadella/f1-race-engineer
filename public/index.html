@@ -31,6 +31,7 @@
       <div id="flag" class="flag" hidden></div>
       <!-- Practice / qualifying: which session, so the race calls' absence makes sense. -->
       <div id="sess" class="wx-chip is-info" hidden></div>
+      <div id="rules" class="wx-chip is-watch" hidden></div>
       <!-- Weather on every screen: only shown when it isn't simply dry. -->
       <div id="wx" class="wx-chip" hidden></div>
     </div>
@@ -59,7 +60,9 @@
     </div>
     <div class="editbar" id="editbar" hidden>
       <label>Layout <select id="layout-select"></select></label>
-      <span class="editbar__hint">Pick a widget for each slot. Saved on this device.</span>
+      <span class="editbar__hint">Pick a widget for each slot. Saved on this device. Up to 3 custom screens.</span>
+      <button class="tool" id="new-custom" type="button">New custom screen</button>
+      <button class="tool" id="delete-custom" type="button">Delete this screen</button>
       <button class="tool" id="reset-custom" type="button">Reset</button>
       <button class="tool tool--primary" id="done-custom" type="button">Done</button>
     </div>
@@ -92,6 +95,27 @@
   <div id="settings-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
     <div class="sheet__panel">
       <div class="sheet__head"><h2 id="settings-title">Settings</h2><button class="tool" id="settings-close" type="button">Close</button></div>
+      <label class="setting">
+        <input type="checkbox" id="set-awake">
+        <span class="setting__text"><b>Keep this screen on</b>
+          <span class="dim">Stops a phone or tablet beside the wheel from dimming and locking while the dashboard is open.</span>
+          <span class="dim" id="awake-hint" hidden>This browser only allows it on a secure page. On the PC, turn on Voice questions on phones in Connect: that serves the dashboard over https.</span></span>
+      </label>
+      <label class="setting">
+        <input type="checkbox" id="set-imperial">
+        <span class="setting__text"><b>Miles and Fahrenheit</b>
+          <span class="dim">Shows speeds in mph and temperatures in °F on the dashboard. Radio calls and the debrief stay in km/h and °C.</span></span>
+      </label>
+      <label class="setting">
+        <input type="checkbox" id="set-setup-auto">
+        <span class="setting__text"><b>Setup screen in the garage</b>
+          <span class="dim">Puts up the Setup screen when you are in the garage or the pit lane in practice or qualifying, with your car's setup beside the sheet's for the track, and goes back when you leave.</span></span>
+      </label>
+      <label class="setting">
+        <input type="checkbox" id="set-spotter">
+        <span class="setting__text"><b>Spotter</b>
+          <span class="dim">Says "car left" or "car right" when a rival is alongside, and "clear" when the road beside you is empty. Spoken only while the radio voice is on, and ahead of its other calls.</span></span>
+      </label>
       <label class="setting">
         <input type="checkbox" id="set-auto">
         <span class="setting__text"><b>Auto-switch screens</b>
@@ -137,12 +161,21 @@
 
   <script src="spread.js"></script>
   <script src="widgets.js"></script>
+  <script src="widgets-drive.js"></script>
+  <script src="widgets-strategy.js"></script>
+  <script src="widgets-field.js"></script>
+  <script src="widgets-quali.js"></script>
+  <script src="widgets-setup.js"></script>
+  <script src="widgets-map.js"></script>
   <script src="debrief.js"></script>
   <!-- The desktop app's screens and voice; does nothing in a browser. -->
   <script src="desktop.js"></script>
   <!-- Race analysis, the desktop app's in-depth place for saved sessions. -->
+  <!-- The share-this-race picture, drawn on a canvas. -->
+  <script src="share.js"></script>
   <script src="analysis.js"></script>
   <!-- Ask the race: a local model through Ollama, never while racing. -->
+  <script src="setups.js"></script>
   <script src="askrace.js"></script>
   <script src="ask.js"></script>
   <script src="voice.js"></script>

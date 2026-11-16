@@ -106,6 +106,33 @@
       if (voiceQueue.length || speaking) pumpVoice();
     }, 4000);
 
+    // The spotter (roadmap X3): "car left / car right" the moment a side fills, "clear" once both have emptied.
+    // Urgent, so it cuts off routine chatter; only said with the radio voice on. The first reading just primes.
+    let spotterOn = load(STORE.spotter, true) !== false;
+    const spotterBox = $('set-spotter');
+    if (spotterBox) {
+      spotterBox.checked = spotterOn;
+      spotterBox.addEventListener('change', () => {
+        spotterOn = spotterBox.checked;
+        save(STORE.spotter, spotterOn);
+      });
+    }
+    let lastSpot = null;
+    function voiceSpotter(sp) {
+      if (!sp) return;
+      const prev = lastSpot;
+      lastSpot = { left: !!sp.left, right: !!sp.right };
+      if (!prev || !spotterOn) return;
+      const nowL = lastSpot.left && !prev.left;
+      const nowR = lastSpot.right && !prev.right;
+      if (nowL && nowR) say('Cars both sides', true);
+      else if (nowL) say('Car left', true);
+      else if (nowR) say('Car right', true);
+      else if (!lastSpot.left && !lastSpot.right && (prev.left || prev.right)) say('Clear', true);
+      else if (prev.left && !lastSpot.left) say('Clear left', true);
+      else if (prev.right && !lastSpot.right) say('Clear right', true);
+    }
+
     // Key calls: critical + advisory radio, and PUSH/HOLD/BOX changes.
     // All calls: every radio message (ERS, undercut, rain, fastest lap...).
     // The ERS tip is re-spoken only when its mode changes - not its wording
@@ -420,7 +447,7 @@
     renderHandsFree();
     startHandsFree();
 
-    return { voiceInsights, closeAsk };
+    return { voiceInsights, voiceSpotter, closeAsk };
   }
 
   window.RaceVoice = { create };

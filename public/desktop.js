@@ -318,7 +318,15 @@
         st.disk,
         h('div', { class: 'pc-lib__cols' },
           h('section', { class: 'pc-lib__col' }, h('h3', {}, 'Saved sessions'), h('p', { class: 'dim' }, 'Each one opens in Race analysis: the result, every lap, lap compare and the calls audit.'), st.sessionsNote, st.sessions),
-          h('section', { class: 'pc-lib__col' }, h('h3', {}, 'Recordings'), h('p', { class: 'dim' }, 'Every packet of a session. Replay one through the screens, or analyze it to check each call.'), st.capturesNote, st.captures))));
+          h('section', { class: 'pc-lib__col' }, h('h3', {}, 'Recordings'), h('p', { class: 'dim' }, 'Every packet of a session. Replay one through the screens, or analyze it to check each call. Dropping the packets frees the space and keeps the report and the race.'),
+            api.dropOldPackets ? button('Drop packets older than 30 days', () => act(async () => {
+              const r = await api.dropOldPackets(30);
+              if (r && r.count) {
+                await loadCaptures();
+                loadDisk();
+              }
+            }), 'pc-btn--quiet') : null,
+            st.capturesNote, st.captures))));
 
       let captures = null;
       let sessions = [];
@@ -375,14 +383,31 @@
         setText(st.summary, `${plural(sessions.length, 'saved session')} · ${plural((captures || []).length, 'recording')}${total ? `, ${bytes(total)}` : ''}. Everything stays on this PC.`);
       }
 
+      // The "learn from this race" switch per session (K2): id -> on/off, only for sessions the race store holds.
+      let learn = {};
+      let learnFor = '';
+      async function loadLearn() {
+        if (!api.learnFlags) return;
+        const found = await act(() => api.learnFlags(sessions.map((d) => d.id)));
+        if (!found) return;
+        learn = found;
+        sessionSig = '';
+        drawSessions(lastList, lastReplaying);
+      }
+
       let sessionSig = '';
       function drawSessions(list, replaying) {
         lastList = list;
         lastReplaying = replaying;
         sessions = (replaying ? list : withOlder(list, older)).filter((d) => !d.live);
-        const key = JSON.stringify([replaying, sessions.map((d) => [d.id, d.finish, d.laps.length])]);
+        const key = JSON.stringify([replaying, sessions.map((d) => [d.id, d.finish, d.laps.length]), learn]);
         if (key === sessionSig) return;
         sessionSig = key;
+        const ids = sessions.map((d) => d.id).join();
+        if (!replaying && ids !== learnFor) {
+          learnFor = ids;
+          loadLearn();
+        }
         setText(st.sessionsNote, replaying
           ? 'Showing the replay. Go back to live (Connect) to see and manage your saved sessions.'
           : sessions.length ? '' : 'Nothing saved yet. A session is saved here when it ends.');
@@ -401,6 +426,13 @@
                 window.RaceDebrief.openSession(d.id);
                 go('analysis');
               }, 'pc-btn--primary'),
+              replaying || !(d.id in learn) || !api.setLearn ? null : button(`Learn from this: ${learn[d.id] ? 'on' : 'off'}`, () => act(async () => {
+                const next = !learn[d.id];
+                if (await api.setLearn(d.id, next)) {
+                  learn = { ...learn, [d.id]: next };
+                  drawSessions(lastList, lastReplaying);
+                }
+              }), 'pc-btn--quiet'),
               replaying ? null : button('Delete', () => act(async () => {
                 if (await api.deleteSession(d.id, `${title}, ${when(d.startedAt)}`)) {
                   sessionSig = '';
@@ -410,7 +442,7 @@
                   drawSessions(lastList.filter((x) => x.id !== d.id), lastReplaying);
                   loadDisk();
                 }
-              }), 'pc-btn--quiet')));
+              }), 'pc-btn--quiet pc-btn--danger')));
         }));
         drawSummary();
       }
@@ -425,11 +457,11 @@
         st.captures.replaceChildren(...captures.map((c) => {
           const title = [c.track, c.session].filter(Boolean).join(' ') || c.name;
           const isRecording = s.recording === c.name;
-          const meta = [when(c.startedAt), c.report && c.report.durationS ? duration(c.report.durationS) : null, bytes(c.bytes), c.marks ? plural(c.marks, 'mark') : null].filter(Boolean).join(' · ');
+          const meta = [when(c.startedAt), c.report && c.report.durationS ? duration(c.report.durationS) : null, bytes(c.bytes), c.packets === false ? 'packets dropped' : null, c.marks ? plural(c.marks, 'mark') : null].filter(Boolean).join(' · ');
           const row = h('li', { class: `pc-row${isRecording ? ' is-recording' : ''}` },
             h('div', { class: 'pc-row__text' }, h('b', { class: 'pc-row__title' }, title), h('span', { class: 'pc-row__meta' }, isRecording ? 'Recording now' : meta)),
             isRecording ? null : h('div', { class: 'pc-row__actions' },
-              replaying === c.name
+              c.packets === false ? null : replaying === c.name
                 ? button('Stop replay', () => act(() => { keepScreen(); return api.live(); }), 'pc-btn--primary')
                 : button('Replay', () => act(() => { keepScreen('drive'); return api.replay(c.name); }), 'pc-btn--primary'),
               analyzing.has(c.name)
@@ -444,6 +476,12 @@
                       drawCaptures();
                     }
                   }), 'pc-btn--quiet'),
+              c.packets !== false && api.dropPackets ? button('Drop packets', () => act(async () => {
+                if (await api.dropPackets(c.name)) {
+                  await loadCaptures();
+                  loadDisk();
+                }
+              }), 'pc-btn--quiet') : null,
               button('Show file', () => act(() => api.showCapture(c.name)), 'pc-btn--quiet'),
               button('Delete', () => act(async () => {
                 if (await api.deleteCapture(c.name)) {
@@ -452,7 +490,7 @@
                   drawSummary();
                   loadDisk();
                 }
-              }), 'pc-btn--quiet')));
+              }), 'pc-btn--quiet pc-btn--danger')));
           if (c.report && open.has(c.name)) row.append(reportView(c));
           return row;
         }));
@@ -514,13 +552,41 @@
       }
     }, 'pc-btn--primary');
     const version = h('span', { class: 'dim' });
+    // Asks GitHub only when pressed; the app never downloads or installs anything by itself.
+    // The community setup spreadsheet, imported once; the Setup screen compares the car with it.
+    const sheetNote = h('span', { class: 'dim setup-sheet__note', role: 'status' }, 'No setup sheet yet.');
+    const sheetBtn = api.importSetups ? button('Import setups', async () => {
+      try {
+        const done = await api.importSetups();
+        if (done) setText(sheetNote, `${done.circuits} circuits from ${done.game}.`);
+      } catch (err) {
+        setText(sheetNote, reason(err));
+      }
+    }, 'pc-btn--quiet') : null;
+    watchers.add((s) => {
+      if (s.setups) setText(sheetNote, `${s.setups.circuits} circuits from ${s.setups.game}.`);
+      else if (!/not a spreadsheet|no circuits|F1 26/i.test(sheetNote.textContent)) setText(sheetNote, 'No setup sheet yet. Import the setups spreadsheet (.xlsx) and the Setup screen compares your car with it.');
+    });
+    const updateNote = h('span', { class: 'dim', role: 'status' });
+    const updateBtn = api.checkUpdate ? button('Check for updates', async () => {
+      setText(updateNote, 'Asking GitHub…');
+      try {
+        const r = await api.checkUpdate();
+        setText(updateNote, r.newer ? `Version ${r.latest} is out (this is ${r.current}). ` : `You have the latest version (${r.current}).`);
+        if (r.newer) updateNote.append(button('Open the download page', () => api.openUpdate(), 'pc-btn--quiet'));
+      } catch (err) {
+        setText(updateNote, reason(err));
+      }
+    }, 'pc-btn--quiet') : null;
     const easy = h('input', { type: 'checkbox', id: 'set-easy', onchange: (e) => api.setSettings({ easyOnGame: e.target.checked }).then(setStatus, () => {}) });
     sheet.append(h('div', { class: 'setting setting--pc' },
       h('span', { class: 'setting__text' }, h('b', {}, 'This PC'),
         h('span', { class: 'dim' }, 'The game sends telemetry to the telemetry port; phones open the dashboard port. Change them only if another program uses them.')),
       h('div', { class: 'pc-ports' }, h('label', {}, 'Dashboard port', http), h('label', {}, 'Telemetry port', udp), save, note),
       h('label', { class: 'pc-easy', for: 'set-easy' }, easy, h('span', {}, h('b', {}, 'Easy on the game'), h('span', { class: 'dim' }, ' Runs Undercut below normal priority and redraws this window 4 times a second, so F1 26 comes first. Turn it off for a smoother-looking dashboard.'))),
-      h('div', { class: 'pc-ports' }, button('Open data folder', () => api.openDataFolder(), 'pc-btn--quiet'), version)));
+      h('div', { class: 'pc-ports' }, button('Open data folder', () => api.openDataFolder(), 'pc-btn--quiet'), version),
+      sheetBtn ? h('div', { class: 'pc-ports' }, sheetBtn, sheetNote) : null,
+      updateBtn ? h('div', { class: 'pc-ports' }, updateBtn, updateNote, h('span', { class: 'dim' }, 'Only when you press it: contacts github.com, sends nothing about you.')) : null));
     // On the PC's screen Settings reads across the window, in three columns, instead of one tall sheet.
     sheet.closest('.sheet').classList.add('sheet--wide');
     // Each column its own stack, so a tall one never pushes the others' settings down.
@@ -575,6 +641,7 @@
       };
       const live = dest('Live dashboard', () => go('drive'));
       const analysis = dest('Race analysis', () => go('analysis'));
+      const setupsDest = dest('Setups', () => go('setups'));
       const ask = dest('Ask the race', () => go('askrace'));
       const storage = dest('Storage', () => go('library'));
       const connect = dest('Connect and record', () => go('connect'));
@@ -591,7 +658,7 @@
       el.replaceChildren(h('div', { class: 'home' },
         ...photos,
         h('div', { class: 'home__top' }, h('div', {}, h('p', { class: 'home__status' }, dot, line), error), h('div', { class: 'home__actions' }, demo, back, settings)),
-        h('nav', { class: 'home__nav', 'aria-label': 'Parts of the app' }, live.node, analysis.node, ask.node, storage.node, connect.node),
+        h('nav', { class: 'home__nav', 'aria-label': 'Parts of the app' }, live.node, analysis.node, setupsDest.node, ask.node, storage.node, connect.node),
         h('h1', { class: 'home__mark' }, 'Undercut'),
         credit));
 
@@ -636,7 +703,7 @@
         const p = s.player;
         const sessions = (s.debrief && s.debrief.sessions) || [];
         const latest = sessions.find((d) => !d.live) || null;
-        const key = JSON.stringify([olderCount, replaying, on, call && call.action, p && [p.position, p.currentLapNum], s.session && s.session.totalLaps, latest && [latest.id, latest.finish], sessions.length, captures && captures.length, status.recording, status.pairUrl, status.clients, status.replay]);
+        const key = JSON.stringify([setupsLine, olderCount, replaying, on, call && call.action, p && [p.position, p.currentLapNum], s.session && s.session.totalLaps, latest && [latest.id, latest.finish], sessions.length, captures && captures.length, status.recording, status.pairUrl, status.clients, status.replay]);
         if (key === sig) return;
         sig = key;
 
@@ -648,6 +715,7 @@
         const where = p && p.position ? `P${p.position}${p.currentLapNum ? ` · lap ${p.currentLapNum}${s.session && s.session.totalLaps ? ` of ${s.session.totalLaps}` : ''}` : ''}` : null;
         setText(live.state, on ? [where, call && call.action].filter(Boolean).join(' · ') || 'On track' : replaying ? 'Replay running' : 'Turn on UDP telemetry in the game');
         setText(analysis.state, latest ? [[latest.track, latest.sessionName].filter(Boolean).join(' '), latest.finish ? `P${latest.finish}` : null].filter(Boolean).join(' · ') : 'No sessions yet');
+        setText(setupsDest.state, setupsLine);
         setText(ask.state, on ? 'After the session' : 'A local model, on this PC');
         // The snapshot carries the newest 10; the rest are on disk (counted once, on opening Home).
         const nSessions = sessions.filter((d) => !d.live).length + olderCount;
@@ -655,6 +723,7 @@
         const others = Math.max(0, status.clients - 1);
         setText(connect.state, status.recording ? 'Recording now' : status.pairUrl ? `Sharing${others ? ` · ${plural(others, 'device')}` : ''}` : 'This PC only');
       }
+      let setupsLine = 'Names, stars and stats by track';
       const watch = () => draw(last);
       watchers.add(watch);
       draw(null);
@@ -662,6 +731,14 @@
         olderCount = list.length;
         draw(last);
       });
+      // How many setups the library holds (read once, on opening Home); until then a plain description.
+      fetch('/api/setups').then((r) => r.json()).then((lib) => {
+        const all = (lib && lib.tracks ? lib.tracks : []).flatMap((t) => t.setups).filter((x) => !x.recommended); // the sheet's defaults are not yours
+        if (!all.length) return;
+        const stars = all.filter((x) => x.favorite).length;
+        setupsLine = `${plural(all.length, 'setup')}${stars ? ` · ${stars} ★` : ''}`;
+        draw(last);
+      }).catch(() => {});
       return (s) => {
         last = s;
         if (!el.isConnected) watchers.delete(watch);
@@ -678,8 +755,17 @@
   }
 
   // Race analysis (analysis.js) builds its place with the same frame.
+  // The app's status, pushed on change: a place that follows something running (reading recordings) listens here.
+  // Returns the function that stops listening.
+  function watchStatus(fn) {
+    watchers.add(fn);
+    if (status) fn(status);
+    return () => watchers.delete(fn);
+  }
+
   window.RaceDesktop = {
     placeFrame,
+    watchStatus,
     olderSessions,
     withOlder,
     screens: [
@@ -687,6 +773,7 @@
       { id: 'analysis', group: 'place', label: 'Race analysis', layout: 'single', widgets: ['analysis'] },
       { id: 'connect', group: 'place', label: 'Connect', layout: 'single', widgets: ['connect'] },
       { id: 'library', group: 'place', label: 'Storage', layout: 'single', widgets: ['library'] },
+      { id: 'setups', group: 'place', label: 'Setups', layout: 'single', widgets: ['setups'] },
       { id: 'askrace', group: 'place', label: 'Ask the race', layout: 'single', widgets: ['askrace'] },
     ],
   };
