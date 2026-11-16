@@ -85,7 +85,9 @@ if (!app.requestSingleInstanceLock()) {
       const lines = [];
       generate((tMs, buf) => lines.push(JSON.stringify({ tMs, hex: buf.toString('hex') })));
       fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, zlib.gzipSync(lines.join('\n') + '\n'));
+      // Write then rename: a half-written demo would otherwise be kept and replayed cut off forever.
+      fs.writeFileSync(`${file}.tmp`, zlib.gzipSync(lines.join('\n') + '\n'));
+      fs.renameSync(`${file}.tmp`, file);
     }
     return file;
   }

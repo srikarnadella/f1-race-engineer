@@ -132,7 +132,7 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     console.warn(`[setups] ${setupsFile} could not be read (${err.message}); import the spreadsheet again`);
   }
   const intake = createIntake();
-  const outlines = createOutlines({ file: opts.demoFile ? null : path.join(dataDir, 'tracks.json') });
+  const outlines = createOutlines(opts.demoFile ? {} : { file: path.join(dataDir, 'outlines.json'), legacyFile: path.join(dataDir, 'tracks.json') });
   const pipeline = createPipeline({
     memory,
     intake: opts.demoFile ? null : intake,

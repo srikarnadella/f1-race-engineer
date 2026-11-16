@@ -8,13 +8,20 @@ const BINS = 240;
 const MIN_COVERAGE = 0.95;
 const MIN_SPEED_KMH = 30;
 
-function createOutlines({ file = null } = {}) {
-  let kept = {};
-  try {
-    if (file && fs.existsSync(file)) kept = JSON.parse(fs.readFileSync(file, 'utf8')) || {};
-  } catch {
-    kept = {}; // a damaged file costs the maps, which draw again
-  }
+// legacyFile: tracks.json, where an older Undercut kept the outlines beside the track memory; its outlines are carried over once.
+function createOutlines({ file = null, legacyFile = null } = {}) {
+  // Only lists of points: anything else (a track memory entry) is not an outline, so that track can be drawn again.
+  const outlinesIn = (f) => {
+    try {
+      const raw = f && fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
+      return Object.fromEntries(Object.entries(raw && typeof raw === 'object' ? raw : {}).filter(([, v]) => Array.isArray(v)));
+    } catch {
+      return {}; // a damaged file costs the maps, which draw again
+    }
+  };
+  const legacy = outlinesIn(legacyFile);
+  const own = outlinesIn(file);
+  const kept = { ...legacy, ...own };
   let cur = null; // the lap being drawn: { trackId, length, bins, lastD }
 
   const fresh = (trackId, length) => ({ trackId, length, bins: new Array(BINS).fill(null), lastD: null });
@@ -64,6 +71,9 @@ function createOutlines({ file = null } = {}) {
     if (inPit || !(speedKmh >= MIN_SPEED_KMH)) return;
     cur.bins[Math.min(BINS - 1, Math.floor((distance / length) * BINS))] = [x, z];
   }
+
+  // Carried over now, before the track memory's next save drops them from the old file.
+  if (Object.keys(legacy).some((id) => !own[id])) save();
 
   const get = (trackId) => kept[trackId] || null;
 

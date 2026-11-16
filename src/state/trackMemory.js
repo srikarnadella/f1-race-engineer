@@ -15,7 +15,8 @@ function createTrackMemory(file = null) {
   let byTrack = {};
   if (file && fs.existsSync(file)) {
     try {
-      byTrack = JSON.parse(fs.readFileSync(file, 'utf8'));
+      // A list of points is a map outline an older Undercut kept here (state/trackOutline.js), not a memory.
+      byTrack = Object.fromEntries(Object.entries(JSON.parse(fs.readFileSync(file, 'utf8')) || {}).filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v)));
     } catch (err) {
       // Set aside, not overwritten by the next save: it may be fixable by hand.
       const aside = `${file}.unreadable-${Date.now()}`;

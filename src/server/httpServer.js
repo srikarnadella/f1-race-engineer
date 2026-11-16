@@ -153,6 +153,19 @@ function serveStatic(req, res) {
 const MAX_CLIENT_MESSAGE_BYTES = 1024;
 const MAX_CLIENT_MESSAGES_PER_10S = 30;
 const MAX_QUEUED_BYTES = 1024 * 1024;
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+// Any page in a browser may open a WebSocket to this PC; only the dashboard's own page (Origin = this server) and
+// clients that send no Origin (not a browser) get the feed.
+function sameOrigin({ req }) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
 
 // tls: { cert, key } (PEM) serves https - browsers only open the microphone
 // for voice questions on a secure page, and a tablet reaches the bridge by its
@@ -178,7 +191,8 @@ function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientM
   };
   const handler = (req, res) => {
     if (req.method === 'GET' && req.url.split('?')[0] === '/api/qr') {
-      const url = pairLink();
+      // The key only to the PC itself: a phone that merely opened the dashboard must not read it off its own Settings.
+      const url = LOOPBACK.has(req.socket.remoteAddress) ? pairLink() : pairUrl();
       res.writeHead(url ? 200 : 404, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-cache' });
       res.end(url ? qrSvg(url) : '');
     } else if (req.method === 'POST' && req.url.startsWith('/api/')) {
@@ -190,7 +204,7 @@ function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientM
     }
   };
   const server = tls ? https.createServer(tls, handler) : http.createServer(handler);
-  const wss = new WebSocketServer({ server, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
+  const wss = new WebSocketServer({ server, maxPayload: MAX_CLIENT_MESSAGE_BYTES, verifyClient: sameOrigin });
   // ws re-emits the HTTP server's errors; those are handled on `server` below.
   wss.on('error', () => {});
 

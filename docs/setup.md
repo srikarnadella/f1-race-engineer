@@ -36,7 +36,7 @@ certificate the app makes for this PC. The first time, the phone warns that the 
 (no company signed it): tap *Advanced → Proceed*, and the microphone works after that.
 
 **Where things are:** race data in `%APPDATA%\Undercut\data` (`race.db`, `sessions/`, `tracks.json`,
-`captures/`). *Open data folder* in Storage or Settings opens it. Ollama keeps its models in its own
+`outlines.json`, `captures/`). *Open data folder* in Storage or Settings opens it. Ollama keeps its models in its own
 folder (`%USERPROFILE%\.ollama`).
 
 **Re-processing recordings** into the app's race store, after an update that keeps more per session, so

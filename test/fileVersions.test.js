@@ -79,3 +79,22 @@ test('versions: a debrief the app saves carries the version', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// The app dies mid-save (power cut, crash): the settings already on disk must still be there on the next start.
+test('settings: a save cut off half-way leaves the previous settings readable', (t) => {
+  const dir = tmp();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, 'settings.json');
+  saveSettings(file, { ...DEFAULTS, httpPort: 9001 });
+  const real = fs.writeFileSync;
+  fs.writeFileSync = (f, data, ...rest) => {
+    real(f, String(data).slice(0, 10), ...rest);
+    throw new Error('power cut');
+  };
+  try {
+    assert.throws(() => saveSettings(file, { ...DEFAULTS, httpPort: 9002 }), /power cut/);
+  } finally {
+    fs.writeFileSync = real;
+  }
+  assert.strictEqual(loadSettings(file).httpPort, 9001);
+});

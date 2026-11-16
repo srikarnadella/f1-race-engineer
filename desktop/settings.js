@@ -27,6 +27,10 @@ function loadSettings(file) {
   }
 }
 
-const saveSettings = (file, s) => fs.writeFileSync(file, JSON.stringify({ version: SETTINGS_VERSION, ...s }, null, 2));
+// Write then rename, so a crash mid-write leaves the previous settings, not half a file.
+function saveSettings(file, s) {
+  fs.writeFileSync(`${file}.tmp`, JSON.stringify({ version: SETTINGS_VERSION, ...s }, null, 2));
+  fs.renameSync(`${file}.tmp`, file);
+}
 
 module.exports = { SETTINGS_VERSION, DEFAULTS, applySettings, loadSettings, saveSettings };

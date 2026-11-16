@@ -202,4 +202,4 @@ function buildLibrary({ sessions, notes = [], sheet = null }) {
   return out.sort((a, b) => b.lastAt - a.lastAt || String(a.track).localeCompare(String(b.track)));
 }
 
-module.exports = { identity, buildLibrary, IDENTITY_KEYS, EXTRA_KEYS, MIN_RACE_LAPS };
+module.exports = { identity, buildLibrary, IDENTITY_KEYS, MIN_RACE_LAPS };

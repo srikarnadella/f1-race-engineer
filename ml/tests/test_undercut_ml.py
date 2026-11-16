@@ -113,6 +113,34 @@ class Models(unittest.TestCase):
         from undercut_ml.models import overtake
         self.assertEqual(list(overtake.fitters(['logGap']).keys()), ['gap', 'logistic', 'lightgbm'])
 
+    def test_a_model_that_does_not_beat_the_gap_is_not_shipped(self):
+        # The pass is decided by the gap alone, so nothing can beat the gap-only baseline: the run must report that and
+        # leave the model the app runs (and its parity fixture) as they were.
+        from undercut_ml.models import overtake
+        rng = np.random.default_rng(1)
+        n = 300
+        gap = rng.uniform(-2, 1, 3 * n)
+        df = pd.DataFrame({'race': np.repeat(['r1', 'r2', 'r3'], n), 'session': np.repeat(['s1', 's2', 's3'], n),
+                           'y': (gap < -1).astype(int), 'logGap': gap, 'noise': rng.normal(size=3 * n)})
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            samples = tmp / 'samples.csv'
+            df.to_csv(samples, index=False)
+            shipped = {'MODEL_OUT': tmp / 'model.json', 'PARITY_OUT': tmp / 'parity.json', 'REPORT': tmp / 'report.md'}
+            shipped['MODEL_OUT'].write_text('the shipped model')
+            shipped['PARITY_OUT'].write_text('the shipped fixture')
+            saved = {k: getattr(overtake, k) for k in shipped}
+            try:
+                for k, v in shipped.items():
+                    setattr(overtake, k, v)
+                overtake.main([str(samples)])
+            finally:
+                for k, v in saved.items():
+                    setattr(overtake, k, v)
+            self.assertEqual(shipped['MODEL_OUT'].read_text(), 'the shipped model')
+            self.assertEqual(shipped['PARITY_OUT'].read_text(), 'the shipped fixture')
+            self.assertIn('does not clearly beat', shipped['REPORT'].read_text())
+
 
 if __name__ == '__main__':
     unittest.main()

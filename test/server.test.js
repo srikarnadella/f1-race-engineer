@@ -40,3 +40,20 @@ test('server: bound to this PC only, it offers no pairing address and other devi
   for await (const chunk of res) body += chunk;
   assert.deepStrictEqual(JSON.parse(body), { url: null });
 });
+
+// Any page in a browser can open a WebSocket to localhost. The live feed is for the dashboard's own page (on the PC or a
+// phone, whose Origin is this server) and for clients that send no Origin at all, never for another site.
+test('server: a WebSocket from another site is refused; the dashboard\'s own page and plain clients get the feed', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const tryOpen = (origin) => new Promise((resolve) => {
+    const ws = new WebSocket(`ws://localhost:${s.port}`, origin ? { origin } : {});
+    ws.on('message', () => { ws.close(); resolve('fed'); });
+    ws.on('error', () => resolve('refused'));
+    ws.on('unexpected-response', () => resolve('refused'));
+  });
+  assert.strictEqual(await tryOpen('https://example.com'), 'refused');
+  assert.strictEqual(await tryOpen('null'), 'refused');
+  assert.strictEqual(await tryOpen(`http://localhost:${s.port}`), 'fed');
+  assert.strictEqual(await tryOpen(null), 'fed');
+});

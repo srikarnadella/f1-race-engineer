@@ -188,4 +188,4 @@ function parseSetupSheet(file, game = 'F1 26') {
   return { game, circuits };
 }
 
-module.exports = { parseSetupSheet, parseAero, parseDiff, parseSuspension, parseBrakes, parseTyres, parseCompounds, GAME_TRACK };
+module.exports = { parseSetupSheet, parseAero, parseDiff, parseSuspension, parseBrakes, parseTyres, parseCompounds };

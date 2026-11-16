@@ -15,8 +15,10 @@ async function startReplay({ filePath, onPacket, onLoopStart, loop = true, speed
     // relative setTimeouts each fire a little late, and over thousands of
     // packets that drift adds up to the replay running several % slow.
     const startedAt = Date.now();
+    let fed = 0;
 
     for await (const { tMs, buf } of readLog(filePath, stats)) {
+      fed++;
       const wait = startedAt + tMs / speed - Date.now();
       if (wait > 0) {
         await new Promise((resolve) => {
@@ -42,6 +44,8 @@ async function startReplay({ filePath, onPacket, onLoopStart, loop = true, speed
     // e.g. a half-written last line from a capture that was killed.
     if (stats.badLines) console.warn(`[replay] skipped ${stats.badLines} unreadable line(s) in the recording`);
     if (stats.truncated) console.warn('[replay] recording ends mid-block (capture was interrupted) - played what was there');
+    // Nothing to play: looping would only reopen the file as fast as the disk allows.
+    if (!fed && !aborted()) throw new Error('That recording has no readable packets');
   }
 
   do {

@@ -113,6 +113,25 @@ test('pairing: the QR code and the printed address carry the key, and the plain 
   }
 });
 
+// The QR image: the key goes only to the PC itself (the app window, a browser on the PC). Another device that opens the
+// dashboard sees the plain address, so looking at Settings on a phone is not a way to pair it.
+test('pairing: the QR image carries the key only when the PC itself asks for it', async (t) => {
+  const { qrSvg } = require('../src/server/qr');
+  const s = startServer({ httpPort: 0, getSnapshot: () => ({}), pairKey: KEY });
+  if (!s.server.listening) await once(s.server, 'listening');
+  t.after(s.close);
+  if (!s.pairLink()) return t.skip('no LAN address on this machine');
+  const ask = (remoteAddress) => new Promise((resolve) => {
+    let body = '';
+    const res = { writeHead: () => {}, end: (b) => { body = String(b); resolve(body); } };
+    s.server.emit('request', { method: 'GET', url: '/api/qr', headers: {}, socket: { remoteAddress } }, res);
+  });
+  const plain = s.pairLink().split('/?k=')[0];
+  assert.strictEqual(await ask('127.0.0.1'), qrSvg(s.pairLink()), 'the PC gets the QR with the key');
+  assert.strictEqual(await ask('::ffff:127.0.0.1'), qrSvg(s.pairLink()));
+  assert.strictEqual(await ask('192.168.1.23'), qrSvg(plain), 'a phone on the Wi-Fi gets the address only');
+});
+
 test('pair key: made once, kept in the data folder, and the same on the next start', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pairkey-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

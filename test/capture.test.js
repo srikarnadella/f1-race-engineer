@@ -100,3 +100,24 @@ test('replay: an aborted replay stops feeding packets and resolves', async () =>
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// A recording with nothing readable in it (cut off in the gzip header, or only junk lines) must end the replay with a
+// reason, not loop over the empty file as fast as the disk allows.
+test('replay: a recording with no readable packets fails once instead of looping', async (t) => {
+  const { startReplay } = require('../src/capture/replay');
+  const dir = tmp();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const { warn } = console;
+  console.warn = () => {};
+  t.after(() => { console.warn = warn; });
+  for (const [name, content] of [['junk.f1log', 'not json\nalso not\n'], ['empty.f1log', ''], ['cut.f1log.gz', Buffer.from([0x1f, 0x8b])]]) {
+    const file = path.join(dir, name);
+    fs.writeFileSync(file, content);
+    let loops = 0;
+    const run = startReplay({ filePath: file, onPacket: () => {}, onLoopStart: () => { loops++; } });
+    const outcome = await Promise.race([run.then(() => 'resolved', (e) => e), new Promise((r) => setTimeout(() => r('still running'), 1000))]);
+    assert.ok(outcome instanceof Error, `${name}: ${outcome}`);
+    assert.match(outcome.message, /no readable packets/);
+    assert.strictEqual(loops, 1, `${name}: tried once`);
+  }
+});

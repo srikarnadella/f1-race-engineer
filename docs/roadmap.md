@@ -195,7 +195,8 @@ count says the field is mixed (`test/mixedField.test.js`).
 - **UN1 Units.** Settings: Miles and Fahrenheit, remembered. The dashboard's top speeds and the qualifying temperatures follow
   it; radio calls and the debrief stay metric (`test/units.test.js`).
 - **MP1 Track map.** `src/state/trackOutline.js` builds the outline from one clean lap of yours (240 points by distance round the
-  lap, no pit-lane laps, kept once drawn) into `tracks.json` in the data folder; `snapshot.map` has every car's place from
+  lap, no pit-lane laps, kept once drawn) into `outlines.json` in the data folder (outlines an older build left in
+  `tracks.json`, where each save wiped the track memory, are carried over); `snapshot.map` has every car's place from
   Motion every tick and the outline once a second. The `map` widget draws it (you, cars ahead, cars behind); it is a widget for
   Custom screens. Checked on a real Spa recording: the outline is Spa. *Open:* a preset screen with it, once seen in the game.
 - **BR1 Pre-race briefing.** `src/analysis/briefing.js` from the store (`trackHistory`) and the track memory: sessions and races

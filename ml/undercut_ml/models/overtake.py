@@ -104,7 +104,7 @@ def main(argv=None):
         if beats else
         f'LightGBM does not clearly beat the gap on its own: AUC {pooled["lightgbm"]["auc"]:.3f} against '
         f'{pooled["gap"]["auc"]:.3f}, better on {wins} of {len(per_race)} races, and the 90% range of the gain '
-        f'({lo:+.3f} to {hi:+.3f}) includes zero. The app keeps the logistic model, marked experimental.'
+        f'({lo:+.3f} to {hi:+.3f}) includes zero. The model the app runs is left as it was.'
     )
     names = {'gap': 'Baseline: logistic, log gap only', 'logistic': f'Logistic, all {len(features)} features', 'lightgbm': f'LightGBM, all {len(features)} features'}
     lines = [
@@ -161,14 +161,18 @@ def main(argv=None):
         'importance': [{'feature': f, 'share': round(float(v), 4)} for f, v in gain.items()],
         'trees': [tree_json(t['tree_structure']) for t in full.booster_.dump_model()['tree_info']],
     }
+    for n, s in pooled.items():
+        print(f'{names[n]:40s} AUC {s["auc"]:.3f}  log loss {s["log_loss"]:.4f}  Brier skill {s["brier_skill"]:+.3f}')
+    print(f'LightGBM better on {wins}/{len(per_race)} races; AUC gain 90% range {lo:+.3f} to {hi:+.3f}')
+    if not beats:
+        # The app runs whatever is in MODEL_OUT: a model that isn't clearly better must not replace it.
+        print(f'wrote {REPORT}; {MODEL_OUT} left as it was')
+        return
     write_json(MODEL_OUT, model, separators=(',', ':'))
     rows = df.sample(PARITY_ROWS, random_state=SEED)
     write_json(PARITY_OUT, parity_fixture('Python predict_proba for these rows; test/gbdt.test.js checks src/ml/gbdt.js gives the same.',
                                           features, rows[features].values, full.predict_proba(rows[features])[:, 1]))
-    for n, s in pooled.items():
-        print(f'{names[n]:40s} AUC {s["auc"]:.3f}  log loss {s["log_loss"]:.4f}  Brier skill {s["brier_skill"]:+.3f}')
-    print(f'LightGBM better on {wins}/{len(per_race)} races; AUC gain 90% range {lo:+.3f} to {hi:+.3f}')
-    print(f'wrote {REPORT.relative_to(ROOT)}, {MODEL_OUT.relative_to(ROOT)} ({n_trees} trees, {MODEL_OUT.stat().st_size // 1024} KB), {PARITY_OUT.relative_to(ROOT)}')
+    print(f'wrote {REPORT}, {MODEL_OUT} ({n_trees} trees, {MODEL_OUT.stat().st_size // 1024} KB), {PARITY_OUT}')
 
 
 if __name__ == '__main__':

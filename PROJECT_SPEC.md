@@ -160,7 +160,7 @@ f1-race-engineer/
 ├── test/                             [DONE] node:test - parser round-trips, state + insight rules
 ├── demo/                             synthetic session generated on demand (gitignored); the website replays a real race
 ├── captures/                         npm run capture output (gitignored)
-└── data/                             race.db, sessions/ (saved Debriefs), tracks.json - from npm start (gitignored);
+└── data/                             race.db, sessions/ (saved Debriefs), tracks.json, outlines.json - from npm start (gitignored);
                                       the desktop app keeps the same in %APPDATA%\Undercut\data
 ```
 
