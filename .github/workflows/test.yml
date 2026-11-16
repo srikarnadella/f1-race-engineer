@@ -20,6 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # What ships (the app's runtime dependencies); dev tools such as the installer builder are left out.
+      - run: npm audit --omit=dev --audit-level=high
 
   test:
     # Windows too: that's where players run the app, and the speech and file-path code is Windows-specific.

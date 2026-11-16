@@ -13,14 +13,17 @@ const day = (ms) => {
 function trends(db) {
   const sessions = db.prepare(`SELECT s.session_id, s.track, s.session_name, s.started_at_ms, k.name AS capture, c.car_idx, c.grid_position, c.finish_position
     FROM session s JOIN capture k USING (capture_id) JOIN car c ON c.session_id = s.session_id AND c.is_player = 1 WHERE s.is_race = 1`).all();
-  const lapsOf = db.prepare('SELECT lap_num, lap_ms, pit, neutralised, valid, compound, tyre_age, wear_max_pct FROM lap WHERE session_id = ? AND car_idx = ? ORDER BY lap_num');
+  const lapsOf = db.prepare('SELECT lap_num, lap_ms, pit, neutralised, valid, compound, tyre_age, wear_max_pct, position FROM lap WHERE session_id = ? AND car_idx = ? ORDER BY lap_num');
 
   const byTrack = new Map();
+  const starts = []; // grid slot, position after lap 1 and the places gained there, per race
   const wear = new Map(); // track|tyre -> per-lap wear steps
   const races = [];
   for (const s of sessions) {
     const at = sessionStart(Number(s.started_at_ms), s.capture) ?? Number(s.started_at_ms);
     const laps = lapsOf.all(s.session_id, s.car_idx);
+    const lap1 = laps.find((l) => l.lap_num === 1);
+    if (s.grid_position > 0 && lap1 && lap1.position > 0) starts.push({ at, sessionId: s.session_id, track: s.track, date: day(at), type: s.session_name, grid: s.grid_position, lap1: lap1.position, gained: s.grid_position - lap1.position, finish: s.finish_position });
     // Clean laps: not the start, not a pit or safety-car lap, not invalid.
     const clean = laps.filter((l) => l.lap_num > 1 && !l.pit && !l.neutralised && l.valid !== 0 && l.lap_ms > 0).map((l) => l.lap_ms);
     if (!clean.length) continue;
@@ -53,8 +56,15 @@ function trends(db) {
   }).filter((r) => r.calls > 0);
   const total = graded.reduce((t, r) => ({ calls: t.calls + r.calls, graded: t.graded + r.graded, right: t.right + r.right, wrong: t.wrong + r.wrong, unclear: t.unclear + r.unclear }), { calls: 0, graded: 0, right: 0, wrong: 0, unclear: 0 });
 
+  starts.sort((a, b) => a.at - b.at);
+  const gains = starts.map((r) => r.gained);
   return {
     tracks,
+    // The start report: places gained (+) or lost (-) between the grid and the end of lap 1.
+    starts: {
+      races: starts.map(({ at, ...r }) => r),
+      summary: starts.length ? { races: starts.length, avgGained: Number((gains.reduce((a, b) => a + b, 0) / gains.length).toFixed(1)), lostTwoOrMore: gains.filter((g) => g <= -2).length, gainedAny: gains.filter((g) => g > 0).length, best: Math.max(...gains), worst: Math.min(...gains) } : null,
+    },
     wear: [...wear].map(([k, steps]) => {
       const [track, tyre] = k.split('|');
       return { track, tyre, pctPerLap: Math.round(median(steps) * 100) / 100, laps: steps.length };

@@ -2,6 +2,9 @@
 // and wear the AI boxed at - so the second race at a track starts from the
 // first one's numbers instead of a guess. One small JSON file in data/
 // (gitignored); null file = remember nothing (replays, tests).
+//
+// Each sample remembers the session it came from ({ v, s } in the file), so deleting a race can take
+// what it taught with it (forget). A plain number is a sample from before that: it has no session, so it stays.
 
 const fs = require('fs');
 const path = require('path');
@@ -23,12 +26,13 @@ function createTrackMemory(file = null) {
     }
   }
 
-  const get = (trackId, kind) => (byTrack[trackId] && byTrack[trackId][kind]) || [];
+  const valueOf = (x) => (typeof x === 'object' && x ? x.v : x);
+  const get = (trackId, kind) => ((byTrack[trackId] && byTrack[trackId][kind]) || []).map(valueOf);
 
-  function add(trackId, kind, value) {
-    if (trackId == null || !Number.isFinite(value)) return;
-    const track = (byTrack[trackId] = byTrack[trackId] || {});
-    track[kind] = [...(track[kind] || []), value].slice(-KEEP_PER_TRACK);
+  // Every sample's value, by track and kind.
+  const all = () => Object.fromEntries(Object.entries(byTrack).map(([t, kinds]) => [t, Object.fromEntries(Object.entries(kinds).map(([k, xs]) => [k, xs.map(valueOf)]))]));
+
+  function save() {
     if (!file) return;
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -40,7 +44,32 @@ function createTrackMemory(file = null) {
     }
   }
 
-  return { get, add };
+  function add(trackId, kind, value, sessionUid = null) {
+    if (trackId == null || !Number.isFinite(value)) return;
+    const track = (byTrack[trackId] = byTrack[trackId] || {});
+    track[kind] = [...(track[kind] || []), sessionUid == null ? value : { v: value, s: String(sessionUid) }].slice(-KEEP_PER_TRACK);
+    save();
+  }
+
+  // Drops every sample that session taught, at every track. Returns how many went.
+  function forget(sessionUid) {
+    if (sessionUid == null) return 0;
+    const uid = String(sessionUid);
+    let gone = 0;
+    for (const [trackId, kinds] of Object.entries(byTrack)) {
+      for (const [kind, xs] of Object.entries(kinds)) {
+        const kept = xs.filter((x) => !(typeof x === 'object' && x && x.s === uid));
+        gone += xs.length - kept.length;
+        if (kept.length) kinds[kind] = kept;
+        else delete kinds[kind];
+      }
+      if (!Object.keys(kinds).length) delete byTrack[trackId];
+    }
+    if (gone) save();
+    return gone;
+  }
+
+  return { get, add, forget, all };
 }
 
 module.exports = { createTrackMemory };

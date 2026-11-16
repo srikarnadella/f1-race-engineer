@@ -12,6 +12,8 @@ const NEARBY_EACH_SIDE = 2;
 // `raceAnalysis` keeps per-session memory (measured pit losses), so it is a
 // required, long-lived instance rather than something built per call.
 // `focus` (optional, from engine/focus.js) picks the screen for auto-switch.
+const { fieldRules } = require('../analysis/fieldRules');
+
 function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
   const playerIdx = fieldModel.playerIndex();
   // Analysis first: some radio calls (undercut window, cheap stop under a
@@ -74,6 +76,7 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
       : null,
     nearby,
     field,
+    rules: fieldRules(field),
     analysis: { pitLoss, rejoin, options, pitTiming, damage, penalties, tyreTemps, racePlan, quali, weather, battle, tyreModel, regs2026, overtake },
     insights,
     strategy: insightEngine.getStrategy(),

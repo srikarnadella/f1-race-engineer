@@ -50,15 +50,18 @@ const readJson = (file) => {
   }
 };
 
-// Newest first. A folder without packets (a menu test) isn't a recording.
+// Newest first. A folder without packets (a menu test) isn't a recording, unless it has the report of one
+// whose packets were dropped to free the space (dropPackets): then `packets` is false.
 async function listCaptures(root) {
   if (!fs.existsSync(root)) return [];
   const out = [];
   for (const name of fs.readdirSync(root)) {
     if (!NAME.test(name)) continue;
     const dir = path.join(root, name);
-    const file = fs.statSync(dir).isDirectory() ? packetsFile(dir) : null;
-    if (!file || fs.statSync(file).size === 0) continue;
+    if (!fs.statSync(dir).isDirectory()) continue;
+    const file = packetsFile(dir);
+    const hasPackets = !!file && fs.statSync(file).size > 0;
+    if (!hasPackets && !(fs.existsSync(path.join(dir, 'report.json')) && !file)) continue;
     const bytes = fs.readdirSync(dir).reduce((sum, f) => sum + fs.statSync(path.join(dir, f)).size, 0);
     const meta = readJson(path.join(dir, 'meta.json'));
     const markFile = path.join(dir, 'markers.jsonl');
@@ -69,10 +72,11 @@ async function listCaptures(root) {
     out.push({
       name,
       bytes,
+      packets: hasPackets,
       startedAt: meta && meta.startedAt ? Date.parse(meta.startedAt) : fs.statSync(dir).mtimeMs,
       marks,
       report: report ? summarizeReport(report) : null,
-      ...(await identify(file, fs.statSync(file).size)),
+      ...(hasPackets ? await identify(file, fs.statSync(file).size) : { track: null, session: null }),
     });
   }
   return out.sort((a, b) => b.startedAt - a.startedAt);
@@ -98,6 +102,31 @@ function summarizeReport(r) {
 
 async function deleteCapture(root, name) {
   await fs.promises.rm(captureDir(root, name), { recursive: true, force: true });
+}
+
+// Frees a recording's raw packets (the bulk of its size) and keeps its report, marks and meta. Returns the
+// bytes freed. The race itself stays in the race store; only replaying and re-analyzing it are lost.
+async function dropPackets(root, name) {
+  const dir = captureDir(root, name);
+  const file = fs.existsSync(dir) ? packetsFile(dir) : null;
+  if (!file) throw new Error('That recording has no packets to drop');
+  let freed = 0;
+  for (const f of PACKET_FILES.map((x) => path.join(dir, x)).filter((x) => fs.existsSync(x))) {
+    freed += (await fs.promises.stat(f)).size;
+    await fs.promises.rm(f, { force: true });
+  }
+  return freed;
+}
+
+// Recordings that started more than `days` ago and still have packets: [{ name, bytes (the packets), startedAt }].
+async function oldRecordings(root, days, now = Date.now()) {
+  const out = [];
+  for (const c of await listCaptures(root)) {
+    if (!c.packets || now - c.startedAt <= days * 86400000) continue;
+    const file = packetsFile(captureDir(root, c.name));
+    out.push({ name: c.name, bytes: file ? fs.statSync(file).size : 0, startedAt: c.startedAt });
+  }
+  return out;
 }
 
 // Storage (W3): bytes on disk per store in the data folder. The race store is race.db and its
@@ -126,4 +155,4 @@ async function diskUse(dataDir) {
   return use;
 }
 
-module.exports = { listCaptures, captureDir, deleteCapture, packetsFile, summarizeReport, diskUse };
+module.exports = { listCaptures, captureDir, deleteCapture, dropPackets, oldRecordings, packetsFile, summarizeReport, diskUse };

@@ -15,9 +15,10 @@ const { app, BrowserWindow, dialog, shell, ipcMain } = require('electron');
 const { start } = require('../src/index');
 const { defaultCaptureDir } = require('../src/capture/session');
 const { lanAddresses, pairAddress } = require('../src/server/httpServer');
-const { listCaptures, captureDir, deleteCapture, packetsFile, summarizeReport, diskUse } = require('./library');
+const { listCaptures, captureDir, deleteCapture, dropPackets, oldRecordings, packetsFile, summarizeReport, diskUse } = require('./library');
 const { loadSettings, saveSettings, applySettings } = require('./settings');
 const { setPriorities } = require('./priority');
+const { checkForUpdate } = require('./updates');
 const { ensureCert } = require('./tls');
 const { startRecognizer, grammarPhrases } = require('./speech');
 const { createOllama } = require('../src/llm/ollama');
@@ -50,6 +51,7 @@ if (!app.requestSingleInstanceLock()) {
   let tls = null;
   let quitting = false;
   const analyzing = new Set();
+  let backfill = null; // while "read setups from my recordings" runs: { done, total }
 
   const scheme = () => (tls ? 'https' : 'http');
   const localUrl = () => `${scheme()}://localhost:${settings.httpPort}`;
@@ -67,6 +69,8 @@ if (!app.requestSingleInstanceLock()) {
       clients: bridge ? bridge.clients() : 0,
       dataDir: paths.data(),
       analyzing: [...analyzing],
+      setups: bridge ? bridge.setupsInfo() : null,
+      backfill,
     };
   }
   const pushStatus = () => {
@@ -205,8 +209,8 @@ if (!app.requestSingleInstanceLock()) {
     });
   });
   // Deleting can't be undone, so the PC asks itself - not the page.
-  async function confirm(message, detail) {
-    const { response } = await dialog.showMessageBox(win, { type: 'warning', buttons: ['Delete', 'Cancel'], defaultId: 1, cancelId: 1, message, detail });
+  async function confirm(message, detail, action = 'Delete') {
+    const { response } = await dialog.showMessageBox(win, { type: 'warning', buttons: [action, 'Cancel'], defaultId: 1, cancelId: 1, message, detail });
     return response === 0;
   }
   handle('deleteCapture', async (name) => {
@@ -217,10 +221,89 @@ if (!app.requestSingleInstanceLock()) {
     await deleteCapture(paths.captures(), name);
     return true;
   });
+  // Frees the raw packets (the bulk of a recording) and keeps its report, marks and the race in the library (Q7).
+  const busyWith = (name) => (replay && replay.name === name) || (bridge && bridge.recording() === captureDir(paths.captures(), name));
+  const mb = (n) => `${Math.max(1, Math.round(n / 1e6)).toLocaleString('en-US')} MB`;
+  handle('dropPackets', async (name) => {
+    if (busyWith(name)) throw new Error('Stop the replay or the recording first');
+    if (!(await confirm(`Drop the packets of ${name}?`, 'The packets are removed from this PC to free the space. Its report, marks and the race in your library stay, but it can no longer be replayed or analyzed again. This cannot be undone.', 'Drop packets'))) return false;
+    await dropPackets(paths.captures(), name);
+    return true;
+  });
+  handle('dropOldPackets', async (days) => {
+    const d = Number.isInteger(days) && days >= 1 && days <= 3650 ? days : 30;
+    const found = (await oldRecordings(paths.captures(), d)).filter((r) => !busyWith(r.name));
+    if (!found.length) return { count: 0, bytes: 0 };
+    const bytes = found.reduce((n, r) => n + r.bytes, 0);
+    if (!(await confirm(`Drop the packets of ${found.length} recording${found.length === 1 ? '' : 's'} older than ${d} days?`, `${mb(bytes)} is freed. Their reports, marks and the races in your library stay, but they can no longer be replayed or analyzed again. This cannot be undone.`, 'Drop packets'))) return { count: 0, bytes: 0 };
+    for (const r of found) await dropPackets(paths.captures(), r.name);
+    return { count: found.length, bytes };
+  });
   handle('deleteSession', async (id, label) => {
     if (!bridge || replay) throw new Error('Go back to live to manage saved sessions');
-    if (!(await confirm(`Delete ${typeof label === 'string' ? label.slice(0, 80) : 'this session'}?`, 'Its Debrief and its laps in the race database are removed from this PC. This can\'t be undone.'))) return false;
+    if (!(await confirm(`Delete ${typeof label === 'string' ? label.slice(0, 80) : 'this session'}?`, 'Its Debrief, its laps in the race database and what it taught the app about the track are removed from this PC. This can\'t be undone.'))) return false;
     return bridge.deleteSession(String(id));
+  });
+  // The "learn from this race" switch (roadmap K2): which of these saved sessions the race store holds, and the choice.
+  handle('learnFlags', (ids) => {
+    if (!bridge || !Array.isArray(ids)) return {};
+    return Object.fromEntries(ids.slice(0, 200).map((id) => [String(id), bridge.learns(String(id))]).filter(([, v]) => v !== null));
+  });
+  handle('setLearn', async (id, on) => {
+    if (!bridge || replay) throw new Error('Go back to live to manage saved sessions');
+    if (!on && !(await confirm('Stop learning from this race?', 'What it taught the app about its track (pit loss, tyre wear, when the AI stops) is forgotten, and turning this back on does not bring it back. The race itself stays.'))) return false;
+    return bridge.setLearn(String(id), !!on);
+  });
+  // Asks GitHub only when the button is pressed. The page to open is remembered here, never taken from the window.
+  let updatePage = null;
+  handle('checkUpdate', async () => {
+    const r = await checkForUpdate(app.getVersion());
+    updatePage = r.newer ? r.url : null;
+    return { current: r.current, latest: r.latest, newer: r.newer };
+  });
+  handle('openUpdate', () => (updatePage ? shell.openExternal(updatePage).then(() => true) : false));
+  // The community setup spreadsheet: picked here (the window can't name a file), read by the bridge into setups.json.
+  handle('importSetups', async () => {
+    if (!bridge) throw new Error('The bridge is not running');
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, { title: 'Choose the setups spreadsheet', properties: ['openFile'], filters: [{ name: 'Spreadsheet', extensions: ['xlsx'] }] });
+    if (canceled || !filePaths[0]) return null;
+    const done = await bridge.importSetups(filePaths[0]);
+    pushStatus();
+    return done;
+  });
+  // Names, stars and notes for the setup library. The window asks; this checks and the store keeps.
+  handle('saveSetupNote', (input) => {
+    if (!bridge) throw new Error('The bridge is not running');
+    bridge.saveSetupNote(input);
+    return true;
+  });
+  // "Read setups from my recordings": every recording still on disk replayed into the race store, off the main thread.
+  handle('backfillSetups', () => {
+    if (backfill) throw new Error('Already reading your recordings');
+    const root = paths.captures();
+    const dirs = fs.existsSync(root) ? fs.readdirSync(root).map((d) => path.join(root, d)).filter((d) => fs.statSync(d).isDirectory()) : [];
+    const files = dirs.map((d) => packetsFile(d)).filter(Boolean);
+    const skipped = dirs.length - files.length; // recordings whose packets were dropped can't be read again
+    if (!files.length) return Promise.resolve({ read: 0, skipped });
+    backfill = { done: 0, total: files.length };
+    pushStatus();
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(path.join(__dirname, 'ingestWorker.js'), { workerData: { dbFile: path.join(paths.data(), 'race.db'), files } });
+      const finish = (fn) => (v) => {
+        backfill = null;
+        if (bridge) bridge.invalidateHistory();
+        pushStatus();
+        fn(v);
+      };
+      worker.on('message', (m) => {
+        if (m.progress) {
+          backfill = { done: m.progress.done, total: m.progress.total };
+          pushStatus();
+        } else if (m.ok) finish(resolve)({ read: files.length, skipped });
+        else if (m.error) finish(reject)(new Error(m.error));
+      });
+      worker.once('error', finish(reject));
+    });
   });
   handle('showCapture', (name) => shell.showItemInFolder(packetsFile(captureDir(paths.captures(), name)) || captureDir(paths.captures(), name)));
   handle('openReport', (name) => shell.openPath(path.join(captureDir(paths.captures(), name), 'report.md')));

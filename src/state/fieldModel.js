@@ -300,6 +300,15 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
   }
 
   // Player's car only - feeds the corner-by-corner balance tracker.
+  // Every car's place in the world (Motion): the spotter and the track map read it. A slot at the origin is unused.
+  function onMotion(data) {
+    if (!data) return;
+    data.cars.forEach((w, i) => {
+      if (w.x !== 0 || w.z !== 0) getCar(i).world = w;
+      else if (cars.has(i)) cars.get(i).world = null;
+    });
+  }
+
   function onMotionEx(data) {
     if (!data || playerCarIndex == null) return;
     const player = getCar(playerCarIndex);
@@ -342,6 +351,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
     handlePacket(packetId, header);
     if (packetId === PACKET_IDS.CAR_TELEMETRY) feed.record(header);
     switch (packetId) {
+      case PACKET_IDS.MOTION: return onMotion(data);
       case PACKET_IDS.CAR_TELEMETRY: return onCarTelemetry(data);
       case PACKET_IDS.CAR_STATUS: return onCarStatus(data);
       case PACKET_IDS.CAR_DAMAGE: return onCarDamage(data);
@@ -368,6 +378,13 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       .filter(([, car]) => car.lapData && car.lapData.carPosition > 0)
       .sort((a, b) => a[1].lapData.carPosition - b[1].lapData.carPosition)
       .map(([carIndex, car]) => ({ carIndex, ...car }));
+  }
+
+  // Where every car is, from the Motion packet: [{ idx, world (null when unknown), inPit }]. No copy of the cars.
+  function getWorlds() {
+    const out = [];
+    for (const [idx, car] of cars) out.push({ idx, world: car.world || null, inPit: !!(car.lapData && car.lapData.pitStatus) });
+    return out;
   }
 
   function playerIndex() {
@@ -442,7 +459,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
   const getSessionUID = () => sessionUID;
   const getLapPositions = () => lapPositions;
 
-  return { clock, getFeedHealth: feed.view, dispatch, reset, getCar, getClassification, getSessionUID, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerBalanceEvents, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
+  return { clock, getFeedHealth: feed.view, dispatch, reset, getCar, getClassification, getSessionUID, getLapPositions, orderedByPosition, playerIndex, getSession, getRecentEvents, getWorlds, getGeneration, getPlayerDelta, getLastPacketAtMs, getSessionTime, getPlayerBalanceIssues, takePlayerBalanceEvents, takePlayerLapTraces, takeRivalLapTraces, getPlayerCorners, getPlayerPartialSectors, getPassLog, isRedFlag };
 }
 
 module.exports = { createFieldModel };

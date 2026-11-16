@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const { qrSvg, printQr } = require('./qr');
 
@@ -53,6 +54,54 @@ function serveApi(req, res, api) {
   }
   res.writeHead(body ? 200 : 404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
   res.end(JSON.stringify(body || { error: 'Not found' }));
+}
+
+// A write from another device (saving a setup's name, star or note): small JSON, and only from a device that holds the pairing key
+// (src/server/pairKey.js, carried in the QR code). The key travels in a header, so a page on another site cannot send it without
+// a CORS permission this server never gives; the Origin must also be this server's own.
+const MAX_POST_BYTES = 8 * 1024;
+const safeEqual = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+function servePost(req, res, { post, pairKey, scheme }) {
+  const send = (code, obj) => {
+    res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+    res.end(JSON.stringify(obj));
+  };
+  if (!post || !pairKey) return send(403, { error: 'Saving from other devices is off' });
+  if (!safeEqual(String(req.headers['x-undercut-key'] || ''), pairKey)) return send(403, { error: 'This device is not paired: scan the QR code in Connect to edit' });
+  if (req.headers.origin && req.headers.origin !== `${scheme}://${req.headers.host}`) return send(403, { error: 'Not from this page' });
+  let pathname;
+  try {
+    pathname = new URL(req.url, 'http://localhost').pathname;
+  } catch {
+    return send(400, { error: 'Bad request' });
+  }
+  let size = 0;
+  const chunks = [];
+  req.on('data', (c) => {
+    size += c.length;
+    if (size > MAX_POST_BYTES) {
+      send(413, { error: 'Too large' });
+      req.destroy();
+      return;
+    }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    if (size > MAX_POST_BYTES) return;
+    let body;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch {
+      return send(400, { error: 'Not valid JSON' });
+    }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return send(400, { error: 'Expected a JSON object' });
+    try {
+      const out = post(pathname, body);
+      return out ? send(200, out) : send(404, { error: 'Not found' });
+    } catch (err) {
+      return send(400, { error: String(err.message || err).replace(/^setup note: /, '') });
+    }
+  });
 }
 
 function serveStatic(req, res) {
@@ -110,12 +159,17 @@ const MAX_QUEUED_BYTES = 1024 * 1024;
 // LAN address, which plain http can't make secure.
 // onPortInUse(port): the desktop app shows it in a window; the command line exits.
 // host: '127.0.0.1' keeps the dashboard on this PC (the app's "Share with other devices" off).
-function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientMessage = null, api = null, tls = null, onPortInUse = null }) {
+function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientMessage = null, api = null, tls = null, onPortInUse = null, pairKey = null, post = null }) {
   const scheme = tls ? 'https' : 'http';
   const localOnly = host === '127.0.0.1' || host === 'localhost';
   const pairUrl = () => {
     const ip = localOnly ? null : pairAddress();
     return ip ? `${scheme}://${ip}:${httpPort}` : null;
+  };
+  // What the QR code and the terminal show: the address with the pairing key, so a device that scans it can save, not only look.
+  const pairLink = () => {
+    const url = pairUrl();
+    return url && pairKey ? `${url}/?k=${pairKey}` : url;
   };
   // Pairing (Settings): the LAN address and a QR code of it.
   const pairing = (pathname) => {
@@ -124,9 +178,11 @@ function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientM
   };
   const handler = (req, res) => {
     if (req.method === 'GET' && req.url.split('?')[0] === '/api/qr') {
-      const url = pairUrl();
+      const url = pairLink();
       res.writeHead(url ? 200 : 404, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-cache' });
       res.end(url ? qrSvg(url) : '');
+    } else if (req.method === 'POST' && req.url.startsWith('/api/')) {
+      servePost(req, res, { post, pairKey, scheme });
     } else if (req.method === 'GET' && req.url.startsWith('/api/')) {
       serveApi(req, res, (p, q) => pairing(p) || (api ? api(p, q) : null));
     } else {
@@ -196,13 +252,14 @@ function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientM
     const pair = pairUrl();
     if (pair) {
       console.log(`[server] scan to open ${pair} on a phone or tablet (same Wi-Fi):`);
-      printQr(pair);
+      printQr(pairLink());
     }
   });
 
   return {
     broadcast,
     server,
+    pairLink,
     clients: () => wss.clients.size,
     close: () => {
       wss.close();

@@ -3,6 +3,8 @@
 // steer, gear] rows (see state/lapTrace.js), sampled by time, so they're
 // first resampled onto a shared distance grid.
 
+const { timeMap } = require('./timeMap');
+
 const STEP_M = 5;
 const MINI_SECTORS = 25;
 // Light braking counts too (Suzuka's flowing corners were missed at 0.3),
@@ -175,6 +177,7 @@ function compareLaps(a, b) {
       b: { speed: rb.speed.map((v) => round(v)), throttle: rb.throttle.map((v) => round(v, 2)), brake: rb.brake.map((v) => round(v, 2)), gear: rb.gear, steer: rb.steer.map((v) => round(v, 2)) },
     },
     miniSectors,
+    timeMap: timeMap({ d: ra.d, delta }), // the gap by slice of the lap, for colouring the track map
     corners,
     headline,
   };

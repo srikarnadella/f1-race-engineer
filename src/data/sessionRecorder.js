@@ -5,6 +5,7 @@
 // session is handed to `write` when the game sends its final classification, when the next one starts,
 // and on flush() (writing the same session again replaces it).
 const { createLapRecorder } = require('./laps');
+const { setupValues, setupExtras } = require('../analysis/setupCompare');
 
 const NO_CAR = 255;
 const SKIP_EVENTS = new Set(['BUTN']); // button presses: many a second, nothing happened
@@ -21,7 +22,7 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
       generation: fieldModel.getGeneration(), uid: null, session: null, playerIdx: null, startedAt: clock(), endedAt: clock(),
       laps: createLapRecorder(fieldModel, { raceId: null }), cars: new Map(), history: new Map(), classification: null,
       events: [], lastEventSeq: 0, calls: [], radio: [], radioSeen: new Map(), weather: [], lastTime: 0, debriefRecord: null,
-      settings: [], issues: [],
+      settings: [], issues: [], setups: [],
     };
   }
 
@@ -33,6 +34,7 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
     rec.radio = kept(rec.radio);
     rec.weather = kept(rec.weather);
     rec.settings = kept(rec.settings);
+    rec.setups = kept(rec.setups);
     rec.issues = kept(rec.issues);
     rec.radioSeen = new Map(rec.radio.map((r) => [r.topic, `${r.severity}|${r.message}`]));
   }
@@ -115,6 +117,12 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
     const setting = { brakeBias: st.frontBrakeBias ?? su.brakeBias ?? null, diffOn: su.onThrottle ?? null, diffOff: su.offThrottle ?? null, engineBraking: su.engineBraking ?? null, ersMode: st.ersDeployMode ?? null };
     const ls = rec.settings[rec.settings.length - 1];
     if (Object.values(setting).some((v) => v != null) && (!ls || Object.keys(setting).some((k) => ls[k] !== setting[k]))) rec.settings.push({ sessionTime: t, lapNum: playerLap, ...setting });
+    // The whole setup, whenever any of it changes: what the car ran, for the setup history.
+    if (me && me.setup) {
+      const values = { ...setupValues(me.setup), ...setupExtras(me.setup) };
+      const lastRun = rec.setups[rec.setups.length - 1];
+      if (!lastRun || Object.keys(values).some((k) => lastRun.values[k] !== values[k])) rec.setups.push({ sessionTime: t, lapNum: playerLap, values });
+    }
     for (const e of fieldModel.takePlayerBalanceEvents ? fieldModel.takePlayerBalanceEvents() : []) {
       rec.issues.push({ sessionTime: t, lapNum: e.lapNum, distM: e.distM, kind: ISSUE_KIND[e.type] || e.type, wheel: e.wheel, brakeBias: setting.brakeBias, diffOn: setting.diffOn });
     }
@@ -178,7 +186,7 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
     return {
       uid: rec.uid, session: rec.session, playerIdx: rec.playerIdx, startedAt: rec.startedAt, endedAt: rec.endedAt, official: !!official,
       cars, laps, stints, traces: traces.filter((t) => rec.cars.has(t.carIdx)),
-      events: rec.events, calls: rec.calls, radio: rec.radio, weather: rec.weather, settings: rec.settings, issues: rec.issues,
+      events: rec.events, calls: rec.calls, radio: rec.radio, weather: rec.weather, settings: rec.settings, issues: rec.issues, setups: rec.setups,
     };
   }
 

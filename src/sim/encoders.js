@@ -18,6 +18,8 @@ const SIZES = {
   CAR_SETUP: 50,
   SESSION_PACKET: 753,
   MOTION_EX_PACKET: 273,
+  MOTION_F1_25: 60, // per car: position, velocity, directions, g-forces, yaw/pitch/roll
+  MOTION_F1_26: 54, // 24 cars; position, velocity and the two direction vectors sit at the start, as before
 };
 
 class BufferWriter {
@@ -39,7 +41,7 @@ const clampU8 = (v) => Math.max(0, Math.min(255, Math.round(v)));
 const clampU16 = (v) => Math.max(0, Math.min(65535, Math.round(v)));
 
 function writeHeader(w, packetId, h) {
-  w.u16(PACKET_FORMAT);
+  w.u16(h.packetFormat ?? PACKET_FORMAT);
   w.u8(25); // gameYear
   w.u8(1); // gameMajorVersion
   w.u8(0); // gameMinorVersion
@@ -290,9 +292,35 @@ function encodeCarSetups(h, setups) {
     w.u8(s.brakePressure ?? 100);
     w.u8(s.brakeBias ?? 56);
     w.u8(s.engineBraking ?? 50);
-    w.padTo(start, SIZES.CAR_SETUP); // tyre pressures, ballast, fuel load
+    // Tyre pressures (rear left, rear right, front left, front right), ballast, fuel load.
+    w.f32(s.rearLeftTyrePressure ?? 21.5);
+    w.f32(s.rearRightTyrePressure ?? 21.5);
+    w.f32(s.frontLeftTyrePressure ?? 25);
+    w.f32(s.frontRightTyrePressure ?? 25);
+    w.u8(s.ballast ?? 6);
+    w.f32(s.fuelLoad ?? 10);
+    w.padTo(start, SIZES.CAR_SETUP);
   }
   w.f32(0); // nextFrontWingValue
+  return w.buf;
+}
+
+// Every car's place in the world. cars[i]: { x, y, z, vx, vy, vz, forwardX, forwardY, forwardZ, rightX, rightY, rightZ }
+// (metres, m/s; directions as unit vectors, sent as int16). h.packetFormat 2026 uses the 24-car, 54-byte layout.
+function encodeMotion(h, cars) {
+  const f26 = h.packetFormat >= 2026;
+  const slots = f26 ? 24 : NUM_CARS;
+  const size = f26 ? SIZES.MOTION_F1_26 : SIZES.MOTION_F1_25;
+  const w = new BufferWriter(29 + slots * size);
+  writeHeader(w, PACKET_IDS.MOTION, h);
+  const dir = (v) => Math.max(-32767, Math.min(32767, Math.round((v || 0) * 32767)));
+  for (let i = 0; i < slots; i++) {
+    const c = cars[i] || {};
+    const start = w.offset;
+    for (const k of ['x', 'y', 'z', 'vx', 'vy', 'vz']) w.f32(c[k] || 0);
+    for (const k of ['forwardX', 'forwardY', 'forwardZ', 'rightX', 'rightY', 'rightZ']) w.u16(dir(c[k]));
+    w.padTo(start, size);
+  }
   return w.buf;
 }
 
@@ -310,6 +338,7 @@ module.exports = {
   NUM_CARS,
   encodeCarSetups,
   encodeMotionEx,
+  encodeMotion,
   encodeCarTelemetry,
   encodeCarStatus,
   encodeCarDamage,

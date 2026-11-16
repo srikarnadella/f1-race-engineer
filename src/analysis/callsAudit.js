@@ -9,6 +9,9 @@ const TYRES_WINDOW = 3; // "manage tyres" means the cliff is this many laps away
 const CLEAN_LAPS = 3; // "the pace before": the last few clean laps on the set
 const WEATHER_WINDOW = 3; // a weather call is judged on the laps right after it
 const WET = new Set([7, 8]); // visual compounds: inter, wet
+const FUEL_TIGHT_LAPS = 0.5; // finished with less fuel than this many laps' worth: the save was needed
+const FUEL_ROOMY_LAPS = 1.5; // with more than this and no saving, it was not
+const SAVED_SHARE = 0.95; // used this much of its old fuel a lap or less after the call: it saved
 
 const RULE_KINDS = new Set(['pit', 'neutralised', 'red-flag', 'penalty', 'too-late', 'finished']);
 const PUSH_KINDS = new Set(['ok', 'undercut', 'rain']);
@@ -126,7 +129,27 @@ function auditCalls(calls, laps) {
       const tyre = toWet ? 'Inters' : 'Slicks';
       return { verdict: gain > 0 ? 'right' : 'wrong', why: `${tyre} ${s(Math.abs(gain))} a lap ${gain > 0 ? 'quicker' : 'slower'} over the next ${WEATHER_WINDOW} laps` };
     }
-    // shortcut: pit-window and fuel calls aren't graded yet; add a rule when a race has them.
+    if (c.kind === 'fuel-tight' || c.kind === 'fuel-short') {
+      // Fuel at the flag, in laps of the car's own use; and whether the use fell once the call was made.
+      const used = [];
+      for (let i = 1; i < mine.length; i++) {
+        const a = mine[i - 1];
+        const b = mine[i];
+        if (b.lapNum === a.lapNum + 1 && a.fuelKg != null && b.fuelKg != null && green(a) && green(b) && a.fuelKg > b.fuelKg) used.push({ lap: b.lapNum, kg: a.fuelKg - b.fuelKg });
+      }
+      const burn = median(used.map((u) => u.kg));
+      const last = [...mine].reverse().find((l) => l.fuelKg != null);
+      if (burn == null || !last) return { verdict: 'unclear', why: 'No fuel readings to judge it by' };
+      const left = last.fuelKg / burn;
+      const laps = `${last.fuelKg.toFixed(1)} kg left at the flag, ${left.toFixed(1)} laps of fuel`;
+      if (left < FUEL_TIGHT_LAPS) return { verdict: 'right', why: `${laps}: the save was needed` };
+      if (left <= FUEL_ROOMY_LAPS) return { verdict: 'unclear', why: `${laps}: neither tight nor roomy` };
+      const before = median(used.filter((u) => u.lap <= c.lapNum).map((u) => u.kg));
+      const after = median(used.filter((u) => u.lap > c.lapNum).map((u) => u.kg));
+      if (before != null && after != null && after < before * SAVED_SHARE) return { verdict: 'unclear', why: `${laps}, but it used less from the call (${after.toFixed(2)} against ${before.toFixed(2)} kg a lap): the save may be why` };
+      return { verdict: 'wrong', why: `${laps}: spare, and it never used less after the call` };
+    }
+    // shortcut: pit-window and undercut-offer calls aren't graded yet (the dataset has none); add a rule when a race does.
     return { verdict: 'unclear', why: 'No test for this call yet' };
   };
 

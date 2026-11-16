@@ -5,6 +5,8 @@ const fs = require('fs');
 
 // easyOnGame: run below normal priority and redraw the window at 4 a second, so the game comes first.
 const DEFAULTS = Object.freeze({ httpPort: 8080, udpPort: 20777, share: true, phoneVoice: false, easyOnGame: true });
+// The file's format, written beside the settings. Unknown settings (a newer Undercut's) are ignored by applySettings.
+const SETTINGS_VERSION = 1;
 const port = (v) => Number.isInteger(v) && v >= 1024 && v <= 65535;
 
 // A change from the window, checked field by field: anything malformed is ignored.
@@ -25,6 +27,6 @@ function loadSettings(file) {
   }
 }
 
-const saveSettings = (file, s) => fs.writeFileSync(file, JSON.stringify(s, null, 2));
+const saveSettings = (file, s) => fs.writeFileSync(file, JSON.stringify({ version: SETTINGS_VERSION, ...s }, null, 2));
 
-module.exports = { DEFAULTS, applySettings, loadSettings, saveSettings };
+module.exports = { SETTINGS_VERSION, DEFAULTS, applySettings, loadSettings, saveSettings };

@@ -5,6 +5,12 @@ const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('util');
 const { startUdpListener } = require('./udp/listener');
+const { createIntake } = require('./udp/intake');
+const { createOutlines } = require('./state/trackOutline');
+const { TRACKS } = require('./udp/gameIds');
+const { loadPairKey } = require('./server/pairKey');
+const { buildLibrary } = require('./analysis/setupLibrary');
+const { cornerTrends, cornerTracks } = require('./data/cornerTrends');
 const { startReplay } = require('./capture/replay');
 const { createRecorder } = require('./capture/recorder');
 const { createCaptureSession, defaultCaptureDir } = require('./capture/session');
@@ -12,6 +18,7 @@ const { createTrackMemory } = require('./state/trackMemory');
 const { RIVAL_ID } = require('./engine/debrief');
 const { createPipeline } = require('./pipeline');
 const { openStore } = require('./data/store');
+const { parseSetupSheet } = require('./data/setupSheet');
 const { findStoreSession, auditFromStore } = require('./data/storeAudit');
 const { trends } = require('./data/trends');
 const { startServer } = require('./server/httpServer');
@@ -116,8 +123,21 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
   // result, so a reconnect can't trigger an extra, out-of-step evaluation.
   // Live sessions' debriefs are saved to <dataDir>/sessions and reloaded on
   // the next start; a demo replay would only fill it with copies of itself.
+  // The community setup sheet, imported once into <dataDir>/setups.json (importSetups below).
+  const setupsFile = path.join(dataDir, 'setups.json');
+  let setups = null;
+  try {
+    if (fs.existsSync(setupsFile)) setups = JSON.parse(fs.readFileSync(setupsFile, 'utf8'));
+  } catch (err) {
+    console.warn(`[setups] ${setupsFile} could not be read (${err.message}); import the spreadsheet again`);
+  }
+  const intake = createIntake();
+  const outlines = createOutlines({ file: opts.demoFile ? null : path.join(dataDir, 'tracks.json') });
   const pipeline = createPipeline({
     memory,
+    intake: opts.demoFile ? null : intake,
+    outlines,
+    setups,
     debriefDir: opts.demoFile ? null : path.join(dataDir, 'sessions'),
     source: opts.demoFile ? 'demo' : 'live',
     udpPort: opts.demoFile ? null : opts.udpPort, // the no-telemetry banner names it
@@ -192,13 +212,33 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     if (pathname === '/api/debrief/audit') return auditWithStore(params.get('session'));
     if (pathname === '/api/debrief/field') return debrief.fieldLaps(params.get('session'));
     if (pathname === '/api/debrief/older') return debrief.older();
+    if (pathname === '/api/setups') return setupLibrary();
+    // The outline of a track by its name, as the map in Race analysis needs it (null until a clean lap has drawn it).
+    if (pathname === '/api/outline') {
+      const id = Object.entries(TRACKS).find(([, name]) => name === params.get('track'));
+      return { outline: id ? outlines.get(Number(id[0])) : null };
+    }
+    // Corner trends: the tracks a trend can be drawn for, or one track's corners across your sessions there.
+    if (pathname === '/api/corners') {
+      if (!store) return { error: 'Corner trends come from the race store, which a replay doesn\'t use.' };
+      return params.get('track') ? cornerTrends(store.db, params.get('track')) : { tracks: cornerTracks(store.db) };
+    }
     if (pathname === '/api/trends') return store ? trends(store.db) : { error: 'Across-race trends come from the race store, which a replay doesn\'t use.' };
     const { analysis } = pipeline.snapshot();
     if (pathname === '/api/models') return { ...MODEL_INFO, tyre: analysis ? analysis.tyreModel : null };
     return null;
   }
 
-  const server = startServer({ httpPort: opts.httpPort, host: opts.httpHost, getSnapshot: pipeline.snapshot, onClientMessage, api, tls: opts.tls, onPortInUse });
+  // A phone that scanned the pairing QR code can save setup names, stars and notes (src/server/httpServer.js); a replay has nothing to save to.
+  const pairKey = opts.demoFile ? null : loadPairKey(dataDir);
+  const post = (pathname, body) => {
+    if (pathname === '/api/setups/note') {
+      saveSetupNote(body);
+      return { ok: true };
+    }
+    return null;
+  };
+  const server = startServer({ httpPort: opts.httpPort, host: opts.httpHost, getSnapshot: pipeline.snapshot, onClientMessage, api, tls: opts.tls, onPortInUse, pairKey, post });
 
   let socket = null;
   let recorder = null;
@@ -241,7 +281,9 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
       port: opts.udpPort,
       host: opts.udpHost,
       onPacket,
+      onError: (err) => intake.fail(err),
       onRawPacket: (buf) => {
+        intake.note(buf);
         if (capture) capture.recordPacket(buf);
         else if (recorder) recorder.record(buf);
       },
@@ -253,8 +295,51 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     const gone = debrief.remove(id);
     if (!gone) return false;
     if (gone.uid && store) store.deleteSession(gone.uid);
+    if (gone.uid) memory.forget(gone.uid); // what the race taught the track goes with it
     return true;
   }
+
+  // The "learn from this race" switch of a saved session. Off: what it taught the tracks is forgotten (turning
+  // it back on does not bring that back). False if the session isn't in the race store.
+  const learns = (id) => {
+    const uid = debrief.uidOf(id);
+    return uid && store ? store.learns(uid) : null;
+  };
+  function setLearn(id, on) {
+    const uid = debrief.uidOf(id);
+    if (!uid || !store || !store.setLearn(uid, on)) return false;
+    if (!on) memory.forget(uid);
+    return true;
+  }
+
+  // Reads the setup spreadsheet and keeps its F1 26 tab as setups.json. A file that can't be read changes nothing.
+  async function importSetups(file) {
+    let sheet;
+    try {
+      sheet = parseSetupSheet(file);
+    } catch (err) {
+      if (/F1 26|no circuits/i.test(err.message)) throw err;
+      throw new Error(`That is not a spreadsheet Undercut can read (${err.message}). Choose the setups .xlsx.`);
+    }
+    if (!sheet.circuits.length) throw new Error('The F1 26 tab has no circuits in it');
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(`${setupsFile}.tmp`, JSON.stringify(sheet));
+    fs.renameSync(`${setupsFile}.tmp`, setupsFile);
+    setups = sheet;
+    pipeline.setSetups(sheet);
+    return { game: sheet.game, circuits: sheet.circuits.length };
+  }
+  // The setup library: every setup run at each track, with its stats and your names and stars (analysis/setupLibrary.js).
+  function setupLibrary() {
+    if (!store) return { error: 'The setup library comes from the race store, which a replay does not use.' };
+    return { sheet: setups ? setups.game : null, tracks: buildLibrary({ sessions: store.setupLibrarySessions(), notes: store.setupNotes(), sheet: setups }) };
+  }
+  const saveSetupNote = (input) => {
+    if (!store) throw new Error('The race store is not available');
+    store.saveSetupNote(input);
+    pipeline.invalidateNotes(); // the garage screen shows the name and star at once
+  };
+  const setupsInfo = () => (setups ? { game: setups.game, circuits: setups.circuits.length } : null);
 
   let stopped = null;
   function stop() {
@@ -284,6 +369,13 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     // The game is sending telemetry right now (a replay isn't racing).
     live: () => !opts.demoFile && !!pipeline.snapshot().connected,
     deleteSession,
+    importSetups,
+    setupsInfo,
+    setupLibrary,
+    saveSetupNote,
+    invalidateHistory: pipeline.invalidateHistory,
+    learns,
+    setLearn,
     stop,
   };
 }

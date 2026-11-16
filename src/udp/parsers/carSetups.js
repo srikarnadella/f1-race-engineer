@@ -7,7 +7,7 @@ const { HEADER_LENGTH } = require('./header');
 // grows at the end in F1 26 still parses.
 const TRAILER_SIZE = 4;
 const PREFIX_SIZE = 28; // frontWing .. brakeBias, unchanged since F1 22
-const F1_25_STRUCT_SIZE = 50; // engineBraking only exists from here on
+const F1_25_STRUCT_SIZE = 50; // engineBraking, the tyre pressures, ballast and fuel load only exist from here on
 
 function readSetup(r, start, stride) {
   r.offset = start;
@@ -30,6 +30,16 @@ function readSetup(r, start, stride) {
     brakeBias: r.u8(),
     engineBraking: stride >= F1_25_STRUCT_SIZE ? r.u8() : null,
   };
+  if (stride >= F1_25_STRUCT_SIZE) {
+    // Rear left, rear right, front left, front right (checked on a real F1 26 capture: 20.5 rear, 29.5 front).
+    setup.tyrePressures = { rl: r.f32(), rr: r.f32(), fl: r.f32(), fr: r.f32() };
+    setup.ballast = r.u8();
+    setup.fuelLoad = r.f32();
+  } else {
+    setup.tyrePressures = null;
+    setup.ballast = null;
+    setup.fuelLoad = null;
+  }
   return setup;
 }
 

@@ -8,6 +8,7 @@ const { parseParticipants } = require('./parsers/participants');
 const { parseSession } = require('./parsers/session');
 const { parseEvent } = require('./parsers/event');
 const { parseCarSetups } = require('./parsers/carSetups');
+const { parseMotion } = require('./parsers/motion');
 const { parseMotionEx } = require('./parsers/motionEx');
 const { parseCarTelemetry2 } = require('./parsers/carTelemetry2');
 const { parseTyreSets } = require('./parsers/tyreSets');
@@ -27,6 +28,7 @@ function carSlotsFor(header) {
 }
 
 const PARSERS = {
+  [PACKET_IDS.MOTION]: (buf, n) => parseMotion(buf, n),
   [PACKET_IDS.CAR_TELEMETRY]: (buf, n) => parseCarTelemetry(buf, n),
   [PACKET_IDS.CAR_STATUS]: (buf, n) => parseCarStatus(buf, n),
   [PACKET_IDS.CAR_DAMAGE]: (buf, n) => parseCarDamage(buf, n),
@@ -48,7 +50,7 @@ const PARSERS = {
 function parsePacket(buf) {
   const header = parseHeader(buf);
   const parse = PARSERS[header.packetId];
-  if (!parse) return { header, data: null }; // Motion, lobby, time trial - not needed.
+  if (!parse) return { header, data: null }; // Lobby, time trial - not needed.
   return { header, data: parse(buf, carSlotsFor(header)) };
 }
 

@@ -32,13 +32,17 @@ function bestSectors(sh) {
 
 // Saved sessions: one gzipped JSON file per session in `dir` (data/sessions),
 // written once when the session ends. The Maps go to arrays and back.
+// The file's format. A file with no `v` was written before versions (format 1). One from a newer Undercut is
+// refused, not misread; the callers skip it with a warning.
+const DEBRIEF_VERSION = 1;
 function toFile(rec) {
   // Only the rival laps lap compare offers: all 21 would double the file, and every saved session is reloaded at start.
   const rivalBest = [...rec.rivalBest].sort((x, y) => x[1].lapMs - y[1].lapMs).slice(0, RIVAL_CHOICES);
-  return zlib.gzipSync(JSON.stringify({ ...rec, field: [...rec.field], traces: [...rec.traces], rivalBest }));
+  return zlib.gzipSync(JSON.stringify({ ...rec, v: DEBRIEF_VERSION, field: [...rec.field], traces: [...rec.traces], rivalBest }));
 }
 function fromFile(buf) {
-  const rec = JSON.parse(zlib.gunzipSync(buf).toString());
+  const { v = 1, ...rec } = JSON.parse(zlib.gunzipSync(buf).toString());
+  if (v > DEBRIEF_VERSION) throw new Error(`saved by a newer Undercut (format ${v}; this one reads ${DEBRIEF_VERSION})`);
   return { ...rec, field: new Map(rec.field), traces: new Map(rec.traces), rivalBest: new Map(rec.rivalBest || []), generation: null };
 }
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -279,6 +283,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     const fieldSectors = [0, 1, 2].map((i) => field.reduce((m, f) => (f.bestSectors && f.bestSectors[i] && (!m || f.bestSectors[i] < m.ms) ? { ms: f.bestSectors[i], name: f.isPlayer ? 'You' : f.name } : m), null));
     return {
       id: s.id,
+      uid: s.uid || null, // the game's session id: how the setup library links to this race
       live: s === current,
       startedAt: s.startedAt,
       sessionType: s.sessionType,
@@ -462,7 +467,13 @@ function createDebrief(fieldModel, { dir = null } = {}) {
   }
 
   // The raw record of the session in progress (the race store reads its lap traces).
-  return { tick, noteCall, view, older, compare, rivals, audit, fieldLaps, flush, remove, current: () => current };
+  // The game's session id of a saved session (null: unknown), the key of the race store's rows.
+  const uidOf = (id) => {
+    const s = history.find((h) => h.id === id) || find(id);
+    return (s && s.uid) || null;
+  };
+
+  return { tick, noteCall, view, older, compare, rivals, audit, fieldLaps, flush, remove, uidOf, current: () => current };
 }
 
-module.exports = { RIVAL_ID, createDebrief };
+module.exports = { RIVAL_ID, DEBRIEF_VERSION, createDebrief };

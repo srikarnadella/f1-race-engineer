@@ -122,6 +122,25 @@ function qualifying({ session, cars, player, delta, outLapMs = null }) {
     };
   }
 
+  // The whole session as a timing screen: every car by best lap (the player's from the live delta when History
+  // hasn't caught up), then the cars with no time. position is a rank (ties share it); cutLine marks the last
+  // car that goes through, and only when that many cars have set a time.
+  const rows = cars.map((c) => ({ c, ms: c.carIndex === player.carIndex ? myBest : bestLapMs(c) }));
+  const timed = rows.filter((x) => x.ms != null).sort((a, b) => a.ms - b.ms || a.c.carIndex - b.c.carIndex);
+  const untimed = rows.filter((x) => x.ms == null).sort((a, b) => a.c.carIndex - b.c.carIndex);
+  const statusOf = (c) => (c.lapData && c.lapData.pitStatus !== 0 ? 'garage' : STATUS[c.lapData && c.lapData.driverStatus] || 'track');
+  const order = [...timed, ...untimed].map((x, i) => ({
+    name: name(x.c),
+    isPlayer: x.c.carIndex === player.carIndex,
+    position: x.ms != null ? 1 + timed.filter((t) => t.ms < x.ms).length : null,
+    bestMs: x.ms,
+    gapMs: x.ms != null ? x.ms - timed[0].ms : null,
+    status: statusOf(x.c),
+    compound: (x.c.status && x.c.status.visualTyreCompound) ?? null,
+    regs2026: x.c.telemetry2 ? x.c.telemetry2.regulations2026 : null,
+    cutLine: !!cutPos && i === cutPos - 1 && i < timed.length,
+  }));
+
   return {
     kind,
     name: NAMES[session.sessionType] || 'Session',
@@ -138,6 +157,8 @@ function qualifying({ session, cars, player, delta, outLapMs = null }) {
     toLine,
     runs,
     traffic,
+    order,
+    pushing: order.filter((e) => e.status === 'flying').length,
   };
 }
 

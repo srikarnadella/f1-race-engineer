@@ -3,7 +3,7 @@
 const dgram = require('dgram');
 const { parsePacket } = require('./parsePacket');
 
-function startUdpListener({ port = 20777, host = '127.0.0.1', onPacket, onRawPacket }) {
+function startUdpListener({ port = 20777, host = '127.0.0.1', onPacket, onRawPacket, onError }) {
   const socket = dgram.createSocket('udp4');
 
   socket.on('message', (msg) => {
@@ -29,6 +29,7 @@ function startUdpListener({ port = 20777, host = '127.0.0.1', onPacket, onRawPac
 
   socket.on('error', (err) => {
     console.error('[udp] socket error:', err);
+    if (onError) onError(err);
   });
 
   socket.bind(port, host, () => {

@@ -4,7 +4,9 @@
 //
 // Written for small models: tyres by name, times in seconds, events filtered to what happened to you
 // and to the race, and bind(sessionId) to answer about one session without a session_id argument.
+const { sessionStart } = require('../lib/sessionTime');
 const { DatabaseSync } = require('node:sqlite');
+const { SCHEMA_VERSION } = require('../data/store');
 const { compareLaps, describeCorner, lapCorners, resample } = require('../analysis/lapCompare');
 const { analyzeSteering } = require('./steering');
 const { adviseCorners, liftAndCoast, balanceAdvice, batteryLap } = require('./coaching');
@@ -47,20 +49,17 @@ const TOOLS = {
   compare_laps: { description: 'Two of your laps with telemetry, corner by corner: where lap_b lost or gained time on lap_a, and why (braking, apex and exit speed).', props: { session_id: SID, lap_a: int('reference lap'), lap_b: int('lap to explain') }, required: ['session_id', 'lap_a', 'lap_b'] },
 };
 
-// Sessions ingested from a recording store their start as an offset into it; the recording's
-// name is its local start time (2026-10-19_173010). Returns epoch ms, or null if unknown.
-function sessionStart(startedAtMs, captureName) {
-  if (startedAtMs > 1e12) return startedAtMs;
-  const m = /^(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(\d{2})/.exec(captureName || '');
-  if (!m) return null;
-  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() + startedAtMs;
-}
-
 // The day as you lived it (local time), not UTC: an evening race isn't tomorrow's.
 const localDay = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 function createRaceTools(file) {
   const db = new DatabaseSync(file, { readOnly: true });
+  // It can't upgrade a file (the bridge's store does that); a newer one may have changed what these queries read.
+  const version = Number(db.prepare('PRAGMA user_version').get().user_version);
+  if (version > SCHEMA_VERSION) {
+    db.close();
+    throw new Error(`${file} is schema v${version}; this code knows v${SCHEMA_VERSION}`);
+  }
   const q = (sql) => db.prepare(sql);
   const codes = EVENT_CODES.map((c) => `'${c}'`).join(',');
   const sql = {

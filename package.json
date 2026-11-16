@@ -34,7 +34,8 @@
     "db": "node scripts/build-db.js",
     "backtest": "node scripts/backtest.js",
     "llm-eval": "node scripts/llm-eval.js",
-    "cadence": "node scripts/cadence.js"
+    "cadence": "node scripts/cadence.js",
+    "scan": "node scripts/scan-published.js"
   },
   "dependencies": {
     "qrcode-terminal": "0.12.0",

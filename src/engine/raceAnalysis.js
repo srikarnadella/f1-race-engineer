@@ -387,8 +387,10 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
   // A stop splits across two laps (pit entry before the line, box after it),
   // so loss = in-lap + out-lap - 2 x the car's clean pace around it.
   // A measurement from a race goes into the track's memory too.
+  // Samples carry their session's id, so deleting the race can take them back.
+  const sessionUid = () => (fieldModel.getSessionUID ? String(fieldModel.getSessionUID()) : null);
   const remember = (session, kind, value) => {
-    if (session && RACE_SESSION_TYPES.has(session.sessionType)) memory.add(session.trackId, kind, value);
+    if (session && RACE_SESSION_TYPES.has(session.sessionType)) memory.add(session.trackId, kind, value, sessionUid());
   };
 
   function measurePitLosses(car, session) {
@@ -521,7 +523,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const stopGos = l.numUnservedStopGoPens || 0;
     if (l.pitStatus !== 0 && !pitVisit) pitVisit = { timeS, stops: l.numPitStops || 0, serving: driveThroughs + stopGos > 0 };
     if (l.pitStatus === 0 && pitVisit) {
-      if (!pitVisit.serving && pitVisit.timeS > 0 && (l.numPitStops || 0) > pitVisit.stops) memory.add(GAME_RULES, 'penaltyServedAtStop', timeS < pitVisit.timeS ? 1 : 0);
+      if (!pitVisit.serving && pitVisit.timeS > 0 && (l.numPitStops || 0) > pitVisit.stops) memory.add(GAME_RULES, 'penaltyServedAtStop', timeS < pitVisit.timeS ? 1 : 0, sessionUid());
       pitVisit = null;
     }
     if (!cc && !timeS && !driveThroughs && !stopGos) return null;
@@ -547,7 +549,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
 
   // The session's wear rates into the track's memory: at the next session, or on shutdown.
   function saveFit() {
-    if (lastFit) for (const [c, d] of Object.entries(lastFit.compounds)) memory.add(lastFit.trackId, `deg${c}`, d.degMsPerLap);
+    if (lastFit) for (const [c, d] of Object.entries(lastFit.compounds)) memory.add(lastFit.trackId, `deg${c}`, d.degMsPerLap, lastFit.uid);
     lastFit = null;
   }
 
@@ -688,6 +690,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
         running: isRunning(car),
         // F1 26 Overtake mode: this car has it available right now.
         overtakeAvailable: car.telemetry2 ? car.telemetry2.overtakeAvailable : null,
+        // Car Telemetry 2's per-car flag: this car runs the 2026 rules (false: the 2025 rules, an online mix).
+        regs2026: car.telemetry2 ? car.telemetry2.regulations2026 : null,
       };
     });
 
@@ -730,7 +734,7 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     const myDeg = tyreModel.compounds[myCompound];
     const trusted = Object.fromEntries(Object.entries(tyreModel.compounds).filter(([, d]) => d.cars >= MIN_DEG_CARS && d.laps >= MIN_DEG_LAPS && d.degMsPerLap > 0));
     // Practice and race laps only: qualifying is fresh tyres, low fuel and cool-down laps.
-    if (session && Object.keys(trusted).length && (PRACTICE_TYPES.has(session.sessionType) || RACE_SESSION_TYPES.has(session.sessionType))) lastFit = { trackId: session.trackId, compounds: trusted };
+    if (session && Object.keys(trusted).length && (PRACTICE_TYPES.has(session.sessionType) || RACE_SESSION_TYPES.has(session.sessionType))) lastFit = { trackId: session.trackId, compounds: trusted, uid: sessionUid() };
     // Only trusted with enough of the field behind it: at Monaco a fit from
     // 4 cars / 16 laps read 0.21 s per lap of age - traffic, not tyres.
     const payback = myDeg && myDeg.cars >= MIN_DEG_CARS && myDeg.laps >= MIN_DEG_LAPS && player.status
