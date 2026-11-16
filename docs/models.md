@@ -77,8 +77,11 @@ came after it:
 - **BOX for damage** claims the time lost to the flag is worse than a stop.
 - **BOX under a safety car** claims the stop is cheaper than one under green.
 - **BOX for inters or slicks** claims that tyre is quicker: over the next 3 laps, the cars on it against the cars on the other one.
+- **HOLD for fuel (tight or short)** claims the save was needed: right if the car finished with less than half a lap of fuel
+  left, wrong if it finished with more than a lap and a half spare and never used less after the call, otherwise left
+  unjudged (a roomy finish after the car used less may be the save working).
 
-On the recorded races: **16 right, 0 wrong, 20 that the laps can't judge** (mostly a call replaced by a
+On the 10 recorded races: **22 right, 0 wrong, 21 that the laps can't judge** (mostly a call replaced by a
 safety car or a flashback before it could be checked). `npm run backtest` prints it.
 
 ## After the race

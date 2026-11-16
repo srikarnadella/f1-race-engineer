@@ -91,3 +91,11 @@ trees the app runs (`src/ml/models/overtake-gbdt.json`) and the parity fixture `
 python -m venv .venv && .venv/Scripts/pip install -r ml/requirements.txt   # bin/ instead of Scripts/ on macOS/Linux
 .venv/Scripts/python ml/overtake_lgbm.py
 ```
+
+The code is a small package, `ml/undercut_ml` (`pyproject.toml` pins the same versions as `requirements.txt`):
+`data.py` reads the datasets and the race store (read-only, and skipping races switched off with "learn from this"),
+`evaluate.py` is the leave-one-race-out scoring every model shares, `export.py` writes trees and parity fixtures, and
+`models/overtake.py` is the model (`python ml/overtake_lgbm.py` still runs it). Its unit tests:
+`cd ml && ../.venv/Scripts/python -m unittest discover -s tests` (`npm test` runs them when there is a `.venv`).
+Re-running the overtake script leaves the committed model, parity fixture and report byte for byte as they were:
+that is the check that a change to the package changed no result.

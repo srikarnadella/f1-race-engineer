@@ -17,8 +17,39 @@ Switch with the buttons down the left edge, or keys **1–6**.
 | **Battle** | The fight either side, big enough to read from the seat: gaps, closing rates, chance of a pass, each car's battery now and at the line, and top speeds. |
 | **Strategy** | "Should I box?" Where you'd rejoin and next to whom, **pit timing** (which lap to box on), the stay-out and box options under a safety car, the **race plan** on the grid, the tyre model and the weather. |
 | **Weather** | The forecast in laps, big, with tyre life and where a stop would put you. |
-| **Custom** | Your own layout from the same widgets (battle, radio, call, rejoin, pit timing, tyres, setup tips, weather, pace, lap delta). |
+| **Custom** | Your own layout from the same widgets (battle, radio, call, rejoin, pit timing, tyres, setup tips, weather, pace, lap delta). Keep up to three: **Customize** on any screen starts one from it, **New custom screen** copies the one you are editing, and **Delete this screen** removes one. Saved on the device. |
 | **Debrief** | After the race: the official result, best and theoretical-best lap, sectors against the fastest car, a lap chart and a position chart for the whole field. **Lap compare** puts two laps (or your lap and a rival's best) side by side as speed, throttle and brake traces, with corner-by-corner reasons. **Rivals** shows where you lose time to the fastest car. **Calls** grades every call the engineer made against the laps that followed it. **Models** shows what the machine learning has learned and whether it beats the simple guess. |
+
+### Qualifying and shootouts
+
+While the session is qualifying (Q1-Q3, short or one-shot) or a sprint shootout, the live screens are different, because nothing about a race
+(gaps, defending, pit timing) means anything when the order is by best lap. **Drive, Battle, Strategy and Weather** give way to three:
+
+| Screen | What it shows |
+|---|---|
+| **Lap** | The lap you are on. On a push lap the live delta to your best is the headline, with the place it would give ("would be P6, a new best"); a deleted lap says so, and so does one that is already too far down to count. On an out lap: the time to the line and whether you start before the flag. In the garage: the clock and how many runs fit. Your best and place, and how far you are clear of (or short of) the knockout line. Traffic on the road, named. Beside it the lap delta with its mini-sectors. |
+| **Order** | Every car by best lap with the gap to P1, who is on a push, out lap, in lap or in the garage, their tyres, you highlighted, and the cars below the knockout line dimmed. |
+| **Plan** | Time left, runs left, how many cars are on a push lap, the track temperature, your tyres and the forecast, with a sentence when there is one to say ("no time for another run: the order stands"). |
+
+They swap in when the session becomes qualifying and out when it is a race again; Custom screens and the Debrief stay, and Practice keeps the race screens. The three widgets (`qlap`, `qorder`, `qplan`) can also go on a Custom screen.
+
+### Setup (the garage)
+
+A **Setup** screen, under its own Garage heading. Your car's setup is on top and the community setup sheet's for the track you are
+at is below it: green for a value that is right, red for one that is off, and under it the number to enter with which way to go
+("42 (−3)"). Fourteen values in the car menu's order: front and rear wing, differential on and off throttle, front and rear
+suspension, anti-roll bars and ride height, brake pressure and bias, front and rear tyre pressure. In qualifying it uses the
+sheet's qualifying values, otherwise its race values. It comes up by itself when you are in the garage or the pit lane in
+practice, qualifying or time trial (never in a race, where the car can't be changed) and goes back when you leave; switch that
+off in Settings. It needs the spreadsheet imported once: Settings, Import setups, then pick the `.xlsx` (the F1 26 tab is read
+and kept on this PC). It only shows the differences from the sheet. Undercut can't change anything in the game: the telemetry
+only goes out.
+
+### Mixed 2025 and 2026 cars
+
+The game flags each car as on the 2026 or the 2025 rules. When an online lobby has both, the header shows "Mixed '25/'26"
+(hover for the counts) and the car names on Drive and Battle and in the Order and Around-you tables carry '25 or '26. A field of
+one rule set shows nothing.
 
 ### Auto-switch
 

@@ -122,6 +122,255 @@ flowchart LR
 
 Green: done. Blue: partly done. Amber: ready next.
 
+## Targets (updated 15 Nov 2026)
+
+Everything in the graph above is built except M3 and L4's last scoring. What comes next, in order:
+
+1. **Race library you control** (K1-K3, engine side *done* 15 Nov 2026). K1: every track-memory sample carries
+   the session it came from (`{ v, s }` in tracks.json; older plain numbers stay, with no session to forget them
+   by), including the wear fits saved at the next session and the game-rule samples. K2: race.db's
+   `session.learn` (schema step 3, default on, kept when a race is processed again); `bridge.setLearn(id, false)`
+   forgets what the race taught, and turning it back on does not restore that. K3: deleting a saved session
+   also forgets its samples (`trackMemory.forget`), and the confirm dialog says so. *Tests:*
+   `test/trackMemoryForget.test.js`, `test/sessionLearn.test.js`, one in `test/raceAnalysis.test.js`: a whole
+   synthetic race teaches nothing that isn't tagged, so forgetting its uid leaves memory empty; planted bugs
+   (no forget on delete, untagged wear fit or penalty sample, the choice lost on rewrite, the switch read
+   backwards, a migration default of off) each fail a test. *Done:* Storage rows have a "Learn from this: on/off" button for
+   sessions the race store holds (`learnFlags`/`setLearn` over IPC; turning it off asks first, because the forgetting
+   can't be undone; `test/desktopHome.test.js`). *Open:* the dataset
+   scripts read captures, not race.db, so they don't read the flag; captures and exports of an excluded race are
+   still on disk until it is deleted.
+2. **Finish what is half done:** (L4's scoring is saved for its own session, by the user's choice) (L4: Llama 3.2 3B and Phi-4-mini, Qwen3 4B on the full set, more "no"
+   questions), W8 (frames with Undercut open vs minimized), the ERS "last lap" wording, Austria in the dataset.
+3. **Ship properly** (new, S1-S2). S1: a release workflow that builds the installer and attaches it to a tag.
+   S2: auto-update from GitHub Releases. Signing only if worth the yearly cost.
+4. **Motion and the track** (new, X1-X3). X1: parse the Motion packet (old captures already hold it). X2: track
+   map and race replay. X3: a spotter ("car left"). *Test:* X1 positions put every car on the same outline lap
+   after lap; X3 latency measured end to end.
+5. **Python ML package** (new, P1-P2, the desktop plan's Phase 4). P1: `ml/undercut_ml` reads race.db and
+   reproduces the overtake AUC of 0.866. P2: the next model (attack corner, which trails the busiest-corner rule,
+   or tyre wear) with a parity test against the JS runtime.
+6. **Share and grade more:** share-this-race image; grade pit-window, fuel and undercut calls.
+
+**Setup screen node** (SL1, SL2: done 15 Nov 2026):
+
+- **SL1 The community setup sheet, read.** `src/data/setupSheet.js` reads the F1 26 tab of the user's spreadsheet
+  (`F1 game setups (22-26).xlsx`, an .xlsx read with zlib, no library) into numbers per circuit: aero and differential
+  (qualifying and race values where the cell splits them), the six suspension values, brake pressure and bias range, tyre
+  pressures, compounds, strategy and notes. Imported once from Settings (`Import setups`, the PC picks the file) into
+  `<data>/setups.json`; the repo and installer carry none of it (the sheet is someone else's work and says it will not be
+  updated). `test/setupSheet.test.js` (cell formats copied from the real tab; the real file parses all 24 circuits),
+  `test/setupImport.test.js` (the bridge, a restart, a refused file leaves the last import alone).
+- **SL2 The Setup screen.** The car's setup (the Car Setups packet now also gives the tyre pressures, ballast and fuel load:
+  read off a real capture, 20.5 rear and 29.5 front, the sheet's own scale) against the sheet's for the track
+  (`src/analysis/setupCompare.js`, `setupView.js`, `snapshot.setup`): fourteen values in car-menu order, now in green or
+  red, the value to enter below with which way to go (`42 (−3)`); the brake bias is right anywhere in the sheet's range,
+  pressures within 0.05 bar. A `Setup` tab (under a Garage heading, after the Debrief so keys 1-6 stay) that comes up by
+  itself in the garage or pit lane in practice, qualifying and time trial (never a race: the car can't be changed) and goes
+  back when you leave; a Settings switch, on by default. `test/setupCompare.test.js`, `setupView.test.js`,
+  `setupScreen.test.js`; looked at in headless Edge with the real Spa row and the setup from a real recording.
+  *Not done:* it shows differences from the sheet; it does not say the sheet is right for your driving. Nothing writes to
+  the game: the telemetry is one-way. The suspension geometry cell ("LLLL") is kept as text, not compared. Madrid has no
+  game track id yet. Not tried in the real game.
+
+**Mixed field node** (MF1, done 15 Nov 2026): Car Telemetry 2 flags each car (`regulations2026`; true for all 22 in the
+recorded AI races, so a mixed online lobby has false on the 2025 cars; never seen). `fieldRules` counts them into
+`snapshot.rules`; the header shows "Mixed '25/'26" (hover: the counts) and the Battle/Drive card names, the Order and
+Around-you tables tag each car '25 or '26, only when both are in the field (`test/mixedField.test.js`). *Open:* the engine's
+overtake model and ERS tips still treat every rival as the player's own rule set. *Done after:* MF2, the hint on a rival
+close behind follows that rival's rules (a 2025 car is a DRS threat, a 2026 car has Overtake mode), only when the game's
+count says the field is mixed (`test/mixedField.test.js`).
+
+**Round of 15 Nov 2026 (late)** - each built test first, whole suite green:
+
+- **FR1 First-run check.** `src/udp/intake.js` counts what reaches the UDP port (packets, the packet format, a socket error).
+  The "No telemetry" banner now says which cause: nothing arriving (UDP off or the wrong port), an old packet format (names it,
+  asks for 2025 or later), the port taken by another program (EADDRINUSE), or "arriving, waiting for a session"
+  (`test/firstRun.test.js`).
+- **SH1 Setup history.** The session recorder keeps the whole setup whenever any of it changes (`setup_run`, a table added
+  with `IF NOT EXISTS`, no migration needed). `src/analysis/setupHistory.js` picks the setup behind your fastest clean lap at
+  the track (qualifying compared with qualifying, a changed setup credited only with the laps run on it); the Setup screen shows
+  it as "Your fastest here", red where the car differs with the change back to it. Works without the sheet
+  (`test/setupHistory.test.js`). *Not done:* tyre wear and compound are not part of the ranking.
+- **UN1 Units.** Settings: Miles and Fahrenheit, remembered. The dashboard's top speeds and the qualifying temperatures follow
+  it; radio calls and the debrief stay metric (`test/units.test.js`).
+- **MP1 Track map.** `src/state/trackOutline.js` builds the outline from one clean lap of yours (240 points by distance round the
+  lap, no pit-lane laps, kept once drawn) into `tracks.json` in the data folder; `snapshot.map` has every car's place from
+  Motion every tick and the outline once a second. The `map` widget draws it (you, cars ahead, cars behind); it is a widget for
+  Custom screens. Checked on a real Spa recording: the outline is Spa. *Open:* a preset screen with it, once seen in the game.
+- **BR1 Pre-race briefing.** `src/analysis/briefing.js` from the store (`trackHistory`) and the track memory: sessions and races
+  here, best lap, best finish, last race, usual stops, pit stop cost, tyre wear per compound. A Briefing screen in the Garage
+  group (`test/briefing.test.js`). It states what happened before and predicts nothing.
+- **SL3 Setup library (the Setups place).** A desktop place (Home, "Setups") with every setup you ran at each track: its values
+  against the sheet, fastest and median clean laps with the compound, track temperature and weather beside them, race pace only
+  from 5 or more clean race laps (and labelled as not corrected for fuel), and links into Race analysis for each session, and back
+  from a race to the setups run in it. Names (60 characters), stars and notes (500) live in their own table `setup_note`, keyed by
+  track and setup, so re-reading a recording or deleting a race cannot take one away; a named or starred setup stays when its sessions
+  are gone. A setup is its values plus camber, toe, engine braking and ballast (now recorded), *not* brake bias, which the wheel moves
+  lap by lap. Two ticked setups compare side by side with only the differing values marked. "Read setups from my recordings" replays
+  every recording still on disk into the store in a worker thread, after keeping a copy (`race.db.before-backfill`); it is safe to
+  repeat, and recordings whose packets were dropped are counted as skipped. The Setup screen in the garage can star and name the
+  setup on the car (app only). *Tests:* `test/setupLibrary.test.js`, `setupNotes.test.js`, `ingest.test.js`, `desktopSetups.test.js`
+  (and additions to `setupScreen`, `setupView`, `desktopAnalysis`, `desktopHome`); seven planted bugs (identity counting brake bias, pit
+  laps counted clean, race pace from one lap, an inverted favorites filter, an untrimmed name, an unchecked name length, a re-read wiping
+  notes) are each caught. *Open:* lap time is confounded by fuel, tyres and weather, so nothing ranks setups outright; no fuel correction
+  until a rate is validated; not tried in the live game; the Setups place is for the app window, not phones.
+- **SL4 Recommended defaults.** Every track in the setups sheet that the game has an id for (24 of 25; Madrid has none yet) is in the
+  Setups library from the start, with the sheet's qualifying and race setup as "Recommended" entries (one if they are the same), first
+  in the list, labelled "from the sheet, not driven yet", with the sheet's values (a range stays a range, a value the sheet lacks is a
+  dash) and nothing to rename or save. They compare with your own setups. Tracks you have driven come first, the rest by name
+  (`test/setupRecommended.test.js`, `desktopSetups.test.js`). Nothing is written into the game: the telemetry link is one-way.
+- **SL5 The setups library on a phone.** The library is a screen in the garage group of the phone and tablet dashboard (listed in the
+  garage, like Setup and Briefing), reading `/api/setups`. A device that scanned the pairing QR code carries a key (`?k=`, kept in
+  its storage and taken out of the address bar) and can also star, rename and add notes over `POST /api/setups/note`; any other device
+  can look but not change anything and is told how to pair. The key (`src/server/pairKey.js`, `<data>/pair-key`) is made once and kept;
+  a write needs it in a header, the request's Origin must be the server's own, the body is at most 8 KB, and the server gives no CORS
+  permission, so a page on another site cannot send one (`test/pairWrite.test.js`, `phoneSetups.test.js`, `start.test.js`). Reading
+  recordings and opening Race analysis stay on the PC. *Open:* no "unpair devices" button (delete `pair-key` and restart); the key
+  travels over plain http on the home network unless voice questions switched the dashboard to https.
+- **AN1 Where you lose time, corner trends, race starts, screen awake.** *Map:* Race analysis's Lap vs lap draws the track outline
+  coloured by what your lap lost (red) or gained (green) on each stretch, from the comparison's running gap cut into 240 slices
+  (`src/analysis/timeMap.js`, `/api/outline`). *Corner trends:* All races has a track picker; each session's best clean lap against
+  your fastest lap there, corner by corner, with what got closer or slipped (`src/data/cornerTrends.js`, `/api/corners`); fuel, tyres
+  and weather differ between sessions, so a small change is noise (said on the page). *Race starts:* grid slot, position after lap 1 and
+  the places gained, per race and as an average (`trends().starts`). *Screen awake:* a switch in Settings (on by default, off in the
+  desktop app) using the browser's wake lock, re-asked for whenever the page comes back; it replaces the always-on code that did nothing
+  silently on plain http. A browser only grants a wake lock to a secure page, so on http the Settings page now says to turn on Voice
+  questions on phones (https). *Tests:* `timeMap`, `cornerTrends`, `starts`, `desktopTrendsExtras`, `keepAwake`, additions to
+  `desktopLapCompare` and `start`; the null-print guard test caught a bug in the first corner table.
+- **UI1 Docked sidebar and the Setups page's own theme.** The rail is one full-height column fixed to the window's left edge with
+  hairline-separated rows (the original black and grey, the active screen still the white row); on a phone it is the top bar again. The
+  dashboard's colours are unchanged. A navy palette tried for the whole dashboard was reverted: the colour change was meant for the Setups
+  page only, which now has its own warm graphite theme with amber for favorites and the sheet's defaults, scoped to that page by
+  overriding the colour tokens on `.place--setups` (`test/desktopSetups.test.js`).
+- **FC1 Race forecast: not built.** Backtest on the four stored long races (the forecast: race time so far plus the remaining
+  laps at recent pace plus the usual stops): mean position error 3.61 against 3.75 for "finish where you are", 9 usable points.
+  That is inside the noise, so no forecast is shown; it needs more recorded long races.
+- **WI1 What-if replays: not built.** They need a tyre and pace model validated well enough to say "you would have gained X s".
+
+**Qualifying mode node** (Q9, done 15 Nov 2026):
+
+- **Q9 A different dashboard in qualifying.** `analysis.quali` gained `order` (every car by best lap with the gap to P1, its
+  status, tyre and the knockout line) and `pushing`; `public/widgets-quali.js` has `qlap`, `qorder` and `qplan`; while
+  `quali.kind` is `qualifying` (Q1-Q3, short, one-shot, the sprint shootouts) the live screens are Lap, Order and Plan, and the
+  race screens return for a race (practice keeps them). The page moves to the new set's first screen when the mode changes and
+  leaves Custom and the Debrief alone. *Tests:* `test/qualiMode.test.js` (11: the swap both ways, practice, the number keys,
+  each screen's numbers, auto-switch asking for a screen that is not there), the order in `test/qualifying.test.js`; planted
+  bugs in the mode test, the swap and the deleted-lap text are caught; the three screens were looked at in headless Edge.
+  *Not done:* none of it has run in a real qualifying session; the Plan screen's runs and tile text are first drafts.
+
+**Custom screens node** (C1, done 15 Nov 2026):
+
+- **C1 Up to three custom screens.** Custom, Custom 2 and Custom 3, kept on the device (`raceEngineer.customs`; a single
+  Custom saved by the old version still loads). Customize on a screen makes one from it (the first replaces the unused
+  default, as before), the editor's **New custom screen** copies the one being edited, **Delete this screen** removes
+  one (the rest renumber; the last one stays and can be reset), and Customize is disabled with a reason once three
+  exist. `test/customScreens.test.js` (9 tests: the screen had none before; planted bugs in the limit and the delete
+  guard are caught).
+
+**Share node** (done 15 Nov 2026):
+
+- **Share this race.** Race analysis has a "Share this race" button on a saved session that saves one 1200 x 630 PNG:
+  the track and day, the result (`P5 from P8 · +3 · 10 pts`), best lap, race pace, stops and consistency, the stints
+  as bars as wide as their laps in the tyre colors, and the graded calls (`5 calls: 2 right, 1 wrong, 2 not judged`,
+  left off when the race has no audit). `public/share.js` (`shareModel`, `drawShareCard`, `shareRace`);
+  drawn in the browser, nothing uploaded, no driver names, addresses or paths on it. *Tests:*
+  `test/shareCard.test.js` (what the card says, with nothing blank; the stints in proportion and in order; no line
+  runs off the card however long a name is; the file name), `test/desktopAnalysis.test.js` (the button, with and
+  without an audit, hidden on All races); looked at in the browser engine (headless Edge, the bundled Archivo).
+  *Open:* no copy-to-clipboard, and no card for a session still in progress.
+
+**Python package nodes** (P1: done 15 Nov 2026):
+
+- **P1 `ml/undercut_ml`.** The overtake script moved into a package: `data.py` (the datasets and the race store,
+  read-only, with `load_laps` skipping sessions switched off by the learn switch), `evaluate.py` (leave-one-race-out,
+  scores, calibration, the race bootstrap), `export.py` (trees and parity fixtures), `models/overtake.py`;
+  `pyproject.toml`; `ml/overtake_lgbm.py` is a thin wrapper so the old command works. *Test:* re-running it
+  reproduces the AUC of 0.866 and leaves `src/ml/models/overtake-gbdt.json`, `test/fixtures/overtake-gbdt-parity.json`
+  and `docs/ml-overtake-lightgbm.md` byte-identical (checked by running it before and after: 95 s, no diff);
+  `ml/tests/test_undercut_ml.py` (11 unit tests, run by `test/mlPackage.test.js` when a `.venv` exists). *Open (P2):*
+  a second model (the attack-corner forecast that trails the busiest-corner rule, or tyre wear) trained through the
+  package, with its own parity fixture and JS runtime.
+
+**Motion nodes** (X1, X3: done 15 Nov 2026; X2 half):
+
+- **X1 Parse the Motion packet.** Every car's position (metres, y up), velocity and forward and right directions,
+  in the F1 25 layout (22 cars of 60 bytes) and F1 26's (24 cars of 54 bytes, 1325 bytes, read off a real
+  capture: the g-forces and angles after the first 36 bytes moved, and aren't read). `src/udp/parsers/motion.js`,
+  `test/parsers.test.js`; the field model keeps each car's latest `world`.
+- **X3 Spotter.** `src/analysis/spotter.js`: a car alongside on a side (within 5.6 m along the car, 0.5-5 m across,
+  in the player's own frame) is "car left" or "car right", held 0.4 s after it leaves so a flicker is not a call;
+  the snapshot carries `spotter: { left, right }`; the voice says "Car left", "Car right", "Cars both sides",
+  "Clear left", "Clear right" or "Clear", urgently (it cuts off routine chatter), with a Spotter switch in
+  Settings (on by default, spoken only with the radio voice on). *Tests:* `test/spotter.test.js`,
+  `test/spotterPipeline.test.js`, `test/voiceSpotter.test.js`. *On the real races* (Motion replayed through the
+  pipeline): Barcelona 58 side calls, median 1.6 s alongside, 90% under 3.2 s, 9 under 0.6 s; Spa 114 calls, median
+  2.9 s, 90% under 8.6 s, 4 under 0.6 s: long enough to be real side-by-side running, few flickers. *Open:*
+  not tried in a live race (latency from the game to the voice is untested); the thresholds are first guesses;
+  cars are points, not boxes.
+- **X2 Track map and replay.** *Open:* the positions are live in the field model, but no map is drawn and none
+  are stored (22 cars at even 2 Hz is about 240,000 rows a race, so the store needs a decision first).
+
+**Shipping nodes** (S1, S2: done 15 Nov 2026):
+
+- **S1 Release workflow.** `.github/workflows/release.yml`: pushing a tag `vX.Y.Z` runs on Windows, refuses a tag
+  that is not `package.json`'s version, runs the tests, builds the installer (`--publish never`), and attaches
+  `Undercut-Setup-X.Y.Z.exe` plus a copy named `Undercut-Setup.exe` to the release (creating it if there is none).
+  `test/releaseWorkflow.test.js` pins the trigger, the order (tests before build before upload) and the names; the
+  workflow itself has not run yet, only on the first tag. The site and README still link the versioned name of
+  v0.1.0; point them at `releases/latest/download/Undercut-Setup.exe` once a release has that file.
+- **S2 Check for updates.** Settings, This PC: a button that asks GitHub's releases API for the latest release when
+  pressed and says whether it is newer, with a button to open the download page (`desktop/updates.js`,
+  `test/updates.test.js`, `test/desktopHome.test.js`). Nothing runs in the background and the app downloads and
+  installs nothing: the "nothing leaves this PC" promise holds except for that one request, which carries no token,
+  name or machine id, and the page to open is kept in the main process, never taken from the window. Silent
+  auto-update (electron-updater, signed or not) was left out for that reason; revisit if code signing is bought.
+
+**Quality and data nodes** (found 15 Nov 2026 reading the repo; each with its test):
+
+- **Q1 Numbered schema migrations.** *Done:* race.db steps by `PRAGMA user_version`, a copy beside the file
+  before an upgrade, a failed step changes nothing, a newer file is refused (`test/storeMigrations.test.js`; 3 of 4
+  planted bugs caught: no backup, a step run again, a newer file accepted. The fourth, removing the explicit
+  ROLLBACK, changes nothing because closing the connection rolls back anyway). Before K2 adds its `learn` column. The read-only tools connection (Ask the race) refuses a newer file too.
+- **Q2 Dependabot.** Dropped (the user, 15 Nov 2026). The majors waiting (ESLint 10, TypeScript 7, jsdom 30,
+  c8 12) are upgraded by hand when wanted.
+- **Q3 One formatter.** *Decided against, 15 Nov 2026.* Biome with a config matched to the code (single quotes,
+  semicolons, 200 columns) still rewrote 144 of 208 files, about 30,000 changed lines, expanding the packed
+  arrays and ternaries the code is written in and burying `git blame`, for no change in behavior. ESLint already
+  gates the rules that matter. Added `.editorconfig` (LF, 2 spaces, final newline) so editors agree. Revisit with
+  a formatter only if a team joins.
+- **Q4 Security in CI.** *Done:* `npm run scan` (`scripts/scan-published.js`) and a test that runs it
+  over every tracked file in CI: a LAN address other than the documented examples (192.168.1.23, 192.168.1.5,
+  10.0.0.5), a personal email (noreply and example addresses pass), a local user path, a token or private key.
+  Planted leaks of each kind are found (`test/publishedScan.test.js`); the repo is clean today. Patterns, not
+  entropy: it finds the usual leaks, not every secret. CI also runs `npm audit --omit=dev --audit-level=high` (0 vulnerabilities in what ships on 15 Nov 2026; 9 moderate in dev tools, left out).
+- **Q5 Mutation testing.** Stryker on `src/ml` and `src/analysis`, replacing most of `notes/mutate.sh`. *Test:*
+  a mutation score is recorded, and survivors each get a test or a reason.
+- **Q6 Versions on the other stores.** *Done:* `settings.json` carries `version` (1) and the saved debriefs
+  carry `v` (1). A file with none is format 1; a debrief from a newer Undercut is skipped with a warning, not
+  misread, and a newer settings file keeps the settings this one knows (`test/fileVersions.test.js`; two planted
+  bugs, the check weakened and the stamp dropped, are caught). `tracks.json` has no stamp: its entries are
+  read either way (plain number or `{ v, s }`).
+- **Q7 Capture retention.** *Done:* Storage's recordings have **Drop packets**, which frees the raw packets (the
+  bulk of a recording) and keeps its report, marks and meta, so it stays listed ("packets dropped", report still
+  opens, no Replay or Analyze), and **Drop packets older than 30 days**, which asks once with the count and the
+  megabytes. The race itself stays in the race store. Both ask first and say it cannot be undone; neither touches
+  the recording being replayed or recorded (`desktop/library.js` `dropPackets`/`oldRecordings`,
+  `test/captureRetention.test.js`, `test/desktopHome.test.js`). Not done: compressing old packets instead of
+  dropping them, and dropping automatically on a schedule.
+- **Q8 Split the big files.** *Partly done:* `public/widgets.js` (940 lines) is now a core with the shared
+  helpers, the registry, Radio and Call (160 lines), and three files by what depends on what:
+  `widgets-drive.js` (battle, drive, lap time, options), `widgets-strategy.js` (rejoin, pit timing, tyre call,
+  adjustments, weather) and `widgets-field.js` (pace, cars nearby). The proof is a golden test
+  (`test/dashboardGolden.test.js`: a hash of what each of the six screens draws at 12 moments of the synthetic
+  race, written before the split and unchanged after; planted class-name changes in each of the four files fail
+  it) plus `test/widgetFiles.test.js` (the page loads the files the tests do, and the Custom picker keeps its
+  order). *Left:* `raceAnalysis.js` (870), `public/analysis.js` (828) and `public/app.js` (720). They have no
+  golden yet: the engine's is the byte-identical report replay over the captures, which is not in CI, and the
+  Race analysis place needs a render golden like the dashboard's before it is cut.
+
+Waiting on recordings: a drying race (inters), an online race, a damaged wing, a penalty then a stop.
+
 ## Nodes
 
 Each line: what it is, why it matters, and the acceptance test.
@@ -228,10 +477,13 @@ Each line: what it is, why it matters, and the acceptance test.
   hold (no two green laps in a row 1.5 s off the pace before). Manage tyres: the cliff comes within 3
   laps. BOX for damage: the loss to the flag beats a stop. BOX under a safety car: the stop cost less
   than a green one (both measured against the cars that didn't stop). BOX for inters or slicks: the
-  cars on that tyre are quicker over the next 3 laps. Following the rules isn't
-  graded. On the 9 recorded races: 16 right, 0 wrong, 20 can't be judged (mostly a call replaced
-  within its lap by a safety car or flashback). Pit-window and fuel calls aren't graded yet;
-  nor is whether an offered undercut would have worked.
+  cars on that tyre are quicker over the next 3 laps. Fuel (15 Nov 2026): right if the car finished with
+  under half a lap of fuel left, wrong with over a lap and a half spare and no drop in use after the call,
+  otherwise unjudged (`test/callsAudit.test.js`; on the recorded races both fuel-tight calls, Silverstone sprint,
+  were right: 0.2 kg left). Following the rules isn't graded. On the 10 recorded races: 22 right, 0 wrong,
+  21 can't be judged (mostly a call replaced within its lap by a safety car or flashback). Pit-window calls
+  and whether an offered undercut would have worked aren't graded: the recorded races hold no such call, so
+  there is nothing to test a rule on yet.
 - **A3 Confidence on calls.** Every call carries how sure it is, from M1/M2 intervals. *Partly
   done:* the pit-timing pick is re-run at both ends of the wear range; when it moves, the card says
   "Lap 14–22, depending on tyre wear" (and nothing when it holds). On the recordings it moves a

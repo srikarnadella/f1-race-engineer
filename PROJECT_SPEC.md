@@ -140,7 +140,8 @@ f1-race-engineer/
 │   ├── index.html                           shell: screen tabs, custom-screen editor, settings, radio band/toasts
 │   ├── manifest.json, icon-*.png            Add to Home Screen
 │   ├── ask.js                               "Ask the engineer": question -> one-sentence answer from the snapshot
-│   ├── widgets.js                           the live widgets (drive, battle, radio, call, rejoin, options, ...); formatting only
+│   ├── widgets.js                           shared helpers, the widget registry, radio and call; formatting only
+│   ├── widgets-drive.js, -strategy.js, -field.js   the other live widgets, by screen (drive, battle, rejoin, options, pace, ...)
 │   ├── debrief.js                           the Debrief widget: recap, lap compare, rivals, models
 │   ├── voice.js                             radio calls read aloud, Ask the engineer, voice commands, hands-free
 │   ├── desktop.js                           the app's own screens (Home, Connect, Library); does nothing in a browser

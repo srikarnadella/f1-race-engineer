@@ -13,6 +13,15 @@ Code: [`src/data/store.js`](../src/data/store.js) (schema and the one-transactio
 [`src/data/sessionRecorder.js`](../src/data/sessionRecorder.js) (collects a session as it's driven;
 a flashback takes back what it undid). Tests: `test/store.test.js`.
 
+## Schema versions
+
+The file's `PRAGMA user_version` says which schema it has (now 3: v2 the battery columns, v3 `session.learn`, the
+switch that stops the app learning from a race). Opening an older file upgrades it in
+numbered steps (`MIGRATIONS` in `store.js`), each in a transaction with its version bump, after leaving a copy
+as `race.db.before-v3` beside it. A step that fails changes nothing; a file from a newer Undercut is refused,
+not downgraded. A new column on an existing table is a new step; a whole new table goes in the schema text.
+Tests: `test/storeMigrations.test.js`.
+
 ## Tables
 
 ```
