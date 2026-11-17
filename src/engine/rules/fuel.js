@@ -24,13 +24,13 @@ function fuel({ lapsLeft, player, mem, out, upsert, expire, clock }) {
   out.fuelMarginLaps = fuelDelta;
   // A lap of fuel is a lap's burn: 0.4 laps short with 14 to go = save ~3% of every lap's fuel.
   out.fuelSavePct = fuelDelta < 0 && lapsLeft >= 1 ? Math.max(1, Math.round((-fuelDelta / lapsLeft) * 100)) : null;
-  if (fuelDelta < 0.3) {
+  // Only when short: the game loads short races with +0.0 to +0.3 laps on purpose, and "only 0.1 laps of margin"
+  // flickered all through two real races (16 Nov 2026) that finished with fuel to spare. The margin stays on the Strategy card.
+  if (fuelDelta < 0) {
     upsert('fuel-risk', {
-      severity: fuelDelta < 0 ? SEVERITY.CRITICAL : SEVERITY.ADVISORY,
+      severity: SEVERITY.CRITICAL,
       category: CATEGORY.STRATEGY,
-      message: fuelDelta < 0
-        ? `Fuel: on pace to run ${Math.abs(fuelDelta).toFixed(1)} laps short - save ~${out.fuelSavePct}% a lap: lift and coast into the big stops`
-        : `Fuel: only ${fuelDelta.toFixed(1)} laps of margin to the end`,
+      message: `Fuel: on pace to run ${Math.abs(fuelDelta).toFixed(1)} laps short - save ~${out.fuelSavePct}% a lap: lift and coast into the big stops`,
       expiresAtMs: clock() + 15000,
     });
   } else {

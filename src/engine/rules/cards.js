@@ -18,7 +18,8 @@ const CATEGORY = { PACE: 'pace', STRATEGY: 'strategy', HEALTH: 'health', FLAG: '
  * @property {number} [expiresAtMs]
  * @property {boolean} [battle] set on a card the battle call speaks on
  *
- * @typedef {CardInput & { id: string, createdAtMs: number, textAtMs: number }} Card
+ * pending: other wording waiting to settle; churnAt: when other wording was last offered (insightEngine upsert).
+ * @typedef {CardInput & { id: string, createdAtMs: number, textAtMs: number, pending?: { words: string, since: number } | null, churnAt?: number | null }} Card
  *
  * @typedef {object} CallInputs what the rules leave for the headline call and the strategy numbers
  * @property {number | null} lapsToCliff
@@ -46,6 +47,7 @@ const CATEGORY = { PACE: 'pace', STRATEGY: 'strategy', HEALTH: 'health', FLAG: '
  * @property {object | null} ersShown
  * @property {{ key: string | null, since: number }} ersCandidate
  * @property {Set<number>} announcedRetirements
+ * @property {boolean} chequeredSaid the chequered flag has been on the radio this session
  *
  * @typedef {object} RuleContext
  * @property {() => number} clock

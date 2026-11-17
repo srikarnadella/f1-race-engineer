@@ -764,7 +764,8 @@ function createRaceAnalysis(fieldModel, { hotspotPrior = true, memory = createTr
     }) : null;
 
     // Under a safety car, VSC or red flag: the options, side by side.
-    const situation = fieldModel.isRedFlag() ? 'Red flag' : session && session.safetyCarStatus === 1 ? 'Safety car' : session && session.safetyCarStatus === 2 ? 'VSC' : null;
+    // Not for a car that's out of the race: there's nothing left to choose.
+    const situation = player.lapData.resultStatus >= 4 ? null : fieldModel.isRedFlag() ? 'Red flag' : session && session.safetyCarStatus === 1 ? 'Safety car' : session && session.safetyCarStatus === 2 ? 'VSC' : null;
     // Rain due under a safety car / VSC on slicks: inters now, or later under green?
     // The same window the BOX-for-inters call uses, so the card and the call agree.
     const nc = weather && weather.nextChange;

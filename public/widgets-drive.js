@@ -74,7 +74,7 @@
     // seconds server-side, so the screen and the radio always agree.
     const ids = new Set((s.insights || []).map((i) => i.id));
     const fc = a.battle && (which === 'ahead' ? a.battle.attackForecast : a.battle.defendForecast);
-    const called = which === 'ahead' ? ids.has('attack-chance') : ids.has('attack-warning') || (ids.has('under-attack') && (s.insights.find((i) => i.id === 'under-attack').message || '').includes('watch corner'));
+    const called = which === 'ahead' ? ids.has('attack-chance') : ids.has('attack-warning') || (ids.has('under-attack') && /watch (into )?corner/.test(s.insights.find((i) => i.id === 'under-attack').message || ''));
     if (fc && fc.where && called) {
       const where = `corner ${fc.where.corner} (${(fc.where.atM / 1000).toFixed(1)} km)`;
       // Worded as a likely spot, not a prediction: it ties the plain "busiest

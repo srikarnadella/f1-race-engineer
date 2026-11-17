@@ -602,7 +602,9 @@
   const SAFETY_CAR = { 1: 'SAFETY CAR', 2: 'VSC', 3: 'FORMATION' };
   function renderTopbar(s) {
     const sess = s.session;
-    const sc = sess && SAFETY_CAR[sess.safetyCarStatus];
+    // Not once the session is over for you (retired under a safety car, the game's flag stays up).
+    const over = !!(s.focus && s.focus.reason === 'Session over');
+    const sc = !over && sess && SAFETY_CAR[sess.safetyCarStatus];
     $('flag').hidden = !sc;
     setText($('flag'), sc || '');
     const q = s.analysis && s.analysis.quali;
@@ -781,8 +783,8 @@
     else s.debrief = lastDebrief;
     // The map's outline rides once a second; keep it for this track between those.
     if (s.map) {
-      if (s.map.outline) lastOutline = { trackId: s.map.trackId, outline: s.map.outline };
-      else if (lastOutline && lastOutline.trackId === s.map.trackId) s.map.outline = lastOutline.outline;
+      if (s.map.outline) lastOutline = { trackId: s.map.trackId, outline: s.map.outline, loss: s.map.loss };
+      else if (lastOutline && lastOutline.trackId === s.map.trackId) Object.assign(s.map, { outline: lastOutline.outline, loss: lastOutline.loss });
     }
     lastSnapshot = s;
     lastMessageAt = Date.now();

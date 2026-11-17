@@ -55,6 +55,7 @@ function freshMemory() {
     ersShown: null,
     ersCandidate: { key: null, since: 0 },
     announcedRetirements: new Set(),
+    chequeredSaid: false,
   };
 }
 
@@ -92,18 +93,32 @@ function createInsightEngine(fieldModel) {
   // its text for TEXT_HOLD_MS: on a real race those rewrites were most of
   // the radio band's churn (97 for one "Closing on" card), unreadable at a
   // glance. A new word or severity shows at once.
+  // New words at the same severity are said at once after a quiet spell, but while a card is churning (other words
+  // offered in the last SETTLE_MS) they wait until they have held SETTLE_MS: the same card flipped "pass chance medium" <->
+  // "medium to high" 9 times in 5 s, and Attack <-> Defend every few seconds, in a real sprint (16 Nov 2026).
+  // A change of severity, and a game event (a new fact, not a reading), is said at once.
   function upsert(id, insight) {
     const prior = activeInsights.get(id);
     const now = clock();
     let message = insight.message;
     let textAtMs = now;
-    if (prior && prior.message !== message) {
-      const sameWords = numbersOut(prior.message) === numbersOut(message) && prior.severity === insight.severity;
-      if (sameWords && now - prior.textAtMs < TEXT_HOLD_MS) [message, textAtMs] = [prior.message, prior.textAtMs];
-    } else if (prior) {
+    let pending = null;
+    let churnAt = prior ? prior.churnAt : null;
+    if (prior && prior.message !== message && prior.severity === insight.severity) {
+      const words = numbersOut(message);
+      if (numbersOut(prior.message) === words) {
+        if (now - prior.textAtMs < TEXT_HOLD_MS) [message, textAtMs] = [prior.message, prior.textAtMs];
+      } else if (!id.startsWith('event-')) {
+        const churning = churnAt != null && now - churnAt < SETTLE_MS;
+        churnAt = now;
+        pending = prior.pending && prior.pending.words === words ? prior.pending : { words, since: now };
+        if (churning && now - pending.since < SETTLE_MS) [message, textAtMs] = [prior.message, prior.textAtMs];
+        else pending = null;
+      }
+    } else if (prior && prior.message === message) {
       textAtMs = prior.textAtMs;
     }
-    activeInsights.set(id, { id, createdAtMs: prior ? prior.createdAtMs : now, ...insight, message, textAtMs });
+    activeInsights.set(id, { id, createdAtMs: prior ? prior.createdAtMs : now, ...insight, message, textAtMs, pending, churnAt });
   }
 
   function expire(id) {

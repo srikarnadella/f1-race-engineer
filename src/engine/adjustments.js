@@ -130,7 +130,8 @@ function ersSuggestion({ pct, linePct = pct, trend, mode, gapAheadMs, gapBehindM
   }
   if (lapsLeft != null && lapsLeft <= LAST_LAP && pct >= LAST_LAP_MIN_PCT && mode !== OVERTAKE) {
     const when = lapsLeft > 1 ? 'Last lap next' : 'Last lap';
-    return s(`ERS: ${top}`, `${when} - empty it, ${battery}`, `${when} - empty the battery, ${top} mode, ${battery}`);
+    // No figure on the radio: it was rewritten every 5 s on a real last lap (50% -> 100% -> 80%); the Adjust card has it.
+    return s(`ERS: ${top}`, `${when} - empty it, ${battery}`, `${when} - empty the battery, ${top} mode`);
   }
   if (gapBehindMs != null && gapBehindMs < DEFEND_GAP_MS && (gapAheadMs == null || gapBehindMs < gapAheadMs)) {
     if (linePct >= DEFEND_MIN_PCT && mode !== OVERTAKE) {

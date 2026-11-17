@@ -120,6 +120,11 @@ function eventCard(event, playerIdx, fieldModel, mem) {
     mem.announcedRetirements.add(event.vehicleIdx);
     return { message: `${who(event.vehicleIdx)} has retired` };
   }
+  // Once a session: a real sprint (16 Nov 2026) said it twice, 11 s apart.
+  if (event.code === 'CHQF') {
+    if (mem.chequeredSaid) return null;
+    mem.chequeredSaid = true;
+  }
   return { message: event.name };
 }
 

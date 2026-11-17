@@ -14,6 +14,9 @@ const NEARBY_EACH_SIDE = 2;
 // `focus` (optional, from engine/focus.js) picks the screen for auto-switch.
 const { fieldRules } = require('../analysis/fieldRules');
 
+// lapData.resultStatus: 4 did not finish, 5 disqualified, 6 not classified, 7 retired.
+const outOfRace = (car) => !!(car && car.lapData && car.lapData.resultStatus >= 4);
+
 function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
   const playerIdx = fieldModel.playerIndex();
   // Analysis first: some radio calls (undercut window, cheap stop under a
@@ -81,7 +84,9 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
     insights,
     strategy: insightEngine.getStrategy(),
     adjust: insightEngine.getAdjust(),
-    focus: focus ? focus({ strategy: insightEngine.getStrategy(), analysis, sessionOver: !!fieldModel.getClassification() }) : null,
+    // Out of the race (retired, DNF, DSQ) it's over for you now: the game sends no classification until the rest of
+    // the race has run, and a retirement under a safety car kept the Strategy screen up (Madrid, 16 Nov 2026).
+    focus: focus ? focus({ strategy: insightEngine.getStrategy(), analysis, sessionOver: !!fieldModel.getClassification() || outOfRace(player) }) : null,
   };
 }
 

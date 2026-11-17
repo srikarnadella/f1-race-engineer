@@ -95,8 +95,8 @@ test('undercut threat survives LapData arriving faster than the insight tick', (
 test('closing-ahead fires on a realistic per-lap closing rate, measured on game time', () => {
   const fm = createFieldModel();
   const ie = createInsightEngine(fm);
-  // 60Hz packets for 40s, gap to the car ahead shrinking 0.5s per 90s lap.
-  for (let t = 0; t <= 40; t += 1 / 60) {
+  // 60Hz packets for 100s, gap to the car ahead shrinking 0.5s per 90s lap.
+  for (let t = 0; t <= 100; t += 1 / 60) { // a lap and more: the rate is measured a lap apart
     const gap = 2000 - (t / 90) * 500;
     fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: gap } }) });
   }
@@ -227,7 +227,7 @@ test('closing-ahead stays quiet when the pace trend says the car ahead is pullin
   // Barcelona lap 20: the radio said "Closing on P7 by 0.7s/lap" under a card reading "Dropping 0.1s/lap".
   const fm = createFieldModel();
   const ie = createInsightEngine(fm);
-  for (let t = 0; t <= 40; t += 1 / 20) {
+  for (let t = 0; t <= 100; t += 1 / 20) { // a lap and more: the rate is measured a lap apart
     fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { deltaToCarInFrontInMS: 2000 - (t / 90) * 500 } }) });
   }
   const field = [{ carIndex: PLAYER - 1, gapTrendMsPerLap: 100 }];
@@ -429,7 +429,8 @@ test('the start: lap 1 against the grid, said once as lap 2 begins', () => {
   assert.strictEqual(ie.evaluate().find((i) => i.id === 'start').message, `Lap 1: P${pos} from P5 on the grid - up ${5 - pos}`);
 });
 
-test('a card whose numbers tick keeps its text for a few seconds; a new word shows at once', () => {
+// A new word after a quiet spell, or a change of severity, is said at once: test/races16Nov.test.js.
+test('a card whose numbers tick keeps its text for a few seconds', () => {
   const realNow = Date.now;
   let now = 1e6;
   Date.now = () => now;
@@ -442,13 +443,11 @@ test('a card whose numbers tick keeps its text for a few seconds; a new word sho
       fm.dispatch(PACKET_IDS.CAR_STATUS, header(3), fuelStatus(v));
       return ie.evaluate().find((i) => i.id === 'fuel-risk').message;
     };
-    assert.match(fuel(0.2), /only 0\.2 laps/);
+    assert.match(fuel(-2), /run 2\.0 laps short/);
     now += 1000;
-    assert.match(fuel(0.1), /only 0\.2 laps/); // held
+    assert.match(fuel(-1), /run 2\.0 laps short/); // held
     now += 5000;
-    assert.match(fuel(0.1), /only 0\.1 laps/);
-    now += 1000;
-    assert.match(fuel(-0.1), /laps short/); // different words: at once
+    assert.match(fuel(-1), /run 1\.0 laps short/);
   } finally {
     Date.now = realNow;
   }

@@ -5,6 +5,7 @@ const { createRaceAnalysis } = require('./engine/raceAnalysis');
 const { createTrackMemory } = require('./state/trackMemory');
 const { createDebrief } = require('./engine/debrief');
 const { createFocus } = require('./engine/focus');
+const { mapLoss } = require('./analysis/mapLoss');
 const { createSpotter } = require('./analysis/spotter');
 const { setupView } = require('./analysis/setupView');
 const { bestSetup } = require('./analysis/setupHistory');
@@ -135,7 +136,12 @@ function createPipeline({ now = () => Date.now(), memory = createTrackMemory(), 
       const c = fieldModel.getCar(w.idx);
       cars.push({ idx: w.idx, x: Math.round(w.world.x * 10) / 10, z: Math.round(w.world.z * 10) / 10, position: c.lapData ? c.lapData.carPosition : null, you: w.idx === pi, pit: w.inPit });
     }
-    return { trackId: session.trackId, cars, ...(withOutline ? { outline: outlines.get(session.trackId) } : {}) };
+    if (!withOutline) return { trackId: session.trackId, cars };
+    // Where the time goes, slice by slice: against your own laps and against the car ahead (analysis/mapLoss.js).
+    const ordered = fieldModel.orderedByPosition();
+    const me = ordered.findIndex((c) => c.carIndex === pi);
+    const loss = mapLoss({ player: fieldModel.getCar(pi), ahead: me > 0 ? ordered[me - 1] : null, corners: fieldModel.getPlayerCorners(), trackLength: session.trackLength });
+    return { trackId: session.trackId, cars, outline: outlines.get(session.trackId), loss };
   };
   const learnOutline = () => {
     const session = fieldModel.getSession();

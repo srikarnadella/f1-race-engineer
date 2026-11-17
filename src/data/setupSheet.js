@@ -15,7 +15,7 @@ const GAME_TRACK = {
   Australia: 'Melbourne', China: 'Shanghai', Japan: 'Suzuka', Bahrain: 'Bahrain', 'Saudi Arabia': 'Jeddah', Miami: 'Miami', Canada: 'Montreal',
   Monaco: 'Monaco', Catalunya: 'Barcelona', Austria: 'Red Bull Ring', Britain: 'Silverstone', Belgium: 'Spa', Hungary: 'Hungaroring',
   Netherlands: 'Zandvoort', Italy: 'Monza', Azerbaijan: 'Baku', Singapore: 'Singapore', 'United States': 'Austin', Mexico: 'Mexico City',
-  Brazil: 'Interlagos', 'Las Vegas': 'Las Vegas', Qatar: 'Losail', 'Abu Dhabi': 'Abu Dhabi', Imola: 'Imola',
+  Brazil: 'Interlagos', 'Las Vegas': 'Las Vegas', Qatar: 'Losail', 'Abu Dhabi': 'Abu Dhabi', Imola: 'Imola', Madrid: 'Madrid',
 };
 
 // ---------- the zip ----------

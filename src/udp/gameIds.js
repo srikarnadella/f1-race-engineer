@@ -11,6 +11,7 @@ const TRACKS = {
   9: 'Hungaroring', 10: 'Spa', 11: 'Monza', 12: 'Singapore', 13: 'Suzuka', 14: 'Abu Dhabi', 15: 'Austin',
   16: 'Interlagos', 17: 'Red Bull Ring', 19: 'Mexico City', 20: 'Baku', 26: 'Zandvoort', 27: 'Imola',
   29: 'Jeddah', 30: 'Miami', 31: 'Las Vegas', 32: 'Losail', 39: 'Silverstone (reverse)', 40: 'Red Bull Ring (reverse)', 41: 'Zandvoort (reverse)',
+  42: 'Madrid', // Madring: 5411 m in the game, first seen 16 Nov 2026
 };
 
 module.exports = { SESSION_TYPES, TRACKS };

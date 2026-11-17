@@ -16,8 +16,8 @@
 // _s; booleans are 0/1. The views (v_*) are the readable way in.
 const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
-const { TRACKS, SESSION_TYPES } = require('../udp/gameIds');
-const { RACE_SESSION_TYPES } = require('../state/race');
+const { TRACKS } = require('../udp/gameIds');
+const { RACE_SESSION_TYPES, sessionName } = require('../state/race');
 const { sessionStart } = require('../lib/sessionTime');
 
 // Schema versions, kept in the file's PRAGMA user_version. Version 1 is the first release's tables (SCHEMA below,
@@ -325,7 +325,7 @@ function openStore(file, { migrations = MIGRATIONS } = {}) {
     const captureId = sql.capture.get(s.capture || 'live').capture_id;
     const sid = sql.session.run({
       uid: s.uid, captureId, trackId: s.session.trackId, track: TRACKS[s.session.trackId] || null,
-      sessionType: s.session.sessionType, sessionName: SESSION_TYPES[s.session.sessionType] || null,
+      sessionType: s.session.sessionType, sessionName: sessionName(s.session),
       isRace: b(RACE_SESSION_TYPES.has(s.session.sessionType)), totalLaps: s.session.totalLaps,
       trackLength: s.session.trackLength || null, playerIdx: s.playerIdx, startedAt: s.startedAt, endedAt: s.endedAt, official: b(s.official), learn: before ? before.learn : 1,
     }).lastInsertRowid;

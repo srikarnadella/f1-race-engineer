@@ -2,7 +2,6 @@ const { SEVERITY, CATEGORY } = require('./cards');
 
 /** @typedef {import('./cards').RuleContext} RuleContext */
 
-const CLOSING_WINDOW_S = 30;
 const CLOSING_THRESHOLD_MS_PER_LAP = -150;
 // Below this you're already in the fight (DRS range) - "closing by 2.1s/lap,
 // gap 0.2s" in a live race told the driver nothing.
@@ -13,23 +12,25 @@ const CLOSING_MAX_MS_PER_LAP = 5000;
 const FALLBACK_LAP_MS = 90000;
 
 // Gap change per lap to the car ahead, from FieldModel's game-time samples.
-// Negative = closing. Null until there's a full window of green history: the
+// Negative = closing. Measured over a whole lap, so both gaps are taken at the same place on the track: the gap
+// breathes with where you are (a faster car on the straights), and over 30 s that read as "closing by 2.9s/lap" while
+// the gap held at 1.3-1.5 s (Singapore sprint, 16 Nov 2026). Null until there's a lap of green history: the
 // field bunching up behind a safety car / VSC isn't pace.
 function closingRateMsPerLap(car, paceMs) {
   const h = car.gapAheadHistory;
   if (h.length < 2) return null;
+  // Clean pace, not the last lap: that can be a safety-car or pit lap.
+  const lapMs = paceMs || (car.lapData.currentLapNum > 2 && car.lapData.lastLapTimeInMS) || FALLBACK_LAP_MS; // not lap 1's time
   const now = h[h.length - 1];
   let then = null;
   for (let i = h.length - 2; i >= 0; i--) {
     if (h[i].neutralised) break;
-    if (now.t - h[i].t >= CLOSING_WINDOW_S) {
+    if (now.t - h[i].t >= lapMs / 1000) {
       then = h[i];
       break;
     }
   }
   if (!then || now.neutralised) return null;
-  // Clean pace, not the last lap: that can be a safety-car or pit lap.
-  const lapMs = paceMs || (car.lapData.currentLapNum > 2 && car.lapData.lastLapTimeInMS) || FALLBACK_LAP_MS; // not lap 1's time
   return ((now.gapMs - then.gapMs) / (now.t - then.t)) * (lapMs / 1000);
 }
 
@@ -78,14 +79,15 @@ function underAttack({ racing, greenRacing, pastLap1, gapBehindNow, battleDefend
     const threat = analysis && analysis.battle && analysis.battle.defend;
     const likely = threat && threat.level === 'high';
     const fc = analysis && analysis.battle && analysis.battle.defendForecast;
-    const watch = fc && fc.where ? `, watch corner ${fc.where.corner}` : '';
+    const watch = fc && fc.where ? ` - watch into corner ${fc.where.corner}` : '';
     upsert('under-attack', {
       severity: gapBehindNow < 500 || likely ? SEVERITY.ADVISORY : SEVERITY.INFO,
       category: CATEGORY.PACE,
       // Named, and "right behind" inside half a second: the exact gap
       // changed the text 250 times in one real race without telling the
       // driver anything new (the Battle card has the number).
-      message: `${behind.participant && behind.participant.name ? behind.participant.name : `P${behind.lapData.carPosition}`} ${gapBehindNow < 500 ? 'is right behind you' : `is ${(gapBehindNow / 1000).toFixed(1)}s behind`} - defend${likely ? ', pass likely' : ''}${watch}`,
+      // Worded as the battle call's DEFEND, which writes this same card: two wordings took turns on it in a real sprint.
+      message: `Defend from ${behind.participant && behind.participant.name ? behind.participant.name : `P${behind.lapData.carPosition}`} - ${gapBehindNow < 500 ? 'right behind you' : `${(gapBehindNow / 1000).toFixed(1)}s behind`}${likely ? ', pass likely' : ''}${watch}`,
       expiresAtMs: clock() + 8000,
     });
   } else {

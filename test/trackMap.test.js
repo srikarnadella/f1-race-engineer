@@ -22,7 +22,7 @@ const dots = (app) => [...app.window.document.querySelectorAll('.w-map__car')];
 test('map widget: the outline is drawn and each car is a dot, you in your colour, ahead and behind told apart', (t) => {
   const app = custom(t, { map: map() });
   const doc = app.window.document;
-  assert.ok(doc.querySelector('.w-map__track').getAttribute('d').startsWith('M'));
+  assert.strictEqual(doc.querySelectorAll('.w-map__seg').length, square.length, 'one stretch of track per outline point');
   const d = dots(app);
   assert.strictEqual(d.length, 3);
   const you = d.find((x) => x.classList.contains('is-you'));
@@ -55,9 +55,49 @@ test('map widget: before the first clean lap it says how the track gets drawn, a
 test('map widget: the outline rides once a second, so the page keeps it between snapshots and drops it on another track', (t) => {
   const app = custom(t, { map: map() });
   app.send({ ...base(), connected: true, map: { trackId: 10, cars: [car(1, 100, 0, 2, { you: true })] } }); // no outline this tick
-  assert.ok(app.window.document.querySelector('.w-map__track').getAttribute('d'), 'kept');
+  assert.strictEqual(app.window.document.querySelectorAll('.w-map__seg').length, square.length, 'kept');
   app.send({ ...base(), connected: true, map: { trackId: 11, cars: [car(1, 5, 5, 2, { you: true })] } });
   assert.match(app.window.document.querySelector('.w-map').textContent, /first clean lap/i, 'another track: not the old outline');
+});
+
+// Where the time goes (16 Nov 2026: "the track map is useless, it should show where you are losing time").
+// 25 mini-sectors over 240 outline points: point i's stretch is mini-sector floor((i + 0.5) / 240 * 25).
+const ring = Array.from({ length: 240 }, (_, i) => [Math.cos((i / 240) * 2 * Math.PI) * 100, Math.sin((i / 240) * 2 * Math.PI) * 100]);
+const sectors = (o) => Array.from({ length: 25 }, (_, k) => o[k] || 0);
+const loss = {
+  laps: { lapNum: 9, sectors: sectors({ 2: 200 }), worst: { sector: 2, ms: 200, corner: 3 } },
+  ahead: { name: 'GASLY', sectors: sectors({ 20: 150, 5: -90 }), worst: { sector: 20, ms: 150, corner: 14 } },
+};
+const segClass = (app, i) => app.window.document.querySelectorAll('.w-map__seg')[i].getAttribute('class');
+
+test('map widget: the track is red where you lose time to the car ahead and green where you gain, and says where most went', (t) => {
+  const app = custom(t, { map: map({ outline: ring, loss }) });
+  const doc = app.window.document;
+  assert.match(segClass(app, 200), /is-lost/, 'slice 20 (points 192-201)');
+  assert.match(segClass(app, 50), /is-gained/, 'slice 5');
+  assert.doesNotMatch(segClass(app, 100), /is-lost|is-gained/, 'even: grey');
+  assert.match(doc.querySelector('.w-map__sum').textContent, /^0\.06s slower than GASLY - most lost into turn 14 \(0\.15s\)$/);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('map widget: "Your laps" shows the last lap against the ones before, and the pick holds between snapshots', (t) => {
+  const app = custom(t, { map: map({ outline: ring, loss }) });
+  const doc = app.window.document;
+  [...doc.querySelectorAll('.w-map__modes .tool')].find((b) => b.textContent === 'Your laps').click();
+  assert.match(segClass(app, 22), /is-lost/, 'slice 2 (points 20-28)');
+  assert.doesNotMatch(segClass(app, 200), /is-lost/);
+  assert.match(doc.querySelector('.w-map__sum').textContent, /turn 3/);
+  app.send({ ...base(), connected: true, map: { trackId: 10, cars: [car(1, 100, 0, 2, { you: true })] } }); // between the once-a-second ones
+  assert.match(segClass(app, 22), /is-lost/, 'kept');
+  assert.strictEqual(doc.querySelector('.w-map__modes .is-active').textContent, 'Your laps');
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('map widget: with nothing to compare yet it says what it needs, and the track stays grey', (t) => {
+  const app = custom(t, { map: map({ outline: ring, loss: { laps: null, ahead: null } }) });
+  assert.match(app.window.document.querySelector('.w-map__sum').textContent, /clean lap/i);
+  assert.ok([...app.window.document.querySelectorAll('.w-map__seg')].every((x) => x.getAttribute('class') === 'w-map__seg'));
+  assert.deepStrictEqual(app.errors, []);
 });
 
 test('pipeline: with no session packet yet there is no map, and a Motion packet alone does not break the tick', () => {
@@ -95,4 +135,5 @@ test('pipeline: driving a clean lap round a circle (Session, Lap Data, Telemetry
   assert.strictEqual(withOutline.outline.length, 240);
   assert.strictEqual(withOutline.cars.length, 1);
   assert.strictEqual(withOutline.cars[0].you, true);
+  assert.deepStrictEqual(withOutline.loss, { laps: null, ahead: null }, 'the loss rides with the outline; one lap is nothing to compare');
 });

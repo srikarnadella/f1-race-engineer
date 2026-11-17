@@ -155,7 +155,7 @@ test('strategy options: a free tyre change under a red flag takes the faster set
   assert.deepStrictEqual(o.options.map((x) => x.id), ['stay', 'box-16', 'box-18']); // no inters in the dry
   assert.strictEqual(o.recommendedId, 'box-16');
   assert.strictEqual(o.options.find((x) => x.id === 'box-16').position, 7); // free: keeps the place
-  assert.match(o.headline, /^Red flag: best is box: soft - keep P7, lasts to the flag, 0\.7s\/lap faster/);
+  assert.match(o.headline, /^Red flag: best is box for softs - keep P7, lasts to the flag, 0\.7s\/lap faster/);
 });
 
 test('strategy options: under a safety car, losing 15 places to stop is worse than staying out', () => {
@@ -193,7 +193,7 @@ test('strategy options: rain due under a safety car - inters, not slicks, and th
   const o = opts(2);
   assert.deepStrictEqual(o.options.map((x) => x.id), ['stay', 'box-7']); // no fresh slicks with rain due
   assert.strictEqual(o.recommendedId, 'box-7');
-  assert.match(o.headline, /^Safety car: best is box: inter - .*~4s better than stopping later/);
+  assert.match(o.headline, /^Safety car: best is box for inters - .*~4s better than stopping later/);
   assert.match(o.options.find((x) => x.id === 'stay').summary, /rain in ~2 laps - a stop for inters under green/);
   // Too many dry laps on inters first: stay out, and the inters say what they'd cost.
   const late = opts(3.8);

@@ -170,8 +170,8 @@ Everything in the graph above is built except M3 and L4's last scoring. What com
   back when you leave; a Settings switch, on by default. `test/setupCompare.test.js`, `setupView.test.js`,
   `setupScreen.test.js`; looked at in headless Edge with the real Spa row and the setup from a real recording.
   *Not done:* it shows differences from the sheet; it does not say the sheet is right for your driving. Nothing writes to
-  the game: the telemetry is one-way. The suspension geometry cell ("LLLL") is kept as text, not compared. Madrid has no
-  game track id yet. Not tried in the real game.
+  the game: the telemetry is one-way. The suspension geometry cell ("LLLL") is kept as text, not compared. Madrid is game track 42
+  (added 16 Nov 2026). Not tried in the real game.
 
 **Mixed field node** (MF1, done 15 Nov 2026): Car Telemetry 2 flags each car (`regulations2026`; true for all 22 in the
 recorded AI races, so a mixed online lobby has false on the 2025 cars; never seen). `fieldRules` counts them into
@@ -216,7 +216,7 @@ count says the field is mixed (`test/mixedField.test.js`).
   laps counted clean, race pace from one lap, an inverted favorites filter, an untrimmed name, an unchecked name length, a re-read wiping
   notes) are each caught. *Open:* lap time is confounded by fuel, tyres and weather, so nothing ranks setups outright; no fuel correction
   until a rate is validated; not tried in the live game; the Setups place is for the app window, not phones.
-- **SL4 Recommended defaults.** Every track in the setups sheet that the game has an id for (24 of 25; Madrid has none yet) is in the
+- **SL4 Recommended defaults.** Every track in the setups sheet that the game has an id for (all 25; Madrid is 42 since 16 Nov 2026) is in the
   Setups library from the start, with the sheet's qualifying and race setup as "Recommended" entries (one if they are the same), first
   in the list, labelled "from the sheet, not driven yet", with the sheet's values (a range stays a range, a value the sheet lacks is a
   dash) and nothing to rename or save. They compare with your own setups. Tracks you have driven come first, the rest by name

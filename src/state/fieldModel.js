@@ -11,13 +11,14 @@ const { createLapTraceRecorder, createMiniSectorTracker } = require('./lapTrace'
 const GAP_SAMPLE_INTERVAL_S = 1;
 // The last real gap to the leader counts as the gap going into the pits if it is this recent.
 const PIT_ENTRY_GAP_MAX_AGE_S = 10;
-const GAP_HISTORY_SAMPLES = 120; // two minutes - comfortably more than one lap
+const GAP_HISTORY_SAMPLES = 180; // three minutes: closing-ahead needs a whole lap, and wet laps run past two
 const LAP_HISTORY_SIZE = 12;
 const SLOW_VICTIM_KMH = 80;
 // Battery sampled in this many slices of a lap, per car: last lap's shape is
 // the best guess at how the rest of this lap goes (see batteryProjection.js).
 const ERS_BINS = 20;
 const { createFeedHealth } = require('./feedHealth');
+const { sessionName } = require('./race');
 
 // Tracks every car on track, keyed by car index - not just the player's.
 // This is the join point for "relative to the field": gaps, pace trends,
@@ -138,7 +139,11 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       // are exactly what's needed to measure the time a pit stop costs.
       // Crossing the line on the same lap number (negative distance -> positive): the lap really starts
       // here. Qualifying from the garage puts the car on track before the line on lap 1 (Spa, F1 26).
-      if (car.lapData && prevLapNum === c.currentLapNum && car.lapData.lapDistance < 0 && c.lapDistance >= 0) {
+      // Back out of the garage mid-session the car can join near the end of the lap instead, and the line shows as the
+      // distance wrapping round on the same lap number (Madrid, 16 Nov 2026: the 1:32.311 best was marked PIT).
+      const L = session && session.trackLength;
+      const wrapped = L > 0 && car.lapData && car.lapData.lapDistance > L / 2 && c.lapDistance >= 0 && c.lapDistance < L / 2;
+      if (car.lapData && prevLapNum === c.currentLapNum && ((car.lapData.lapDistance < 0 && c.lapDistance >= 0) || wrapped)) {
         car.lapTouchedPit = false;
         car.lapNeutralised = false;
       }
@@ -249,7 +254,6 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       car.lastPitStatus = c.pitStatus;
       if (c.pitStatus === 0 && (c.carPosition === 1 || c.deltaToRaceLeaderInMS > 0)) car.behindLeader = { t: sessionTime, ms: c.carPosition === 1 ? 0 : c.deltaToRaceLeaderInMS };
 
-      const L = session && session.trackLength;
       if (L && car.status && Number.isFinite(car.status.ersStoreEnergy) && c.lapDistance >= 0) {
         if (!car.ersLap || car.ersLap.lapNum !== c.currentLapNum) car.ersLap = { lapNum: c.currentLapNum, binsJ: new Array(ERS_BINS).fill(null) };
         const bin = Math.min(ERS_BINS - 1, Math.floor((c.lapDistance / L) * ERS_BINS));
@@ -324,6 +328,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
 
   function onSession(data) {
     session = data;
+    sessionName(data); // notes a sprint shootout's weekend, so the race after it is named the Sprint
   }
 
   function onEvent(data) {

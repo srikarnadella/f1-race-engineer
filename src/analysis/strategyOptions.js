@@ -141,6 +141,8 @@ function strategyOptions({ situation, lapsLeft, player, tyreSets, rejoin, stopLo
     return parts.join(', ');
   };
   for (const o of options) o.summary = why(o);
+  // As it's said: "box for wets", not the card title's "box: wet" ("Or box: wet: rejoin P22" on a real VSC).
+  const said = (o) => (o.id === 'stay' ? 'stay out' : `box for ${NAME[o.compound].toLowerCase()}s`);
   const best1 = ranked[0];
   const alt = ranked[1];
   return {
@@ -149,7 +151,7 @@ function strategyOptions({ situation, lapsLeft, player, tyreSets, rejoin, stopLo
     freeStop,
     options,
     recommendedId: best1.id,
-    headline: `${situation}: best is ${best1.title.toLowerCase()} - ${best1.summary}${alt ? `. Or ${alt.title.toLowerCase()}: ${alt.summary}` : ''}`,
+    headline: `${situation}: best is ${said(best1)} - ${best1.summary}${alt ? `. Or ${said(alt)}: ${alt.summary}` : ''}`,
   };
 }
 

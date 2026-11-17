@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { median } = require('../lib/stats');
-const { RACE_SESSION_TYPES } = require('../state/race');
+const { RACE_SESSION_TYPES, sessionName } = require('../state/race');
 const { SESSION_TYPES, TRACKS } = require('../udp/gameIds');
 const { compareLaps, consistency } = require('../analysis/lapCompare');
 const { rivalAnalysis } = require('../analysis/rivals');
@@ -73,7 +73,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
     try {
       fs.mkdirSync(dir, { recursive: true });
       const stamp = new Date(rec.startedAt).toISOString().replace(/[:T]/g, '-').slice(0, 19);
-      const name = `${stamp}_${(TRACKS[rec.trackId] || 'track').replace(/\W+/g, '-')}_${(SESSION_TYPES[rec.sessionType] || 'session').replace(/\W+/g, '-')}.json.gz`;
+      const name = `${stamp}_${(TRACKS[rec.trackId] || 'track').replace(/\W+/g, '-')}_${(rec.sessionName || SESSION_TYPES[rec.sessionType] || 'session').replace(/\W+/g, '-')}.json.gz`;
       // Write then rename, so a crash mid-write can't leave a half-written file.
       fs.writeFileSync(path.join(dir, name + '.tmp'), toFile(rec));
       fs.renameSync(path.join(dir, name + '.tmp'), path.join(dir, name));
@@ -137,7 +137,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       current = start(gen, session);
       recorders = null;
     }
-    if (session && current.sessionType == null) Object.assign(current, { sessionType: session.sessionType, trackId: session.trackId, totalLaps: session.totalLaps });
+    if (session && current.sessionType == null) Object.assign(current, { sessionType: session.sessionType, sessionName: sessionName(session), trackId: session.trackId, totalLaps: session.totalLaps });
     if (!recorders && RACE_SESSION_TYPES.has(current.sessionType)) {
       recorders = { laps: createLapRecorder(fieldModel, { raceId: null }), calls: createCallRecorder(fieldModel, { raceId: null }) };
     }
@@ -287,7 +287,7 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       live: s === current,
       startedAt: s.startedAt,
       sessionType: s.sessionType,
-      sessionName: SESSION_TYPES[s.sessionType] || 'Session',
+      sessionName: s.sessionName || SESSION_TYPES[s.sessionType] || 'Session',
       isRace: RACE_SESSION_TYPES.has(s.sessionType),
       track: TRACKS[s.trackId] || (s.trackId != null ? `Track ${s.trackId}` : ''),
       totalLaps: s.totalLaps,
