@@ -230,3 +230,17 @@ test('map: nothing to compare yet is null, not zeros', () => {
   assert.strictEqual(m.laps, null, 'one lap: nothing before it');
   assert.strictEqual(m.ahead, null, 'no laps for them');
 });
+
+test('a flashback across the middle of the lap is not the line: the lap keeps its pit and safety-car flags', () => {
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { sessionType: 15, totalLaps: 20, trackLength: 5000, safetyCarStatus: 1 });
+  const me = (t, o) => fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { currentLapNum: 6, ...o } }) });
+  me(1, { lapDistance: 2000 }); // under the safety car
+  fm.dispatch(PACKET_IDS.SESSION, header(2), { sessionType: 15, totalLaps: 20, trackLength: 5000, safetyCarStatus: 0 });
+  me(3, { lapDistance: 2800 });
+  me(2.5, { lapDistance: 2300 }); // a flashback of half a second of game time, from past half-way to before it
+  me(4, { lapDistance: 4900 });
+  me(5, { currentLapNum: 7, lastLapTimeInMS: 131000, lapDistance: 20 });
+  const lap6 = fm.getCar(PLAYER).lapHistory.find((l) => l.lapNum === 6);
+  assert.strictEqual(lap6.neutralised, true, 'the 2:11 lap ran under the safety car: it is not clean pace');
+});

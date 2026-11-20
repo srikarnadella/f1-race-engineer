@@ -142,7 +142,8 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       // Back out of the garage mid-session the car can join near the end of the lap instead, and the line shows as the
       // distance wrapping round on the same lap number (Madrid, 16 Nov 2026: the 1:32.311 best was marked PIT).
       const L = session && session.trackLength;
-      const wrapped = L > 0 && car.lapData && car.lapData.lapDistance > L / 2 && c.lapDistance >= 0 && c.lapDistance < L / 2;
+      // Only from the last tenth of the lap to the first: a flashback across the middle is not the line.
+      const wrapped = L > 0 && car.lapData && car.lapData.lapDistance > L * 0.9 && c.lapDistance >= 0 && c.lapDistance < L * 0.1;
       if (car.lapData && prevLapNum === c.currentLapNum && ((car.lapData.lapDistance < 0 && c.lapDistance >= 0) || wrapped)) {
         car.lapTouchedPit = false;
         car.lapNeutralised = false;
