@@ -197,3 +197,30 @@ test('store: a race is written when the final classification arrives, not only w
   rec.sync({});
   assert.strictEqual(written.length, 1, 'once, while the results screen keeps ticking');
 });
+
+test('store: each lap you complete is written as it lands, so a crash mid-race keeps the race up to its last lap', () => {
+  const { createSessionRecorder } = require('../src/data/sessionRecorder');
+  const state = { lap: 4, t: 400 };
+  const lapHistory = [1, 2, 3, 4, 5].map((n) => ({ lapNum: n, lapMs: 90000, pit: false, neutralised: false, compound: 17, tyreAge: n }));
+  const written = [];
+  const debrief = { current: () => ({ playerIdx: 0, traces: new Map([[2, { startedAtLine: true, points: [[0, 0, 100, 1, 0, 0, 3]] }]]), rivalBest: [] }) };
+  const rec = createSessionRecorder(fakeField(state, lapHistory), { write: (s) => written.push(s), debrief });
+  rec.sync({});
+  assert.strictEqual(written.length, 0, 'joining on lap 4 is not a lap completed');
+  Object.assign(state, { lap: 5, t: 490 });
+  rec.sync({});
+  assert.strictEqual(written.length, 1, 'lap 4 done: written');
+  assert.deepStrictEqual(written[0].laps.map((l) => l.lapNum), [1, 2, 3, 4]);
+  rec.sync({});
+  rec.sync({});
+  assert.strictEqual(written.length, 1, 'not again while lap 5 runs');
+  Object.assign(state, { lap: 6, t: 580 });
+  rec.sync({});
+  assert.strictEqual(written.length, 2, 'lap 5 done: written again (it replaces the earlier copy)');
+  assert.deepStrictEqual(written[1].laps.map((l) => l.lapNum), [1, 2, 3, 4, 5]);
+  // The lap traces are the slow part of a write (250-300 ms late in a real race): the per-lap copy leaves them out,
+  // the full session written on close keeps them.
+  assert.deepStrictEqual(written[1].traces, []);
+  rec.flush();
+  assert.strictEqual(written[2].traces.length, 1);
+});

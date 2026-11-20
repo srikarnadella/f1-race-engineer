@@ -2,7 +2,7 @@
 // the cars, every car's laps (the lap dataset's own recorder), the game's
 // events, the engineer's calls and radio cards, the weather, and the lap
 // traces the debrief kept. A flashback takes back whatever it undid. The
-// session is handed to `write` when the game sends its final classification, when the next one starts,
+// session is handed to `write` at each lap you complete, when the game sends its final classification, when the next one starts,
 // and on flush() (writing the same session again replaces it).
 const { createLapRecorder } = require('./laps');
 const { setupValues, setupExtras } = require('../analysis/setupCompare');
@@ -22,7 +22,7 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
       generation: fieldModel.getGeneration(), uid: null, session: null, playerIdx: null, startedAt: clock(), endedAt: clock(),
       laps: createLapRecorder(fieldModel, { raceId: null }), cars: new Map(), history: new Map(), classification: null,
       events: [], lastEventSeq: 0, calls: [], radio: [], radioSeen: new Map(), weather: [], lastTime: 0, debriefRecord: null,
-      settings: [], issues: [], setups: [],
+      settings: [], issues: [], setups: [], lapSeen: null,
     };
   }
 
@@ -126,14 +126,19 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
     for (const e of fieldModel.takePlayerBalanceEvents ? fieldModel.takePlayerBalanceEvents() : []) {
       rec.issues.push({ sessionTime: t, lapNum: e.lapNum, distM: e.distM, kind: ISSUE_KIND[e.type] || e.type, wheel: e.wheel, brakeBias: setting.brakeBias, diffOn: setting.diffOn });
     }
+    // A lap of yours completed: write the session so far (it replaces the last copy), so a crash loses one lap, not the race.
+    // Without the lap traces: with them the write took 250-300 ms on the engine's thread late in a 23-lap race, without
+    // them ~10 ms. The full session (traces too) is written at the result, the next session and on close.
+    const lapDone = rec.lapSeen != null && playerLap > rec.lapSeen;
+    rec.lapSeen = playerLap;
     if (resultIn) {
       rec.savedResult = true;
       save();
-    }
+    } else if (lapDone) save({ traces: false });
   }
 
   // The session as the store writes it, or null if no lap was completed.
-  function finished() {
+  function finished({ traces: withTraces = true } = {}) {
     if (!rec || !rec.session) return null;
     const official = rec.classification ? rec.classification.cars : null;
     const laps = rec.laps.rows().map((l) => {
@@ -177,7 +182,7 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
 
     const d = rec.debriefRecord;
     const traces = [];
-    if (d) {
+    if (d && withTraces) {
       // Laps traced from the line: an out-lap is only traced from the pit exit.
       for (const [lapNum, t] of d.traces) if (t.startedAtLine) traces.push({ carIdx: d.playerIdx ?? rec.playerIdx, lapNum, points: t.points });
       for (const [carIdx, t] of d.rivalBest || []) traces.push({ carIdx, lapNum: t.lapNum, points: t.points });
@@ -190,8 +195,8 @@ function createSessionRecorder(fieldModel, { write, debrief = null }) {
     };
   }
 
-  function save() {
-    const s = finished();
+  function save(opts) {
+    const s = finished(opts);
     if (s) write(s);
   }
 

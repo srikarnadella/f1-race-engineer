@@ -29,7 +29,7 @@
           <p class="w-map__sum" data-ref="sum"></p>
           <p class="w-map__msg" data-ref="msg" hidden></p>
         </div>`);
-      let fit = null; // the outline's scale and offset, worked out once per outline
+      let fit = null; // the outline's scale and offset, worked out once per track
       let fitFor = null;
       let segs = [];
       let shownLoss;
@@ -119,8 +119,9 @@
           shownLoss = undefined;
           return;
         }
-        if (fitFor !== outline) {
-          fitFor = outline;
+        // By track: the outline comes as a new copy every second, but a track's outline is never redrawn once kept.
+        if (fitFor !== m.trackId) {
+          fitFor = m.trackId;
           fit = place(outline);
           drawTrack(outline);
           shownLoss = undefined;

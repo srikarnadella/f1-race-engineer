@@ -60,6 +60,17 @@ test('map widget: the outline rides once a second, so the page keeps it between 
   assert.match(app.window.document.querySelector('.w-map').textContent, /first clean lap/i, 'another track: not the old outline');
 });
 
+test('map widget: the outline arriving again each second (a new copy off the wire) does not rebuild the track; another track does', (t) => {
+  const app = custom(t, { map: map() });
+  const seg0 = app.window.document.querySelector('.w-map__seg');
+  app.send({ ...base(), connected: true, map: map({ outline: square.map((p) => [...p]) }) });
+  assert.strictEqual(app.window.document.querySelector('.w-map__seg'), seg0, 'the same track: the same elements');
+  const other = [[0, 0], [50, 0], [50, 50]];
+  app.send({ ...base(), connected: true, map: map({ trackId: 11, outline: other }) });
+  assert.strictEqual(app.window.document.querySelectorAll('.w-map__seg').length, other.length, 'another track is drawn');
+  assert.deepStrictEqual(app.errors, []);
+});
+
 // Where the time goes (16 Nov 2026: "the track map is useless, it should show where you are losing time").
 // 25 mini-sectors over 240 outline points: point i's stretch is mini-sector floor((i + 0.5) / 240 * 25).
 const ring = Array.from({ length: 240 }, (_, i) => [Math.cos((i / 240) * 2 * Math.PI) * 100, Math.sin((i / 240) * 2 * Math.PI) * 100]);
