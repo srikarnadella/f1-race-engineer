@@ -308,8 +308,9 @@ test('ask the race: a slow answer counts its seconds, so it never looks frozen',
   await settle();
   doc.querySelector('.llm__question').value = 'Slow one?';
   doc.querySelector('.llm__ask').click();
-  await new Promise((r) => setTimeout(r, 1150));
-  assert.match(doc.querySelector('.llm__thinking').textContent, /1 s/);
+  // A loaded CI machine can run late: wait for the count to reach a second, up to 3 s, rather than one fixed sleep.
+  for (let waited = 0; waited < 3000 && !/[1-9] s/.test(doc.querySelector('.llm__thinking').textContent); waited += 50) await new Promise((r) => setTimeout(r, 50));
+  assert.match(doc.querySelector('.llm__thinking').textContent, /[1-9] s/);
   finish({ answer: 'Done.', grounded: true, unsupported: [], charts: [], evidence: [], toolCalls: [] });
   await settle();
   assert.strictEqual(doc.querySelector('.llm__thinking'), null);

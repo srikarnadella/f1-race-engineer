@@ -375,7 +375,7 @@
           if (!thinking.parentNode) return clearInterval(tick); // replaced by the answer (not just off-screen)
           const s = Math.floor((Date.now() - t0) / 1000);
           thinking.textContent = `Working it out… ${s} s${s >= 8 ? ' (the model loads first, then answers)' : ''}`;
-        }, 1000);
+        }, 250); // not 1000: a timer that fires a millisecond early would read "0 s" for a whole second (seen in CI)
         const li = h('li', { class: 'llm__answer' }, h('p', { class: 'llm__q' }, title), a);
         thread.append(li);
         drawChat();
