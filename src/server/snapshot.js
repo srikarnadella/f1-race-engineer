@@ -75,6 +75,10 @@ function buildSnapshot(fieldModel, insightEngine, raceAnalysis, focus = null) {
           tyreCompound: player.status ? player.status.visualTyreCompound : null,
           tyresAgeLaps: player.status ? player.status.tyresAgeLaps : null,
           tyresWear: player.damage ? player.damage.tyresWear : null,
+          // The sets you can still fit, and the one on the car (the Tyres screen); null until the game has sent them.
+          tyreSets: player.tyreSets
+            ? player.tyreSets.filter((x) => x.available || x.fitted).map((x) => ({ compound: x.visualTyreCompound, wear: x.wear, lapsLeft: x.lifeSpan, deltaMs: x.lapDeltaTimeMs, fitted: x.fitted }))
+            : null,
         }
       : null,
     nearby,

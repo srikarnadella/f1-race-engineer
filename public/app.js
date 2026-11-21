@@ -98,6 +98,7 @@
   const ALL_PRESETS = [...PRESETS, ...QUALI_PRESETS];
   // The Setup screen: your car's setup against the sheet's for the track. It comes up by itself in the garage (maybeSetup).
   const GARAGE_PRESETS = [{ id: 'setup', group: 'garage', label: 'Setup', layout: 'single', widgets: ['setup'] }, { id: 'brief', group: 'garage', label: 'Briefing', layout: 'single', widgets: ['brief'] },
+    { id: 'tyres', group: 'garage', label: 'Tyres', layout: 'single', widgets: ['tyresets'] },
     // On a phone or tablet the setups library is a screen here; in the app it is a place of its own (Home).
     ...(window.RaceDesktop && window.RaceDesktop.placeFrame ? [] : [{ id: 'setups', group: 'garage', label: 'Setups', layout: 'single', widgets: ['setups'] }])];
   let qualiMode = false;
@@ -143,7 +144,7 @@
   // once the session is over (the recorded demo lists them always). The screen you are on keeps its tab, so it never vanishes under you.
   const gate = { setup: false, brief: false, over: false };
   const listed = (s) => RECORDED || s.id === currentId
-    || (s.id === 'setup' ? gate.setup : s.id === 'brief' || (s.id === 'setups' && s.group === 'garage') ? gate.brief : s.id === 'debrief' ? gate.over : true);
+    || (s.id === 'setup' ? gate.setup : s.id === 'brief' || s.id === 'tyres' || (s.id === 'setups' && s.group === 'garage') ? gate.brief : s.id === 'debrief' ? gate.over : true);
   const listedScreens = () => screens().filter(listed);
   // Number keys skip Home, so Drive is 1 in the app as in a browser.
   const numbered = () => listedScreens().filter((s) => !standalone(s.id));

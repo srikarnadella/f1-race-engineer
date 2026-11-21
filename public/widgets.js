@@ -153,7 +153,7 @@
 
   const W = {};
   // The order the Custom screen's widget picker lists them in (the files that register them load in another order).
-  const ORDER = ['radio', 'call', 'rejoin', 'battle', 'drive', 'laptime', 'pittiming', 'options', 'tyrecall', 'pace', 'nearby', 'adjust', 'weather', 'qlap', 'qorder', 'qplan', 'setup', 'brief', 'map'];
+  const ORDER = ['radio', 'call', 'rejoin', 'battle', 'drive', 'laptime', 'pittiming', 'options', 'tyrecall', 'pace', 'nearby', 'adjust', 'weather', 'qlap', 'qorder', 'qplan', 'setup', 'brief', 'tyresets', 'map'];
 
   // ---------- Radio ----------
   W.radio = {

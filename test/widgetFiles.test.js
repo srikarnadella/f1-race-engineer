@@ -18,6 +18,6 @@ test('widget files: every widget the files register is in the picker order, and 
   for (const s of widgetScripts()) s.runInContext(dom.getInternalVMContext());
   const { widgets, order } = dom.window.RaceWidgets;
   assert.deepStrictEqual([...order].sort(), Object.keys(widgets).sort());
-  assert.deepStrictEqual(Array.from(order), ['radio', 'call', 'rejoin', 'battle', 'drive', 'laptime', 'pittiming', 'options', 'tyrecall', 'pace', 'nearby', 'adjust', 'weather', 'qlap', 'qorder', 'qplan', 'setup', 'brief', 'map']);
+  assert.deepStrictEqual(Array.from(order), ['radio', 'call', 'rejoin', 'battle', 'drive', 'laptime', 'pittiming', 'options', 'tyrecall', 'pace', 'nearby', 'adjust', 'weather', 'qlap', 'qorder', 'qplan', 'setup', 'brief', 'tyresets', 'map']);
   for (const id of order) assert.strictEqual(typeof widgets[id].mount, 'function', id);
 });

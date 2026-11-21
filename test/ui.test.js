@@ -91,6 +91,7 @@ const NOT_IN_THE_SYNTHETIC_RACE = [
   '$.setup.history (empty)', // no earlier session at this track in the store
   '$.map.outline (empty)', // no clean lap of the track yet
   '$.briefing (empty)', // no race store in the test run
+  '$.player.tyreSets (empty)', // the synthetic race sends no Tyre Sets packet (test/tyreSets.test.js covers it)
 ];
 
 test('dashboard: every field a widget reads exists in the snapshot the server builds', () => {

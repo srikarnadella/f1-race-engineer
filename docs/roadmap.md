@@ -202,6 +202,9 @@ count says the field is mixed (`test/mixedField.test.js`).
 - **BR1 Pre-race briefing.** `src/analysis/briefing.js` from the store (`trackHistory`) and the track memory: sessions and races
   here, best lap, best finish, last race, usual stops, pit stop cost, tyre wear per compound. A Briefing screen in the Garage
   group (`test/briefing.test.js`). It states what happened before and predicts nothing.
+- **TS1 Tyre sets.** A Tyres screen in the Garage group (and a widget for Custom screens): the sets you can still fit from the
+  game's Tyre Sets packet, the fitted one first, each with its wear, laps of life and pace against the fitted set
+  (`test/tyreSets.test.js`). The Garage screens also stopped coming out 0 px tall on phones (a size container in an auto row).
 - **SL3 Setup library (the Setups place).** A desktop place (Home, "Setups") with every setup you ran at each track: its values
   against the sheet, fastest and median clean laps with the compound, track temperature and weather beside them, race pace only
   from 5 or more clean race laps (and labelled as not corrected for fuel), and links into Race analysis for each session, and back

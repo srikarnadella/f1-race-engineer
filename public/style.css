@@ -1699,6 +1699,16 @@ kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #26
 .w-brief__cell b { font-size: clamp(1.5rem, 4.4cqh, 2.4rem); font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .w-brief__cell small { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 
+/* Tyre sets (widgets-setup.js): one row per set, the fitted one a tone lighter. */
+.w-ts__sum { margin: 0; font-size: clamp(1.2rem, 3.6cqh, 1.8rem); font-weight: 800; letter-spacing: -0.01em; }
+.w-ts__list { display: flex; flex-direction: column; gap: var(--gap); }
+.w-ts__row { display: grid; grid-template-columns: 3.2em minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr); align-items: center; gap: 16px; padding: 12px 16px; border-radius: var(--radius); background: var(--panel); font-size: clamp(1rem, 3cqh, 1.4rem); font-weight: 750; font-variant-numeric: tabular-nums; }
+.w-ts__row.is-fitted { background: var(--panel-2); }
+.w-ts__pace { color: var(--muted); text-align: right; }
+.w-ts__row.is-fitted .w-ts__pace { color: var(--text); }
+.w-ts__row > span { white-space: nowrap; }
+:is(.grid--narrow, .grid--medium) .w-ts__row { gap: 10px; padding: 12px; font-size: 1rem; grid-template-columns: 2.4em minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1.2fr); }
+
 /* The setups library as a screen on a phone or tablet (setups.js): it scrolls on its own, with touch-sized controls. */
 .card--setups { overflow-y: auto; }
 .card--setups .card__body { container-type: normal; display: block; overflow: visible; }
@@ -1714,8 +1724,10 @@ kbd { justify-self: start; padding: 2px 8px; border-radius: 4px; background: #26
 }
 
 /* On a phone or tablet the tall screens (Setup, Setups, Briefing) take the height their content needs, rather than the fixed rows the live cards get. */
-.grid--narrow:has(.card--setups, .card--setup, .card--brief), .grid--medium:has(.card--setups, .card--setup, .card--brief) { grid-auto-rows: auto; }
-.grid--narrow .card--setups, .grid--medium .card--setups, .grid--narrow .card--setup, .grid--medium .card--setup, .grid--narrow .card--brief, .grid--medium .card--brief { grid-row: auto; overflow: visible; }
+.grid--narrow:has(.card--setups, .card--setup, .card--brief, .card--tyresets), .grid--medium:has(.card--setups, .card--setup, .card--brief, .card--tyresets) { grid-auto-rows: auto; }
+.grid--narrow .card--setups, .grid--medium .card--setups, .grid--narrow .card--setup, .grid--medium .card--setup, .grid--narrow .card--brief, .grid--medium .card--brief, .grid--narrow .card--tyresets, .grid--medium .card--tyresets { grid-row: auto; overflow: visible; }
+/* A size container takes no height from its content, so in an auto-height row these cards came out 0 px tall (blank on phones). */
+:is(.grid--narrow, .grid--medium) :is(.card--setup, .card--brief, .card--tyresets) .card__body { container-type: normal; }
 
 /* Lap vs lap: the track map of where the time went (analysis.js) */
 .lvl__map { display: flex; flex-direction: column; gap: 8px; }

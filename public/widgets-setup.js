@@ -4,7 +4,7 @@
 // Registers into window.RaceWidgets.widgets (widgets.js, which loads first, has the shared helpers).
 (function () {
   'use strict';
-  const { widgets: W, setText, template, isNum, fmtLap, COMPOUND_NAME, saveSetupNote, canSaveSetups } = window.RaceWidgets;
+  const { widgets: W, setText, template, isNum, fmtLap, compoundBadge, COMPOUND_NAME, saveSetupNote, canSaveSetups } = window.RaceWidgets;
 
   const show = (v) => (isNum(v) ? (Number.isInteger(v) ? String(v) : v.toFixed(1)) : '–');
   const signedChange = (c) => `${c > 0 ? '+' : '−'}${Math.abs(c)}`;
@@ -190,6 +190,51 @@
           r.grid.dataset.sig = sig;
           r.grid.replaceChildren(...cells.map((c) => cell(...c)));
         }
+      };
+    },
+  };
+
+  // ---------- Tyre sets ----------
+  // The sets you can still fit (snapshot player.tyreSets, from the game's Tyre Sets packet): the one on the car first, then
+  // softest first and freshest first, each with its wear, the laps of life the game gives it, and its pace against the fitted set.
+  const SOFTEST = { 16: 0, 17: 1, 18: 2, 7: 3, 8: 4 };
+  W.tyresets = {
+    title: 'Tyre sets',
+    description: 'The sets you have left: wear, laps of life and pace against the set on the car',
+    tall: true,
+    bare: true,
+    mount(el) {
+      const r = template(el, `
+        <div class="w-brief w-ts">
+          <section class="w-brief__head"><span class="w-label">Tyre sets</span><p class="w-ts__sum" data-ref="sum"></p></section>
+          <div class="w-ts__list" data-ref="list"></div>
+        </div>`);
+      const span = (cls, text) => {
+        const n = document.createElement('span');
+        n.className = cls;
+        n.textContent = text;
+        return n;
+      };
+      const pace = (x) => (x.fitted ? 'Fitted' : Math.abs(x.deltaMs) < 50 ? 'Same pace' : `${(Math.abs(x.deltaMs) / 1000).toFixed(2)}s ${x.deltaMs < 0 ? 'faster' : 'slower'}`);
+      return (s) => {
+        const list = (s.player && s.player.tyreSets) || null;
+        const sorted = list ? [...list].sort((a, b) => b.fitted - a.fitted || (SOFTEST[a.compound] ?? 9) - (SOFTEST[b.compound] ?? 9) || a.wear - b.wear) : [];
+        const left = sorted.filter((x) => !x.fitted);
+        const count = (c) => left.filter((x) => x.compound === c).length;
+        const parts = [16, 17, 18, 7, 8].filter(count).map((c) => `${count(c)} ${COMPOUND_NAME[c].toLowerCase()}`);
+        setText(r.sum, !list ? 'Shows up once the game sends your tyre sets (in the garage, or on track).'
+          : left.length ? `${left.length} set${left.length === 1 ? '' : 's'} left: ${parts.join(', ')}` : 'No other sets left');
+        const sig = JSON.stringify(sorted);
+        if (r.list.dataset.sig === sig) return;
+        r.list.dataset.sig = sig;
+        r.list.replaceChildren(...sorted.map((x) => {
+          const row = document.createElement('div');
+          row.className = `w-ts__row${x.fitted ? ' is-fitted' : ''}`;
+          const badge = compoundBadge(x.compound);
+          badge.classList.add('compound--lg');
+          row.append(badge, span('w-ts__wear', x.wear ? `${x.wear}% worn` : 'New'), span('w-ts__life', `${x.lapsLeft} laps`), span('w-ts__pace', pace(x)));
+          return row;
+        }));
       };
     },
   };

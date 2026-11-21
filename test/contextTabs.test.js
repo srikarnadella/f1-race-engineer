@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { open, raceSnapshots } = require('./helpers/dashboard');
 
-// The rail only lists Setup and Briefing while you are in the garage, and Debrief once the session is over, so the sidebar
+// The rail only lists Setup, Briefing and Tyres while you are in the garage, and Debrief once the session is over, so the sidebar
 // is not full of screens with nothing to show.
 const base = () => raceSnapshots().find((s) => s.player && s.analysis);
 const setup = (inGarage) => ({ available: true, track: 'Spa', circuit: 'Belgium', kind: 'q', editable: true, inGarage, rows: [], off: 0, notes: null, source: 'F1 26', history: null });
@@ -21,16 +21,16 @@ test('rail: Setup and Briefing appear in the garage and go when you leave it', (
   const app = open(t, { storage: { 'raceEngineer.setupAuto': false } });
   app.connect();
   app.send(snap({ setup: setup(true) }));
-  assert.deepStrictEqual(tabs(app), ['Drive', 'Battle', 'Strategy', 'Weather', 'Custom', 'Setup', 'Briefing', 'Setups']); // the library too, on a phone
+  assert.deepStrictEqual(tabs(app), ['Drive', 'Battle', 'Strategy', 'Weather', 'Custom', 'Setup', 'Briefing', 'Tyres', 'Setups']); // the library too, on a phone
   app.send(snap());
   assert.deepStrictEqual(tabs(app), ['Drive', 'Battle', 'Strategy', 'Weather', 'Custom']);
 });
 
-test('rail: in the garage before a race (the car cannot be changed) only the Briefing is listed', (t) => {
+test('rail: in the garage before a race (the car cannot be changed) the Briefing and Tyres are listed, not Setup', (t) => {
   const app = open(t);
   app.connect();
   app.send(snap({ setup: { ...setup(true), editable: false } }));
-  assert.deepStrictEqual(tabs(app), ['Drive', 'Battle', 'Strategy', 'Weather', 'Custom', 'Briefing', 'Setups']);
+  assert.deepStrictEqual(tabs(app), ['Drive', 'Battle', 'Strategy', 'Weather', 'Custom', 'Briefing', 'Tyres', 'Setups']);
 });
 
 test('rail: Debrief appears when the session is over, and only then', (t) => {
