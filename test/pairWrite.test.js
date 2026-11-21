@@ -54,6 +54,27 @@ test('write: without the key, or with a wrong one, nothing is saved', async (t) 
   assert.deepStrictEqual(s.saved, []);
 });
 
+// Found by the 20 Nov 2026 audit: a key of the right length in characters but not in bytes threw past the handler and
+// stopped the whole bridge - one request from any device on the Wi-Fi, no key needed.
+test('write: a key with non-ASCII letters is refused, and the server keeps running', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  // Raw bytes on a socket: Node's own client would send UTF-8 (two bytes a letter), the server reads one byte a letter.
+  const reply = await new Promise((resolve, reject) => {
+    const sock = require('net').connect(s.port, '127.0.0.1', () => {
+      sock.write(Buffer.concat([Buffer.from('POST /api/setups/note HTTP/1.1\r\nHost: localhost\r\nContent-Length: 2\r\nConnection: close\r\nX-Undercut-Key: '),
+        Buffer.alloc(32, 0xe9), Buffer.from('\r\n\r\n{}')]));
+    });
+    let text = '';
+    sock.on('data', (d) => { text += d; });
+    sock.on('end', () => resolve(text));
+    sock.setTimeout(2000, () => { sock.destroy(); resolve(text); }); // no answer at all: the handler died
+    sock.on('error', reject);
+  });
+  assert.match(reply, /^HTTP\/1\.1 403/);
+  assert.strictEqual((await ok(s)).status, 200, 'still serving');
+});
+
 test('write: a request that names another site as its origin is refused even with the key', async (t) => {
   const s = await start();
   t.after(s.close);

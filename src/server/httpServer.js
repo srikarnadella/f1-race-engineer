@@ -60,7 +60,12 @@ function serveApi(req, res, api) {
 // (src/server/pairKey.js, carried in the QR code). The key travels in a header, so a page on another site cannot send it without
 // a CORS permission this server never gives; the Origin must also be this server's own.
 const MAX_POST_BYTES = 8 * 1024;
-const safeEqual = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+// Bytes, not letters: a header of 32 accented letters (one byte each on the wire) is 64 bytes as UTF-8, and
+// timingSafeEqual throws on unequal lengths - which stopped the whole bridge (audit, 20 Nov 2026).
+const safeEqual = (a, b) => {
+  const [x, y] = [Buffer.from(a), Buffer.from(b)];
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
 function servePost(req, res, { post, pairKey, scheme }) {
   const send = (code, obj) => {
     res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
