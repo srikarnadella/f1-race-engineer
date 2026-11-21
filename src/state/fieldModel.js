@@ -18,7 +18,7 @@ const SLOW_VICTIM_KMH = 80;
 // the best guess at how the rest of this lap goes (see batteryProjection.js).
 const ERS_BINS = 20;
 const { createFeedHealth } = require('./feedHealth');
-const { sessionName } = require('./race');
+const { sessionName, RACE_SESSION_TYPES } = require('./race');
 
 // Tracks every car on track, keyed by car index - not just the player's.
 // This is the join point for "relative to the field": gaps, pace trends,
@@ -162,7 +162,12 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       const prevLap = car.lapData;
       const timeIsNew = prevLap && (c.lastLapTimeInMS !== prevLap.lastLapTimeInMS
         || (prevLap.resultStatus !== 3 && lastRecorded && c.lastLapTimeInMS !== lastRecorded.lapMs));
-      if (c.resultStatus === 3 && c.lastLapTimeInMS > 0 && timeIsNew && (!lastRecorded || lastRecorded.lapNum < c.currentLapNum)) {
+      // Outside a race, a time equal to the last lap's is that lap's, not a new one: qualifying ends mid-lap with every car
+      // "finished" (5 qualifyings in the user's race.db had a made-up last lap per car, 20 Nov 2026). Races are left as
+      // they were: their final lap is a real one, seen on every race in the store.
+      const notRace = !!(session && session.sessionType != null && !RACE_SESSION_TYPES.has(session.sessionType));
+      const staleTime = (h) => notRace && h.length > 0 && h[h.length - 1].lapMs === c.lastLapTimeInMS;
+      if (c.resultStatus === 3 && c.lastLapTimeInMS > 0 && timeIsNew && !staleTime(car.lapHistory) && (!lastRecorded || lastRecorded.lapNum < c.currentLapNum)) {
         car.lapHistory.push({ lapNum: c.currentLapNum, lapMs: c.lastLapTimeInMS, pit: !!car.lapTouchedPit, neutralised: !!car.lapNeutralised, ...tyreOf(car) });
         if (car.lapHistory.length > LAP_HISTORY_SIZE) car.lapHistory.shift();
         miniSectors.close(i, car, c.lastLapTimeInMS);
@@ -192,7 +197,7 @@ function createFieldModel({ clock = () => Date.now() } = {}) {
       // One entry per completed lap: pace trends, stint pace, pit loss.
       // Forwards - usually +1, but a red-flag restart can jump the counter (13 -> 16 at Monaco).
       if (prevLapNum != null && c.currentLapNum > prevLapNum) {
-        if (c.lastLapTimeInMS > 0) {
+        if (c.lastLapTimeInMS > 0 && !staleTime(car.lapHistory)) {
           car.lapHistory.push({
             lapNum: prevLapNum,
             lapMs: c.lastLapTimeInMS,

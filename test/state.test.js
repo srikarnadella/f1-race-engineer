@@ -180,6 +180,23 @@ test('the final lap is recorded at the chequered flag, when the lap counter does
   assert.deepStrictEqual(fm.getCar(PLAYER).lapHistory.map((l) => [l.lapNum, l.lapMs]), [[5, 94643]]);
 });
 
+// Every qualifying in the user's race.db (5 sessions, 73 rows, 20 Nov 2026) had one lap per car too many: the lap each car
+// was on when the session ended, with the time of the lap before it and no sectors (Interlagos: HAMILTON lap 2 = 81483,
+// "lap 3" = 81483). A lap time the game has not updated is not a new lap, whether the counter moves on or the status flips.
+test('a lap whose time is still the lap before\'s is not recorded (qualifying ending mid-lap)', () => {
+  const fm = createFieldModel();
+  fm.dispatch(PACKET_IDS.SESSION, header(0), { sessionType: 8, trackId: 16, totalLaps: 1, trackLength: 4294 }); // short qualifying
+  const me =(t, o) => fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { resultStatus: 2, ...o } }) });
+  me(1, { currentLapNum: 2, lastLapTimeInMS: 81078 });
+  me(2, { currentLapNum: 3, lastLapTimeInMS: 81483 }); // lap 2 done
+  // The session ends: the counter jumps with no new time...
+  me(3, { currentLapNum: 4, lastLapTimeInMS: 81483 });
+  // ...or the car is marked finished part-way round, after a packet whose time blinked.
+  me(4, { currentLapNum: 4, lastLapTimeInMS: 0 });
+  me(5, { currentLapNum: 4, lastLapTimeInMS: 81483, resultStatus: 3 });
+  assert.deepStrictEqual(fm.getCar(PLAYER).lapHistory.map((l) => [l.lapNum, l.lapMs]), [[2, 81483]]);
+});
+
 test('a flashback back across the line undoes laps instead of recording fake ones', () => {
   const fm = createFieldModel();
   const lapTo = (t, n, ms) => fm.dispatch(PACKET_IDS.LAP_DATA, header(t), { cars: lapCars({ [PLAYER]: { currentLapNum: n, lastLapTimeInMS: ms } }) });

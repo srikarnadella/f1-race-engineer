@@ -221,10 +221,13 @@ function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientM
     server.removeAllListeners('connection');
     server.on('connection', (socket) => {
       socket.on('error', () => {}); // a client that hangs up before its first byte
+      // Browsers send their first bytes at once; a connection silent for 3 s (a scanner, an unused preconnect) is closed.
+      socket.setTimeout(3000, () => socket.destroy());
       // Peek at one byte without starting the flow ('data' would lose the bytes TLS needs).
       socket.once('readable', () => {
         const first = socket.read(1);
         if (!first) return socket.destroy();
+        socket.setTimeout(0);
         socket.unshift(first);
         if (first[0] === 0x16) tlsConnection.call(server, socket);
         else redirect.emit('connection', socket);

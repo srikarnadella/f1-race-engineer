@@ -9,6 +9,9 @@
   const api = window.undercut;
   if (!api) return;
   const { widgets, setText } = window.RaceWidgets;
+  // Sharing is https (the app's own certificate, naming this PC's addresses at the start), so each device warns once.
+  const HTTPS_NOTE = 'The first time, a phone warns that the connection isn\'t private: the certificate is made by this PC, not a company. Tap Advanced, then Proceed.';
+  const STALE_NOTE = 'This PC\'s network address changed since Undercut started, so phones and laptops will warn again: restart Undercut to fix it.';
 
   // ---------- Small helpers ----------
   // h('p', { class: 'x', onclick }, 'text', child) - text is always set as text, never as HTML.
@@ -170,8 +173,7 @@
         devices: h('p', { class: 'pc-share__devices' }),
         shareOff: h('p', { class: 'pc-share__off' }, 'Only this PC can open the dashboard right now. Turn on sharing to put it on a phone, tablet or laptop on the same Wi-Fi.'),
         share: h('input', { type: 'checkbox', onchange: (e) => act(() => { keepScreen(); return api.setSettings({ share: e.target.checked }); }) }),
-        // Sharing is https (the app's own certificate), so each phone warns once.
-        httpsNote: h('p', { class: 'pc-share__note' }, 'The first time, a phone warns that the connection isn\'t private: the certificate is made by this PC, not a company. Tap Advanced, then Proceed.'),
+        httpsNote: h('p', { class: 'pc-share__note' }, HTTPS_NOTE),
         // A new pairing key: phones paired before can still look, but no longer save. The QR code changes with it.
         forget: button('Forget paired phones', () => act(async () => {
           const s = await api.unpair();
@@ -225,7 +227,7 @@
         const live = !!(s && s.connected);
         const replaying = status.mode === 'replay';
         const feed = (s && s.feed) || {};
-        const key = JSON.stringify([live, replaying, status.replay, status.recording, status.settings, status.pairUrl, status.clients, feed.rateHz, feed.lossPct, status.addresses]);
+        const key = JSON.stringify([live, replaying, status.replay, status.recording, status.settings, status.pairUrl, status.clients, feed.rateHz, feed.lossPct, status.addresses, status.certStale]);
         if (key === sig) return;
         sig = key;
 
@@ -275,6 +277,7 @@
         setText(st.devices, others ? `${plural(others, 'other device')} connected` : 'Scan with a phone camera, or type the address.');
         st.share.checked = shared;
         st.httpsNote.hidden = !shared;
+        setText(st.httpsNote, status.certStale ? STALE_NOTE : HTTPS_NOTE);
         st.forget.hidden = !shared;
       }
       // n changes when the key does, so the image is fetched again rather than kept from before.

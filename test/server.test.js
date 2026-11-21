@@ -46,6 +46,17 @@ test('server: with https on, a plain http address is sent to the https one on th
   assert.strictEqual(ok.statusCode, 200);
 });
 
+test('server: with https on, a connection that never sends a byte is closed, not kept forever', async (t) => {
+  const pems = await require('selfsigned').generate([{ name: 'commonName', value: 'test' }], { keySize: 2048 });
+  const s = startServer({ httpPort: 0, getSnapshot: () => ({ ok: true }), tls: { key: pems.private, cert: pems.cert } });
+  if (!s.server.listening) await once(s.server, 'listening');
+  t.after(s.close);
+  const sock = require('net').connect(s.server.address().port, '127.0.0.1');
+  const started = Date.now();
+  await once(sock, 'close');
+  assert.ok(Date.now() - started < 8000, `closed after ${Date.now() - started} ms`);
+});
+
 test('server: bound to this PC only, it offers no pairing address and other devices cannot reach it', async (t) => {
   const s = startServer({ httpPort: 0, host: '127.0.0.1', getSnapshot: () => ({ ok: true }) });
   if (!s.server.listening) await once(s.server, 'listening');

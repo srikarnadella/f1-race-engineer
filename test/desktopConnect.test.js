@@ -4,15 +4,15 @@ const { open } = require('./helpers/dashboard');
 
 // Connect's "Other devices" (public/desktop.js). Sharing is https whenever it is on (the pairing key must not cross the
 // Wi-Fi in plain text), so there is no separate "voice on phones" switch; and paired phones can be forgotten in one press.
-function fakeApi(over = {}) {
-  const status = { version: '0.1.0', mode: 'live', replay: null, recording: null, settings: { httpPort: 8080, udpPort: 20777, share: true }, pairUrl: 'https://192.168.1.23:8080', addresses: ['192.168.1.23'], clients: 1, dataDir: 'C:/data', analyzing: [] };
+function fakeApi(over = {}, extra = {}) {
+  const status = { ...extra, version: '0.1.0', mode: 'live', replay: null, recording: null, settings: { httpPort: 8080, udpPort: 20777, share: true }, pairUrl: 'https://192.168.1.23:8080', addresses: ['192.168.1.23'], clients: 1, dataDir: 'C:/data', analyzing: [] };
   const ok = async () => status;
   const calls = [];
   return { calls, api: { status: ok, setSettings: ok, record: ok, stopRecording: ok, replay: ok, live: ok, captures: async () => [], analyze: ok, deleteCapture: ok, deleteSession: ok, showCapture: ok, openReport: ok, openDataFolder: ok, openInBrowser: ok, unpair: async () => { calls.push('unpair'); return status; }, speech: { start: ok, stop: ok }, on: () => () => {}, ...over } };
 }
 const settle = () => new Promise((r) => setTimeout(r, 10));
-async function openConnect(t) {
-  const fake = fakeApi();
+async function openConnect(t, extra = {}) {
+  const fake = fakeApi({}, extra);
   const app = open(t, { before: (w) => { w.undercut = fake.api; } });
   await settle();
   const doc = app.window.document;
@@ -41,4 +41,22 @@ test('connect: "Forget paired phones" makes a new key, and the QR code is fetche
   assert.deepStrictEqual(app.fake.calls, ['unpair']);
   assert.notStrictEqual(qr.getAttribute('src'), before, 'a new QR code (it carries the new key)');
   assert.deepStrictEqual(app.errors, []);
+});
+
+// The certificate names the PC's addresses when Undercut starts; a new address from the router means every phone warns
+// again (and voice may not open) until a restart remakes it. Connect says so instead of leaving it a mystery.
+test('connect: when the PC\'s address changed since the start, it says to restart Undercut', async (t) => {
+  const app = await openConnect(t, { certStale: true });
+  app.send({ source: 'live', capturing: false, connected: false }); // Connect redraws on the live feed
+  await settle();
+  assert.match(app.share().textContent, /address changed.*restart Undercut/i);
+  assert.deepStrictEqual(app.errors, []);
+});
+
+test('connect: no restart line while the address is the one the certificate names', async (t) => {
+  const app = await openConnect(t);
+  app.send({ source: 'live', capturing: false, connected: false });
+  await settle();
+  assert.match(app.share().textContent, /isn't private/);
+  assert.doesNotMatch(app.share().textContent, /restart Undercut/i);
 });

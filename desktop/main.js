@@ -49,6 +49,7 @@ if (!app.requestSingleInstanceLock()) {
   let bridge = null;
   let replay = null; // { name, label, file } while replaying a recording or the demo
   let tls = null;
+  let certIps = []; // the addresses the certificate names (made at each start)
   let quitting = false;
   const analyzing = new Set();
   let backfill = null; // while "read setups from my recordings" runs: { done, total }
@@ -66,6 +67,8 @@ if (!app.requestSingleInstanceLock()) {
       settings,
       pairUrl: ip ? `${scheme()}://${ip}:${settings.httpPort}` : null,
       addresses: settings.share ? lanAddresses() : [],
+      // The router gave this PC a new address since the start: the certificate doesn't name it until a restart.
+      certStale: !!(tls && ip && !certIps.includes(ip)),
       clients: bridge ? bridge.clients() : 0,
       dataDir: paths.data(),
       analyzing: [...analyzing],
@@ -95,7 +98,8 @@ if (!app.requestSingleInstanceLock()) {
   async function launch() {
     // https whenever other devices can connect: the pairing key in the QR code must not cross the Wi-Fi in plain text
     // (and phones only open the microphone on a secure page).
-    tls = settings.share ? await ensureCert(paths.tls(), lanAddresses()) : null;
+    certIps = lanAddresses();
+    tls = settings.share ? await ensureCert(paths.tls(), certIps) : null;
     bridge = start({
       demoFile: replay ? replay.file : null,
       recordFile: null,
