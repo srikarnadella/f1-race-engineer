@@ -30,6 +30,22 @@ test('server: a WebSocket frame over 1 KB closes the connection', async (t) => {
   assert.strictEqual(code, 1009); // message too big
 });
 
+test('server: with https on, a plain http address is sent to the https one on the same port (old bookmarks, typed addresses)', async (t) => {
+  const pems = await require('selfsigned').generate([{ name: 'commonName', value: 'test' }], { keySize: 2048 });
+  const s = startServer({ httpPort: 0, getSnapshot: () => ({ ok: true }), tls: { key: pems.private, cert: pems.cert } });
+  if (!s.server.listening) await once(s.server, 'listening');
+  t.after(s.close);
+  const port = s.server.address().port;
+  const res = await new Promise((resolve, reject) => http.get({ port, path: '/?x=1', headers: { host: `192.168.1.23:${port}` } }, resolve).on('error', reject));
+  res.resume();
+  assert.strictEqual(res.statusCode, 301);
+  assert.strictEqual(res.headers.location, `https://192.168.1.23:${port}/?x=1`);
+  // https itself still serves the dashboard.
+  const ok = await new Promise((resolve, reject) => require('https').get({ port, path: '/', rejectUnauthorized: false }, resolve).on('error', reject));
+  ok.resume();
+  assert.strictEqual(ok.statusCode, 200);
+});
+
 test('server: bound to this PC only, it offers no pairing address and other devices cannot reach it', async (t) => {
   const s = startServer({ httpPort: 0, host: '127.0.0.1', getSnapshot: () => ({ ok: true }) });
   if (!s.server.listening) await once(s.server, 'listening');

@@ -116,6 +116,27 @@ test('debrief: your best lap against a rival best lap, kept with the session', (
   }
 });
 
+test('debrief: a rival lap whose trace stops short of the line is not a best lap (Interlagos qualifying, 20 Nov 2026)', () => {
+  // Hamilton's "81.483" stopped at 3.9 of 4.3 km, 78.25 s in: the comparison then called a 1.2 s slower lap 0.13 s faster.
+  const kmh = 280;
+  const full = (lapNum) => ({
+    lapNum, startedAtLine: true, invalid: false, lapMs: Math.round((5800 / (kmh / 3.6)) * 1000),
+    points: Array.from({ length: 2900 }, (_, k) => [k * 2, Math.round(((k * 2) / (kmh / 3.6)) * 1000), kmh, 1, 0, 0, 7]),
+  });
+  const cutShort = { ...full(2), points: full(2).points.filter((p) => p[0] <= 5000) };
+  // Reaches the line, but its clock says another lap's time.
+  const wrongTime = { ...full(2), lapMs: full(2).lapMs - 2000 };
+  for (const t of [cutShort, wrongTime]) {
+    const d = createDebrief(fakeField({ classified: false, playerTraces: [full(2)], rivalTraces: [{ carIndex: 1, ...t }] }));
+    d.tick();
+    const c = d.compare(d.view().sessions[0].id, null, 'r1');
+    assert.ok(!c.lapA || c.lapA.rival !== 'RIVAL', JSON.stringify(c.rivals)); // no rival lap to compare against
+  }
+  const d = createDebrief(fakeField({ classified: false, playerTraces: [full(2)], rivalTraces: [{ carIndex: 1, ...full(2) }] }));
+  d.tick();
+  assert.deepStrictEqual(d.compare(d.view().sessions[0].id, null, 'r1').rivals.map((r) => r.name), ['RIVAL']);
+});
+
 test('debrief: the session store keeps the newest 50 on disk (roadmap D5)', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'debrief-'));
   try {

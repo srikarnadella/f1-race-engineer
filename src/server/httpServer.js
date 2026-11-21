@@ -210,6 +210,27 @@ function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientM
     }
   };
   const server = tls ? https.createServer(tls, handler) : http.createServer(handler);
+  if (tls) {
+    // One port, both schemes: a plain http request (an old bookmark, a typed address) gets a redirect to https rather
+    // than a dropped connection. The first byte of a TLS connection is 0x16 (a handshake record).
+    const [tlsConnection] = server.listeners('connection');
+    const redirect = http.createServer((req, res) => {
+      res.writeHead(301, { Location: `https://${req.headers.host || `localhost:${httpPort}`}${req.url}`, Connection: 'close' });
+      res.end();
+    });
+    server.removeAllListeners('connection');
+    server.on('connection', (socket) => {
+      socket.on('error', () => {}); // a client that hangs up before its first byte
+      // Peek at one byte without starting the flow ('data' would lose the bytes TLS needs).
+      socket.once('readable', () => {
+        const first = socket.read(1);
+        if (!first) return socket.destroy();
+        socket.unshift(first);
+        if (first[0] === 0x16) tlsConnection.call(server, socket);
+        else redirect.emit('connection', socket);
+      });
+    });
+  }
   const wss = new WebSocketServer({ server, maxPayload: MAX_CLIENT_MESSAGE_BYTES, verifyClient: sameOrigin });
   // ws re-emits the HTTP server's errors; those are handled on `server` below.
   wss.on('error', () => {});

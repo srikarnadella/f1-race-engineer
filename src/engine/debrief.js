@@ -149,6 +149,11 @@ function createDebrief(fieldModel, { dir = null } = {}) {
       const car = fieldModel.getCar(t.carIndex);
       const rec = car.lapHistory.find((l) => l.lapNum === t.lapNum);
       if (!t.startedAtLine || t.invalid || !(t.lapMs > 0) || !rec || rec.pit || rec.neutralised || t.lapNum < 2) continue;
+      // The trace must be the whole of that lap: Interlagos qualifying (20 Nov 2026) kept traces that stopped 0.2-0.7 km
+      // short of the line, timed against another lap. A whole lap ends near the line, its clock near the lap time.
+      const last = t.points[t.points.length - 1];
+      const trackLength = session && session.trackLength;
+      if (!last || (trackLength && last[0] < trackLength - 50) || Math.abs(t.lapMs - last[1]) > 500) continue;
       // Online, other cars' telemetry may be withheld (sent as zeros).
       if (!t.points.some((p) => p[2] > 0)) continue;
       const had = current.rivalBest.get(t.carIndex);
