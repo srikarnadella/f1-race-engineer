@@ -177,8 +177,9 @@ function sameOrigin({ req }) {
 // LAN address, which plain http can't make secure.
 // onPortInUse(port): the desktop app shows it in a window; the command line exits.
 // host: '127.0.0.1' keeps the dashboard on this PC (the app's "Share with other devices" off).
-function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientMessage = null, api = null, tls = null, onPortInUse = null, pairKey = null, post = null }) {
+function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientMessage = null, api = null, tls = null, onPortInUse = null, pairKey: initialPairKey = null, post = null }) {
   const scheme = tls ? 'https' : 'http';
+  let pairKey = initialPairKey; // replaced by "Forget paired phones" (setPairKey), without a restart mid-race
   const localOnly = host === '127.0.0.1' || host === 'localhost';
   const pairUrl = () => {
     const ip = localOnly ? null : pairAddress();
@@ -279,6 +280,7 @@ function startServer({ httpPort = 8080, host = undefined, getSnapshot, onClientM
     broadcast,
     server,
     pairLink,
+    setPairKey: (key) => { pairKey = key; },
     clients: () => wss.clients.size,
     close: () => {
       wss.close();

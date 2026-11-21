@@ -132,7 +132,7 @@ async function main() {
   const exe = arg('exe', null);
 
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'undercut-perf-'));
-  fs.writeFileSync(path.join(profile, 'settings.json'), JSON.stringify({ httpPort: HTTP_PORT, udpPort: UDP_PORT, share: false, phoneVoice: false }));
+  fs.writeFileSync(path.join(profile, 'settings.json'), JSON.stringify({ httpPort: HTTP_PORT, udpPort: UDP_PORT, share: false }));
   const cmd = exe || require('electron');
   const args = [...(exe ? [] : ['.']), `--remote-debugging-port=${CDP_PORT}`];
   const t0 = Date.now();

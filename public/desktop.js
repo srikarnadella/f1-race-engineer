@@ -170,8 +170,15 @@
         devices: h('p', { class: 'pc-share__devices' }),
         shareOff: h('p', { class: 'pc-share__off' }, 'Only this PC can open the dashboard right now. Turn on sharing to put it on a phone, tablet or laptop on the same Wi-Fi.'),
         share: h('input', { type: 'checkbox', onchange: (e) => act(() => { keepScreen(); return api.setSettings({ share: e.target.checked }); }) }),
-        voice: h('input', { type: 'checkbox', onchange: (e) => act(() => { keepScreen(); return api.setSettings({ phoneVoice: e.target.checked }); }) }),
-        voiceNote: h('p', { class: 'pc-share__note' }),
+        // Sharing is https (the app's own certificate), so each phone warns once.
+        httpsNote: h('p', { class: 'pc-share__note' }, 'The first time, a phone warns that the connection isn\'t private: the certificate is made by this PC, not a company. Tap Advanced, then Proceed.'),
+        // A new pairing key: phones paired before can still look, but no longer save. The QR code changes with it.
+        forget: button('Forget paired phones', () => act(async () => {
+          const s = await api.unpair();
+          qrGen++;
+          if (status && status.pairUrl) st.qr.src = qrSrc(status.pairUrl);
+          return s;
+        }), 'pc-btn--quiet'),
         error: h('p', { class: 'pc-error', role: 'alert', hidden: true }),
       };
       const mode = h('div', { class: 'pc-mode', hidden: true }, st.modeText, button('Back to live', () => act(() => { keepScreen(); return api.live(); }), 'pc-btn--primary'));
@@ -188,8 +195,8 @@
           shareBlock,
           st.shareOff,
           h('label', { class: 'pc-toggle' }, st.share, h('span', {}, h('b', {}, 'Share on this Wi-Fi'), h('span', { class: 'dim' }, 'Phones, tablets and laptops on the same network can open the dashboard.'))),
-          h('label', { class: 'pc-toggle' }, st.voice, h('span', {}, h('b', {}, 'Voice questions on phones'), h('span', { class: 'dim' }, 'Serves the dashboard over https, which phones need before they open the microphone.'))),
-          st.voiceNote),
+          st.httpsNote,
+          st.forget),
         st.error));
 
       async function act(fn) {
@@ -262,18 +269,17 @@
         else if (!shared) setText(st.shareOff, 'Only this PC can open the dashboard right now. Turn on sharing to put it on a phone, tablet or laptop on the same Wi-Fi.');
         if (status.pairUrl) {
           setText(st.url, status.pairUrl);
-          st.qr.src = `/api/qr?u=${encodeURIComponent(status.pairUrl)}`;
+          st.qr.src = qrSrc(status.pairUrl);
         }
         const others = Math.max(0, status.clients - 1); // this window is a client too
         setText(st.devices, others ? `${plural(others, 'other device')} connected` : 'Scan with a phone camera, or type the address.');
         st.share.checked = shared;
-        st.voice.checked = status.settings.phoneVoice;
-        st.voice.disabled = !shared;
-        setText(st.voiceNote, status.settings.phoneVoice && shared
-          ? 'The first time, the phone warns that the connection isn\'t private: the certificate is made by this PC, not a company. Tap Advanced, then Proceed. Voice works after that.'
-          : '');
-        st.voiceNote.hidden = !(status.settings.phoneVoice && shared);
+        st.httpsNote.hidden = !shared;
+        st.forget.hidden = !shared;
       }
+      // n changes when the key does, so the image is fetched again rather than kept from before.
+      let qrGen = 0;
+      const qrSrc = (url) => `/api/qr?u=${encodeURIComponent(url)}&n=${qrGen}`;
       const fact = (label, value) => h('div', { class: 'pc-fact' }, h('span', { class: 'dim' }, label), h('b', {}, value));
 
       // The recording clock ticks on its own; everything else follows the status.

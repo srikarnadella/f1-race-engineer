@@ -93,7 +93,9 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   async function launch() {
-    tls = settings.share && settings.phoneVoice ? await ensureCert(paths.tls(), lanAddresses()) : null;
+    // https whenever other devices can connect: the pairing key in the QR code must not cross the Wi-Fi in plain text
+    // (and phones only open the microphone on a secure page).
+    tls = settings.share ? await ensureCert(paths.tls(), lanAddresses()) : null;
     bridge = start({
       demoFile: replay ? replay.file : null,
       recordFile: null,
@@ -154,6 +156,12 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   handle('status', status);
+  // Forget paired phones: a new pairing key; phones paired before can still look but no longer save.
+  handle('unpair', () => {
+    if (!bridge) throw new Error('Undercut is restarting: try again in a moment');
+    bridge.unpair();
+    return status();
+  });
   // "Easy on the game": every Undercut process (main, window, GPU, utility) runs below normal priority, so
   // F1 26's threads win any contest for a core. Re-applied now and then: a process that restarts is new.
   const applyPriority = () => setPriorities([process.pid, ...app.getAppMetrics().map((m) => m.pid)], settings.easyOnGame, os.setPriority);

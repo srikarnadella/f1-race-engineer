@@ -75,6 +75,16 @@ test('write: a key with non-ASCII letters is refused, and the server keeps runni
   assert.strictEqual((await ok(s)).status, 200, 'still serving');
 });
 
+test('write: after "Forget paired phones" the old key saves nothing and the new one does, with no restart', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const NEW = 'b'.repeat(32);
+  s.setPairKey(NEW);
+  assert.strictEqual((await ok(s)).status, 403, 'the old key');
+  const r = await send(s.port, { headers: { 'X-Undercut-Key': NEW }, body: JSON.stringify({ trackId: 10 }) });
+  assert.strictEqual(r.status, 200);
+});
+
 test('write: a request that names another site as its origin is refused even with the key', async (t) => {
   const s = await start();
   t.after(s.close);
@@ -163,4 +173,15 @@ test('pair key: made once, kept in the data folder, and the same on the next sta
   const b = loadPairKey(dir);
   assert.match(b, /^[0-9a-f]{32}$/, 'a damaged file is replaced, not trusted');
   assert.notStrictEqual(b, 'garbage');
+});
+
+test('pair key: forgetting paired devices makes a new key, kept for the next start', (t) => {
+  const { newPairKey } = require('../src/server/pairKey');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pairkey-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const a = loadPairKey(dir);
+  const b = newPairKey(dir);
+  assert.match(b, /^[0-9a-f]{32}$/);
+  assert.notStrictEqual(b, a, 'the old key no longer saves anything');
+  assert.strictEqual(loadPairKey(dir), b);
 });

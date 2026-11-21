@@ -227,8 +227,9 @@ count says the field is mixed (`test/mixedField.test.js`).
   can look but not change anything and is told how to pair. The key (`src/server/pairKey.js`, `<data>/pair-key`) is made once and kept;
   a write needs it in a header, the request's Origin must be the server's own, the body is at most 8 KB, and the server gives no CORS
   permission, so a page on another site cannot send one (`test/pairWrite.test.js`, `phoneSetups.test.js`, `start.test.js`). Reading
-  recordings and opening Race analysis stay on the PC. *Open:* no "unpair devices" button (delete `pair-key` and restart); the key
-  travels over plain http on the home network unless voice questions switched the dashboard to https.
+  recordings and opening Race analysis stay on the PC. *Since 20 Nov 2026:* Connect's **Forget paired phones** makes
+  a new key at once (no restart), and the app serves https whenever sharing is on, so the key never travels in plain http
+  (`test/desktopConnect.test.js`). The command-line bridge is https only with `--https-cert`.
 - **AN1 Where you lose time, corner trends, race starts, screen awake.** *Map:* Race analysis's Lap vs lap draws the track outline
   coloured by what your lap lost (red) or gained (green) on each stretch, from the comparison's running gap cut into 240 slices
   (`src/analysis/timeMap.js`, `/api/outline`). *Corner trends:* All races has a track picker; each session's best clean lap against

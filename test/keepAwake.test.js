@@ -74,7 +74,7 @@ test('awake: a browser without it says why and how to get it, instead of a switc
   const app = phone(t);
   app.$('settings').click();
   assert.match(app.doc ? app.doc.body.textContent : app.window.document.body.textContent, /secure page/i);
-  assert.match(app.window.document.querySelector('#awake-hint').textContent, /Voice questions on phones/);
+  assert.match(app.window.document.querySelector('#awake-hint').textContent, /QR code in Connect/);
   assert.strictEqual(app.window.document.querySelector('#awake-hint').hidden, false);
   const ok = phone(t, { wakeLock: lockApi() });
   assert.strictEqual(ok.window.document.querySelector('#awake-hint').hidden, true);

@@ -8,7 +8,7 @@ const { startUdpListener } = require('./udp/listener');
 const { createIntake } = require('./udp/intake');
 const { createOutlines } = require('./state/trackOutline');
 const { TRACKS } = require('./udp/gameIds');
-const { loadPairKey } = require('./server/pairKey');
+const { loadPairKey, newPairKey } = require('./server/pairKey');
 const { buildLibrary } = require('./analysis/setupLibrary');
 const { cornerTrends, cornerTracks } = require('./data/cornerTrends');
 const { startReplay } = require('./capture/replay');
@@ -376,6 +376,11 @@ function start({ dataDir = path.resolve(__dirname, '..', 'data'), onPortInUse = 
     invalidateHistory: pipeline.invalidateHistory,
     learns,
     setLearn,
+    // Forget paired phones: a new key, at once (a replay saves nothing, so it keeps none, but the next live start uses it).
+    unpair: () => {
+      const key = newPairKey(dataDir);
+      if (pairKey) server.setPairKey(key);
+    },
     stop,
   };
 }

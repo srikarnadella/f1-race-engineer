@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('undercut', {
   openReport: call('openReport'),
   openDataFolder: call('openDataFolder'),
   openInBrowser: call('openInBrowser'),
+  unpair: call('unpair'),
   speech: { start: call('speech:start'), stop: call('speech:stop') },
   llm: {
     status: call('llm:status'), models: call('llm:models'), catalog: call('llm:catalog'), ask: call('llm:ask'), stop: call('llm:stop'),

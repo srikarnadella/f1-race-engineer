@@ -83,8 +83,11 @@ test('settings: changes from the window are checked field by field; a bad file f
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, 'settings.json');
   assert.deepStrictEqual(loadSettings(file), DEFAULTS);
+  saveSettings(file, { ...DEFAULTS, share: false });
+  assert.strictEqual(loadSettings(file).share, false);
+  // "Voice questions on phones" is gone (sharing is always https now): an older file's switch is dropped.
   saveSettings(file, { ...DEFAULTS, phoneVoice: true });
-  assert.strictEqual(loadSettings(file).phoneVoice, true);
+  assert.ok(!('phoneVoice' in loadSettings(file)));
   fs.writeFileSync(file, '{oops');
   assert.deepStrictEqual(loadSettings(file), DEFAULTS);
 });

@@ -57,7 +57,7 @@ races answered by a small model on your own PC through [Ollama](https://ollama.c
 the evidence behind each answer, a summary of the race, your stops priced against the field's, tyre pace stint by stint, the laps that cost time and why, race pace across the field, the engineer's calls graded, and coaching (corners, lift and coast, brake bias and diff, battery),
 never while you race; **Storage** for saved sessions and recordings (replay, analyze, delete, disk use);
 and **Connect** (game setup, a QR code for phones and tablets, and a Record button). Voice questions work in the app window through Windows' own offline speech
-recognition, and on phones once *Voice questions on phones* is on. Everything stays on the PC, in
+recognition, and on phones that open the dashboard from Connect's QR code (sharing is served over https). Everything stays on the PC, in
 `%APPDATA%\Undercut\data`. `npm run app` runs it from the code. The installer isn't code-signed yet, so
 Windows SmartScreen asks first: *More info → Run anyway*. More in [docs/setup.md](docs/setup.md#the-windows-app).
 
